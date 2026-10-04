@@ -19,6 +19,6 @@ export interface WorldState {
 
 export const WALK_SPEED = 2;
 
-export function createWorld(terrain: Terrain): WorldState {
-  return { time: 0, beaver: { x: 0, y: terrain.heightAt(0, 0), z: 0, heading: 0 } };
+export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
+  return { time: 0, beaver: { x, y: terrain.heightAt(x, z), z, heading: 0 } };
 }

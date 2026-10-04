@@ -13,12 +13,17 @@ async function start(): Promise<void> {
   const store = await loadTileStore(base);
   const streamer = store ? new Streamer(store, httpFetchTile(base)) : null;
   const terrain = store ?? flatTerrain(0);
-  if (streamer) await streamer.ready(0, 0, 8000);
+  // Start on dry ground just north of the suggested lodge site on the south shore
+  // (design notes). The marker itself lies on the bog that the map counts as lake.
+  // Without tiles the flat plane starts at the origin.
+  const startX = store ? 63 : 0;
+  const startZ = store ? 1750 : 0;
+  if (streamer) await streamer.ready(startX, startZ, 8000);
 
   const readActions = createKeyboardInput(window);
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null);
 
-  let world = createWorld(terrain);
+  let world = createWorld(terrain, startX, startZ);
   let last = performance.now();
 
   function frame(now: number): void {

@@ -16,7 +16,19 @@ The workflow is:
 
 ## Setup
 
-TODO: setup and local-run instructions once the stack is chosen.
+You need Node 22 or newer.
+
+```bash
+npm ci                          # install
+npx playwright install chromium # once, for the browser tests
+npm run dev                     # dev server, open the printed URL
+npm run typecheck && npm test && npm run build && npm run test:e2e
+```
+
+The last line is what CI runs. Docs are linted with
+`npx markdownlint-cli '**/*.md' --ignore node_modules --ignore LICENSE`.
+The Python data tools and the tablet APK have their own steps in
+`CLAUDE.md` and `prototypes/tablet-test/README.md`.
 
 ## Conventions
 

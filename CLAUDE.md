@@ -16,13 +16,12 @@ next generation, forever. It is for the author and friends, on tablets. See
 
 ## Project status
 
-Design phase, with no game code yet. Rounds 1 and 2 of the author's questions
-are answered, round 3 (variety) is printed and awaits the author's answers, and
-the stack is chosen and confirmed on a tablet (ADR 0007, M0 done). The next
-milestone is the scaffold (M1), then a first playable of the core location on a
-tablet. Open GitHub issues are the
-live task tracker. A draft milestone plan is in
-`docs/design/13_milestone_plan.md`.
+Design phase, with a game scaffold (M1) and no gameplay yet. Rounds 1 and 2 of
+the author's questions are answered, round 3 (variety) is printed and awaits the
+author's answers, and the stack is chosen and confirmed on a tablet (ADR 0007,
+M0 done). The scaffold (M1) is in place, then comes a first playable of the core
+location on a tablet. Open GitHub issues are the live task tracker. A draft
+milestone plan is in `docs/design/13_milestone_plan.md`.
 
 ## Scope
 
@@ -42,12 +41,19 @@ Stylized 3D with a third person camera
 in chunks, core first ([ADR 0006](docs/decisions/0006-streamed-world-core-first.md)).
 Terrain is BEV 5 m ([ADR 0002](docs/decisions/0002-terrain-source.md)). Tooling
 is Python with GDAL, numpy, and Pillow. The camera demo in
-`prototypes/camera-demo/` is throwaway. Game code is not started yet.
+`prototypes/camera-demo/` is throwaway. Game code lives in `src/`.
 
 ## Commands
 
-No game commands yet. Everyday today (gate means CI blocks a merge on it):
+Everyday (gate means CI blocks a merge on it):
 
+- `npm ci` - install the game dependencies
+- `npm run dev` - Vite dev server, also on the WLAN for a tablet
+- `npm run typecheck` - TypeScript check (gate)
+- `npm test` - Vitest unit tests (gate)
+- `npm run build` - type check and production build into `dist/` (gate)
+- `npm run test:e2e` - Playwright browser smoke test (gate; first run
+  `npx playwright install chromium`)
 - `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore LICENSE` -
   lint docs (gate)
 - `python3 tools/area-editor/build_data.py` - download and cache terrain and
@@ -68,6 +74,10 @@ should match.
 - `data/areas/` - the play area shapes and travel links (tracked). `data/raw/`
   is downloaded data and untracked.
 - `tools/area-editor/` - browser editor for the play area and its data build.
+- `src/` - the game. `sim/` is state and rules (no DOM, no three.js, no
+  input), `actions/` is what the player wants as plain data plus the input
+  devices that produce it, `render/` draws sim state with three.js and never
+  changes it. `tests/e2e/` holds the Playwright tests.
 - `prototypes/` - throwaway demos, such as the camera demo. Not the game.
 - `scripts/` - helpers such as the question handout builder.
 

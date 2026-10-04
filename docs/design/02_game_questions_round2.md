@@ -1,32 +1,8 @@
-# Beaver game: questions
+# Beaver game: questions, round 2
 
-These questions help us fill in the parts of the game that the notes do not
-cover yet. There are no wrong answers. Write short answers under each
-question. If you are not sure, write "not sure" and we can come back to it.
-
-## The big idea
-
-- **Q1.** What is the goal of the game? How do you win?
-- **Q2.** Can you lose? What happens if you do?
-- **Q3.** How long should one game take? A few minutes, or a long time?
-- **Q4.** Is the game for one player, or can friends play together?
-
-## Being a baby beaver
-
-- **Q5.** What does the baby beaver do while it lives in the lodge?
-- **Q6.** What does mama beaver do for the baby? Does she feed it or keep it safe?
-- **Q7.** How many siblings can you have? Can you play with them?
-- **Q8.** How does the baby beaver know when it is time to leave the lodge?
-
-## Leaving the lodge
-
-- **Q9.** Which animals are the predators? (Wolves, bears, coyotes, owls, other
-  animals?)
-- **Q10.** How does the beaver stay safe from predators? Does it hide, swim away, or
-    slap its tail?
-- **Q11.** What does the beaver see when it first leaves the lodge? A river, a pond,
-    a forest?
-- **Q12.** Can the beaver get hurt? How do you get better?
+These questions fill in the details of the game. There are no wrong answers.
+Write short answers under each question. If you are not sure, write "not
+sure" and we can come back to it. Round 1 has the big questions.
 
 ## Your beaver
 
@@ -40,12 +16,6 @@ question. If you are not sure, write "not sure" and we can come back to it.
 - **Q17.** What happens if the beaver does not eat? Does it get weak or slow?
 - **Q18.** Where do the lily pads and cattails grow? Do they grow back?
 - **Q19.** Does the beaver eat inner bark from the same trees it chops?
-
-## The stuck beavers
-
-- **Q20.** What does "stuck beavers" mean? How did they get stuck?
-- **Q21.** How does the beaver find them?
-- **Q22.** What happens when you find them? Do they help you, or do you help them?
 
 ## Swimming and abilities
 

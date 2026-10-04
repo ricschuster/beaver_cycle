@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { WorldState } from '../sim/state';
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
+import { createBeaverModel } from './beaverModel';
 import type { ViewState } from './cameraRig';
 import { createTerrainView, type TerrainView } from './terrainView';
 
@@ -43,12 +44,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     scene.add(ground);
   }
 
-  // Placeholder beaver until the model pipeline exists (M3).
-  const beaver = new THREE.Mesh(
-    new THREE.BoxGeometry(0.6, 0.5, 1),
-    new THREE.MeshLambertMaterial({ color: 0x8b5a2b }),
-  );
-  beaver.position.y = 0.25;
+  const beaverModel = createBeaverModel();
+  const beaver = beaverModel.group;
   scene.add(beaver);
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, source ? 3600 : 500);
@@ -61,12 +58,22 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   window.addEventListener('resize', resize);
   resize();
 
+  let lastX = 0;
+  let lastZ = 0;
+  let pace = 0;
+
   return {
     terrain,
     canvas: gl.domElement,
     draw(world, view) {
       const b = world.beaver;
-      beaver.position.set(b.x, b.y + 0.25, b.z);
+      const moved = Math.hypot(b.x - lastX, b.z - lastZ);
+      lastX = b.x;
+      lastZ = b.z;
+      // Pace from the distance moved this frame, so the legs follow the sim, not the keys.
+      pace += ((moved > 0.001 && moved < 5 ? 1 : 0) - pace) * 0.2;
+      beaverModel.update(performance.now() / 1000, pace);
+      beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
       const reach = view.dist * Math.cos(view.pitch);
       const camX = b.x + Math.sin(view.yaw) * reach;

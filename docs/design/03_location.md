@@ -5,7 +5,7 @@ Status: draft, exploring. Nothing here is a final decision.
 ## The place
 
 The game is set in a real place: the area around the Almsee in the Almtal,
-Upper Austria (see https://en.wikipedia.org/wiki/Almsee). The setting is
+Upper Austria (see <https://en.wikipedia.org/wiki/Almsee>). The setting is
 the lake, the valley around it, and the mountains above it.
 
 ## Decisions so far
@@ -56,13 +56,17 @@ page before we ship anything. Each source needs attribution.
 
 | Source | Link | Licence | Notes |
 | --- | --- | --- | --- |
-| Austria DGM 10 m (geoland.at, via data.gv.at) | https://www.data.gv.at/katalog/dataset/d88a1246-9684-480b-a480-ff63286b35b7 | CC BY 4.0 | GeoTIFF in ZIP files, from airborne laser scan data. Projection EPSG:31287 (MGI Austria Lambert). Whole-country download, so we crop. |
-| Upper Austria DGM and other ALS products (Land OÖ) | https://data.ooe.gv.at | CC BY (the Land OÖ press page says 3.0; search results say 4.0, to be confirmed) | Finer terrain than 10 m. Resolution not confirmed. Clip tool guide: https://e-gov.ooe.gv.at/at.gv.ooe.dorisdaten/Anleitung_clipDGM.pdf |
-| Copernicus DEM GLO-30 | https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM | Free and open, free account for the Copernicus Data Space download | 30 m, global. Also on AWS (https://registry.opendata.aws/copernicus-dem/) and OpenTopography. Fallback only. |
-| CORINE Land Cover 2018 | https://land.copernicus.eu/en/products/corine-land-cover/clc2018 | Free for any purpose (Copernicus Land Monitoring Service terms) | 100 m raster or vector, 25 ha minimum mapping unit. Too coarse for a lake this small, so useful only for a rough forest and meadow split. |
-| OpenStreetMap | https://www.openstreetmap.org | ODbL 1.0 (not looked up this session, from general knowledge) | Lake outline, streams, wetland and forest polygons. Share-alike applies to derived databases, so check before building a data layer from it. |
-| Land OÖ lake profile, Almsee | https://www.land-oberoesterreich.gv.at/Mediendateien/Formulare/Dokumente%20UWD%20Abt_WW/Almsee-2021.pdf | Not stated | Facts only (see below). We would cite it, not copy it. |
-| Naturschauspiel, Almsee und Umgebung | https://naturschauspiel.at/schutzgebiet/almsee-und-umgebung/ | Not stated | Habitat and wildlife notes (see below). Cite only. |
+| Austria DGM 10 m (geoland.at, via data.gv.at) | <https://www.data.gv.at/katalog/dataset/d88a1246-9684-480b-a480-ff63286b35b7> | CC BY 4.0 | GeoTIFF in ZIP files, from airborne laser scan data. Projection EPSG:31287 (MGI Austria Lambert). Whole-country download, so we crop. |
+| Upper Austria DGM and other ALS products (Land OÖ) | <https://data.ooe.gv.at> | CC BY (the Land OÖ press page says 3.0; search results say 4.0, to be confirmed) | Finer terrain than 10 m. Resolution not confirmed. Clip tool guide: <https://e-gov.ooe.gv.at/at.gv.ooe.dorisdaten/Anleitung_clipDGM.pdf> |
+| Copernicus DEM GLO-30 | <https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM> | Free and open, free account for the Copernicus Data Space download | 30 m, global. Also on AWS (<https://registry.opendata.aws/copernicus-dem/>) and OpenTopography. Fallback only. |
+| CORINE Land Cover 2018 | <https://land.copernicus.eu/en/products/corine-land-cover/clc2018> | Free for any purpose (Copernicus Land Monitoring Service terms) | 100 m raster or vector, 25 ha minimum mapping unit. Too coarse for a lake this small, so useful only for a rough forest and meadow split. |
+| OpenStreetMap | <https://www.openstreetmap.org> | ODbL 1.0 (not looked up this session, from general knowledge) | Lake outline, streams, wetland and forest polygons. Share-alike applies to derived databases, so check before building a data layer from it. |
+| Land OÖ lake profile, Almsee | <https://www.land-oberoesterreich.gv.at/Mediendateien/Formulare/Dokumente%20UWD%20Abt_WW/Almsee-2021.pdf> | Not stated | Facts only (see below). We would cite it, not copy it. |
+| Naturschauspiel, Almsee und Umgebung | <https://naturschauspiel.at/schutzgebiet/almsee-und-umgebung/> | Not stated | Habitat and wildlife notes (see below). Cite only. |
+
+Update: the terrain source is now the BEV 5 m model, see
+`docs/decisions/0002-terrain-source.md`. The table above shows what was known
+when this note was first written.
 
 Not yet found: orthophoto terms for Upper Austria, tree species data, and
 a predator list for the Almtal. The Nationalpark Kalkalpen next door has

@@ -56,7 +56,7 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   toggle.setAttribute('aria-label', 'Test menu');
   const panel = document.createElement('div');
   panel.style.cssText =
-    'display:none;margin-top:6px;padding:8px;background:rgba(0,0,0,.65);border-radius:8px;text-align:left;min-width:190px';
+    'display:none;margin-top:6px;padding:8px;background:rgba(0,0,0,.65);border-radius:8px;text-align:left;min-width:190px;max-height:calc(100vh - 70px);overflow-y:auto';
 
   const style = (b: HTMLButtonElement): void => {
     b.style.cssText = 'min-width:44px;min-height:44px;margin:2px;padding:4px 8px;font:inherit;border-radius:6px;border:1px solid #888;background:#2b3a2b;color:#fff';

@@ -44,7 +44,8 @@ async function start(): Promise<void> {
   // A jump holds the beaver while the streamer loads the target, then moves it.
   // The frame loop is the only caller of streamer.update, so two focus points never fight.
   let jump: { x: number; z: number; deadline: number } | null = null;
-  const anchors = store?.index.anchors.filter((a) => a.kind === 'location') ?? [];
+  // Locations first, then the named markers (the lake, the bog, the inflows) as test jump points.
+  const anchors = store?.index.anchors ?? [];
   const menu = createTestMenu(document.body, {
     speeds: [1, 5, 20, 100],
     locations: anchors.map((a) => ({ id: a.id, name: a.name, enabled: a.inTiles })),
@@ -92,7 +93,7 @@ async function start(): Promise<void> {
         beaver: {
           x: world.beaver.x,
           z: world.beaver.z,
-          ground: world.beaver.y,
+          ground: terrain.heightAt(world.beaver.x, world.beaver.z),
           waterDepth: terrain.waterDepth(world.beaver.x, world.beaver.z),
         },
         tilesByLevel: stats?.tilesByLevel ?? null,

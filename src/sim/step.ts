@@ -1,6 +1,6 @@
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
-import { WALK_SPEED, type WorldState } from './state';
+import { SWIM_SPEED, WALK_SPEED, settle, type WorldState } from './state';
 
 /** Advance the world by dt seconds. Pure: returns a new state. */
 export function step(world: WorldState, actions: Actions, dt: number, terrain: Terrain): WorldState {
@@ -11,7 +11,7 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
     z /= len;
   }
   const b = world.beaver;
-  const speed = WALK_SPEED * world.speedMultiplier;
+  const speed = (b.mode === 'swim' ? SWIM_SPEED : WALK_SPEED) * world.speedMultiplier;
   const nx = b.x + x * speed * dt;
   const nz = b.z + z * speed * dt;
   return {
@@ -19,8 +19,8 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
     time: world.time + dt,
     beaver: {
       x: nx,
-      y: terrain.heightAt(nx, nz),
       z: nz,
+      ...settle(terrain, nx, nz, b.mode),
       heading: len > 0 ? Math.atan2(x, z) : b.heading,
     },
   };

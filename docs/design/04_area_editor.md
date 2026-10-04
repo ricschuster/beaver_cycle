@@ -40,9 +40,12 @@ The data covers the view area (13.895 to 14.025 E, 47.675 to 47.815 N) plus a
 - Terrain: BEV 5 m DGM (CC BY 4.0), read from an online COG and clipped. The
   choice is recorded in `docs/decisions/0002-terrain-source.md`. The relief
   image in the editor is drawn at 15 m per pixel to keep the page light.
-- Water: OpenStreetMap via Overpass (ODbL).
+- Water: OpenStreetMap via Overpass (ODbL). How OSM data may be used is in
+  `docs/decisions/0003-openstreetmap-data-use.md`.
 - Land cover: OpenStreetMap forest, wetland, scrub, meadow and rock polygons,
-  saved to `data/raw/landcover.geojson`. Not shown in the editor yet.
+  saved to `data/raw/landcover.geojson` and shown in the editor with the
+  "Land cover" checkbox (simplified to 20 m). Overlaps between classes are
+  merged within a class only, and the lake is not cut out of the forest class.
 - Overpass responses are cached in `data/raw/` by area. `data/raw/` and
   `tools/area-editor/generated/` are not tracked.
 

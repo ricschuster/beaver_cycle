@@ -41,6 +41,10 @@ when you have no drawing of your own ("Load repo areas" brings it back):
 
 ## Play area options
 
+**Locked in (2026-10-04):** all six options below together are the play area,
+14.7 km2. The reasoning is in `docs/decisions/0004-play-and-view-area.md`. The
+options stay switchable in the editor so a smaller area can still be tried.
+
 The play area is a set of options, each a shape with an `option` name, an
 `active` flag, and a `status` (draft or approved) in
 `data/areas/areas.geojson`. The side panel lists them under "Play area", and
@@ -51,12 +55,12 @@ shape alone. The on/off choice is saved with the file.
 
 | Option | Status | Area | What it is |
 | --- | --- | --- | --- |
-| Core | draft | 6.3 km2 | The suggested play area around the lake. |
+| Core | approved | 6.3 km2 | The suggested play area around the lake. |
 | North extension | approved | 1.6 km2 | Flat ground (slope under 7 degrees) on the Alm valley floor, cut at 47.797 N. The flat strip continues to the edge of the view area at 47.815 N. |
 | South extension | approved | 2.5 km2 | Flat valley floor south of the Aagbach delta, between 47.713 and 47.736 N. |
-| East extension to the Oedseen | draft | 2.2 km2 | Gentle ground along a 4.7 km route east from the core, plus the shores of both lakes. |
-| Vorderer Springbach valley | draft | 1.1 km2 | Side valley south of the east corridor, linked to it along the stream. |
-| Hinterer Springbach valley | draft | 0.8 km2 | The next side valley east, higher and steeper. |
+| East extension to the Oedseen | approved | 2.4 km2 | Gentle ground along a 4.7 km route east from the core, plus the shores of both lakes. |
+| Vorderer Springbach valley | approved | 1.1 km2 | Side valley south of the east corridor, linked to it along the stream. |
+| Hinterer Springbach valley | approved | 0.8 km2 | The next side valley east, higher and steeper. |
 
 The extensions come from a slope map of the 5 m terrain, smoothed to 15 m, and
 all sit inside the view area. Each sits flush against the others without
@@ -96,17 +100,31 @@ time would need a different measure.
 A draw of your own gets an option named from its label. Shapes that share a
 label are one option.
 
+## Locations and travel links
+
+Each option is also a named location with an `id` (`core`, `north`, `south`,
+`east-oedseen`, `vorderer-springbach`, `hinterer-springbach`) and a list of
+`neighbours` in `data/areas/areas.geojson`. The editor draws each location in
+its own colour with its name and area on the map, and lists them in the legend.
+A "Travel links" layer draws the easiest route between neighbouring locations
+as dashed lines. Hover a line for its length, time, and climb. A link shows
+only when both of its locations are switched on. The locations and links are
+described in `06_locations.md`. `tools/area-editor/travel_graph.py` rebuilds
+`data/areas/travel.json` and the ids from the shapes.
+
 ## Layers and legend
 
 The side panel has an on/off checkbox for every layer: relief, water, land
 cover (all of it, and each of forest, scrub, meadow, wetland and rock on its
-own), play area, view area, markers, and labels. A legend on the map lists
+own), play area, view area, travel links, markers, and labels. A legend on the map lists
 whatever is switched on. The relief opacity slider sits above the checkboxes.
 
 ## How to use
 
 1. Build the data once (needs GDAL Python bindings, numpy, Pillow, network):
-   `python3 tools/area-editor/build_data.py`
+   `python3 tools/area-editor/build_data.py`. After changing a play shape, run
+   `python3 tools/area-editor/travel_graph.py` and then build again, so the ids
+   and travel links follow the shapes.
 2. Open `tools/area-editor/index.html` in a browser.
 3. Draw with the toolbar on the map. Pick the layer in the side panel first.
 4. Download the GeoJSON and save it as `data/areas/areas.geojson` to share it.
@@ -114,7 +132,7 @@ whatever is switched on. The relief opacity slider sits above the checkboxes.
 
 ## Data
 
-The data covers the view area (13.895 to 14.025 E, 47.675 to 47.815 N) plus a
+The data covers the view area (13.895 to 14.06 E, 47.675 to 47.815 N) plus a
 3 km buffer, so the play area can grow.
 
 - Terrain: BEV 5 m DGM (CC BY 4.0), read from an online COG and clipped. The
@@ -130,7 +148,7 @@ The data covers the view area (13.895 to 14.025 E, 47.675 to 47.815 N) plus a
   `tools/area-editor/generated/` are not tracked.
 
 Land cover in the buffered area, from OpenStreetMap (km2, classes may overlap):
-forest 193, rock 68, meadow 12, scrub 23, wetland 0.2. The wetland figure is
+forest 224, rock 77, meadow 13, scrub 28, wetland 0.2. The wetland figure is
 very low, so the south shore bog is probably not mapped as wetland in OSM.
 
 ## Limits

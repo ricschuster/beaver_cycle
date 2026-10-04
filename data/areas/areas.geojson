@@ -5,11 +5,17 @@
    "type": "Feature",
    "properties": {
     "layer": "play",
-    "name": "Core play area (draft)",
-    "note": "Valley floor below 630 m connected to the lake, between 47.737 and 47.777 N, smoothed with a shore margin. About 6 km2 including the lake.",
-    "option": "Core (draft)",
+    "name": "Core",
+    "note": "Valley floor below 630 m that connects to the lake, between 47.737 and 47.777 N, smoothed with a shore margin. About 6 km2 including the lake.",
+    "option": "Core",
     "active": true,
-    "status": "draft"
+    "status": "approved",
+    "id": "core",
+    "neighbours": [
+     "east-oedseen",
+     "north",
+     "south"
+    ]
    },
    "geometry": {
     "type": "Polygon",
@@ -195,8 +201,9 @@
    "type": "Feature",
    "properties": {
     "layer": "view",
-    "name": "View area (suggested)",
-    "note": "Rough backdrop box: the valley walls and the northern edge of the Totes Gebirge."
+    "name": "View area",
+    "note": "Backdrop box: 13.895 to 14.06 E, 47.675 to 47.815 N. About 2.5 km of margin west and east of the play area, so the valley walls and the edge of the Totes Gebirge show.",
+    "status": "approved"
    },
    "geometry": {
     "type": "Polygon",
@@ -207,11 +214,11 @@
        47.675
       ],
       [
-       14.025,
+       14.06,
        47.675
       ],
       [
-       14.025,
+       14.06,
        47.815
       ],
       [
@@ -339,7 +346,11 @@
     "option": "North extension",
     "active": true,
     "note": "Flat ground (slope under 7 degrees) on the Alm valley floor north of the core, cut at 47.797 N. The flat strip continues to the edge of the view area at 47.815 N.",
-    "status": "approved"
+    "status": "approved",
+    "id": "north",
+    "neighbours": [
+     "core"
+    ]
    },
    "geometry": {
     "type": "Polygon",
@@ -493,7 +504,11 @@
     "option": "South extension",
     "active": true,
     "note": "Flat valley floor (slope under 7 degrees) south of the Aagbach delta, between 47.713 and 47.736 N.",
-    "status": "approved"
+    "status": "approved",
+    "id": "south",
+    "neighbours": [
+     "core"
+    ]
    },
    "geometry": {
     "type": "Polygon",
@@ -775,11 +790,17 @@
    "type": "Feature",
    "properties": {
     "layer": "play",
-    "name": "East extension to the Oedseen (draft)",
-    "option": "East extension to the Oedseen (draft)",
+    "name": "East extension to the Oedseen",
+    "option": "East extension to the Oedseen",
     "active": true,
-    "status": "draft",
-    "note": "Gentle ground (slope under 10 degrees) within 450 m of a 4.7 km route from the core east along the Straneggbach valley, plus the shores of the Grosser and Kleiner Oedsee (slope under 15 degrees within 500 m). The route climbs from about 600 m to about 700 m at an average grade under 3 percent."
+    "status": "approved",
+    "note": "Gentle ground (slope under 10 degrees) within 450 m of a 4.7 km route from the core east along the Straneggbach valley, plus the shores of the Grosser and Kleiner Oedsee (slope under 15 degrees within 500 m). The route climbs from about 600 m to about 700 m at an average grade under 3 percent.",
+    "id": "east-oedseen",
+    "neighbours": [
+     "core",
+     "hinterer-springbach",
+     "vorderer-springbach"
+    ]
    },
    "geometry": {
     "type": "Polygon",
@@ -1125,11 +1146,16 @@
    "type": "Feature",
    "properties": {
     "layer": "play",
-    "name": "Vorderer Springbach valley (draft)",
-    "option": "Vorderer Springbach valley (draft)",
+    "name": "Vorderer Springbach valley",
+    "option": "Vorderer Springbach valley",
     "active": true,
-    "status": "draft",
-    "note": "Side valley south of the east corridor, gentle ground (slope under 10 degrees) within 260 m of the stream, linked to the corridor along the stream."
+    "status": "approved",
+    "note": "Side valley south of the east corridor, gentle ground (slope under 10 degrees) within 260 m of the stream, linked to the corridor along the stream.",
+    "id": "vorderer-springbach",
+    "neighbours": [
+     "east-oedseen",
+     "hinterer-springbach"
+    ]
    },
    "geometry": {
     "type": "Polygon",
@@ -1383,11 +1409,16 @@
    "type": "Feature",
    "properties": {
     "layer": "play",
-    "name": "Hinterer Springbach valley (draft)",
-    "option": "Hinterer Springbach valley (draft)",
+    "name": "Hinterer Springbach valley",
+    "option": "Hinterer Springbach valley",
     "active": true,
-    "status": "draft",
-    "note": "Next side valley east of the Vorderer Springbach, same rule, higher and steeper."
+    "status": "approved",
+    "note": "Next side valley east of the Vorderer Springbach, same rule, higher and steeper.",
+    "id": "hinterer-springbach",
+    "neighbours": [
+     "east-oedseen",
+     "vorderer-springbach"
+    ]
    },
    "geometry": {
     "type": "Polygon",

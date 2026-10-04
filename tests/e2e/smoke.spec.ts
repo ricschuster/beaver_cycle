@@ -23,3 +23,22 @@ test('tiles stream in when they have been built', async ({ page }) => {
   }
   expect(errors).toEqual([]);
 });
+
+test('the test menu sets the speed and jumps to a location', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+  const hasTiles = await page.evaluate(() => (window as any).__game.stats() !== null);
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator('button[data-speed="100"]').click();
+  expect(await page.evaluate(() => (window as any).__game.world().speedMultiplier)).toBe(100);
+  // Locations exist only with tiles (absent in CI).
+  if (hasTiles) {
+    await expect(page.locator('button[data-location="east-oedseen"]')).toBeDisabled();
+    await page.locator('button[data-location="north"]').click();
+    await page.waitForFunction(() => (window as any).__game.world().beaver.z < -1900, null, { polling: 100 });
+    expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(500);
+  }
+  expect(errors).toEqual([]);
+});

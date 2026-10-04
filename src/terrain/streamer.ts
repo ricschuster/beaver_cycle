@@ -1,7 +1,9 @@
-import { decodeTile, type DecodedTile } from './format';
+import { decodeTile, type DecodedTile, type TileWater } from './format';
 import { tileKey, type TileStore } from './store';
 
 export type FetchTile = (level: number, tx: number, tz: number) => Promise<DecodedTile>;
+
+export type FetchWater = (tx: number, tz: number) => Promise<TileWater>;
 
 export interface StreamerOptions {
   /** Outer radius in metres of level 0 and level 1. Level 2 is everything beyond. */
@@ -61,6 +63,7 @@ export class Streamer {
     private readonly store: TileStore,
     private readonly fetchTile: FetchTile,
     private readonly options: StreamerOptions = defaultStreamerOptions,
+    private readonly fetchWater?: FetchWater,
   ) {}
 
   desiredLevel(tx: number, tz: number): number {
@@ -83,6 +86,7 @@ export class Streamer {
         if (!this.store.has(t.tx, t.tz, l)) wanted.push({ tx: t.tx, tz: t.tz, level: l, dist });
       }
       this.evict(t.tx, t.tz, level);
+      if (t.water && level < COARSEST && !this.store.waterOf(t.tx, t.tz)) this.startWater(t.tx, t.tz);
     }
     // nearest first, and the coarse ground of a tile before its fine level
     wanted.sort((a, b) => a.dist - b.dist || b.level - a.level);
@@ -98,6 +102,19 @@ export class Streamer {
       // a finer level is no longer wanted; a coarser one stays until the wanted one arrives
       if (l < desired || this.store.has(tx, tz, desired)) this.store.drop(tx, tz, l);
     }
+  }
+
+  private startWater(tx: number, tz: number): void {
+    const id = `water:${tileKey(tx, tz)}`;
+    if (!this.fetchWater || this.inFlight.has(id) || this.failed.has(id)) return;
+    this.inFlight.add(id);
+    this.fetchWater(tx, tz)
+      .then((water) => this.store.putWater(tx, tz, water))
+      .catch((e: unknown) => {
+        this.failed.add(id);
+        console.warn(`${id} failed`, e);
+      })
+      .finally(() => this.inFlight.delete(id));
   }
 
   private start(tx: number, tz: number, level: number): void {
@@ -134,5 +151,14 @@ export function httpFetchTile(base: string): FetchTile {
     const res = await fetch(`${base}L${level}/${tx}_${tz}.bin`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return decodeTile(tx, tz, await res.arrayBuffer());
+  };
+}
+
+/** Fetches the lake and stream file of a tile from a base url. */
+export function httpFetchWater(base: string): FetchWater {
+  return async (tx, tz) => {
+    const res = await fetch(`${base}water/${tx}_${tz}.json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()) as TileWater;
   };
 }

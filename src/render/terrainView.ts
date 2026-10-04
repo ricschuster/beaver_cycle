@@ -1,7 +1,8 @@
 // Draws the loaded tiles. Reads the tile store and the streamer's wishes, never
 // changes them. One mesh per tile, rebuilt when the level it shows changes.
 import * as THREE from 'three';
-import type { DecodedTile } from '../terrain/format';
+import { CLASS_LAKE, type DecodedTile, type TileWater } from '../terrain/format';
+import { placeTrees, TREE_FLOATS } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
 
@@ -96,10 +97,125 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
   return geo;
 }
 
+/** Flat quads at the lake level over the lake cells of a tile, or null when it has none. */
+export function buildLakeGeometry(tile: DecodedTile, size: number, level: number): THREE.BufferGeometry | null {
+  const { n, classes } = tile;
+  const cell = size / n;
+  const pos: number[] = [];
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      if (classes[j * n + i] !== CLASS_LAKE) continue;
+      const x = tile.tx * size + i * cell;
+      const z = tile.tz * size + j * cell;
+      pos.push(x, level, z, x, level, z + cell, x + cell, level, z, x + cell, level, z, x, level, z + cell, x + cell, level, z + cell);
+    }
+  }
+  if (pos.length === 0) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(pos), 3));
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+const STREAM_HALF_WIDTH = 1.25;
+const STREAM_STEP = 5;
+const STREAM_LIFT = 0.3;
+
+/** Ribbons draped on the ground along the stream lines of a tile, or null when it has none. */
+export function buildStreamGeometry(
+  water: TileWater,
+  heightAt: (x: number, z: number) => number,
+): THREE.BufferGeometry | null {
+  const pos: number[] = [];
+  const index: number[] = [];
+  for (const s of water.streams) {
+    // resample the line every few metres so the ribbon follows the ground
+    const pts: [number, number][] = [];
+    for (let k = 0; k + 1 < s.pts.length; k++) {
+      const [ax, az] = s.pts[k]!;
+      const [bx, bz] = s.pts[k + 1]!;
+      const parts = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / STREAM_STEP));
+      for (let p = 0; p < parts; p++) pts.push([ax + ((bx - ax) * p) / parts, az + ((bz - az) * p) / parts]);
+    }
+    if (s.pts.length < 2) continue;
+    pts.push(s.pts[s.pts.length - 1]!);
+    const base = pos.length / 3;
+    for (let k = 0; k < pts.length; k++) {
+      const [x, z] = pts[k]!;
+      const [px, pz] = pts[Math.max(k - 1, 0)]!;
+      const [qx, qz] = pts[Math.min(k + 1, pts.length - 1)]!;
+      const len = Math.hypot(qx - px, qz - pz) || 1;
+      const nx = (-(qz - pz) / len) * STREAM_HALF_WIDTH;
+      const nz = ((qx - px) / len) * STREAM_HALF_WIDTH;
+      for (const side of [-1, 1]) {
+        const wx = x + nx * side;
+        const wz = z + nz * side;
+        pos.push(wx, heightAt(wx, wz) + STREAM_LIFT, wz);
+      }
+    }
+    for (let k = 0; k + 1 < pts.length; k++) {
+      const a = base + k * 2;
+      index.push(a, a + 2, a + 1, a + 1, a + 2, a + 3, a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  }
+  if (pos.length === 0) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(pos), 3));
+  geo.setIndex(index);
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+// Trees are shared geometry, one per level, never disposed. Level 2 has none.
+const TREE_GEOMETRY = [
+  new THREE.ConeGeometry(1.8, 9, 6, 1, true).translate(0, 4, 0),
+  new THREE.ConeGeometry(2.4, 10, 4, 1, true).translate(0, 4.5, 0),
+];
+
+function buildTrees(tile: DecodedTile, size: number, material: THREE.Material): THREE.InstancedMesh | null {
+  const geometry = TREE_GEOMETRY[tile.level];
+  const trees = geometry ? placeTrees(tile, size) : new Float32Array(0);
+  if (!geometry || trees.length === 0) return null;
+  const count = trees.length / TREE_FLOATS;
+  const mesh = new THREE.InstancedMesh(geometry, material, count);
+  const m = new THREE.Matrix4();
+  for (let k = 0; k < count; k++) {
+    const o = k * TREE_FLOATS;
+    const s = trees[o + 3]!;
+    m.makeScale(s, s, s).setPosition(trees[o]!, trees[o + 1]!, trees[o + 2]!);
+    mesh.setMatrixAt(k, m);
+  }
+  mesh.computeBoundingSphere();
+  return mesh;
+}
+
+/** Triangles a mesh draws, counting every instance. */
+function trianglesOf(mesh: THREE.Mesh): number {
+  const per = (mesh.geometry.index?.count ?? mesh.geometry.getAttribute('position').count) / 3;
+  return per * (mesh instanceof THREE.InstancedMesh ? mesh.count : 1);
+}
+
 export interface TerrainStats {
   meshes: number;
   triangles: number;
+  trees: number;
   tilesByLevel: number[];
+}
+
+/** Marks a mesh whose geometry belongs to its tile, so it is freed with the tile. */
+function own<T extends THREE.Mesh>(mesh: T): T {
+  mesh.userData.owned = true;
+  return mesh;
+}
+
+function disposeGroup(scene: THREE.Scene, group: THREE.Group): void {
+  scene.remove(group);
+  for (const child of group.children as THREE.Mesh[]) {
+    if (child.userData.owned) child.geometry.dispose();
+    if (child instanceof THREE.InstancedMesh) child.dispose();
+  }
 }
 
 export interface TerrainView {
@@ -109,7 +225,17 @@ export interface TerrainView {
 
 export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer: Streamer): TerrainView {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
-  const meshes = new Map<string, { mesh: THREE.Mesh; level: number }>();
+  const lakeMaterial = new THREE.MeshLambertMaterial({
+    color: 0x3b8fb0,
+    transparent: true,
+    opacity: 0.85,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+  const streamMaterial = new THREE.MeshLambertMaterial({ color: 0x3b8fb0, side: THREE.DoubleSide });
+  const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x2f5a2f });
+  const meshes = new Map<string, { group: THREE.Group; level: number; streams: boolean }>();
   const size = store.size;
 
   return {
@@ -117,7 +243,10 @@ export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer
       const todo: { tx: number; tz: number; level: number; dist: number }[] = [];
       for (const t of store.index.tiles) {
         const level = shownLevel(streamer.desiredLevel(t.tx, t.tz), (l) => store.has(t.tx, t.tz, l));
-        if (level === undefined || meshes.get(tileKey(t.tx, t.tz))?.level === level) continue;
+        if (level === undefined) continue;
+        const shown = meshes.get(tileKey(t.tx, t.tz));
+        const wantsStreams = level < 2 && store.waterOf(t.tx, t.tz) !== undefined;
+        if (shown && shown.level === level && shown.streams === wantsStreams) continue;
         todo.push({ tx: t.tx, tz: t.tz, level, dist: distToTile(x, z, t.tx, t.tz, size) });
       }
       todo.sort((a, b) => a.dist - b.dist);
@@ -126,20 +255,32 @@ export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer
         const tile = store.get(job.tx, job.tz, job.level)!;
         const key = tileKey(job.tx, job.tz);
         const old = meshes.get(key);
-        if (old) {
-          scene.remove(old.mesh);
-          old.mesh.geometry.dispose();
-        }
-        const mesh = new THREE.Mesh(buildTileGeometry(tile, size), material);
-        scene.add(mesh);
-        meshes.set(key, { mesh, level: job.level });
+        if (old) disposeGroup(scene, old.group);
+        const group = new THREE.Group();
+        group.add(own(new THREE.Mesh(buildTileGeometry(tile, size), material)));
+        const lakeLevel = store.tileInfo(job.tx, job.tz)?.lakeLevel_m;
+        const lake = lakeLevel == null || job.level > 1 ? null : buildLakeGeometry(tile, size, lakeLevel);
+        if (lake) group.add(own(new THREE.Mesh(lake, lakeMaterial)));
+        const water = store.waterOf(job.tx, job.tz);
+        const streams = job.level < 2 && water ? buildStreamGeometry(water, (x, z) => store.heightAt(x, z)) : null;
+        if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
+        const trees = buildTrees(tile, size, treeMaterial);
+        if (trees) group.add(trees);
+        scene.add(group);
+        meshes.set(key, { group, level: job.level, streams: job.level < 2 && water !== undefined });
         if (performance.now() - start > BUILD_BUDGET_MS) break;
       }
     },
     stats() {
       let triangles = 0;
-      for (const { mesh } of meshes.values()) triangles += (mesh.geometry.index?.count ?? 0) / 3;
-      return { meshes: meshes.size, triangles, tilesByLevel: store.countByLevel() };
+      let trees = 0;
+      for (const { group } of meshes.values()) {
+        for (const child of group.children as THREE.Mesh[]) {
+          triangles += trianglesOf(child);
+          if (child instanceof THREE.InstancedMesh) trees += child.count;
+        }
+      }
+      return { meshes: meshes.size, triangles, trees, tilesByLevel: store.countByLevel() };
     },
   };
 }

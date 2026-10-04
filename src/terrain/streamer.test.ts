@@ -106,6 +106,18 @@ describe('Streamer', () => {
     expect(store.has(4, 0, 0)).toBe(true);
   });
 
+  it('is settled once the tiles near a point have their wanted level, whatever is far away', async () => {
+    const { streamer, flush } = setup();
+    streamer.update(160, 160);
+    expect(streamer.settled(160, 160)).toBe(false);
+    for (let i = 0; i < 3; i++) {
+      streamer.update(160, 160);
+      await flush();
+    }
+    expect(streamer.settled(160, 160)).toBe(true);
+    expect(streamer.settled(4 * 320 + 160, 160)).toBe(false); // the far end is still coarse
+  });
+
   it('does not retry a tile that failed', async () => {
     const store = new TileStore(makeIndex([0, 0], [0, 0]));
     let calls = 0;

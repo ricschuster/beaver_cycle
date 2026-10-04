@@ -42,3 +42,27 @@ test('the test menu sets the speed and jumps to a location', async ({ page }) =>
   }
   expect(errors).toEqual([]);
 });
+
+test('dragging turns the camera and forward still walks away from it', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+  const before = await page.evaluate(() => (window as any).__game.view().yaw);
+  await page.mouse.move(400, 300);
+  await page.mouse.down();
+  await page.mouse.move(520, 300, { steps: 5 });
+  await page.mouse.up();
+  const after = await page.evaluate(() => (window as any).__game.view().yaw);
+  expect(Math.abs(after - before)).toBeGreaterThan(0.3);
+  const start = await page.evaluate(() => ({ ...(window as any).__game.world().beaver }));
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(500);
+  await page.keyboard.up('KeyW');
+  const end = await page.evaluate(() => ({ ...(window as any).__game.world().beaver }));
+  const v = await page.evaluate(() => (window as any).__game.view().yaw);
+  // forward points away from the camera: opposite to (sin yaw, cos yaw)
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const len = Math.hypot(dx, dz);
+  expect(len).toBeGreaterThan(0.2);
+  expect(Math.sin(v) * (dx / len) + Math.cos(v) * (dz / len)).toBeLessThan(-0.9);
+});

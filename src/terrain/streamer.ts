@@ -130,6 +130,19 @@ export class Streamer {
       .finally(() => this.inFlight.delete(id));
   }
 
+  /**
+   * True once every tile within the level 0 ring of a point has its wanted level.
+   * The far horizon may still be loading. Call update first.
+   */
+  settled(x: number, z: number): boolean {
+    const size = this.store.size;
+    for (const t of this.store.index.tiles) {
+      if (distToTile(x, z, t.tx, t.tz, size) >= this.options.rings[0]) continue;
+      if (!this.store.has(t.tx, t.tz, this.desiredLevel(t.tx, t.tz))) return false;
+    }
+    return true;
+  }
+
   /** Resolves once the tile under a point is loaded at its wanted level, or after a timeout. */
   async ready(x: number, z: number, timeoutMs: number): Promise<boolean> {
     const size = this.store.size;

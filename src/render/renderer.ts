@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { WorldState } from '../sim/state';
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
+import type { ViewState } from './cameraRig';
 import { createTerrainView, type TerrainView } from './terrainView';
 
 /** Tiles to draw, when they exist. Without them the game shows a flat plane. */
@@ -12,8 +13,10 @@ export interface TerrainSource {
 }
 
 export interface Renderer {
-  draw(world: WorldState): void;
+  draw(world: WorldState, view: ViewState): void;
   terrain: TerrainView | null;
+  /** The element that takes drag and zoom input. */
+  canvas: HTMLCanvasElement;
 }
 
 export function createRenderer(parent: HTMLElement, source: TerrainSource | null): Renderer {
@@ -60,15 +63,19 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
 
   return {
     terrain,
-    draw(world) {
+    canvas: gl.domElement,
+    draw(world, view) {
       const b = world.beaver;
       beaver.position.set(b.x, b.y + 0.25, b.z);
       beaver.rotation.y = b.heading;
-      const camZ = b.z - 10;
-      // Keep the camera above rising ground behind the beaver.
-      const camY = Math.max(b.y + 3.5, (source ? source.store.heightAt(b.x, camZ) : 0) + 2);
-      camera.position.set(b.x, camY, camZ);
-      camera.lookAt(b.x, b.y + 1.5, b.z + 12); // look ahead so the horizon shows
+      const reach = view.dist * Math.cos(view.pitch);
+      const camX = b.x + Math.sin(view.yaw) * reach;
+      const camZ = b.z + Math.cos(view.yaw) * reach;
+      // Keep the camera above the ground it swings over.
+      const ground = source ? source.store.heightAt(camX, camZ) : 0;
+      const camY = Math.max(b.y + 1.2 + Math.sin(view.pitch) * view.dist, ground + 1);
+      camera.position.set(camX, camY, camZ);
+      camera.lookAt(b.x, b.y + 1.2, b.z);
       terrain?.update(b.x, b.z);
       gl.render(scene, camera);
     },

@@ -29,6 +29,8 @@ export interface TestMenu {
   /** Update the readout text. Cheap enough to call a few times a second. */
   setReadout(r: MenuReadout): void;
   setSpeed(multiplier: number): void;
+  /** A short note under the readout, such as "Loading..." during a jump. */
+  setStatus(text: string): void;
   toggle(): void;
 }
 
@@ -97,6 +99,8 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   const readout = document.createElement('pre');
   readout.style.cssText = 'margin:8px 0 0;font:12px ui-monospace,monospace;white-space:pre';
   panel.appendChild(readout);
+  const status = document.createElement('div');
+  panel.appendChild(status);
 
   const flip = (): void => {
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -115,6 +119,9 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     },
     setSpeed(multiplier) {
       for (const [m, b] of speedButtons) b.style.background = m === multiplier ? '#4f8a4f' : '#2b3a2b';
+    },
+    setStatus(text) {
+      status.textContent = text;
     },
     toggle: flip,
   };

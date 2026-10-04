@@ -49,6 +49,13 @@ SCALE = 0.05  # metres per stored height step
 MARGIN = 640.0  # metres of tiles kept around the core shape
 LAKE_BED_SLOPE = 0.12  # metres of depth per metre from the shore
 LAKE_BED_MAX = 14.0
+LAKE_BED_OFFSET = 0.5  # metres the bed sits below the lake level at the shore
+# The south end is a shallow bog (03_location.md): water under 50 cm. The bed is
+# made shallow by two weights, the larger wins. One ramps up along the lake
+# toward the south (z grows southward), the other follows OSM wetland cells.
+BOG_RAMP_Z = (1100.0, 1700.0)  # z in metres where the south ramp starts and is full
+BOG_WETLAND_REACH = 60.0  # metres from a wetland cell over which the shallows fade out
+BOG_BED_OFFSET = 0.3  # metres below the lake level in full shallows
 CLASSES = {"ground": 0, "meadow": 1, "forest": 2, "scrub": 3, "rock": 4, "wetland": 5, "lake": 9}
 PAINT_ORDER = ("meadow", "scrub", "forest", "wetland", "rock")  # later wins, as in the camera demo
 OUT = ROOT / "public" / "tiles"
@@ -189,9 +196,27 @@ def shore_distance(mask):
     return dst.GetRasterBand(1).ReadAsArray().astype(np.float64)
 
 
-def make_lake_bed(g, h, lakes):
+def shallow_weight(g, wetland):
+    """0 in open water, 1 in the bog. Combines the south ramp and nearness to wetland.
+
+    `wetland` is the class mask per cell. Returns a weight per vertex.
+    """
+    z = g.z0 + np.arange(g.ncz + 1) * CELL
+    z0, z1 = BOG_RAMP_Z
+    south = np.clip((z - z0) / (z1 - z0), 0.0, 1.0)[:, None] * np.ones(g.ncx + 1)
+    if not wetland.any():
+        return south
+    vert = np.pad(wetland, ((0, 1), (0, 1)))
+    vert[1:, :] |= vert[:-1, :]
+    vert[:, 1:] |= vert[:, :-1]
+    near = np.clip(1.0 - shore_distance(~vert) * CELL / BOG_WETLAND_REACH, 0.0, 1.0)
+    return np.maximum(south, near)
+
+
+def make_lake_bed(g, h, lakes, wetland):
     """Lower the lake floor below a flat level. BEV has a flat lake, the game's is deeper.
 
+    The bed is deep in open water and shallow in the south bog (see `shallow_weight`).
     Returns the new heights, the class 9 cell mask, and the lake list with levels.
     """
     vert = np.zeros(h.shape, dtype=bool)
@@ -206,8 +231,10 @@ def make_lake_bed(g, h, lakes):
         vert |= m
         found.append({"name": name, "level_m": round(lv, 2)})
     dist = shore_distance(vert)
-    depth = np.minimum(dist * CELL * LAKE_BED_SLOPE, LAKE_BED_MAX)
-    h = np.where(vert, level - 0.5 - depth, h)
+    w = shallow_weight(g, wetland)
+    depth = np.minimum(dist * CELL * LAKE_BED_SLOPE, LAKE_BED_MAX) * (1.0 - w)
+    offset = LAKE_BED_OFFSET + (BOG_BED_OFFSET - LAKE_BED_OFFSET) * w
+    h = np.where(vert, level - offset - depth, h)
     cell = g.raster([r for r, _ in lakes], vertices=False)
     return h, cell, vert, level, found
 
@@ -282,8 +309,9 @@ def build(out=OUT):
     g = core_extent()
     h = read_heights(g)
     lakes, streams = read_water()
-    h, lake_cells, lake_vert, lake_level, lake_list = make_lake_bed(g, h, lakes)
     code = read_landcover(g)
+    h, lake_cells, lake_vert, lake_level, lake_list = make_lake_bed(
+        g, h, lakes, code == CLASSES["wetland"])
     code[lake_cells] = CLASSES["lake"]
     q = np.rint(h / SCALE).astype(np.int64)
 

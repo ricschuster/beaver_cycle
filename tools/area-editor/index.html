@@ -22,6 +22,10 @@
   table { width:100%; border-collapse:collapse; }
   td { padding:2px 0; } td+td { text-align:right; font-variant-numeric:tabular-nums; }
   .note { font-size:12px; opacity:.75; }
+  .hide-labels .marker-label { display:none; }
+  .sub { margin-left:18px; }
+  .legend { background:rgba(255,255,255,.92); color:#1d2521; padding:6px 10px; border-radius:6px; font-size:12px; line-height:1.6; box-shadow:0 1px 4px rgba(0,0,0,.3); }
+  .legend b { display:block; margin-bottom:2px; }
   @media (max-width:700px) { body { flex-direction:column; } #side { width:auto; max-height:45vh; } }
 </style>
 </head>
@@ -35,9 +39,22 @@
   <label><input type="radio" name="layer" value="view"><span class="sw" style="background:var(--view)"></span>View area (backdrop)</label>
   <label><input type="radio" name="layer" value="marker"><span class="sw" style="background:#222"></span>Markers (start, dam site, ...)</label>
 
-  <h2>Map</h2>
+  <h2>Layers</h2>
   <label>Relief opacity <input id="opacity" type="range" min="0" max="1" step="0.05" value="1"></label>
-  <label><input id="showWater" type="checkbox" checked> Water (OpenStreetMap)</label>
+  <label><input type="checkbox" data-layer="relief" checked><span class="sw" style="background:linear-gradient(90deg,#567848,#b8b2a8,#f0f0f0)"></span>Relief (BEV terrain)</label>
+  <label><input type="checkbox" data-layer="water" checked><span class="sw" style="background:#4aa3df"></span>Water (OpenStreetMap)</label>
+  <label><input type="checkbox" data-layer="landcover" checked><strong>Land cover (OpenStreetMap)</strong></label>
+  <div class="sub">
+    <label><input type="checkbox" data-layer="lc-forest" checked><span class="sw" style="background:#2f6b3a"></span>Forest</label>
+    <label><input type="checkbox" data-layer="lc-scrub" checked><span class="sw" style="background:#8a9a3c"></span>Scrub</label>
+    <label><input type="checkbox" data-layer="lc-meadow" checked><span class="sw" style="background:#c9d98a"></span>Meadow</label>
+    <label><input type="checkbox" data-layer="lc-wetland" checked><span class="sw" style="background:#2aa6a0"></span>Wetland</label>
+    <label><input type="checkbox" data-layer="lc-rock" checked><span class="sw" style="background:#a9a39a"></span>Rock and scree</label>
+  </div>
+  <label><input type="checkbox" data-layer="play" checked><span class="sw" style="background:var(--play)"></span>Play area</label>
+  <label><input type="checkbox" data-layer="view" checked><span class="sw" style="background:var(--view)"></span>View area</label>
+  <label><input type="checkbox" data-layer="marker" checked><span class="sw" style="background:#222"></span>Markers</label>
+  <label><input type="checkbox" data-layer="labels" checked>Labels</label>
 
   <h2>Crossing time</h2>
   <label>Beaver speed <input id="speed" type="number" min="0.1" step="0.1" value="2"> m/s</label>
@@ -57,6 +74,7 @@
   <h2>File</h2>
   <button id="download">Download GeoJSON</button>
   <button id="loadBtn">Load GeoJSON</button>
+  <button id="loadRepo">Load repo areas</button>
   <input id="loadFile" type="file" accept=".geojson,.json" hidden>
   <p class="note">Your drawing is also kept in this browser. To share it, download the file and save it as <code>data/areas/areas.geojson</code>.</p>
 
@@ -91,16 +109,49 @@
   }).addTo(map);
 
   var LC = { forest: '#2f6b3a', scrub: '#8a9a3c', meadow: '#c9d98a', wetland: '#2aa6a0', rock: '#a9a39a' };
-  var landcover = L.geoJSON(D.landcover || { type: 'FeatureCollection', features: [] }, {
-    style: function (f) { return { color: LC[f.properties['class']], weight: 0, fillColor: LC[f.properties['class']], fillOpacity: 0.45 }; },
-    interactive: false
+  var LC_NAMES = { forest: 'Forest', scrub: 'Scrub', meadow: 'Meadow', wetland: 'Wetland', rock: 'Rock and scree' };
+  var lcLayers = {};
+  ((D.landcover && D.landcover.features) || []).forEach(function (f) {
+    var cls = f.properties['class'];
+    lcLayers[cls] = L.geoJSON(f, {
+      style: { color: LC[cls], weight: 0, fillColor: LC[cls], fillOpacity: 0.45 },
+      interactive: false
+    });
   });
-
-  landcover.addTo(map);
-  landcover.bringToBack(); // under the water lines
 
   var drawn = new L.FeatureGroup().addTo(map);
   function activeLayer() { return document.querySelector('input[name=layer]:checked').value; }
+
+  var visible = { relief: true, water: true, landcover: true, play: true, view: true, marker: true, labels: true };
+  Object.keys(LC).forEach(function (c) { visible['lc-' + c] = true; });
+
+  function applyVisibility() {
+    function show(layer, on) { if (on && !map.hasLayer(layer)) layer.addTo(map); if (!on && map.hasLayer(layer)) map.removeLayer(layer); }
+    show(relief, visible.relief);
+    show(water, visible.water);
+    Object.keys(lcLayers).forEach(function (c) { show(lcLayers[c], visible.landcover && visible['lc-' + c]); });
+    Object.keys(lcLayers).forEach(function (c) { lcLayers[c].bringToBack(); });   // under the water lines
+    drawn.eachLayer(function (l) {
+      var kind = l.feature && l.feature.properties.layer, el = l.getElement && l.getElement();
+      if (el) el.style.display = visible[kind] ? '' : 'none';
+    });
+    map.getContainer().classList.toggle('hide-labels', !visible.labels);
+    legend.update();
+  }
+
+  var legend = L.control({ position: 'bottomright' });
+  legend.onAdd = function () { this._div = L.DomUtil.create('div', 'legend'); this.update(); return this._div; };
+  legend.update = function () {
+    if (!this._div) return;
+    var rows = [];
+    function row(color, text) { rows.push('<div><span class="sw" style="background:' + color + '"></span>' + text + '</div>'); }
+    if (visible.landcover) Object.keys(LC).forEach(function (c) { if (visible['lc-' + c]) row(LC[c], LC_NAMES[c]); });
+    if (visible.water) row('#4aa3df', 'Water');
+    if (visible.play) row(COLORS.play, 'Play area');
+    if (visible.view) row(COLORS.view, 'View area');
+    this._div.innerHTML = '<b>Legend</b>' + (rows.join('') || '<div>No layers on</div>');
+  };
+  legend.addTo(map);
 
   function style(layer) {
     var kind = layer.feature && layer.feature.properties.layer;
@@ -110,7 +161,11 @@
     layer.feature = layer.feature || { type: 'Feature', properties: {} };
     layer.feature.properties.layer = kind;
     style(layer);
+    var name = layer.feature.properties.name;
+    if (name) layer.bindTooltip(name, { permanent: kind === 'marker', direction: 'top', offset: [0, kind === 'marker' ? -28 : 0], className: kind === 'marker' ? 'marker-label' : '' });
     drawn.addLayer(layer);
+    var el = layer.getElement && layer.getElement();
+    if (el) el.style.display = visible[kind] ? '' : 'none';
   }
 
   new (L.Control.Draw)({
@@ -119,7 +174,11 @@
     edit: { featureGroup: drawn }
   }).addTo(map);
 
-  map.on(L.Draw.Event.CREATED, function (e) { adopt(e.layer, e.layerType === 'marker' ? 'marker' : activeLayer()); changed(); });
+  map.on(L.Draw.Event.CREATED, function (e) {
+    var kind = e.layerType === 'marker' ? 'marker' : activeLayer();
+    e.layer.feature = { type: 'Feature', properties: { name: window.prompt('Label (optional):', '') || '' } };
+    adopt(e.layer, kind); changed();
+  });
   map.on(L.Draw.Event.EDITED, changed);
   map.on(L.Draw.Event.DELETED, changed);
 
@@ -169,11 +228,16 @@
     update();
   }
 
-  try { var saved = localStorage.getItem(STORE); if (saved) loadInto(JSON.parse(saved)); } catch (e) {}
+  var restored = false;
+  try { var saved = localStorage.getItem(STORE); if (saved) { loadInto(JSON.parse(saved)); restored = true; } } catch (e) {}
+  if (!restored && D.areas) loadInto(D.areas);
   update();
+  applyVisibility();
 
   document.getElementById('opacity').addEventListener('input', function (e) { relief.setOpacity(+e.target.value); });
-  document.getElementById('showWater').addEventListener('change', function (e) { e.target.checked ? water.addTo(map) : map.removeLayer(water); });
+  Array.prototype.forEach.call(document.querySelectorAll('input[data-layer]'), function (box) {
+    box.addEventListener('change', function () { visible[box.getAttribute('data-layer')] = box.checked; applyVisibility(); });
+  });
   ['speed', 'compress'].forEach(function (id) { document.getElementById(id).addEventListener('input', update); });
 
   document.getElementById('download').addEventListener('click', function () {
@@ -181,6 +245,10 @@
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = 'areas.geojson'; a.click();
     URL.revokeObjectURL(a.href);
+  });
+  document.getElementById('loadRepo').addEventListener('click', function () {
+    if (!D.areas) { alert('No data/areas/areas.geojson was found when the data was built.'); return; }
+    loadInto(D.areas); save();
   });
   document.getElementById('loadBtn').addEventListener('click', function () { document.getElementById('loadFile').click(); });
   document.getElementById('loadFile').addEventListener('change', function (e) {

@@ -2,7 +2,8 @@
 
 These questions fill in the details of the game. There are no wrong answers.
 Write short answers under each question. If you are not sure, write "not
-sure" and we can come back to it. Round 1 has the big questions.
+sure" and we can come back to it. Round 1 has the big questions, and these new
+questions follow up on your round 1 answers.
 
 ## Your beaver
 
@@ -48,3 +49,46 @@ sure" and we can come back to it. Round 1 has the big questions.
 - **Q36.** What should it sound like? Water, birds, music?
 - **Q37.** Is there a favorite part of the game that you can already picture? Tell us
     about it.
+
+## Tasks and achievements
+
+- **Q38.** The goal is to complete each task and get every achievement. What are
+  some tasks the beaver has to do?
+- **Q39.** What is one achievement you can already picture? What would it be
+  called?
+- **Q40.** What happens when you have finished every task and got every
+  achievement? Does the game end, or can you keep playing?
+
+## Playing with friends
+
+- **Q41.** Friends can play together with different players. What does
+  "different players" mean? Is each friend a different beaver in the same
+  family?
+
+## Dreams and side quests
+
+- **Q42.** How does the beaver go into a dream? Does it happen when it sleeps?
+- **Q43.** What happens in a dream side quest? Tell us about one you can picture.
+
+## Seasons
+
+- **Q44.** What are the seasons, and what changes in each one? Think about snow,
+  ice on the pond, and food.
+- **Q45.** What does the family do in winter? Where do the lily pads go?
+- **Q46.** Does the game change when a season changes, or does it change slowly?
+
+## Growing up and the family
+
+- **Q47.** A baby takes one year to become a teenager. Do you play the whole
+  year, or does time jump ahead?
+- **Q48.** Teenagers help out around the pond. What jobs do they do?
+- **Q49.** What does papa beaver do?
+- **Q50.** The teenager stays one more year, and then starts a family of its own.
+  How do you know it is time to go? Does the family say goodbye?
+
+## Guides and rescues
+
+- **Q51.** A stuck beaver is not the player, but it can become your guide once
+  you rescue it. What does a guide do for you?
+- **Q52.** How do you rescue a stuck beaver? What does the player do?
+- **Q53.** Where do the stuck beavers come from? Are they from other families?

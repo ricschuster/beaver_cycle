@@ -11,11 +11,35 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Stack-neutral repo hygiene checks only. Add your project's own
-# format/lint/typecheck/test/build job(s) alongside this once the stack is
-# chosen; that is a separate job so this one keeps working with no stack at
-# all.
+# repo-hygiene is stack-neutral. game checks the TypeScript app.
 jobs:
+  game:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser smoke test
+        run: npm run test:e2e
+
   repo-hygiene:
     runs-on: ubuntu-latest
     steps:

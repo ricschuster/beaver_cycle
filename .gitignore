@@ -35,3 +35,5 @@ prototypes/camera-demo/scene.json
 # Tablet test wrapper: generated Android project and assembled web files
 prototypes/tablet-test/android/
 prototypes/tablet-test/www/
+playwright-report/
+test-results/

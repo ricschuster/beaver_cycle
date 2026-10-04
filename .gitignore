@@ -41,3 +41,6 @@ test-results/
 # Generated game tiles (rebuild with tools/tiles/build_tiles.py)
 public/tiles/
 __pycache__/
+
+# Tablet live shell build output
+tools/tablet-live/android/

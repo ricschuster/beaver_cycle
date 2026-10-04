@@ -78,6 +78,7 @@ should match.
   is downloaded data and untracked.
 - `tools/area-editor/` - browser editor for the play area and its data build.
 - `tools/tiles/` - cuts terrain, land cover, and water into game tiles.
+- `tools/tablet-live/` - Capacitor shell that loads the dev server on a tablet.
 - `src/` - the game. `sim/` is state and rules (no DOM, no three.js, no
   input; the ground comes in through its `Terrain` interface), `terrain/` is
   tile decoding, the tile store, and the streamer (no three.js), `actions/` is what the player wants as plain data plus the input

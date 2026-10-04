@@ -1,0 +1,11 @@
+{
+  "name": "tablet-live",
+  "private": true,
+  "description": "Capacitor shell that loads the game from the dev server over adb reverse, for tablet runs without rebuilding the APK.",
+  "type": "module",
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  }
+}

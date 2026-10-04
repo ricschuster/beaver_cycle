@@ -35,6 +35,11 @@ This is not legal advice. Nothing is released yet, so no obligation applies yet.
   a non-OSM source (check Austrian open data for water and land cover first), or
   hand-draw the feature so the game holds no OSM geometry.
 - Do not commit raw OSM extracts to the repo. Rebuild them with the script.
+- Revisit this ADR before the game or its data is shared beyond the author and
+  friends. The ODbL obligations apply to public use, so a private build on the
+  author's own tablets has none yet. Generated tiles stay untracked and are
+  rebuilt by a script (M2). Whether handing the APK to a few friends counts as
+  public is unconfirmed, so check before doing it.
 
 ## Consequences
 

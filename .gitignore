@@ -40,3 +40,4 @@ test-results/
 
 # Generated game tiles (rebuild with tools/tiles/build_tiles.py)
 public/tiles/
+__pycache__/

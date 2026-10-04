@@ -4,7 +4,8 @@ Draft. Written after ADR 0007 (web stack, Android APK, single player first).
 It sets the order of work, not dates. Effort is not estimated until the tablet
 test gives real numbers. Open GitHub issues stay the live task tracker.
 
-The numbering of this note leaves 12 free for the round 3 answers.
+The round 3 answers are in `12_round3_answers.md`, and the rules drawn from
+them in `10_variety.md`. They shape M4 to M6 below.
 
 ## Rules for every milestone
 
@@ -57,16 +58,29 @@ Prove or disprove the stack before building on it.
 
 - Day and night clock, four seasons of ten days, and the lodge at half speed.
 - The day length is still open (4 real minutes proposed).
+- Sleep through the night as a skip to the next day. The beaver's dream is the
+  other idea from round 3 (Q65) and stays in Later until the author picks.
 
 ## M5: Doing things
 
 - Chop, eat, and carry. Build a dam and a lodge. Wear and repair.
 - Starts the first tasks and the wood achievement.
+- Wear: the dam wears out first, then the food store, and a worn dam looks
+  broken (Q54). A glowing circle marks what needs repair (Q55). Ignored, it
+  breaks and has to be rebuilt (Q56). No loss, only a chore.
+- Repair is done by the beavers, or by building again (Q57). Decide how things
+  are built before deciding whether repair is a button.
 
 ## M6: One life, then the next
 
 - Baby, teenager, and leaving to start a family. Play the next baby.
-- Shaped by the round 3 answers on variety.
+- Kits come when the beaver grows up, and babies differ by color (Q58, Q59).
+- A teenager who left can be met again, and the parents move about the pond
+  (Q60, Q61).
+- The dam and lodge from before stay and get old (Q63). Each generation starts
+  in a different pond (Q64), so how the baby gets there is open.
+- Other beavers: help, trade, and play (Q62). A visitor who notices the scent
+  mounds becomes a new neighbor.
 
 ## Later
 
@@ -78,4 +92,7 @@ Prove or disprove the stack before building on it.
   embedded server on one tablet, or WebRTC (ADR 0007). Single player first.
 - **The other five locations,** one at a time, once the core feels right
   (ADR 0006).
-- **Player speed-up, travel between locations, and dream side quests.**
+- **Player speed-up,** press and hold, and the beaver never gets tired (Q66).
+  The test menu multiplier in M2 is the first form of it.
+- **Travel between locations, and dream side quests.** The dream at night is
+  the round 3 idea for sleep (Q65).

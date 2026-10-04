@@ -34,14 +34,23 @@ tool ties the drawing to game length (round 1, Q3).
 
 ## Data
 
-- Terrain: Copernicus DEM GLO-30 (30 m), fetched from the public AWS bucket.
-  The 10 m Austrian data would look better but is a whole-country download.
-- Water: OpenStreetMap via Overpass (ODbL). Responses are cached in
-  `data/raw/`.
-- `data/raw/` and `tools/area-editor/generated/` are not tracked.
+The data covers the view area (13.895 to 14.025 E, 47.675 to 47.815 N) plus a
+3 km buffer, so the play area can grow.
+
+- Terrain: BEV 5 m DGM (CC BY 4.0), read from an online COG and clipped. The
+  choice is recorded in `docs/decisions/0002-terrain-source.md`. The relief
+  image in the editor is drawn at 15 m per pixel to keep the page light.
+- Water: OpenStreetMap via Overpass (ODbL).
+- Land cover: OpenStreetMap forest, wetland, scrub, meadow and rock polygons,
+  saved to `data/raw/landcover.geojson`. Not shown in the editor yet.
+- Overpass responses are cached in `data/raw/` by area. `data/raw/` and
+  `tools/area-editor/generated/` are not tracked.
+
+Land cover in the buffered area, from OpenStreetMap (km2, classes may overlap):
+forest 193, rock 68, meadow 12, scrub 23, wetland 0.2. The wetland figure is
+very low, so the south shore bog is probably not mapped as wetland in OSM.
 
 ## Limits
 
-- The 30 m terrain makes the mountains look blocky at close zoom.
 - OpenStreetMap relations are drawn as outlines only, not filled.
 - No server: saving is a file download, not a write into the repo.

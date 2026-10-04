@@ -11,6 +11,8 @@ export interface MenuLocation {
 
 export interface MenuReadout {
   fps: number;
+  /** The beaver in local metres (x east, z south), the ground height under it, and the water over that ground. */
+  beaver: { x: number; z: number; ground: number; waterDepth: number };
   /** Tiles held per level, or null without tiles. */
   tilesByLevel: number[] | null;
   triangles: number | null;
@@ -38,7 +40,9 @@ export function formatReadout(r: MenuReadout): string {
   const tiles = r.tilesByLevel ? r.tilesByLevel.map((n, l) => `L${l} ${n ?? 0}`).join('  ') : 'none';
   const tris = r.triangles === null ? 'n/a' : `${Math.round(r.triangles / 1000)}k`;
   const mem = r.memoryMb === null ? 'n/a' : `${Math.round(r.memoryMb)} MB`;
-  return `${Math.round(r.fps)} fps\ntiles ${tiles}\ntriangles ${tris}\nmemory ${mem}`;
+  const b = r.beaver;
+  const at = `x ${b.x.toFixed(0)}  z ${b.z.toFixed(0)}\nground ${b.ground.toFixed(2)} m\nwater ${b.waterDepth.toFixed(2)} m`;
+  return `${Math.round(r.fps)} fps\n${at}\ntiles ${tiles}\ntriangles ${tris}\nmemory ${mem}`;
 }
 
 export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): TestMenu {

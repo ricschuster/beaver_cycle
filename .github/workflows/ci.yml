@@ -1,0 +1,55 @@
+name: CI
+
+# push to main is kept so a fresh repo gets a first run. If you adopt the
+# solo-maintainer auto-merge workflows (README.md), drop the push trigger: with
+# "require branches to be up to date" every PR is tested against current main
+# before it merges, so a second run after the merge tests the same code again.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Stack-neutral repo hygiene checks only. Add your project's own
+# format/lint/typecheck/test/build job(s) alongside this once the stack is
+# chosen; that is a separate job so this one keeps working with no stack at
+# all.
+jobs:
+  repo-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lint workflow files
+        env:
+          ACTIONLINT_VERSION: 1.7.7
+          ACTIONLINT_SHA256: 023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
+        run: |
+          curl -fsSL -o actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum --check --strict -
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -color
+          rm -f actionlint actionlint.tar.gz
+
+      - name: Lint markdown
+        run: npx --yes markdownlint-cli '**/*.md' --ignore node_modules --ignore LICENSE
+
+      - name: No em dashes in tracked text
+        run: |
+          if git grep -In $'\xe2\x80\x94' -- . ':!LICENSE'; then
+            echo "Em dash found. See CLAUDE.md: no em dashes in code, comments, docs, or commit messages." >&2
+            exit 1
+          fi
+
+      - name: Docs structure present
+        run: |
+          test -f CLAUDE.md
+          test -f docs/decisions/README.md
+          test -f docs/handoffs/HANDOFF_TEMPLATE.md
+          test -d docs/design

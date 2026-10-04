@@ -61,7 +61,7 @@ Proposed, not agreed. The smallest version that tests the idea:
 4. A baby grows into a teenager, then you start a family and play the baby.
 5. A test menu with a speed multiplier and a jump to any location.
 
-There is no milestone plan yet. The stack comes first, then a plan.
+The draft order of work is in `13_milestone_plan.md`.
 
 ## Explicit non-goals (for now)
 
@@ -89,8 +89,7 @@ There is no milestone plan yet. The stack comes first, then a plan.
 
 ## Open questions
 
-- Stack, engine, and whether the game is a web app or native (an ADR is next).
-- How multiplayer connects, and whether it is online only.
+- How multiplayer connects on the local WLAN (ADR 0007 leaves it open).
 - Variety in a game that never ends. See `10_variety.md` and round 3.
 - How the player speed-up works, and the breath time in seconds.
 - What the tasks and achievements are beyond the wood achievement (30 trees).

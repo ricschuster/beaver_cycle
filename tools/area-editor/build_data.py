@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Fetch terrain and water for the Almsee area and write generated/data.js.
+"""Fetch terrain, water and land cover for the Almsee area.
 
 Needs: GDAL Python bindings, numpy, Pillow, network access.
-Terrain: Copernicus DEM GLO-30 (public AWS bucket). Water: OpenStreetMap via
-Overpass. Output goes to tools/area-editor/generated/ (not tracked).
+Terrain: BEV DGM 5 m (CC BY 4.0, online COG), clipped to BBOX and kept in
+data/raw/. Water and land cover: OpenStreetMap via Overpass (ODbL), cached in
+data/raw/. The editor files go to tools/area-editor/generated/ (not tracked).
 """
 import json
 import math
@@ -14,16 +15,19 @@ import urllib.request
 from pathlib import Path
 
 import numpy as np
-from osgeo import gdal, osr
+from osgeo import gdal, ogr, osr
 from PIL import Image
 
 gdal.UseExceptions()
 
-# west, south, east, north (degrees). Wider than the lake so the mountains show.
-BBOX = (13.85, 47.65, 14.15, 47.85)
+# west, south, east, north (degrees). The view area (13.895, 47.675, 14.025,
+# 47.815) plus a 3 km buffer in case the play area grows.
+BBOX = (13.855, 47.648, 14.065, 47.842)
 HERE = Path(__file__).parent
 OUT = HERE / "generated"
 RAW = HERE.parent.parent / "data" / "raw"
+BEV_DGM5 = "/vsicurl/https://data.bev.gv.at/download/DGM/Hoehenraster/DGM_R5.tif"
+RELIEF_RES = 15  # metres per pixel in Web Mercator for the editor image
 DEM_BASE = "/vsicurl/https://copernicus-dem-30m.s3.amazonaws.com"
 USER_AGENT = "beaver-cycle-area-editor/0.1 (ric.schuster@proton.me)"
 
@@ -34,15 +38,25 @@ def tile_url(lon_deg):
 
 
 def fetch_dem():
+    """Clip the BEV 5 m DGM to BBOX (native CRS), then warp to Web Mercator."""
     RAW.mkdir(parents=True, exist_ok=True)
-    path = RAW / "almsee_copdem30_3857.tif"
+    native = RAW / "almsee_dgm5_31287.tif"
+    if not native.exists():
+        gdal.Warp(
+            str(native),
+            BEV_DGM5,
+            outputBounds=BBOX,
+            outputBoundsSRS="EPSG:4326",
+            creationOptions=["COMPRESS=DEFLATE", "TILED=YES", "PREDICTOR=3"],
+        )
+    path = RAW / "almsee_dgm5_3857.tif"
     gdal.Warp(
         str(path),
-        [tile_url(13), tile_url(14)],
+        str(native),
         dstSRS="EPSG:3857",
         outputBounds=to_mercator_bounds(),
-        xRes=30,
-        yRes=30,
+        xRes=RELIEF_RES,
+        yRes=RELIEF_RES,
         resampleAlg="cubic",
     )
     return path
@@ -113,7 +127,13 @@ def fetch_water():
         f'way["waterway"~"^(river|stream)$"]({box});'
         ");out geom;"
     )
-    cache = RAW / "osm_water.json"
+    return overpass(query, "osm_water")
+
+
+def overpass(query, stem):
+    """Run an Overpass query, cached in data/raw/ by name and BBOX."""
+    tag = "_".join(f"{v:.3f}" for v in BBOX)
+    cache = RAW / f"{stem}_{tag}.json"
     if cache.exists():
         return json.loads(cache.read_text())
     body = urllib.parse.urlencode({"data": query}).encode()
@@ -132,6 +152,111 @@ def fetch_water():
             print(f"Overpass attempt {attempt + 1} failed: {err}")
             time.sleep(10 * (attempt + 1))
     raise SystemExit("Overpass unavailable. Try again later.")
+
+
+LANDCOVER = {  # OSM tag -> game-relevant class
+    ("natural", "wood"): "forest",
+    ("landuse", "forest"): "forest",
+    ("natural", "wetland"): "wetland",
+    ("natural", "scrub"): "scrub",
+    ("natural", "heath"): "scrub",
+    ("natural", "grassland"): "meadow",
+    ("landuse", "meadow"): "meadow",
+    ("natural", "scree"): "rock",
+    ("natural", "bare_rock"): "rock",
+    ("natural", "shingle"): "rock",
+}
+
+
+def fetch_landcover():
+    w, s, e, n = BBOX
+    box = f"{s},{w},{n},{e}"
+    parts = []
+    for (key, val) in LANDCOVER:
+        parts.append(f'way["{key}"="{val}"]({box});relation["{key}"="{val}"]({box});')
+    query = "[out:json][timeout:180];(" + "".join(parts) + ");out geom;"
+    return overpass(query, "osm_landcover")
+
+
+def join_rings(segments):
+    """Join way segments (lists of [lon, lat]) end to end into closed rings."""
+    segs = [list(sg) for sg in segments if len(sg) > 1]
+    rings = []
+    while segs:
+        ring = segs.pop()
+        grew = True
+        while grew and ring[0] != ring[-1]:
+            grew = False
+            for i, sg in enumerate(segs):
+                if sg[0] == ring[-1]:
+                    ring += sg[1:]
+                elif sg[-1] == ring[-1]:
+                    ring += sg[::-1][1:]
+                elif sg[-1] == ring[0]:
+                    ring = sg[:-1] + ring
+                elif sg[0] == ring[0]:
+                    ring = sg[::-1][:-1] + ring
+                else:
+                    continue
+                segs.pop(i)
+                grew = True
+                break
+        if ring[0] == ring[-1] and len(ring) > 3:
+            rings.append(ring)
+    return rings
+
+
+def landcover_geojson(osm):
+    feats = []
+    for el in osm["elements"]:
+        tags = el.get("tags", {})
+        cls = next((c for (k, v), c in LANDCOVER.items() if tags.get(k) == v), None)
+        if cls is None:
+            continue
+        if el["type"] == "way" and "geometry" in el:
+            rings = join_rings([[[p["lon"], p["lat"]] for p in el["geometry"]]])
+        elif el["type"] == "relation":
+            outers = [[[p["lon"], p["lat"]] for p in m["geometry"]]
+                      for m in el.get("members", []) if m.get("role") == "outer" and m.get("geometry")]
+            rings = join_rings(outers)
+            inners = [[[p["lon"], p["lat"]] for p in m["geometry"]]
+                      for m in el.get("members", []) if m.get("role") == "inner" and m.get("geometry")]
+            for ring in join_rings(inners):
+                feats.append({"type": "Feature", "properties": {"class": cls, "hole": True},
+                              "geometry": {"type": "Polygon", "coordinates": [ring]}})
+        else:
+            continue
+        for ring in rings:
+            feats.append({"type": "Feature", "properties": {"class": cls},
+                          "geometry": {"type": "Polygon", "coordinates": [ring]}})
+    return {"type": "FeatureCollection", "features": feats}
+
+
+def landcover_summary(fc):
+    """Area per class in km2: overlaps merged, holes removed, clipped to BBOX."""
+    wgs = osr.SpatialReference()
+    wgs.ImportFromEPSG(4326)
+    wgs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    aut = osr.SpatialReference()
+    aut.ImportFromEPSG(31287)
+    aut.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    to_aut = osr.CoordinateTransformation(wgs, aut)
+    w, s, e, n = BBOX
+    box = ogr.CreateGeometryFromWkt(f"POLYGON(({w} {s},{e} {s},{e} {n},{w} {n},{w} {s}))")
+    solid, holes = {}, {}
+    for f in fc["features"]:
+        geom = ogr.CreateGeometryFromJson(json.dumps(f["geometry"])).MakeValid()
+        bucket = holes if f["properties"].get("hole") else solid
+        cls = f["properties"]["class"]
+        bucket[cls] = geom if cls not in bucket else bucket[cls].Union(geom)
+    totals = {}
+    for cls, geom in solid.items():
+        if cls in holes:
+            geom = geom.Difference(holes[cls])
+        geom = geom.Intersection(box)
+        geom.Transform(to_aut)
+        totals[cls] = round(geom.Area() / 1e6, 1)
+    return dict(sorted(totals.items()))
 
 
 def to_geojson(osm):
@@ -163,6 +288,9 @@ def main():
     dem = fetch_dem()
     zmin, zmax, size = render_relief(dem)
     water = to_geojson(fetch_water())
+    lc = landcover_geojson(fetch_landcover())
+    (RAW / "landcover.geojson").write_text(json.dumps(lc))
+    print("land cover km2 in the box (classes may overlap each other):", landcover_summary(lc))
     w, s, e, n = BBOX
     data = {"bounds": [[s, w], [n, e]], "zmin": zmin, "zmax": zmax, "water": water}
     (OUT / "data.js").write_text("window.AREA_DATA = " + json.dumps(data) + ";\n")

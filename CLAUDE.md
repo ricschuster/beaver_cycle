@@ -16,11 +16,11 @@ next generation, forever. It is for the author and friends, on tablets. See
 
 ## Project status
 
-Design phase, with a game scaffold (M1) and no gameplay yet. Rounds 1 and 2 of
-the author's questions are answered, round 3 (variety) is printed and awaits the
-author's answers, and the stack is chosen and confirmed on a tablet (ADR 0007,
-M0 done). The scaffold (M1) is in place, then comes a first playable of the core
-location on a tablet. Open GitHub issues are the live task tracker. A draft
+Design phase, with a game scaffold (M1) and no gameplay yet. Rounds 1 to 3 of
+the author's questions are answered (round 3 on variety, with a build and repair
+note in `docs/design/15_build_and_repair.md`), and the stack is chosen and
+confirmed on a tablet (ADR 0007, M0 done). The scaffold (M1) is in place, then
+comes a first playable of the core location on a tablet. Open GitHub issues are the live task tracker. A draft
 milestone plan is in `docs/design/13_milestone_plan.md`.
 
 ## Scope

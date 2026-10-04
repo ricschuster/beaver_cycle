@@ -44,7 +44,9 @@ async function start(): Promise<void> {
     onJump(id) {
       const a = anchors.find((l) => l.id === id);
       if (!a || !a.inTiles || !streamer) return;
-      jump = { x: a.x, z: a.z, deadline: performance.now() + 8000 };
+      // The core's anchor is the tile origin; jumping to the core means the start spot.
+      const at = id === 'core' ? { x: startX, z: startZ } : a;
+      jump = { x: at.x, z: at.z, deadline: performance.now() + 8000 };
       menu.setStatus('Loading...');
     },
   });

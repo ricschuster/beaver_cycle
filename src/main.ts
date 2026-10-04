@@ -7,14 +7,25 @@ import { step } from './sim/step';
 import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
 import { createTestMenu } from './ui/testMenu';
-import { Streamer, httpFetchTile, httpFetchWater } from './terrain/streamer';
+import { treeTuning } from './terrain/trees';
+import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
 
 async function start(): Promise<void> {
   // Tiles are built locally (tools/tiles/build_tiles.py); without them the
   // game falls back to a flat plane.
+  // Stress knobs for the tablet budgets (#53): ?rings=1000,2000 and ?trees=2.
+  const query = new URLSearchParams(location.search);
+  const rings = query.get('rings')?.split(',').map(Number);
+  const streamOptions =
+    rings?.length === 2 && rings.every((r) => r > 0)
+      ? { ...defaultStreamerOptions, rings: [rings[0]!, rings[1]!] as [number, number] }
+      : undefined;
+  const treeScale = Number(query.get('trees'));
+  if (treeScale > 0) treeTuning.densityScale = treeScale;
+
   const base = `${import.meta.env.BASE_URL}tiles/`;
   const store = await loadTileStore(base);
-  const streamer = store ? new Streamer(store, httpFetchTile(base), undefined, httpFetchWater(base)) : null;
+  const streamer = store ? new Streamer(store, httpFetchTile(base), streamOptions, httpFetchWater(base)) : null;
   const terrain = store ?? flatTerrain(0);
   // Start on dry ground just north of the suggested lodge site on the south shore
   // (design notes). The marker itself lies on the bog that the map counts as lake.

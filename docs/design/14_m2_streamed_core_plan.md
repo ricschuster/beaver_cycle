@@ -146,10 +146,41 @@ scene. Proposed targets for the full M2 scene, to be confirmed or changed:
 | Measure | Proposed |
 | --- | --- |
 | Frame rate while walking | at least 45 fps, no stalls over 100 ms |
-| Triangles per frame | to be set (the demo's 400,000 is the ceiling) |
+| Triangles per frame | at most 1.5 million (set from the stress test below) |
+| Trees drawn | at most 100,000 |
 | Memory | under 400 MB |
 | Temperature after ten minutes | under 45 C at the back (to be measured) |
 | First tile on screen | under 3 seconds after the app opens |
+
+### Measured on the tablet (2026-10-04)
+
+Galaxy Tab A9+ (SM-X210, 90 Hz screen) running the game in the live shell
+(`tools/tablet-live/`), started at the core and read over the WebView debug
+socket. The frame rate is capped by the screen at 89.8 fps, so the runs show
+how much load fits before it drops, not the true frame cost.
+
+- **Normal play:** 0.5 to 0.75 million triangles and 27,000 to 44,000 trees in
+  every location, walking at x1 or jumping at x100. 89.8 fps, worst frame
+  11.3 ms, apart from one 22 ms frame after a jump. The ground kept up with x100
+  (the level 2 horizon carries it) and a location jump takes about 0.5 s.
+- **Ten minutes of walking at x5** with turns and camera swings: 89.8 fps the
+  whole time, memory flat at 170 to 177 MB (65 MB of it graphics), no growth.
+  The board's skin sensor rose from 24.7 to 29.4 C (throttling starts at 40 C),
+  CPU and GPU stayed at 45 to 49 C.
+- **Stress test**, in the dense forest at Vorderer Springbach, with `?rings=`
+  and `?trees=` in the URL:
+
+| Setting | Triangles | Trees | Result |
+| --- | --- | --- | --- |
+| Rings x1.6, x2.5, x4 | 1.1, 2.0, 3.1 million | 76,000 to 230,000 | 89.8 fps, no hitches |
+| Trees x2, x4, x8 | 0.9, 1.4, 2.4 million | 87,000 to 348,000 | 89.8 fps |
+| Trees x16 | 4.3 million | 695,000 | 60 fps, worst frame 45 ms |
+
+The tablet holds 90 fps up to about 3 million triangles and drops at about
+4 million. The budgets above keep half of that as margin, because the friends'
+tablets are not known and may be weaker, and because the beaver, water
+animation, and lodge will cost frames later. Not measured: battery drain, load
+time from a cold start, and a weaker device.
 
 ## Risks
 

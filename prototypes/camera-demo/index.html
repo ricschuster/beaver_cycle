@@ -385,7 +385,7 @@ function step(dt, now) {
   const wet = inLake(st.x, st.z) && hAt(st.x, st.z) < lakeLevel - 0.2;
   if (st.moving) {
     dx /= mag; dz /= mag;
-    const speed = wet ? (st.dive > 0.5 ? 5.5 : 7) : 4.5;
+    const speed = wet ? (st.dive > 0.5 ? 7 : 9) : 6;
     let nx = st.x + dx * speed * dt, nz = st.z + dz * speed * dt;
     if (cam.mode === 3) nx = st.slice;
     const lim = half - 25;

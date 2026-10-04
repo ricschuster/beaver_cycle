@@ -34,8 +34,10 @@ performance, which has only been checked in headless Chromium.
 
 ## Decision
 
-- Build the game as a web app in TypeScript with Vite and three.js. Chrome on
-  Android is the target browser.
+- Build the game as a web app in TypeScript with Vite and three.js. On the
+  tablet it runs in Android System WebView, which is Chromium, inside the
+  app. No browser app is needed, so a tablet with browsers blocked by parental
+  controls (Kids Place) only has to allow the game app.
 - Deliver it as a sideloaded Android APK made with Capacitor. The game files
   are packed in the app, so it needs no server and no app store. During
   development it runs from a Vite dev server on the WLAN.
@@ -62,6 +64,12 @@ works, Godot, which has host and join built in, is the fallback.
 
 ## Consequences
 
+- The WebView is updated through the Play Store. A tablet with an old WebView
+  or no Play Store may run slowly or lack features, so check its version on
+  each tablet before the first playable.
+- Installing the APK may be blocked by parental controls. Installing from a
+  computer with `adb` over USB or the WLAN avoids it and needs developer
+  options enabled once per tablet.
 - No app store and one build for every tablet. Updates mean installing a new
   APK on each tablet. The loop in development is edit, reload, look.
 - Everything the engine would give for free is written by hand or taken from

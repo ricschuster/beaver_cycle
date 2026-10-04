@@ -1,0 +1,11 @@
+{
+  "name": "tablet-test",
+  "private": true,
+  "description": "Throwaway Capacitor wrapper that runs the camera demo on a tablet (M0). Not the game.",
+  "type": "module",
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  }
+}

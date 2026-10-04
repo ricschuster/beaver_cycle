@@ -31,3 +31,7 @@ tools/area-editor/generated/
 
 # Camera demo scene (derived from OpenStreetMap, rebuild with export_scene.py)
 prototypes/camera-demo/scene.json
+
+# Tablet test wrapper: generated Android project and assembled web files
+prototypes/tablet-test/android/
+prototypes/tablet-test/www/

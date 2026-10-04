@@ -78,13 +78,17 @@ Decided by the author:
 - Time passes while the player is in the lodge, but more slowly than outside.
 - The player can sleep through the night.
 - The game never ends. Generations repeat with each baby (Q40).
-- Time passes at full speed while traveling between locations. The speed
-  multiplier button covers the long trips while testing (ADR 0006). Whether
-  players also get a speed-up in the finished game is open.
+- Time passes at full speed while traveling between locations.
+- A speed-up button is a test tool first (ADR 0006) and is meant to become an
+  option for the player later. How it works for players is not designed yet.
+- The lodge clock runs at half speed.
+- Variety over a game that never ends comes from things that wear out and need
+  repair, and from families that change over the generations. NPC beavers can
+  be part of that. See `10_variety.md`.
 
 Consequences to design for:
 
-- A slower clock in the lodge means a family can rest, feed the baby, and play
+- A half speed clock in the lodge means a family can rest, feed the baby, and play
   dreams without losing days. The exact ratio is a setting to tune.
 - Sleeping through the night skips the dark part of a day, so a day can be
   shorter in practice than 4 minutes.
@@ -103,6 +107,6 @@ Seasons change slowly (Q46).
 
 Open questions:
 
-- Can players use a speed-up in the finished game, or only the test menu?
-- How much slower is the clock in the lodge (for example half speed)?
-- What keeps a game that never ends interesting after several generations?
+- How the player speed-up works: held button, toggle, or limited by something
+  such as breath or hunger.
+- How much variety is enough. See `10_variety.md`.

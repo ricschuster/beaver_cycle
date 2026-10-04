@@ -1,0 +1,7 @@
+{
+  "name": "camera-demo",
+  "private": true,
+  "description": "Throwaway camera comparison for the beaver game. Not the game.",
+  "type": "module",
+  "dependencies": { "three": "^0.186.1" }
+}

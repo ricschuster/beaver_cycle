@@ -28,3 +28,6 @@ tmp/
 # Downloaded and generated map data (rebuild with tools/area-editor/build_data.py)
 data/raw/
 tools/area-editor/generated/
+
+# Camera demo scene (derived from OpenStreetMap, rebuild with export_scene.py)
+prototypes/camera-demo/scene.json

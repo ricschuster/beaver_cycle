@@ -71,6 +71,29 @@ Consequences to design for:
 - Skipping ahead exists for the baby year (Q47), and a long game needs it for
   the quiet days of winter too.
 
+## Time rules
+
+Decided by the author:
+
+- Time passes while the player is in the lodge, but more slowly than outside.
+- The player can sleep through the night.
+- The game never ends. Generations repeat with each baby (Q40).
+- Time passes at full speed while traveling between locations. The speed
+  multiplier button covers the long trips while testing (ADR 0006). Whether
+  players also get a speed-up in the finished game is open.
+
+Consequences to design for:
+
+- A slower clock in the lodge means a family can rest, feed the baby, and play
+  dreams without losing days. The exact ratio is a setting to tune.
+- Sleeping through the night skips the dark part of a day, so a day can be
+  shorter in practice than 4 minutes.
+- With no end, achievements and tasks need to be per generation (Q40), and a
+  long run needs content that does not run out. Variation by season and by
+  generation does that work.
+- Full speed time during travel means a trip across the core costs about three
+  game days, which is part of why a season matters (autumn food storage).
+
 ## Game length: the rest
 
 Round 1 Q3 only says a long time and concentration. Round 2 gives the shape of
@@ -80,7 +103,6 @@ Seasons change slowly (Q46).
 
 Open questions:
 
-- Does time pass while the player is in the lodge, and can the player sleep
-  through the night?
-- How many generations make the whole game, or does it have no end (Q40)?
-- Does the player skip any time while traveling between locations?
+- Can players use a speed-up in the finished game, or only the test menu?
+- How much slower is the clock in the lodge (for example half speed)?
+- What keeps a game that never ends interesting after several generations?

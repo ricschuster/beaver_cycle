@@ -37,6 +37,19 @@ mine.
    still Proposed). Generated tiles stay untracked in the repo like
    `data/raw/`, are rebuilt by a script, and go only into the author's own APK.
 
+## Look and scale
+
+M2 uses the real BEV heights at 1:1 scale and the camera demo's look (colour
+per land cover class, a deeper made up lake). Neither is final. The tile tool
+is the one place that shapes the terrain (vertical exaggeration, smoothing,
+lake depth, colours), so the look can change later by rebuilding the tiles.
+
+Scale is different. Compressing distances changes every walking time, so it has
+to be settled after the first walk through the M2 terrain and before M3 tunes
+movement and M5 places dams and lodges. It is open in `03_location.md` and
+ties to `09_game_length_and_speed.md`. Until then, distances are real and the
+walking times in `06_locations.md` hold.
+
 ## Building blocks
 
 ### 1. Tile tool (Python)

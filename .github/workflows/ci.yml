@@ -1,12 +1,8 @@
 name: CI
 
-# push to main is kept so a fresh repo gets a first run. If you adopt the
-# solo-maintainer auto-merge workflows (README.md), drop the push trigger: with
-# "require branches to be up to date" every PR is tested against current main
-# before it merges, so a second run after the merge tests the same code again.
+# PRs only: with strict branch protection every PR is tested against current
+# main before it merges, and the auto-merge workflows keep armed PRs level.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 

@@ -1,4 +1,4 @@
-# {{PROJECT_NAME}}
+# Beaver Cycle
 
 Stack-agnostic project harness for Claude Code workflows: no tech stack baked
 in, just the process scaffolding: docs framework (design notes, ADRs,
@@ -8,7 +8,7 @@ and Claude Code working rules (`CLAUDE.md`, `.claude/settings.json`).
 ## Using this template
 
 1. Click "Use this template" on GitHub to create a new repo from this one.
-2. Find and replace every `{{PROJECT_NAME}}` placeholder (README.md,
+2. Find and replace every `Beaver Cycle` placeholder (README.md,
    CLAUDE.md) with your project's actual name.
 3. Fill in `docs/design/00_project_brief.md`: replace every `{{...}}`
    placeholder with real content, or delete sections that do not apply

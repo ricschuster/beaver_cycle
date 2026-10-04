@@ -2,7 +2,7 @@
 
 ## What this is
 
-{{One or two sentences: what {{PROJECT_NAME}} is and the problem it addresses.}}
+{{One or two sentences: what Beaver Cycle is and the problem it addresses.}}
 
 It is {{a teaching tool / an internal tool / a production service / ...}}, not
 {{whatever it is explicitly not}}. The goal is to {{the outcome for the person

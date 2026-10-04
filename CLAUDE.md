@@ -5,7 +5,7 @@ context automatically, so keep it to direction and rules, not a task list.
 
 ## Project name
 
-{{PROJECT_NAME}}
+Beaver Cycle
 
 ## Project purpose
 

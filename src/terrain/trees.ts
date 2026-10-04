@@ -13,6 +13,8 @@ const DENSITY: Record<number, Record<number, number>> = {
 };
 /** Coarser levels draw fewer, bigger trees so the woods keep their mass. */
 const LEVEL_SCALE = [1, 1.8];
+/** Test knob: multiplies every density (the stress runs for the tablet budgets set it from the URL). */
+export const treeTuning = { densityScale: 1 };
 /** Floats per tree in the placement array: x, y, z, scale. */
 export const TREE_FLOATS = 4;
 
@@ -46,7 +48,7 @@ export function placeTrees(tile: DecodedTile, size: number): Float32Array {
       // one roll per cell, taken before the class check, decides the fractional tree
       const roll = rand();
       if (!d || cls === CLASS_LAKE) continue;
-      const expected = d * cell * cell;
+      const expected = d * treeTuning.densityScale * cell * cell;
       const count = Math.floor(expected) + (roll < expected - Math.floor(expected) ? 1 : 0);
       for (let k = 0; k < count; k++) {
         const u = i + rand();

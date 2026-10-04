@@ -39,7 +39,12 @@ when you have no drawing of your own ("Load repo areas" brings it back):
   start lodge position is a guess based on the wetland notes in
   `03_location.md`.
 
-The "Labels" checkbox hides the marker labels.
+## Layers and legend
+
+The side panel has an on/off checkbox for every layer: relief, water, land
+cover (all of it, and each of forest, scrub, meadow, wetland and rock on its
+own), play area, view area, markers, and labels. A legend on the map lists
+whatever is switched on. The relief opacity slider sits above the checkboxes.
 
 ## How to use
 

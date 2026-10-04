@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beaver Cycle Area Editor</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+<style>
+  :root { --bg:#fff; --fg:#1d2521; --panel:#f4f6f3; --line:#c9d1c8; --play:#d9531e; --view:#2467b3; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161b18; --fg:#e4eae4; --panel:#212823; --line:#3a453d; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--fg); display:flex; height:100vh; }
+  #side { width:300px; padding:12px; overflow:auto; background:var(--panel); border-right:1px solid var(--line); }
+  #map { flex:1; }
+  h1 { font-size:16px; margin:0 0 8px; }
+  h2 { font-size:13px; margin:14px 0 6px; text-transform:uppercase; letter-spacing:.04em; }
+  label { display:block; margin:4px 0; }
+  .sw { display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
+  input[type=number] { width:70px; }
+  button { margin:2px 4px 2px 0; }
+  table { width:100%; border-collapse:collapse; }
+  td { padding:2px 0; } td+td { text-align:right; font-variant-numeric:tabular-nums; }
+  .note { font-size:12px; opacity:.75; }
+  @media (max-width:700px) { body { flex-direction:column; } #side { width:auto; max-height:45vh; } }
+</style>
+</head>
+<body>
+<div id="side">
+  <h1>Area editor: Almsee</h1>
+  <p class="note">Draw with the toolbar on the map. New shapes go to the layer chosen below.</p>
+
+  <h2>Drawing into</h2>
+  <label><input type="radio" name="layer" value="play" checked><span class="sw" style="background:var(--play)"></span>Play area</label>
+  <label><input type="radio" name="layer" value="view"><span class="sw" style="background:var(--view)"></span>View area (backdrop)</label>
+  <label><input type="radio" name="layer" value="marker"><span class="sw" style="background:#222"></span>Markers (start, dam site, ...)</label>
+
+  <h2>Map</h2>
+  <label>Relief opacity <input id="opacity" type="range" min="0" max="1" step="0.05" value="1"></label>
+  <label><input id="showWater" type="checkbox" checked> Water (OpenStreetMap)</label>
+
+  <h2>Crossing time</h2>
+  <label>Beaver speed <input id="speed" type="number" min="0.1" step="0.1" value="2"> m/s</label>
+  <label>Compression <input id="compress" type="number" min="1" step="1" value="1">x shorter</label>
+  <p class="note">Compression shrinks real distances in game. Time = longest distance across the play area / compression / speed.</p>
+
+  <h2>Stats</h2>
+  <table>
+    <tr><td>Play area</td><td id="playArea">-</td></tr>
+    <tr><td>Play, longest distance</td><td id="playSpan">-</td></tr>
+    <tr><td>Play, crossing time</td><td id="playTime">-</td></tr>
+    <tr><td>View area</td><td id="viewArea">-</td></tr>
+    <tr><td>View, longest distance</td><td id="viewSpan">-</td></tr>
+    <tr><td>Markers</td><td id="markerCount">-</td></tr>
+  </table>
+
+  <h2>File</h2>
+  <button id="download">Download GeoJSON</button>
+  <button id="loadBtn">Load GeoJSON</button>
+  <input id="loadFile" type="file" accept=".geojson,.json" hidden>
+  <p class="note">Your drawing is also kept in this browser. To share it, download the file and save it as <code>data/areas/areas.geojson</code>.</p>
+
+  <h2>Credits</h2>
+  <p class="note">Terrain: contains modified Copernicus DEM GLO-30 data. Water: &copy; OpenStreetMap contributors (ODbL).</p>
+</div>
+<div id="map"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="generated/data.js"></script>
+<script>
+(function () {
+  if (!window.AREA_DATA) {
+    document.getElementById('map').textContent = 'Missing generated/data.js. Run: python3 tools/area-editor/build_data.py';
+    return;
+  }
+  var D = window.AREA_DATA;
+  var STORE = 'beaver-cycle-areas-v1';
+  var COLORS = { play: '#d9531e', view: '#2467b3' };
+
+  var map = L.map('map', { crs: L.CRS.EPSG3857 }).fitBounds(D.bounds);
+  var relief = L.imageOverlay('generated/relief.png', D.bounds).addTo(map);
+
+  var water = L.geoJSON(D.water, {
+    style: function (f) {
+      return f.properties.kind === 'water'
+        ? { color: '#2f7fc1', weight: 1, fillColor: '#4aa3df', fillOpacity: 0.7 }
+        : { color: '#2f7fc1', weight: f.properties.kind === 'stream' ? 1.5 : 1, fill: false };
+    },
+    interactive: false
+  }).addTo(map);
+
+  var drawn = new L.FeatureGroup().addTo(map);
+  function activeLayer() { return document.querySelector('input[name=layer]:checked').value; }
+
+  function style(layer) {
+    var kind = layer.feature && layer.feature.properties.layer;
+    if (layer.setStyle && COLORS[kind]) layer.setStyle({ color: COLORS[kind], weight: 2, fillOpacity: kind === 'play' ? 0.25 : 0.12 });
+  }
+  function adopt(layer, kind) {
+    layer.feature = layer.feature || { type: 'Feature', properties: {} };
+    layer.feature.properties.layer = kind;
+    style(layer);
+    drawn.addLayer(layer);
+  }
+
+  new (L.Control.Draw)({
+    position: 'topleft',
+    draw: { polyline: false, circle: false, circlemarker: false, polygon: { allowIntersection: false }, rectangle: true, marker: true },
+    edit: { featureGroup: drawn }
+  }).addTo(map);
+
+  map.on(L.Draw.Event.CREATED, function (e) { adopt(e.layer, e.layerType === 'marker' ? 'marker' : activeLayer()); changed(); });
+  map.on(L.Draw.Event.EDITED, changed);
+  map.on(L.Draw.Event.DELETED, changed);
+
+  function fmtKm2(m2) { return (m2 / 1e6).toFixed(2) + ' km²'; }
+  function fmtKm(m) { return (m / 1000).toFixed(2) + ' km'; }
+  function fmtTime(s) { return s < 90 ? s.toFixed(0) + ' s' : (s / 60).toFixed(1) + ' min'; }
+
+  function ring(layer) {
+    var ll = layer.getLatLngs();
+    return Array.isArray(ll[0]) ? ll[0] : ll;
+  }
+  function stats(kind) {
+    var area = 0, span = 0, n = 0;
+    drawn.eachLayer(function (l) {
+      if (!l.feature || l.feature.properties.layer !== kind || !l.getLatLngs) return;
+      var r = ring(l); n++;
+      area += L.GeometryUtil.geodesicArea(r);
+      for (var i = 0; i < r.length; i++) for (var j = i + 1; j < r.length; j++) span = Math.max(span, map.distance(r[i], r[j]));
+    });
+    return { n: n, area: area, span: span };
+  }
+
+  function update() {
+    var p = stats('play'), v = stats('view');
+    var speed = +document.getElementById('speed').value || 1, c = +document.getElementById('compress').value || 1;
+    set('playArea', p.n ? fmtKm2(p.area) : '-');
+    set('playSpan', p.n ? fmtKm(p.span) : '-');
+    set('playTime', p.n ? fmtTime(p.span / c / speed) : '-');
+    set('viewArea', v.n ? fmtKm2(v.area) : '-');
+    set('viewSpan', v.n ? fmtKm(v.span) : '-');
+    var m = 0; drawn.eachLayer(function (l) { if (l.feature && l.feature.properties.layer === 'marker') m++; });
+    set('markerCount', m);
+  }
+  function set(id, t) { document.getElementById(id).textContent = t; }
+
+  function toGeoJSON() { return drawn.toGeoJSON(); }
+  function save() { try { localStorage.setItem(STORE, JSON.stringify(toGeoJSON())); } catch (e) {} }
+  function changed() { update(); save(); }
+
+  // L.geoJSON creates layers but does not add them; collect them into the group.
+  function loadInto(fc) {
+    drawn.clearLayers();
+    L.geoJSON(fc).eachLayer(function (layer) {
+      var src = layer.feature || { properties: {} };
+      adopt(layer, (src.properties && src.properties.layer) || 'play');
+    });
+    update();
+  }
+
+  try { var saved = localStorage.getItem(STORE); if (saved) loadInto(JSON.parse(saved)); } catch (e) {}
+  update();
+
+  document.getElementById('opacity').addEventListener('input', function (e) { relief.setOpacity(+e.target.value); });
+  document.getElementById('showWater').addEventListener('change', function (e) { e.target.checked ? water.addTo(map) : map.removeLayer(water); });
+  ['speed', 'compress'].forEach(function (id) { document.getElementById(id).addEventListener('input', update); });
+
+  document.getElementById('download').addEventListener('click', function () {
+    var blob = new Blob([JSON.stringify(toGeoJSON(), null, 2)], { type: 'application/geo+json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'areas.geojson'; a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  document.getElementById('loadBtn').addEventListener('click', function () { document.getElementById('loadFile').click(); });
+  document.getElementById('loadFile').addEventListener('change', function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    f.text().then(function (t) { loadInto(JSON.parse(t)); save(); }).catch(function () { alert('Could not read that file as GeoJSON.'); });
+    e.target.value = '';
+  });
+})();
+</script>
+</body>
+</html>

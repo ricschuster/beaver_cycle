@@ -24,3 +24,7 @@ tmp/
 # Claude Code local overrides (personal, not shared)
 .claude/settings.local.json
 .claude/worktrees/
+
+# Downloaded and generated map data (rebuild with tools/area-editor/build_data.py)
+data/raw/
+tools/area-editor/generated/

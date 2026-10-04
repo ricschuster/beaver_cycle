@@ -1,0 +1,9 @@
+{
+  "appId": "com.beavercycle.live",
+  "appName": "Beaver Live",
+  "webDir": "www",
+  "server": {
+    "url": "http://localhost:5199",
+    "cleartext": true
+  }
+}

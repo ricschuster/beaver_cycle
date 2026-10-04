@@ -15,7 +15,11 @@ The numbering of this note leaves 12 free for the round 3 answers.
   events. This keeps a second control scheme cheap (see Later).
 - Each milestone ends with something to run and look at.
 
-## M0: Tablet test
+## M0: Tablet test (done 2026-10-04)
+
+Result: the camera demo ran at 74 to 77 fps in every view on a Galaxy Tab A9+
+with 150 MB of memory. Decision: go on with the web stack. Budgets are set in
+M2.
 
 Prove or disprove the stack before building on it.
 

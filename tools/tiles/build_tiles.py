@@ -305,6 +305,7 @@ def build(out=OUT):
                 (out / "water").mkdir(parents=True, exist_ok=True)
                 (out / "water" / f"{tx}_{tz}.json").write_text(json.dumps(doc, separators=(",", ":")))
             tiles.append({"tx": tx, "tz": tz, "water": bool(has_lake or lines),
+                          "lakeLevel_m": round(float(np.nanmedian(tile_lake)), 2) if has_lake else None,
                           "min_m": round(float(h[vj:vj + TILE_CELLS + 1, vi:vi + TILE_CELLS + 1].min()), 1),
                           "max_m": round(float(h[vj:vj + TILE_CELLS + 1, vi:vi + TILE_CELLS + 1].max()), 1)})
 

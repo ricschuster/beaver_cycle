@@ -43,6 +43,8 @@ Prove or disprove the stack before building on it.
   with coarser tiles and fog farther out (ADR 0006).
 - Water and trees per tile. Test menu with the speed multiplier and a jump to
   any location.
+- The build order and open decisions are in
+  `14_m2_streamed_core_plan.md`.
 
 ## M3: The beaver moves
 

@@ -4,14 +4,14 @@ import { createWorld } from './sim/state';
 import { step } from './sim/step';
 import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
-import { Streamer, httpFetchTile } from './terrain/streamer';
+import { Streamer, httpFetchTile, httpFetchWater } from './terrain/streamer';
 
 async function start(): Promise<void> {
   // Tiles are built locally (tools/tiles/build_tiles.py); without them the
   // game falls back to a flat plane.
   const base = `${import.meta.env.BASE_URL}tiles/`;
   const store = await loadTileStore(base);
-  const streamer = store ? new Streamer(store, httpFetchTile(base)) : null;
+  const streamer = store ? new Streamer(store, httpFetchTile(base), undefined, httpFetchWater(base)) : null;
   const terrain = store ?? flatTerrain(0);
   // Start on dry ground just north of the suggested lodge site on the south shore
   // (design notes). The marker itself lies on the bog that the map counts as lake.

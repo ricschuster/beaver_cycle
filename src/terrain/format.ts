@@ -62,3 +62,28 @@ export function decodeTile(tx: number, tz: number, buf: ArrayBuffer): DecodedTil
   const classes = new Uint8Array(buf.slice(HEADER + nv * 2));
   return { tx, tz, level, n, heights, classes };
 }
+
+/** Streams of a tile, as cut by the tile tool: polylines in world metres. */
+export interface TileWater {
+  lakeLevel_m: number | null;
+  streams: { name: string; pts: [number, number][] }[];
+}
+
+/**
+ * Height at a position given in cells from the tile's north west corner. It
+ * follows the triangles the mesh draws (diagonal from the north east to the
+ * south west vertex of each cell).
+ */
+export function sampleHeight(tile: DecodedTile, u: number, v: number): number {
+  const w = tile.n + 1;
+  const i = Math.min(Math.max(Math.floor(u), 0), tile.n - 1);
+  const j = Math.min(Math.max(Math.floor(v), 0), tile.n - 1);
+  const fx = u - i;
+  const fz = v - j;
+  const h = tile.heights;
+  const a = h[j * w + i]!;
+  const b = h[j * w + i + 1]!;
+  const c = h[(j + 1) * w + i]!;
+  const d = h[(j + 1) * w + i + 1]!;
+  return fx + fz <= 1 ? a + fx * (b - a) + fz * (c - a) : d + (1 - fx) * (c - d) + (1 - fz) * (b - d);
+}

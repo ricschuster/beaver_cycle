@@ -1,5 +1,5 @@
 import type { Terrain } from '../sim/terrain';
-import { CLASS_LAKE, type DecodedTile, type IndexTile, type TileIndex } from './format';
+import { CLASS_LAKE, sampleHeight, type DecodedTile, type IndexTile, type TileIndex, type TileWater } from './format';
 
 export const tileKey = (tx: number, tz: number): string => `${tx}_${tz}`;
 
@@ -13,6 +13,7 @@ export class TileStore implements Terrain {
   readonly size: number;
   private readonly data = new Map<string, (DecodedTile | undefined)[]>();
   private readonly info = new Map<string, IndexTile>();
+  private readonly water = new Map<string, TileWater>();
 
   constructor(readonly index: TileIndex) {
     this.size = index.tileSize_m;
@@ -21,6 +22,14 @@ export class TileStore implements Terrain {
 
   tileInfo(tx: number, tz: number): IndexTile | undefined {
     return this.info.get(tileKey(tx, tz));
+  }
+
+  putWater(tx: number, tz: number, water: TileWater): void {
+    this.water.set(tileKey(tx, tz), water);
+  }
+
+  waterOf(tx: number, tz: number): TileWater | undefined {
+    return this.water.get(tileKey(tx, tz));
   }
 
   put(tile: DecodedTile): void {
@@ -77,17 +86,7 @@ export class TileStore implements Terrain {
     const at = this.locate(x, z);
     if (!at) return 0;
     const { tile, u, v } = at;
-    const w = tile.n + 1;
-    const i = Math.min(Math.floor(u), tile.n - 1);
-    const j = Math.min(Math.floor(v), tile.n - 1);
-    const fx = u - i;
-    const fz = v - j;
-    const h = tile.heights;
-    const a = h[j * w + i]!;
-    const b = h[j * w + i + 1]!;
-    const c = h[(j + 1) * w + i]!;
-    const d = h[(j + 1) * w + i + 1]!;
-    return fx + fz <= 1 ? a + fx * (b - a) + fz * (c - a) : d + (1 - fx) * (c - d) + (1 - fz) * (b - d);
+    return sampleHeight(tile, u, v);
   }
 
   isWater(x: number, z: number): boolean {

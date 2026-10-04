@@ -32,12 +32,29 @@ describe('createBeaverModel', () => {
 
   it('changes pose to swim and keeps its head up', () => {
     const m = createBeaverModel();
-    m.update(0, 0, false);
-    m.update(1, 0, false);
+    m.update(0, 0, 'walk');
+    m.update(1, 0, 'walk');
     const standing = new THREE.Box3().setFromObject(m.group);
-    for (let t = 1.1; t < 3; t += 0.1) m.update(t, 1, true);
+    for (let t = 1.1; t < 3; t += 0.1) m.update(t, 1, 'swim');
     const swimming = new THREE.Box3().setFromObject(m.group);
     expect(Math.abs(swimming.min.y - standing.min.y)).toBeGreaterThan(0.02); // the legs moved
     expect(Math.abs(swimming.max.y - standing.max.y)).toBeLessThan(0.1); // the back and head did not drop
+  });
+
+  it('points its nose down when sinking and up when rising', () => {
+    // height of the frontmost part minus height of the rearmost part
+    const noseOverTail = (tilt: number): number => {
+      const m = createBeaverModel();
+      for (let t = 0; t < 3; t += 0.05) m.update(t, 0.5, 'dive', tilt);
+      m.group.updateMatrixWorld(true);
+      const centres: THREE.Vector3[] = [];
+      m.group.traverse((o) => {
+        if (o instanceof THREE.Mesh) centres.push(o.getWorldPosition(new THREE.Vector3()));
+      });
+      centres.sort((a, b) => a.z - b.z);
+      return centres[centres.length - 1]!.y - centres[0]!.y;
+    };
+    expect(noseOverTail(1)).toBeLessThan(noseOverTail(0));
+    expect(noseOverTail(-1)).toBeGreaterThan(noseOverTail(0));
   });
 });

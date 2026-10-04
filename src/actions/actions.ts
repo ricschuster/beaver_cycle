@@ -5,9 +5,11 @@
 export interface Actions {
   /** Desired movement on the ground plane, each axis in -1..1. */
   move: { x: number; z: number };
+  /** Held to go under water, released to come up. False when missing. */
+  dive?: boolean;
 }
 
-export const noActions = (): Actions => ({ move: { x: 0, z: 0 } });
+export const noActions = (): Actions => ({ move: { x: 0, z: 0 }, dive: false });
 
 /**
  * Turn a move given in the default view (forward is +z, left is +x) into a

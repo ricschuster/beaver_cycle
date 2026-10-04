@@ -2,11 +2,11 @@
 // another device can later drive or mirror it (ADR 0007).
 import type { Terrain } from './terrain';
 
-export type BeaverMode = 'walk' | 'swim';
+export type BeaverMode = 'walk' | 'swim' | 'dive';
 
 export interface BeaverState {
   x: number;
-  /** Height of the feet in metres: the ground when walking, a little below the water surface when swimming. */
+  /** Height of the feet in metres: the ground when walking, a little below the water surface when swimming, and deeper when diving. */
   y: number;
   z: number;
   mode: BeaverMode;
@@ -30,17 +30,41 @@ export const SWIM_ENTER_DEPTH = 0.6;
 export const SWIM_EXIT_DEPTH = 0.4;
 /** How far below the water surface a swimming beaver's feet hang, in metres. */
 export const SWIM_SINK = 0.2;
+export const DIVE_SPEED = 7;
+/** Metres per second the beaver sinks and rises. Not scaled by the test speed multiplier. */
+export const DIVE_RATE = 2;
+/** The beaver dives only in water at least this deep (metres), so there is room under it. */
+export const DIVE_MIN_DEPTH = 1;
+/** Feet height above the lake bed when diving along the bottom, in metres. */
+export const DIVE_FLOOR = 0.15;
 
-/** Where the feet are and whether the beaver walks or swims at a point, given how it moved before. */
-export function settle(terrain: Terrain, x: number, z: number, before: BeaverMode): { y: number; mode: BeaverMode } {
+/**
+ * Where the feet are and which mode the beaver is in at a point, given how it was
+ * before. Walks on dry ground and in shallows, floats in deep water, and goes
+ * down toward the bed while `dive` is held, up to the surface when it is not.
+ */
+export function settle(
+  terrain: Terrain,
+  x: number,
+  z: number,
+  before: { mode: BeaverMode; y: number },
+  dive = false,
+  dt = 0,
+): { y: number; mode: BeaverMode } {
   const ground = terrain.heightAt(x, z);
   const depth = terrain.waterDepth(x, z);
-  const mode = depth >= (before === 'swim' ? SWIM_EXIT_DEPTH : SWIM_ENTER_DEPTH) ? 'swim' : 'walk';
-  return { y: mode === 'swim' ? ground + depth - SWIM_SINK : ground, mode };
+  if (depth < (before.mode === 'walk' ? SWIM_ENTER_DEPTH : SWIM_EXIT_DEPTH)) return { y: ground, mode: 'walk' };
+  const surface = ground + depth - SWIM_SINK;
+  const floor = ground + DIVE_FLOOR;
+  const from = before.mode === 'dive' ? before.y : surface;
+  const target = dive && depth >= DIVE_MIN_DEPTH ? floor : surface;
+  const reach = DIVE_RATE * dt;
+  const y = Math.min(surface, Math.max(floor, from + Math.max(-reach, Math.min(reach, target - from))));
+  return { y, mode: y < surface - 1e-6 ? 'dive' : 'swim' };
 }
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
-  const { y, mode } = settle(terrain, x, z, 'walk');
+  const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
   return { time: 0, beaver: { x, y, z, mode, heading: 0 }, speedMultiplier: 1 };
 }
 
@@ -50,5 +74,5 @@ export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): 
 
 /** Put the beaver at a point, on the ground or on the water, keeping its heading. */
 export function teleport(world: WorldState, terrain: Terrain, x: number, z: number): WorldState {
-  return { ...world, beaver: { ...world.beaver, x, z, ...settle(terrain, x, z, 'walk') } };
+  return { ...world, beaver: { ...world.beaver, x, z, ...settle(terrain, x, z, { mode: 'walk', y: 0 }) } };
 }

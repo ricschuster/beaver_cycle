@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
 import { flatTerrain, type Terrain } from './terrain';
-import { SWIM_ENTER_DEPTH, SWIM_EXIT_DEPTH, SWIM_SINK, SWIM_SPEED, WALK_SPEED, createWorld, setSpeedMultiplier, teleport } from './state';
+import { DIVE_FLOOR, DIVE_MIN_DEPTH, DIVE_RATE, DIVE_SPEED, SWIM_ENTER_DEPTH, SWIM_EXIT_DEPTH, SWIM_SINK, SWIM_SPEED, WALK_SPEED, createWorld, setSpeedMultiplier, teleport } from './state';
 import { step } from './step';
 
 const flat = flatTerrain(0);
@@ -103,6 +103,69 @@ describe('step', () => {
       const w0 = createWorld(deep, 0, 0);
       expect(teleport(w0, deep, 0, 30).beaver.mode).toBe('swim');
       expect(teleport(createWorld(deep, 0, 30), deep, 0, 0).beaver.mode).toBe('walk');
+    });
+  });
+
+  describe('diving', () => {
+    // Water 4 m deep from z = 10 southward, level 100, bed at 96.
+    const lake: Terrain = {
+      heightAt: (_x, z) => (z >= 10 ? 96 : 100),
+      isWater: (_x, z) => z >= 10,
+      waterDepth: (_x, z) => (z >= 10 ? 4 : 0),
+    };
+    const dive = { move: { x: 0, z: 0 }, dive: true };
+    const surface = 100 - SWIM_SINK;
+
+    it('sinks at the dive rate while the button is held', () => {
+      const w = step(createWorld(lake, 0, 20), dive, 0.5, lake);
+      expect(w.beaver.mode).toBe('dive');
+      expect(w.beaver.y).toBeCloseTo(surface - DIVE_RATE * 0.5);
+    });
+
+    it('stops at the lake bed', () => {
+      let w = createWorld(lake, 0, 20);
+      for (let i = 0; i < 40; i++) w = step(w, dive, 0.25, lake);
+      expect(w.beaver.y).toBeCloseTo(96 + DIVE_FLOOR);
+      expect(w.beaver.mode).toBe('dive');
+    });
+
+    it('rises when the button is released and swims again at the surface', () => {
+      let w = createWorld(lake, 0, 20);
+      for (let i = 0; i < 4; i++) w = step(w, dive, 0.25, lake);
+      const low = w.beaver.y;
+      w = step(w, noActions(), 0.25, lake);
+      expect(w.beaver.y).toBeCloseTo(low + DIVE_RATE * 0.25);
+      for (let i = 0; i < 20; i++) w = step(w, noActions(), 0.25, lake);
+      expect(w.beaver.y).toBeCloseTo(surface);
+      expect(w.beaver.mode).toBe('swim');
+    });
+
+    it('moves at dive speed under water', () => {
+      let w = step(createWorld(lake, 0, 20), dive, 0.5, lake);
+      const z0 = w.beaver.z;
+      w = step(w, { move: { x: 0, z: 1 }, dive: true }, 1, lake);
+      expect(w.beaver.z - z0).toBeCloseTo(DIVE_SPEED);
+    });
+
+    it('does not dive in water that is too shallow', () => {
+      const shallow: Terrain = { ...lake, waterDepth: () => DIVE_MIN_DEPTH - 0.1, heightAt: () => 100 - (DIVE_MIN_DEPTH - 0.1) };
+      const w = step(createWorld(shallow, 0, 20), dive, 1, shallow);
+      expect(w.beaver.mode).toBe('swim');
+    });
+
+    it('ignores the dive button on dry land', () => {
+      const w = step(createWorld(lake, 0, 0), dive, 1, lake);
+      expect(w.beaver.mode).toBe('walk');
+      expect(w.beaver.y).toBeCloseTo(100);
+    });
+
+    it('is pushed up when the bed rises under it', () => {
+      let w = createWorld(lake, 0, 20);
+      for (let i = 0; i < 40; i++) w = step(w, dive, 0.25, lake);
+      // swim north to the shore: the bed climbs to the surface and the beaver walks out
+      w = step(w, { move: { x: 0, z: -1 }, dive: true }, 3, lake);
+      expect(w.beaver.mode).toBe('walk');
+      expect(w.beaver.y).toBeCloseTo(100);
     });
   });
 });

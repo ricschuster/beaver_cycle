@@ -15,10 +15,21 @@ export interface WorldState {
   /** Simulated seconds since the start. */
   time: number;
   beaver: BeaverState;
+  /** Test setting that scales movement speed (x1, x5, x20, x100). Not a game rule. */
+  speedMultiplier: number;
 }
 
 export const WALK_SPEED = 2;
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
-  return { time: 0, beaver: { x, y: terrain.heightAt(x, z), z, heading: 0 } };
+  return { time: 0, beaver: { x, y: terrain.heightAt(x, z), z, heading: 0 }, speedMultiplier: 1 };
+}
+
+export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {
+  return { ...world, speedMultiplier };
+}
+
+/** Put the beaver on the ground at a point, keeping its heading. */
+export function teleport(world: WorldState, terrain: Terrain, x: number, z: number): WorldState {
+  return { ...world, beaver: { ...world.beaver, x, y: terrain.heightAt(x, z), z } };
 }

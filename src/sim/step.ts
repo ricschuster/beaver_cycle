@@ -11,9 +11,11 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
     z /= len;
   }
   const b = world.beaver;
-  const nx = b.x + x * WALK_SPEED * dt;
-  const nz = b.z + z * WALK_SPEED * dt;
+  const speed = WALK_SPEED * world.speedMultiplier;
+  const nx = b.x + x * speed * dt;
+  const nz = b.z + z * speed * dt;
   return {
+    ...world,
     time: world.time + dt,
     beaver: {
       x: nx,

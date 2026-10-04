@@ -82,7 +82,7 @@ should match.
   input; the ground comes in through its `Terrain` interface), `terrain/` is
   tile decoding, the tile store, and the streamer (no three.js), `actions/` is what the player wants as plain data plus the input
   devices that produce it, `render/` draws sim state with three.js and never
-  changes it. `tests/e2e/` holds the Playwright tests.
+  changes it, `ui/` is DOM overlays such as the test menu. `tests/e2e/` holds the Playwright tests.
 - `prototypes/` - throwaway demos, such as the camera demo. Not the game.
 - `scripts/` - helpers such as the question handout builder.
 

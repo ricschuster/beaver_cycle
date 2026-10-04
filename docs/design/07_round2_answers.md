@@ -1,9 +1,8 @@
 # Beaver game: round 2 answers
 
 Transcribed from the answered round 2 handout (seven photos dated 2026-10-04,
-Q13 to Q53). Spelling is tidied and the meaning is kept. Words that could not
-be read with confidence are marked **(?)**. This is a draft until the author
-confirms the readings, as was done for round 1. The photos stay the source.
+Q13 to Q53). Spelling is tidied and the meaning is kept. Doubtful readings were
+confirmed by the author on 2026-10-04. The photos stay the source.
 
 Round 1 is in `05_round1_answers.md`. The questions are in
 `02_game_questions_round2.md`.
@@ -66,7 +65,7 @@ Round 1 is in `05_round1_answers.md`. The questions are in
 
 | Q | Question | Answer |
 | --- | --- | --- |
-| 38 | Tasks | Get a mate, have kits, find the guides **(?)**, and all. |
+| 38 | Tasks | Get a mate, have kits, find the guides, and all. |
 | 39 | An achievement | "The wood achievement": it is when you chop down 30 trees. |
 | 40 | After everything is done | You can keep playing. Each baby starts its own achievement journey. |
 
@@ -96,7 +95,7 @@ Round 1 is in `05_round1_answers.md`. The questions are in
 | Q | Question | Answer |
 | --- | --- | --- |
 | 47 | Baby to teenager | You can play the whole year, but you can skip ahead if you want to. |
-| 48 | Teenager jobs | Teenager beavers help repair the lodge, dams, and food cache **(?)**. |
+| 48 | Teenager jobs | Teenager beavers help repair the lodge, dams, and food cache. |
 | 49 | Papa | The papa beaver shows the beavers how to repair the lodge, and stuff. |
 | 50 | Time to go | The mama and papa say the beaver has to start a family of their own. |
 
@@ -105,16 +104,18 @@ Round 1 is in `05_round1_answers.md`. The questions are in
 | Q | Question | Answer |
 | --- | --- | --- |
 | 51 | What a guide does | The guide helps the player when the beaver needs directions. |
-| 52 | Rescuing | The player has to either dig through **(?)** snow or fight predators off. |
-| 53 | Where stuck beavers come from | The stuck **(?)** beavers are from other families. |
+| 52 | Rescuing | The player has to either dig through snow or fight predators off. |
+| 53 | Where stuck beavers come from | The stuck beavers are from other families. |
 
-## Readings to confirm
+## Confirmed readings
 
-- Q38: "gides" read as "guides".
-- Q48: "chash" read as "cache".
-- Q52: the line ends at "throa", read as "through". Nothing else follows it.
-- Q53: "stake" read as "stuck".
-- Q41: "malty player" read as "multiplayer".
+The author confirmed these readings of the handwriting:
+
+- Q38: "guides".
+- Q41: "multiplayer".
+- Q48: "cache".
+- Q52: "through".
+- Q53: "stuck".
 
 Confirmed by the author in conversation:
 

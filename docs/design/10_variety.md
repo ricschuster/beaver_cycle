@@ -37,8 +37,9 @@ The author answered the variety questions in round 3
   needs repair. No beaver announces it (Q55).
 - Ignoring it has one cost: the thing breaks and has to be rebuilt (Q56). That
   is a chore, not a loss, which fits the no losing rule.
-- The beavers repair the broken thing, or build it again (Q57). Whether the
-  player triggers repair with a button is open, see below.
+- The beavers repair the broken thing, or build it again (Q57). Repair is
+  building again with the same carry and place action, so there is no repair
+  button (`15_build_and_repair.md`).
 
 ### Families change
 
@@ -68,9 +69,11 @@ The author answered the variety questions in round 3
 
 ## Open questions
 
-- How are the dam, lodge, and food store built, and so how are they repaired?
-  Decide this first. It settles whether repair is a button (Q57).
-- How fast does each thing wear out, and does the lodge wear out at all?
+- How fast does each thing wear out? `15_build_and_repair.md` has starting
+  values to tune on a tablet. The lodge is slowest, which the author has not
+  stated.
+- The open build questions are in `15_build_and_repair.md`: dam placement,
+  pond water, rocks, and moving the lodge.
 - Does the dream at night replace the skip, or does the player choose each
   night (Q65)?
 - Q64 says each generation starts in a different pond. How does the new baby

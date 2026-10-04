@@ -68,8 +68,9 @@ Prove or disprove the stack before building on it.
 - Wear: the dam wears out first, then the food store, and a worn dam looks
   broken (Q54). A glowing circle marks what needs repair (Q55). Ignored, it
   breaks and has to be rebuilt (Q56). No loss, only a chore.
-- Repair is done by the beavers, or by building again (Q57). Decide how things
-  are built before deciding whether repair is a button.
+- Repair is done by the beavers, or by building again (Q57). It is the same
+  carry and place action as building, with no repair button. The design is in
+  `15_build_and_repair.md`.
 
 ## M6: One life, then the next
 

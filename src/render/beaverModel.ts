@@ -11,8 +11,8 @@ const TEETH = 0xf2ead0;
 
 export interface BeaverModel {
   group: THREE.Group;
-  /** Poses the model. `time` is seconds, `speed01` is 0 standing and 1 at full walking pace. */
-  update(time: number, speed01: number): void;
+  /** Poses the model. `time` is seconds, `speed01` is 0 standing and 1 at full pace, `swimming` picks the swim pose. */
+  update(time: number, speed01: number, swimming?: boolean): void;
 }
 
 function part(geometry: THREE.BufferGeometry, color: number, x: number, y: number, z: number): THREE.Mesh {
@@ -66,16 +66,37 @@ export function createBeaverModel(): BeaverModel {
   const legs = [leg(-0.17, 0.25, 0.2, 0.1), leg(0.17, 0.25, 0.2, 0.1), leg(-0.19, -0.3, 0.22, 0.17), leg(0.19, -0.3, 0.22, 0.17)];
   group.add(...legs);
 
+  // 0 walking, 1 swimming. Eases so the pose changes over a fraction of a second.
+  let swim = 0;
+  let last = 0;
+
   return {
     group,
-    update(time, speed01) {
-      const phase = time * 9;
-      body.position.y = Math.abs(Math.sin(phase)) * 0.03 * speed01;
+    update(time, speed01, swimming = false) {
+      const dt = Math.min(Math.max(time - last, 0), 0.1);
+      last = time;
+      swim += ((swimming ? 1 : 0) - swim) * Math.min(1, dt * 8);
+
+      const phase = time * (9 + 3 * swim);
+      const walkBob = Math.abs(Math.sin(phase)) * 0.03 * speed01;
+      // Afloat the body rides low, with a slow bob instead of footfalls.
+      const swimBob = Math.sin(time * 3) * 0.015 * (0.4 + 0.6 * speed01);
+      body.position.y = walkBob * (1 - swim) + swimBob * swim;
+      body.rotation.x = -0.12 * swim * speed01;
+      head.rotation.x = -0.15 * swim;
+
       legs.forEach((l, i) => {
-        const swing = Math.sin(phase + (i % 2 === 0 ? 0 : Math.PI) + (i < 2 ? 0 : Math.PI));
-        l.rotation.x = swing * 0.5 * speed01;
+        const front = i < 2;
+        const swing = Math.sin(phase + (i % 2 === 0 ? 0 : Math.PI) + (front ? 0 : Math.PI));
+        const walkAngle = swing * 0.5 * speed01;
+        // Swimming: front legs tuck under the chest, back legs trail and kick.
+        const swimAngle = front ? 1.3 : 0.9 + swing * 0.7 * (0.3 + 0.7 * speed01);
+        l.rotation.x = walkAngle * (1 - swim) + swimAngle * swim;
       });
-      tail.rotation.x = 0.35 + Math.sin(phase * 0.5) * 0.05 * speed01;
+
+      const walkTail = 0.35 + Math.sin(phase * 0.5) * 0.05 * speed01;
+      tail.rotation.x = walkTail * (1 - swim) + -0.05 * swim;
+      tail.rotation.y = Math.sin(time * 2.5) * 0.25 * swim * speed01;
     },
   };
 }

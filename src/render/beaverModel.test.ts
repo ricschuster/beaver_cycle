@@ -29,4 +29,15 @@ describe('createBeaverModel', () => {
     const walking = new THREE.Box3().setFromObject(m.group).max.y;
     expect(walking).toBeGreaterThanOrEqual(still);
   });
+
+  it('changes pose to swim and keeps its head up', () => {
+    const m = createBeaverModel();
+    m.update(0, 0, false);
+    m.update(1, 0, false);
+    const standing = new THREE.Box3().setFromObject(m.group);
+    for (let t = 1.1; t < 3; t += 0.1) m.update(t, 1, true);
+    const swimming = new THREE.Box3().setFromObject(m.group);
+    expect(Math.abs(swimming.min.y - standing.min.y)).toBeGreaterThan(0.02); // the legs moved
+    expect(Math.abs(swimming.max.y - standing.max.y)).toBeLessThan(0.1); // the back and head did not drop
+  });
 });

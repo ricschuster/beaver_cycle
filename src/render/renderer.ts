@@ -72,7 +72,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       lastZ = b.z;
       // Pace from the distance moved this frame, so the legs follow the sim, not the keys.
       pace += ((moved > 0.001 && moved < 5 ? 1 : 0) - pace) * 0.2;
-      beaverModel.update(performance.now() / 1000, pace);
+      beaverModel.update(performance.now() / 1000, pace, b.mode === 'swim');
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
       const reach = view.dist * Math.cos(view.pitch);

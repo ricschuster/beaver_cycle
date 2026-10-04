@@ -16,7 +16,7 @@ and Claude Code working rules (`CLAUDE.md`, `.claude/settings.json`).
    scope).
 4. Fill in the `## Project purpose`, `## Project status`, `## Scope`, and
    `## Stack` sections of `CLAUDE.md` to match.
-5. Pick a license. `LICENSE` here is GPL-3.0; swap it for whatever fits, and
+5. Pick a license. `LICENSE` here is all rights reserved; swap it for whatever fits, and
    update the License section below.
 6. Once a tech stack is chosen:
    - Fill in the `## Setup` section of `CONTRIBUTING.md` with real local-run
@@ -83,4 +83,5 @@ current `main` before it merges.
 
 ## License
 
-GNU General Public License v3.0. Replace with your own choice if different.
+Copyright (c) 2026 Richard Schuster. All rights reserved. See `LICENSE`.
+The project may be opened up under a different license later.

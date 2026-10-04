@@ -32,6 +32,23 @@ Unlock the tablet first, since a locked screen pauses the app. Reload the app
 (or reopen it) after a code change. The tiles come from OpenStreetMap data
 (ADR 0003), so the app is for local testing only.
 
+## Benchmark
+
+`bench.mjs` drives the test menu on the tablet and prints fps, worst frame,
+triangles, trees, tiles, and memory. Run it with the app open and the tablet
+unlocked, from the repo root:
+
+```sh
+node tools/tablet-live/bench.mjs scenarios     # each location, walking, x100
+node tools/tablet-live/bench.mjs stress        # ring and tree density sweep
+node tools/tablet-live/bench.mjs soak 10       # ten minutes of walking
+```
+
+The budgets in `docs/design/14_m2_streamed_core_plan.md` came from these runs.
+Repeat them when a milestone adds detail. The stress sweep uses the `?rings=`
+and `?trees=` URL options. The screen caps fps at its refresh rate, so only a
+drop in the sweep shows the real limit.
+
 To read frame statistics from the computer, forward the WebView debug socket
 and use `window.__game.stats()`:
 

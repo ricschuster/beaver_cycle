@@ -64,11 +64,11 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const b = world.beaver;
       beaver.position.set(b.x, b.y + 0.25, b.z);
       beaver.rotation.y = b.heading;
-      const camZ = b.z - 7;
+      const camZ = b.z - 10;
       // Keep the camera above rising ground behind the beaver.
-      const camY = Math.max(b.y + 5, (source ? source.store.heightAt(b.x, camZ) : 0) + 2);
+      const camY = Math.max(b.y + 3.5, (source ? source.store.heightAt(b.x, camZ) : 0) + 2);
       camera.position.set(b.x, camY, camZ);
-      camera.lookAt(b.x, b.y + 0.5, b.z);
+      camera.lookAt(b.x, b.y + 1.5, b.z + 12); // look ahead so the horizon shows
       terrain?.update(b.x, b.z);
       gl.render(scene, camera);
     },

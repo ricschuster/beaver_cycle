@@ -1,4 +1,6 @@
+import { relativeToView } from './actions/actions';
 import { createKeyboardInput } from './actions/keyboard';
+import { createCameraRig } from './render/cameraRig';
 import { createRenderer } from './render/renderer';
 import { createWorld, setSpeedMultiplier, teleport } from './sim/state';
 import { step } from './sim/step';
@@ -24,9 +26,13 @@ async function start(): Promise<void> {
   const readActions = createKeyboardInput(window);
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null);
 
+  const rig = createCameraRig(renderer.canvas);
   let world = createWorld(terrain, startX, startZ);
   let last = performance.now();
 
+  // A jump holds the beaver while the streamer loads the target, then moves it.
+  // The frame loop is the only caller of streamer.update, so two focus points never fight.
+  let jump: { x: number; z: number; deadline: number } | null = null;
   const anchors = store?.index.anchors.filter((a) => a.kind === 'location') ?? [];
   const menu = createTestMenu(document.body, {
     speeds: [1, 5, 20, 100],
@@ -38,10 +44,8 @@ async function start(): Promise<void> {
     onJump(id) {
       const a = anchors.find((l) => l.id === id);
       if (!a || !a.inTiles || !streamer) return;
-      // Wait for the ground at the target so the beaver does not drop to 0 m.
-      void streamer.ready(a.x, a.z, 8000).then(() => {
-        world = teleport(world, terrain, a.x, a.z);
-      });
+      jump = { x: a.x, z: a.z, deadline: performance.now() + 8000 };
+      menu.setStatus('Loading...');
     },
   });
   let fps = 60;
@@ -52,9 +56,20 @@ async function start(): Promise<void> {
     const dt = Math.min((now - last) / 1000, 0.1);
     last = now;
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
-    world = step(world, readActions(), dt, terrain);
-    streamer?.update(world.beaver.x, world.beaver.z);
-    renderer.draw(world);
+    if (jump && streamer) {
+      streamer.update(jump.x, jump.z);
+      if (streamer.settled(jump.x, jump.z) || now > jump.deadline) {
+        world = teleport(world, terrain, jump.x, jump.z);
+        jump = null;
+        menu.setStatus('');
+      }
+    } else {
+      const move = relativeToView(readActions().move, rig.view.yaw);
+      world = step(world, { move }, dt, terrain);
+      streamer?.update(world.beaver.x, world.beaver.z);
+      rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
+    }
+    renderer.draw(world, rig.view);
     if (now - lastReadout > 500) {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;
@@ -72,6 +87,7 @@ async function start(): Promise<void> {
   // Read only view for tests and the coming test menu.
   (window as unknown as { __game: unknown }).__game = {
     world: () => world,
+    view: () => rig.view,
     stats: () => renderer.terrain?.stats() ?? null,
   };
 }

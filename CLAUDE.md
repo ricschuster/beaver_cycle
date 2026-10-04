@@ -60,6 +60,9 @@ Everyday (gate means CI blocks a merge on it):
   map data into `data/raw/` (untracked, about 60 MB)
 - `python3 tools/area-editor/travel_graph.py` - rebuild travel links after a
   play shape changes
+- `python3 tools/tiles/build_tiles.py` - cut the core into streamable tiles in
+  `public/tiles/` (untracked, about 7 MB, 30 s); `python3 -m pytest tools/tiles`
+  checks them (needs `data/raw/`)
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene
 - `python3 scripts/build_question_docx.py QUESTIONS.md OUT.docx TEMPLATE.docx` -
   build a printable handout
@@ -74,6 +77,7 @@ should match.
 - `data/areas/` - the play area shapes and travel links (tracked). `data/raw/`
   is downloaded data and untracked.
 - `tools/area-editor/` - browser editor for the play area and its data build.
+- `tools/tiles/` - cuts terrain, land cover, and water into game tiles.
 - `src/` - the game. `sim/` is state and rules (no DOM, no three.js, no
   input), `actions/` is what the player wants as plain data plus the input
   devices that produce it, `render/` draws sim state with three.js and never

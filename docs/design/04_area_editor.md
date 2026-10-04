@@ -23,6 +23,29 @@ and a crossing time. Crossing time is longest distance, divided by a
 compression factor, divided by beaver speed. Both numbers are inputs, so the
 tool ties the drawing to game length (round 1, Q3).
 
+## Suggested areas
+
+`data/areas/areas.geojson` holds a first suggestion, which the editor loads
+when you have no drawing of your own ("Load repo areas" brings it back):
+
+- **Play area**: the valley floor below 630 m that connects to the lake,
+  between 47.737 and 47.777 N, smoothed. About 6 km2 including the 0.85 km2
+  lake. It follows the real valley, so it is long and narrow.
+- **View area**: a rough box around the valley walls and the northern edge
+  of the Totes Gebirge.
+- **Labels**: the lake, the Aagbach inflow, the south shore bog, a suggested
+  start lodge, the Weissenegg stream inflow, the Alm river outflow, and the
+  Totes Gebirge. The inflow and outflow points are candidate dam sites. The
+  start lodge position is a guess based on the wetland notes in
+  `03_location.md`.
+
+## Layers and legend
+
+The side panel has an on/off checkbox for every layer: relief, water, land
+cover (all of it, and each of forest, scrub, meadow, wetland and rock on its
+own), play area, view area, markers, and labels. A legend on the map lists
+whatever is switched on. The relief opacity slider sits above the checkboxes.
+
 ## How to use
 
 1. Build the data once (needs GDAL Python bindings, numpy, Pillow, network):

@@ -312,6 +312,9 @@ def main():
     w, s, e, n = BBOX
     data = {"bounds": [[s, w], [n, e]], "zmin": zmin, "zmax": zmax, "water": water,
             "landcover": landcover_for_editor(classes, aut, wgs)}
+    areas = HERE.parent.parent / "data" / "areas" / "areas.geojson"
+    if areas.exists():
+        data["areas"] = json.loads(areas.read_text())
     (OUT / "data.js").write_text("window.AREA_DATA = " + json.dumps(data) + ";\n")
     print(f"relief {size}, elevation {zmin:.0f} to {zmax:.0f} m, {len(water['features'])} water features")
 

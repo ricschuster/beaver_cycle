@@ -1,0 +1,332 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "play",
+    "name": "Play area (suggested)",
+    "note": "Valley floor below 630 m connected to the lake, between 47.737 and 47.777 N, smoothed with a shore margin. About 6 km2 including the lake."
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       13.93842,
+       47.75877
+      ],
+      [
+       13.93909,
+       47.76307
+      ],
+      [
+       13.94378,
+       47.76602
+      ],
+      [
+       13.94655,
+       47.76965
+      ],
+      [
+       13.95087,
+       47.77314
+      ],
+      [
+       13.95451,
+       47.77514
+      ],
+      [
+       13.95807,
+       47.7758
+      ],
+      [
+       13.95905,
+       47.77768
+      ],
+      [
+       13.974,
+       47.77797
+      ],
+      [
+       13.97569,
+       47.77739
+      ],
+      [
+       13.97612,
+       47.77299
+      ],
+      [
+       13.97537,
+       47.77194
+      ],
+      [
+       13.96551,
+       47.76967
+      ],
+      [
+       13.96048,
+       47.77
+      ],
+      [
+       13.95915,
+       47.76802
+      ],
+      [
+       13.96286,
+       47.7602
+      ],
+      [
+       13.96427,
+       47.75369
+      ],
+      [
+       13.96265,
+       47.74864
+      ],
+      [
+       13.96287,
+       47.74549
+      ],
+      [
+       13.96103,
+       47.74356
+      ],
+      [
+       13.96126,
+       47.74088
+      ],
+      [
+       13.95968,
+       47.73975
+      ],
+      [
+       13.9602,
+       47.73771
+      ],
+      [
+       13.95897,
+       47.73633
+      ],
+      [
+       13.94518,
+       47.73612
+      ],
+      [
+       13.94343,
+       47.73681
+      ],
+      [
+       13.94412,
+       47.74102
+      ],
+      [
+       13.94664,
+       47.74554
+      ],
+      [
+       13.94888,
+       47.74833
+      ],
+      [
+       13.95107,
+       47.74954
+      ],
+      [
+       13.94843,
+       47.75205
+      ],
+      [
+       13.95187,
+       47.75859
+      ],
+      [
+       13.95106,
+       47.75913
+      ],
+      [
+       13.94708,
+       47.75938
+      ],
+      [
+       13.94622,
+       47.75553
+      ],
+      [
+       13.94486,
+       47.75482
+      ],
+      [
+       13.94433,
+       47.75332
+      ],
+      [
+       13.94126,
+       47.75215
+      ],
+      [
+       13.9398,
+       47.75257
+      ],
+      [
+       13.9385,
+       47.754
+      ],
+      [
+       13.93841,
+       47.75642
+      ],
+      [
+       13.93916,
+       47.75735
+      ],
+      [
+       13.93842,
+       47.75877
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "view",
+    "name": "View area (suggested)",
+    "note": "Rough backdrop box: the valley walls and the northern edge of the Totes Gebirge."
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       13.895,
+       47.675
+      ],
+      [
+       14.025,
+       47.675
+      ],
+      [
+       14.025,
+       47.815
+      ],
+      [
+       13.895,
+       47.815
+      ],
+      [
+       13.895,
+       47.675
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "marker",
+    "name": "Almsee",
+    "note": "The lake, about 2.1 km long. Game lake is deeper than the real one."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     13.9565,
+     47.7555
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "marker",
+    "name": "Aagbach inflow",
+    "note": "Main stream into the south end, splits into several arms at the mouth."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     13.9562,
+     47.7447
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "marker",
+    "name": "South shore bog",
+    "note": "Flat, boggy, silting zone with water under 50 cm. Reeds and cattails."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     13.956,
+     47.7468
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "marker",
+    "name": "Suggested start lodge",
+    "note": "Edge of the south wetland and alder swamp forest, where beavers are documented."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     13.953,
+     47.7475
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "marker",
+    "name": "Weissenegg stream inflow",
+    "note": "Small stream entering the north-west shore. Candidate first dam site."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     13.9505,
+     47.7615
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "marker",
+    "name": "Alm river outflow",
+    "note": "Lake outlet at the north end. Candidate big dam site."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     13.957,
+     47.7664
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "marker",
+    "name": "Totes Gebirge",
+    "note": "Mountains to the south. Backdrop, stylized."
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     13.96,
+     47.69
+    ]
+   }
+  }
+ ]
+}

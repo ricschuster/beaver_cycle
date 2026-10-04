@@ -276,28 +276,61 @@ def landcover_for_editor(classes, aut, wgs, tolerance=20):
     return {"type": "FeatureCollection", "features": feats}
 
 
+def ring_polygon(ring):
+    g = ogr.Geometry(ogr.wkbPolygon)
+    r = ogr.Geometry(ogr.wkbLinearRing)
+    for x, y in ring:
+        r.AddPoint_2D(x, y)
+    g.AddGeometry(r)
+    return g.MakeValid()
+
+
 def to_geojson(osm):
-    feats = []
+    """Water polygons (closed ways and assembled relations) and stream lines.
 
-    def coords(geom):
-        return [[p["lon"], p["lat"]] for p in geom]
-
+    Stream lines are trimmed where they cross a lake, so a river centreline does
+    not run through the filled water.
+    """
+    lakes = []  # (ogr polygon, name)
+    lines = []
     for el in osm["elements"]:
         tags = el.get("tags", {})
+        name = tags.get("name", "")
         if el["type"] == "way" and "geometry" in el:
-            pts = coords(el["geometry"])
-            closed = len(pts) > 3 and pts[0] == pts[-1] and tags.get("natural") == "water"
-            geom = {"type": "Polygon", "coordinates": [pts]} if closed else {"type": "LineString", "coordinates": pts}
-            kind = "water" if tags.get("natural") == "water" else "stream"
-            feats.append({"type": "Feature", "properties": {"kind": kind, "name": tags.get("name", "")}, "geometry": geom})
-        elif el["type"] == "relation":
-            for m in el.get("members", []):
-                if m.get("geometry") and m.get("role") == "outer":
-                    feats.append({
-                        "type": "Feature",
-                        "properties": {"kind": "water-outline", "name": tags.get("name", "")},
-                        "geometry": {"type": "LineString", "coordinates": coords(m["geometry"])},
-                    })
+            pts = [[p["lon"], p["lat"]] for p in el["geometry"]]
+            if tags.get("natural") == "water" and len(pts) > 3 and pts[0] == pts[-1]:
+                lakes.append((ring_polygon(pts), name))
+            else:  # streams, and open natural=water ways such as the Alm river
+                lines.append((pts, name))
+        elif el["type"] == "relation" and tags.get("natural") == "water":
+            outers = [[[p["lon"], p["lat"]] for p in m["geometry"]]
+                      for m in el.get("members", []) if m.get("role") == "outer" and m.get("geometry")]
+            inners = [[[p["lon"], p["lat"]] for p in m["geometry"]]
+                      for m in el.get("members", []) if m.get("role") == "inner" and m.get("geometry")]
+            holes = [ring_polygon(r) for r in join_rings(inners)]
+            for ring in join_rings(outers):
+                poly = ring_polygon(ring)
+                for h in holes:
+                    if poly.Intersects(h):
+                        poly = poly.Difference(h)
+                lakes.append((poly, name))
+
+    feats = []
+    union = None
+    for poly, name in lakes:
+        union = poly if union is None else union.Union(poly)
+        feats.append({"type": "Feature", "properties": {"kind": "water", "name": name},
+                      "geometry": json.loads(poly.ExportToJson(["COORDINATE_PRECISION=6"]))})
+    for pts, name in lines:
+        line = ogr.Geometry(ogr.wkbLineString)
+        for x, y in pts:
+            line.AddPoint_2D(x, y)
+        if union is not None and line.Intersects(union):
+            line = line.Difference(union)
+        if line.IsEmpty():
+            continue
+        feats.append({"type": "Feature", "properties": {"kind": "stream", "name": name},
+                      "geometry": json.loads(line.ExportToJson(["COORDINATE_PRECISION=6"]))})
     return {"type": "FeatureCollection", "features": feats}
 
 

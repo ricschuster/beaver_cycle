@@ -89,6 +89,12 @@ async function start(): Promise<void> {
       const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
       menu.setReadout({
         fps,
+        beaver: {
+          x: world.beaver.x,
+          z: world.beaver.z,
+          ground: world.beaver.y,
+          waterDepth: terrain.waterDepth(world.beaver.x, world.beaver.z),
+        },
         tilesByLevel: stats?.tilesByLevel ?? null,
         triangles: stats?.triangles ?? null,
         memoryMb: heap ? heap.usedJSHeapSize / 1048576 : null,

@@ -18,8 +18,9 @@ next generation, forever. It is for the author and friends, on tablets. See
 
 Design phase, with no game code yet. Rounds 1 and 2 of the author's questions
 are answered, round 3 (variety) is printed and awaits the author's answers, and
-the stack is chosen (ADR 0007). The next milestone is a tablet test of the stack, then a
-first playable of the core location on a tablet. Open GitHub issues are the
+the stack is chosen and confirmed on a tablet (ADR 0007, M0 done). The next
+milestone is the scaffold (M1), then a first playable of the core location on a
+tablet. Open GitHub issues are the
 live task tracker. A draft milestone plan is in
 `docs/design/13_milestone_plan.md`.
 

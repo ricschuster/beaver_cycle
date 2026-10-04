@@ -39,29 +39,59 @@ when you have no drawing of your own ("Load repo areas" brings it back):
   start lodge position is a guess based on the wetland notes in
   `03_location.md`.
 
-## Play area options (draft)
+## Play area options
 
-The play area is a set of options, each a shape with an `option` name and an
-`active` flag in `data/areas/areas.geojson`. The side panel lists them under
-"Play area", and each checkbox switches an option on or off. Only the options
-switched on are drawn and counted. The stats cover the combined area, and the
-longest distance and crossing time are measured across everything switched on,
-not within each shape alone. The on/off choice is saved with the file.
+The play area is a set of options, each a shape with an `option` name, an
+`active` flag, and a `status` (draft or approved) in
+`data/areas/areas.geojson`. The side panel lists them under "Play area", and
+each checkbox switches an option on or off. Only the options switched on are
+drawn and counted. The stats cover the combined area, and the longest distance
+and crossing time are measured across everything switched on, not within each
+shape alone. The on/off choice is saved with the file.
 
-Current draft options:
+| Option | Status | Area | What it is |
+| --- | --- | --- | --- |
+| Core | draft | 6.3 km2 | The suggested play area around the lake. |
+| North extension | approved | 1.6 km2 | Flat ground (slope under 7 degrees) on the Alm valley floor, cut at 47.797 N. The flat strip continues to the edge of the view area at 47.815 N. |
+| South extension | approved | 2.5 km2 | Flat valley floor south of the Aagbach delta, between 47.713 and 47.736 N. |
+| East extension to the Oedseen | draft | 2.2 km2 | Gentle ground along a 4.7 km route east from the core, plus the shores of both lakes. |
+| Vorderer Springbach valley | draft | 1.1 km2 | Side valley south of the east corridor, linked to it along the stream. |
+| Hinterer Springbach valley | draft | 0.8 km2 | The next side valley east, higher and steeper. |
 
-- **Core (draft)**: the suggested play area above, 6.3 km2.
-- **North extension (draft)**: flat ground (slope under 7 degrees) on the Alm
-  valley floor, 1.6 km2, cut at 47.797 N. The flat strip continues to the edge
-  of the view area at 47.815 N, so a longer version is a small change.
-- **South extension (draft)**: flat valley floor south of the Aagbach delta
-  between 47.713 and 47.736 N, 2.5 km2.
+The extensions come from a slope map of the 5 m terrain, smoothed to 15 m, and
+all sit inside the view area. Each sits flush against the others without
+overlapping.
 
-The extensions come from a slope map of the 5 m terrain, smoothed to 15 m,
-keeping flat ground that connects to the core inside the view area. They sit
-flush against the core without overlapping it. With all three on, the play
-area is 10.4 km2 and 9.7 km long, which is 81 minutes at 2 m/s with no
-compression (core alone: 43 minutes).
+### The east route to the Oedseen
+
+A gentle route exists from the core to the west shore of the Grosser Oedsee,
+along the Straneggbach valley. It is 4.7 km long and climbs from about 600 m to
+about 700 m, an average grade under 3 percent. The median slope along it is
+2.5 degrees, the steepest 100 m stretch is a 15 percent grade, and 1 percent of
+the route is steeper than 15 degrees. The east extension is that route widened
+to the gentle ground within 450 m of it (slope under 10 degrees), plus the lake
+shores (slope under 15 degrees within 500 m). Both lakes lie fully inside it.
+
+The Springbach valleys are real streams that join the corridor from the south.
+They are small, climb to 840 to 880 m, and are steeper than the core (median
+slope about 8 degrees against 3.6), with only about a third flat. They are
+offered as side branches, not as part of the main area.
+
+### Combined numbers
+
+At 2 m/s with no compression:
+
+| Options on | Area | Longest straight line | Crossing time |
+| --- | --- | --- | --- |
+| Core | 6.3 km2 | 5.1 km | 43 min |
+| Core, North, South | 10.4 km2 | 9.7 km | 81 min |
+| Core, North, South, East | 12.8 km2 | 9.7 km | 81 min |
+| All six | 14.7 km2 | 9.7 km | 81 min |
+
+The longest straight line does not grow when the east is added, because the
+north to south stretch is already the longest. It also ignores winding routes:
+the walk from the core to the Oedseen is 4.7 km of travel. A route based travel
+time would need a different measure.
 
 A draw of your own gets an option named from its label. Shapes that share a
 label are one option.

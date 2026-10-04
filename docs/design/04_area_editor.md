@@ -39,6 +39,33 @@ when you have no drawing of your own ("Load repo areas" brings it back):
   start lodge position is a guess based on the wetland notes in
   `03_location.md`.
 
+## Play area options (draft)
+
+The play area is a set of options, each a shape with an `option` name and an
+`active` flag in `data/areas/areas.geojson`. The side panel lists them under
+"Play area", and each checkbox switches an option on or off. Only the options
+switched on are drawn and counted. The stats cover the combined area, and the
+longest distance and crossing time are measured across everything switched on,
+not within each shape alone. The on/off choice is saved with the file.
+
+Current draft options:
+
+- **Core (draft)**: the suggested play area above, 6.3 km2.
+- **North extension (draft)**: flat ground (slope under 7 degrees) on the Alm
+  valley floor, 1.6 km2, cut at 47.797 N. The flat strip continues to the edge
+  of the view area at 47.815 N, so a longer version is a small change.
+- **South extension (draft)**: flat valley floor south of the Aagbach delta
+  between 47.713 and 47.736 N, 2.5 km2.
+
+The extensions come from a slope map of the 5 m terrain, smoothed to 15 m,
+keeping flat ground that connects to the core inside the view area. They sit
+flush against the core without overlapping it. With all three on, the play
+area is 10.4 km2 and 9.7 km long, which is 81 minutes at 2 m/s with no
+compression (core alone: 43 minutes).
+
+A draw of your own gets an option named from its label. Shapes that share a
+label are one option.
+
 ## Layers and legend
 
 The side panel has an on/off checkbox for every layer: relief, water, land

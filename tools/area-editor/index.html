@@ -52,6 +52,7 @@
     <label><input type="checkbox" data-layer="lc-rock" checked><span class="sw" style="background:#a9a39a"></span>Rock and scree</label>
   </div>
   <label><input type="checkbox" data-layer="play" checked><span class="sw" style="background:var(--play)"></span>Play area</label>
+  <div class="sub" id="playOptions"></div>
   <label><input type="checkbox" data-layer="view" checked><span class="sw" style="background:var(--view)"></span>View area</label>
   <label><input type="checkbox" data-layer="marker" checked><span class="sw" style="background:#222"></span>Markers</label>
   <label><input type="checkbox" data-layer="labels" checked>Labels</label>
@@ -63,6 +64,7 @@
 
   <h2>Stats</h2>
   <table>
+    <tr><td>Play options on</td><td id="playOpts">-</td></tr>
     <tr><td>Play area</td><td id="playArea">-</td></tr>
     <tr><td>Play, longest distance</td><td id="playSpan">-</td></tr>
     <tr><td>Play, crossing time</td><td id="playTime">-</td></tr>
@@ -125,6 +127,8 @@
   var visible = { relief: true, water: true, landcover: true, play: true, view: true, marker: true, labels: true };
   Object.keys(LC).forEach(function (c) { visible['lc-' + c] = true; });
 
+  function isOff(l) { return l.feature && l.feature.properties.layer === 'play' && l.feature.properties.active === false; }
+
   function applyVisibility() {
     function show(layer, on) { if (on && !map.hasLayer(layer)) layer.addTo(map); if (!on && map.hasLayer(layer)) map.removeLayer(layer); }
     show(relief, visible.relief);
@@ -133,7 +137,7 @@
     Object.keys(lcLayers).forEach(function (c) { lcLayers[c].bringToBack(); });   // under the water lines
     drawn.eachLayer(function (l) {
       var kind = l.feature && l.feature.properties.layer, el = l.getElement && l.getElement();
-      if (el) el.style.display = visible[kind] ? '' : 'none';
+      if (el) el.style.display = (visible[kind] && !isOff(l)) ? '' : 'none';
     });
     map.getContainer().classList.toggle('hide-labels', !visible.labels);
     legend.update();
@@ -164,8 +168,13 @@
     var name = layer.feature.properties.name;
     if (name) layer.bindTooltip(name, { permanent: kind === 'marker', direction: 'top', offset: [0, kind === 'marker' ? -28 : 0], className: kind === 'marker' ? 'marker-label' : '' });
     drawn.addLayer(layer);
+    if (kind === 'play') {
+      var pr = layer.feature.properties;
+      if (!pr.option) pr.option = pr.name || 'Play area';
+      if (pr.active === undefined) pr.active = true;
+    }
     var el = layer.getElement && layer.getElement();
-    if (el) el.style.display = visible[kind] ? '' : 'none';
+    if (el) el.style.display = (visible[kind] && !isOff(layer)) ? '' : 'none';
   }
 
   new (L.Control.Draw)({
@@ -191,19 +200,50 @@
     return Array.isArray(ll[0]) ? ll[0] : ll;
   }
   function stats(kind) {
-    var area = 0, span = 0, n = 0;
+    var area = 0, span = 0, n = 0, pts = [];
     drawn.eachLayer(function (l) {
-      if (!l.feature || l.feature.properties.layer !== kind || !l.getLatLngs) return;
+      if (!l.feature || l.feature.properties.layer !== kind || !l.getLatLngs || isOff(l)) return;
       var r = ring(l); n++;
       area += L.GeometryUtil.geodesicArea(r);
-      for (var i = 0; i < r.length; i++) for (var j = i + 1; j < r.length; j++) span = Math.max(span, map.distance(r[i], r[j]));
+      pts = pts.concat(r);
     });
+    // longest distance across everything switched on, not within each shape alone
+    for (var i = 0; i < pts.length; i++) for (var j = i + 1; j < pts.length; j++) span = Math.max(span, map.distance(pts[i], pts[j]));
     return { n: n, area: area, span: span };
+  }
+
+  function playOptionLayers() {
+    var byOption = {};
+    drawn.eachLayer(function (l) {
+      var pr = l.feature && l.feature.properties;
+      if (!pr || pr.layer !== 'play' || !l.getLatLngs) return;
+      (byOption[pr.option] = byOption[pr.option] || []).push(l);
+    });
+    return byOption;
+  }
+
+  function buildOptions() {
+    var box = document.getElementById('playOptions'), opts = playOptionLayers();
+    box.innerHTML = '';
+    Object.keys(opts).forEach(function (name) {
+      var label = document.createElement('label'), input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = opts[name].some(function (l) { return !isOff(l); });
+      input.addEventListener('change', function () {
+        opts[name].forEach(function (l) { l.feature.properties.active = input.checked; });
+        applyVisibility(); changed();
+      });
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(' ' + name));
+      box.appendChild(label);
+    });
   }
 
   function update() {
     var p = stats('play'), v = stats('view');
     var speed = +document.getElementById('speed').value || 1, c = +document.getElementById('compress').value || 1;
+    var all = Object.keys(playOptionLayers()), on = all.filter(function (k) { return playOptionLayers()[k].some(function (l) { return !isOff(l); }); });
+    set('playOpts', all.length ? on.length + ' of ' + all.length : '-');
     set('playArea', p.n ? fmtKm2(p.area) : '-');
     set('playSpan', p.n ? fmtKm(p.span) : '-');
     set('playTime', p.n ? fmtTime(p.span / c / speed) : '-');
@@ -216,7 +256,7 @@
 
   function toGeoJSON() { return drawn.toGeoJSON(); }
   function save() { try { localStorage.setItem(STORE, JSON.stringify(toGeoJSON())); } catch (e) {} }
-  function changed() { update(); save(); }
+  function changed() { buildOptions(); update(); save(); }
 
   // L.geoJSON creates layers but does not add them; collect them into the group.
   function loadInto(fc) {
@@ -225,12 +265,14 @@
       var src = layer.feature || { properties: {} };
       adopt(layer, (src.properties && src.properties.layer) || 'play');
     });
+    buildOptions();
     update();
   }
 
   var restored = false;
   try { var saved = localStorage.getItem(STORE); if (saved) { loadInto(JSON.parse(saved)); restored = true; } } catch (e) {}
   if (!restored && D.areas) loadInto(D.areas);
+  buildOptions();
   update();
   applyVisibility();
 

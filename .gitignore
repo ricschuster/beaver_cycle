@@ -37,3 +37,6 @@ prototypes/tablet-test/android/
 prototypes/tablet-test/www/
 playwright-report/
 test-results/
+
+# Generated game tiles (rebuild with tools/tiles/build_tiles.py)
+public/tiles/

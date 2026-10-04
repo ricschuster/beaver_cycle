@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beaver camera demo</title>
+<style>
+  :root { --panel: rgba(20, 28, 24, 0.72); --ink: #f4f1e8; --accent: #f2b84b; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #bfdcf0; font: 14px/1.4 system-ui, sans-serif; color: var(--ink); }
+  canvas { display: block; }
+  .panel { position: absolute; background: var(--panel); border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(4px); }
+  #modes { top: 12px; left: 12px; max-width: 360px; }
+  #modes button { all: unset; cursor: pointer; display: block; padding: 3px 8px; border-radius: 6px; }
+  #modes button.on { background: var(--accent); color: #1c1c14; font-weight: 600; }
+  #modes p { margin: 8px 0 0; font-size: 13px; opacity: 0.9; }
+  #help { bottom: 12px; left: 12px; font-size: 12.5px; max-width: 420px; }
+  #breath { top: 12px; right: 12px; width: 190px; display: none; }
+  #breath .bar { height: 10px; background: rgba(255,255,255,0.2); border-radius: 5px; overflow: hidden; margin-top: 6px; }
+  #breath .fill { height: 100%; width: 100%; background: #6fd0ff; }
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; background: #bfdcf0; color: #234; font-size: 18px; }
+  kbd { background: rgba(255,255,255,0.18); border-radius: 4px; padding: 0 5px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./node_modules/three/build/three.module.js",
+               "three/addons/": "./node_modules/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<div id="loading">Loading the Almsee...</div>
+<div id="modes" class="panel">
+  <button data-m="1">1  Third person</button>
+  <button data-m="2">2  Top down</button>
+  <button data-m="3">3  Side view</button>
+  <button data-m="4">4  Mix of views</button>
+  <p id="desc"></p>
+</div>
+<div id="breath" class="panel">Breath<div class="bar"><div class="fill"></div></div></div>
+<div id="help" class="panel">
+  <kbd>W A S D</kbd> or arrows move &nbsp; <kbd>Shift</kbd> dive (in water) &nbsp; <kbd>Space</kbd> tail slap<br>
+  <kbd>1</kbd> to <kbd>4</kbd> switch camera &nbsp; mouse drag turns, wheel zooms &nbsp; <kbd>R</kbd> back to start<br>
+  The beaver is drawn larger than life in far views so you can find it. Throwaway demo, not the game.
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const S = await (await fetch('scene.json')).json();
+const { n, cell, half, lakeLevel } = S;
+const H = Float32Array.from(S.heights);
+const C = S.codes;
+const BREATH_SECONDS = 20; // demo value; the real animal manages about 15 minutes
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+let seed = 7;
+const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+
+// ---- terrain lookups
+function hAt(x, z) {
+  const u = clamp((x + half) / cell - 0.5, 0, n - 1.001), v = clamp((z + half) / cell - 0.5, 0, n - 1.001);
+  const i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
+  const a = H[j * n + i], b = H[j * n + i + 1], c = H[(j + 1) * n + i], d = H[(j + 1) * n + i + 1];
+  return lerp(lerp(a, b, fu), lerp(c, d, fu), fv);
+}
+const codeAt = (x, z) => {
+  const i = clamp(Math.floor((x + half) / cell), 0, n - 1), j = clamp(Math.floor((z + half) / cell), 0, n - 1);
+  return C.charCodeAt(j * n + i) - 48;
+};
+const inLake = (x, z) => codeAt(x, z) === 9;
+const slopeAt = (x, z) => Math.hypot(hAt(x + 4, z) - hAt(x - 4, z), hAt(x, z + 4) - hAt(x, z - 4)) / 8;
+
+// ---- renderer, scene, lights
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+const SKY = new THREE.Color(0xbfdcf0), DEEP = new THREE.Color(0x2f7fa6);
+const scene = new THREE.Scene();
+scene.background = SKY.clone();
+scene.fog = new THREE.Fog(SKY.clone(), 220, 1900);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x55664a, 1.05));
+const sun = new THREE.DirectionalLight(0xfff1d0, 1.9);
+sun.position.set(-300, 420, 200);
+scene.add(sun);
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.3, 6000);
+
+// ---- terrain
+{
+  const pos = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3);
+  const base = { 0: 0x8d9468, 1: 0xa6c96c, 2: 0x4d7a45, 3: 0x7f9d52, 4: 0x9b9a92, 5: 0x78a37e, 9: 0x8a7f66 };
+  const tmp = new THREE.Color();
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const k = j * n + i, x = -half + (i + 0.5) * cell, z = -half + (j + 0.5) * cell;
+    pos.set([x, H[k], z], k * 3);
+    tmp.set(base[C.charCodeAt(k) - 48] ?? base[0]);
+    const slope = slopeAt(x, z);
+    if (C.charCodeAt(k) !== 57) {
+      tmp.lerp(new THREE.Color(0x9b9a92), clamp((slope - 0.6) * 1.6, 0, 0.9));
+      tmp.lerp(new THREE.Color(0xe8ecef), smooth(1150, 1450, H[k]) * 0.8);
+    }
+    const sh = 0.93 + rnd() * 0.14;
+    col.set([tmp.r * sh, tmp.g * sh, tmp.b * sh], k * 3);
+  }
+  const idx = [];
+  for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) {
+    const a = j * n + i, b = a + 1, c = a + n, d = c + 1;
+    idx.push(a, c, b, b, c, d);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  scene.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })));
+}
+
+// ---- water: lake surface and stream ribbons
+const water = new THREE.Mesh(new THREE.PlaneGeometry(half * 2, half * 2).rotateX(-Math.PI / 2),
+  new THREE.MeshPhongMaterial({ color: 0x3f8fb5, transparent: true, opacity: 0.74, shininess: 90, specular: 0x99ccee, depthWrite: false, side: THREE.DoubleSide }));
+water.position.y = lakeLevel;
+scene.add(water);
+{
+  const pos = [], idx = [];
+  for (const s of S.streams) for (let q = 0; q + 1 < s.pts.length; q++) {
+    const [x0, z0] = s.pts[q], [x1, z1] = s.pts[q + 1];
+    if (Math.abs(x0) > half - 10 || Math.abs(z0) > half - 10 || Math.abs(x1) > half - 10 || Math.abs(z1) > half - 10) continue;
+    if (inLake((x0 + x1) / 2, (z0 + z1) / 2)) continue;
+    const len = Math.hypot(x1 - x0, z1 - z0) || 1, nx = -(z1 - z0) / len * 1.4, nz = (x1 - x0) / len * 1.4;
+    const b = pos.length / 3;
+    for (const [x, z, sg] of [[x0, z0, 1], [x0, z0, -1], [x1, z1, 1], [x1, z1, -1]])
+      pos.push(x + nx * sg, hAt(x + nx * sg, z + nz * sg) + 0.25, z + nz * sg);
+    idx.push(b, b + 1, b + 2, b + 2, b + 1, b + 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x4aa3cc, side: THREE.DoubleSide })));
+}
+
+// ---- landmarks: start on the south shore, lodge in the bay, dam on the nearest stream
+let startX = 0, startZ = 0, lodge = { x: 0, z: 0 }, dam = null;
+{
+  let maxJ = 0;
+  for (let k = 0; k < C.length; k++) if (C.charCodeAt(k) === 57) maxJ = Math.max(maxJ, Math.floor(k / n));
+  let sum = 0, cnt = 0;
+  for (let j = maxJ - 5; j <= maxJ; j++) for (let i = 0; i < n; i++) if (C.charCodeAt(j * n + i) === 57) { sum += i; cnt++; }
+  const ix = sum / cnt;
+  startX = -half + (ix + 0.5) * cell;
+  startZ = -half + (maxJ + 0.5) * cell;
+  while (inLake(startX, startZ) || hAt(startX, startZ) < lakeLevel + 0.4) startZ += 2;
+  startZ += 8;
+  lodge = { x: startX, z: startZ };
+  while (!inLake(lodge.x, lodge.z) || hAt(lodge.x, lodge.z) > lakeLevel - 1.6) { lodge.z -= 2; if (lodge.z < startZ - 220) break; }
+  lodge.z -= 6;
+  let best = 1e9;
+  for (const s of S.streams) for (let q = 1; q + 1 < s.pts.length; q++) {
+    const [x, z] = s.pts[q], d = Math.hypot(x - startX, z - startZ);
+    if (d < best && d > 20 && !inLake(x, z) && Math.abs(x) < half - 40 && Math.abs(z) < half - 40) {
+      best = d; dam = { x, z, dx: s.pts[q + 1][0] - s.pts[q - 1][0], dz: s.pts[q + 1][1] - s.pts[q - 1][1] };
+    }
+  }
+}
+
+const wood = [0x6b4a2b, 0x7b5733, 0x59391f, 0x8a6a42].map(c => new THREE.MeshLambertMaterial({ color: c, flatShading: true }));
+{
+  // lodge: a dome of sticks
+  const grp = new THREE.Group();
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(3.6, 12, 7, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.75, 1),
+    new THREE.MeshLambertMaterial({ color: 0x4e3721, flatShading: true }));
+  grp.add(dome);
+  const stickGeo = new THREE.CylinderGeometry(0.11, 0.13, 1, 5);
+  const sticks = new THREE.InstancedMesh(stickGeo, wood[0], 260);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Color();
+  for (let i = 0; i < 260; i++) {
+    const th = rnd() * Math.PI * 2, ph = Math.acos(rnd() * 0.96), r = 3.7;
+    const p = new THREE.Vector3(Math.sin(ph) * Math.cos(th) * r, Math.cos(ph) * r * 0.75, Math.sin(ph) * Math.sin(th) * r);
+    e.set(rnd() * 3, rnd() * 3, rnd() * 3);
+    q.setFromEuler(e);
+    m.compose(p, q, new THREE.Vector3(1, 2 + rnd() * 2.2, 1));
+    sticks.setMatrixAt(i, m);
+    sticks.setColorAt(i, c.setHex([0x6b4a2b, 0x8a6a42, 0x59391f][i % 3]));
+  }
+  grp.add(sticks);
+  grp.position.set(lodge.x, lakeLevel - 0.7, lodge.z);
+  scene.add(grp);
+  // build site beacon and ring so the mix camera has something to find
+  const ring = new THREE.Mesh(new THREE.RingGeometry(13, 14, 48).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0xf2b84b, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
+  ring.position.set(lodge.x, lakeLevel + 0.12, lodge.z);
+  scene.add(ring);
+  const flag = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 16, 6), new THREE.MeshBasicMaterial({ color: 0xf2b84b }));
+  flag.position.set(lodge.x, lakeLevel + 8, lodge.z);
+  scene.add(flag);
+}
+if (dam) {
+  const ang = Math.atan2(dam.dx, dam.dz) + Math.PI / 2; // logs run across the stream
+  const grp = new THREE.Group();
+  for (let layer = 0; layer < 3; layer++) for (let i = -6 + layer; i <= 6 - layer; i++) {
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.3, 3.4, 6), wood[(i + layer + 8) % 4]);
+    log.rotation.x = Math.PI / 2;
+    log.position.set(0, 0.3 + layer * 0.5, i * 0.62 + (layer % 2) * 0.3);
+    log.rotation.z = (rnd() - 0.5) * 0.2;
+    grp.add(log);
+  }
+  grp.rotation.y = ang - Math.PI / 2;
+  grp.position.set(dam.x, hAt(dam.x, dam.z) + 0.2, dam.z);
+  scene.add(grp);
+}
+
+// ---- trees: low poly spruce on forest cells
+{
+  const cone1 = new THREE.ConeGeometry(2.4, 6, 7).translate(0, 4.2, 0);
+  const cone2 = new THREE.ConeGeometry(1.8, 5, 7).translate(0, 7.2, 0);
+  const trunk = new THREE.CylinderGeometry(0.3, 0.4, 2, 5).translate(0, 1, 0);
+  const geo = mergeGeometries([trunk, cone1, cone2].map(g => g.toNonIndexed()));
+  const spots = [];
+  for (let z = -half + 10; z < half - 10; z += 13) for (let x = -half + 10; x < half - 10; x += 13) {
+    const px = x + (rnd() - 0.5) * 9, pz = z + (rnd() - 0.5) * 9;
+    if (codeAt(px, pz) !== 2) continue;
+    const y = hAt(px, pz);
+    if (y < lakeLevel + 0.8 || y > 1150 || slopeAt(px, pz) > 1.0) continue;
+    if (Math.hypot(px - startX, pz - startZ) < 9) continue;
+    spots.push([px, y, pz]);
+  }
+  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: false, color: 0xffffff, flatShading: true }), spots.length);
+  const m = new THREE.Matrix4(), c = new THREE.Color();
+  spots.forEach(([x, y, z], i) => {
+    const s = 0.8 + rnd() * 0.7;
+    m.compose(new THREE.Vector3(x, y - 0.3, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rnd() * 6, 0)), new THREE.Vector3(s, s * (0.9 + rnd() * 0.5), s));
+    mesh.setMatrixAt(i, m);
+    mesh.setColorAt(i, c.setHSL(0.34 + rnd() * 0.04, 0.42, 0.2 + rnd() * 0.1));
+  });
+  scene.add(mesh);
+  console.log('trees', spots.length);
+}
+
+// ---- the beaver
+const beaver = new THREE.Group();
+const body = new THREE.Group();
+beaver.add(body);
+const tailPivot = new THREE.Group();
+{
+  const fur = new THREE.MeshLambertMaterial({ color: 0x8a5a33, flatShading: true });
+  const dark = new THREE.MeshLambertMaterial({ color: 0x3f2a1a, flatShading: true });
+  const light = new THREE.MeshLambertMaterial({ color: 0xc79a6a, flatShading: true });
+  const white = new THREE.MeshLambertMaterial({ color: 0xfff6dc });
+  const add = (geo, mat, p, s) => { const o = new THREE.Mesh(geo, mat); o.position.set(...p); if (s) o.scale.set(...s); body.add(o); return o; };
+  add(new THREE.IcosahedronGeometry(0.5, 1), fur, [0, 0.46, 0], [0.78, 0.64, 1.2]);
+  add(new THREE.IcosahedronGeometry(0.3, 1), fur, [0, 0.62, 0.66]);
+  add(new THREE.IcosahedronGeometry(0.17, 1), light, [0, 0.54, 0.92], [1, 0.8, 1]);
+  add(new THREE.IcosahedronGeometry(0.06, 0), dark, [0, 0.6, 1.07]);
+  for (const sx of [-1, 1]) {
+    add(new THREE.BoxGeometry(0.06, 0.12, 0.04), white, [sx * 0.045, 0.43, 1.0]);
+    add(new THREE.IcosahedronGeometry(0.07, 0), dark, [sx * 0.17, 0.72, 0.84]);
+    add(new THREE.IcosahedronGeometry(0.09, 0), dark, [sx * 0.2, 0.9, 0.52]);
+    add(new THREE.BoxGeometry(0.14, 0.1, 0.3), dark, [sx * 0.26, 0.05, 0.42]);
+    add(new THREE.BoxGeometry(0.16, 0.1, 0.34), dark, [sx * 0.28, 0.05, -0.38]);
+  }
+  tailPivot.position.set(0, 0.28, -0.62);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.07, 10).scale(1, 1, 1.5), dark);
+  tail.rotation.x = 0; tail.scale.set(1, 1, 1.55); tail.position.set(0, 0, -0.42);
+  tailPivot.add(tail);
+  body.add(tailPivot);
+}
+scene.add(beaver);
+const marker = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.15, 32).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ color: 0xf2b84b, transparent: true, opacity: 0.9, depthTest: false, side: THREE.DoubleSide }));
+marker.renderOrder = 10;
+scene.add(marker);
+
+// ---- ripples (tail slap)
+const ripples = [];
+function ripple(x, y, z, onWater) {
+  const mesh = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 40).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: onWater ? 0xffffff : 0xd8c6a0, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+  mesh.position.set(x, y + 0.08, z);
+  scene.add(mesh);
+  ripples.push({ mesh, t: 0 });
+}
+
+// ---- state
+const st = { x: startX, z: startZ, heading: Math.PI, dive: 0, breath: 1, slap: -1, shake: 0, y: 0, moving: false, slice: 0 };
+const cam = { mode: 1, yaw: 0, pitch: 0.34, dist: 6.5, topH: 100, lastDrag: -10, pos: new THREE.Vector3(), tgt: new THREE.Vector3(), fov: 60 };
+st.y = hAt(st.x, st.z);
+cam.yaw = st.heading + Math.PI;
+const keys = new Set();
+const clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+
+// side view: a cut through the world along x = const, with earth and water volume
+const sliceGroup = new THREE.Group();
+sliceGroup.visible = false;
+scene.add(sliceGroup);
+function buildSlice(xs) {
+  sliceGroup.clear();
+  const zs = [], ys = [];
+  for (let z = -half + 20; z <= half - 20; z += 3) { zs.push(z); ys.push(hAt(xs, z)); }
+  const floor = Math.min(...ys) - 8;
+  const earth = [], grass = [], wat = [], idxE = [], idxG = [], idxW = [];
+  zs.forEach((z, i) => {
+    const y = ys[i];
+    earth.push(0, y - 0.7, z, 0, floor, z);
+    grass.push(0, y, z, 0, y - 0.7, z);
+    wat.push(0, lakeLevel, z, 0, Math.min(y, lakeLevel), z);
+    if (i) {
+      const b = (i - 1) * 2;
+      idxE.push(b, b + 1, b + 2, b + 2, b + 1, b + 3);
+      idxG.push(b, b + 1, b + 2, b + 2, b + 1, b + 3);
+      if (ys[i - 1] < lakeLevel || y < lakeLevel) idxW.push(b, b + 1, b + 2, b + 2, b + 1, b + 3);
+    }
+  });
+  const mk = (p, ix, mat) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    g.setIndex(ix);
+    g.computeVertexNormals();
+    return new THREE.Mesh(g, mat);
+  };
+  sliceGroup.add(mk(earth, idxE, new THREE.MeshBasicMaterial({ color: 0x6f5238, side: THREE.DoubleSide })));
+  sliceGroup.add(mk(grass, idxG, new THREE.MeshBasicMaterial({ color: 0x6fa05a, side: THREE.DoubleSide })));
+  const w = mk(wat, idxW, new THREE.MeshBasicMaterial({ color: 0x3f8fb5, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+  w.renderOrder = 3;
+  sliceGroup.add(w);
+  sliceGroup.position.set(xs - 2.5, 0, 0);
+  clipPlane.constant = xs + 3;
+}
+
+const DESC = {
+  1: 'Follows behind the beaver. Feels like being it. Best for swimming and exploring, but the camera needs care around trees and water.',
+  2: 'High and tilted. You see the pond, dam and lodge at once, and it is easy to share with friends. Less sense of being the animal.',
+  3: 'A cut through the world, like a platformer. Diving and the breath meter read clearly, but it moves left and right only and does not suit a big map.',
+  4: 'Third person while exploring. Pulls up to top down near the yellow lodge ring, where you build. Most work to get right.'
+};
+function setMode(m) {
+  cam.mode = m;
+  if (m === 3) { st.slice = st.x; buildSlice(st.slice); }
+  sliceGroup.visible = m === 3;
+  renderer.clippingPlanes = m === 3 ? [clipPlane] : [];
+  document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', +b.dataset.m === m));
+  document.getElementById('desc').textContent = DESC[m];
+  if (m === 1) cam.yaw = wrap(st.heading + Math.PI);
+}
+
+// ---- input
+addEventListener('keydown', e => {
+  if (e.repeat) return;
+  const k = e.key.toLowerCase();
+  if (k >= '1' && k <= '4') setMode(+k);
+  else if (k === ' ') { if (st.slap < 0) st.slap = 0; e.preventDefault(); }
+  else if (k === 'r') { st.x = startX; st.z = startZ; st.dive = 0; if (cam.mode === 3) setMode(3); }
+  else keys.add(k === 'arrowup' ? 'w' : k === 'arrowdown' ? 's' : k === 'arrowleft' ? 'a' : k === 'arrowright' ? 'd' : k);
+});
+addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  keys.delete(k === 'arrowup' ? 'w' : k === 'arrowdown' ? 's' : k === 'arrowleft' ? 'a' : k === 'arrowright' ? 'd' : k);
+});
+document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => setMode(+b.dataset.m)));
+let drag = null;
+renderer.domElement.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; });
+addEventListener('pointerup', () => { drag = null; });
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag[0], dy = e.clientY - drag[1];
+  drag = [e.clientX, e.clientY];
+  if (cam.mode === 1 || cam.mode === 4) { cam.yaw -= dx * 0.006; cam.pitch = clamp(cam.pitch + dy * 0.004, 0.04, 1.3); cam.lastDrag = performance.now() / 1000; }
+});
+addEventListener('wheel', e => {
+  const f = Math.exp(e.deltaY * 0.001);
+  if (cam.mode === 2) cam.topH = clamp(cam.topH * f, 30, 220);
+  else cam.dist = clamp(cam.dist * f, 3, 16);
+}, { passive: true });
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+// ---- simulation
+function step(dt, now) {
+  // camera relative input
+  const ax = camera.position.x - st.x, az = camera.position.z - st.z;
+  const yaw = Math.atan2(ax, az);
+  const fwd = [-Math.sin(yaw), -Math.cos(yaw)], right = [Math.cos(yaw), -Math.sin(yaw)];
+  let f = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0), r = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
+  if (cam.mode === 3) f = 0;
+  let dx = fwd[0] * f + right[0] * r, dz = fwd[1] * f + right[1] * r;
+  const mag = Math.hypot(dx, dz);
+  st.moving = mag > 0.01;
+  const wet = inLake(st.x, st.z) && hAt(st.x, st.z) < lakeLevel - 0.2;
+  if (st.moving) {
+    dx /= mag; dz /= mag;
+    const speed = wet ? (st.dive > 0.5 ? 5.5 : 7) : 4.5;
+    let nx = st.x + dx * speed * dt, nz = st.z + dz * speed * dt;
+    if (cam.mode === 3) nx = st.slice;
+    const lim = half - 25;
+    nx = clamp(nx, -lim, lim); nz = clamp(nz, -lim, lim);
+    const here = hAt(st.x, st.z), there = hAt(nx, nz);
+    const climbing = there > lakeLevel - 0.2 && (there - here) / (speed * dt) > 0.95 && there > here;
+    if (!climbing) { st.x = nx; st.z = nz; }
+    const want = cam.mode === 3 ? (dz < 0 ? Math.PI : 0) : Math.atan2(dx, dz);
+    st.heading += wrap(want - st.heading) * Math.min(1, dt * 10);
+  }
+  // diving and breath
+  const nowWet = inLake(st.x, st.z) && hAt(st.x, st.z) < lakeLevel - 0.2;
+  const bed = hAt(st.x, st.z);
+  const wantDive = nowWet && (keys.has('shift')) && st.breath > 0.02 && !(st.breathLock);
+  if (st.breath <= 0.02) st.breathLock = true;
+  if (st.breath > 0.3) st.breathLock = false;
+  const target = wantDive ? Math.max(0, Math.min(5, lakeLevel - bed - 0.8)) : 0;
+  st.dive += (target - st.dive) * Math.min(1, dt * 3);
+  if (st.dive > 0.5) st.breath = Math.max(0, st.breath - dt / BREATH_SECONDS);
+  else st.breath = Math.min(1, st.breath + dt * 0.4);
+  st.y = nowWet ? lakeLevel - 0.12 - st.dive : hAt(st.x, st.z);
+  // tail slap
+  if (st.slap >= 0) {
+    const before = st.slap; st.slap += dt;
+    if (before < 0.5 && st.slap >= 0.5) { ripple(st.x, nowWet ? lakeLevel : st.y, st.z, nowWet); st.shake = 0.25; }
+    if (st.slap > 0.65) st.slap = -1;
+  }
+  st.shake = Math.max(0, st.shake - dt);
+  // beaver pose
+  const t = now;
+  const tt = st.slap >= 0 ? Math.min(st.slap, 0.5) / 0.5 : 0;
+  tailPivot.rotation.x = -1.25 * (tt < 0.5 ? tt * 2 : 2 - tt * 2) * (st.slap >= 0 ? 1 : 0);
+  const sc = clamp(camera.position.distanceTo(beaver.position) / 12, 1.4, 5);
+  beaver.scale.setScalar(sc);
+  beaver.position.set(st.x, st.y, st.z);
+  beaver.rotation.y = st.heading;
+  body.rotation.z = st.moving && !nowWet ? Math.sin(t * 11) * 0.09 : 0;
+  body.position.y = nowWet ? Math.sin(t * 2.4) * 0.03 : (st.moving ? Math.abs(Math.sin(t * 11)) * 0.05 : 0);
+  body.rotation.x = nowWet && st.dive > 0.3 ? 0.35 : 0;
+  marker.position.set(st.x, (nowWet ? lakeLevel : st.y) + 0.1, st.z);
+  marker.scale.setScalar(sc * (1 + 0.06 * Math.sin(t * 4)));
+  marker.visible = camera.position.distanceTo(beaver.position) > 12;
+  // ripples
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const rp = ripples[i]; rp.t += dt;
+    rp.mesh.scale.setScalar(1 + rp.t * 6);
+    rp.mesh.material.opacity = Math.max(0, 0.9 - rp.t * 0.75);
+    if (rp.t > 1.2) { scene.remove(rp.mesh); ripples.splice(i, 1); }
+  }
+  // HUD breath
+  const bEl = document.getElementById('breath');
+  bEl.style.display = st.dive > 0.3 || st.breath < 0.99 ? 'block' : 'none';
+  bEl.querySelector('.fill').style.width = (st.breath * 100).toFixed(0) + '%';
+}
+
+// ---- camera rigs
+function rigThird(out) {
+  if (st.moving && performance.now() / 1000 - cam.lastDrag > 1.5) cam.yaw += wrap(st.heading + Math.PI - cam.yaw) * Math.min(1, 0.016 * 1.4);
+  const h = cam.dist * Math.cos(cam.pitch), v = cam.dist * Math.sin(cam.pitch);
+  out.tgt.set(st.x, st.y + 0.9 + st.dive * 0.0, st.z);
+  out.pos.set(st.x + Math.sin(cam.yaw) * h, out.tgt.y + v, st.z + Math.cos(cam.yaw) * h);
+  out.fov = 60;
+}
+function rigTop(out) {
+  out.tgt.set(st.x, st.y, st.z);
+  out.pos.set(st.x, st.y + cam.topH, st.z + cam.topH * 0.5);
+  out.fov = 40;
+}
+function rigSide(out) {
+  out.tgt.set(st.slice, st.y + 1.2, st.z);
+  out.pos.set(st.slice + 32, out.tgt.y, st.z);
+  out.fov = 26;
+}
+const A = { pos: new THREE.Vector3(), tgt: new THREE.Vector3(), fov: 60 }, B = { pos: new THREE.Vector3(), tgt: new THREE.Vector3(), fov: 40 };
+function updateCamera(dt) {
+  let r = A;
+  if (cam.mode === 1) rigThird(A);
+  else if (cam.mode === 2) rigTop(A);
+  else if (cam.mode === 3) rigSide(A);
+  else {
+    rigThird(A); rigTop(B);
+    const b = smooth(40, 16, Math.hypot(st.x - lodge.x, st.z - lodge.z));
+    A.pos.lerp(B.pos, b); A.tgt.lerp(B.tgt, b); A.fov = lerp(A.fov, B.fov, b);
+  }
+  // keep the camera out of the ground and above the surface unless diving
+  if (cam.mode !== 3) {
+    const g = hAt(A.pos.x, A.pos.z);
+    let minY = g + 1.0;
+    if (inLake(A.pos.x, A.pos.z) && st.dive < 0.4) minY = Math.max(minY, lakeLevel + 0.7);
+    A.pos.y = Math.max(A.pos.y, minY);
+  }
+  const k = 1 - Math.exp(-dt * (cam.mode === 3 ? 8 : 7));
+  camera.position.lerp(A.pos, k);
+  cam.tgt.lerp(A.tgt, k);
+  camera.fov = lerp(camera.fov, A.fov, k);
+  camera.updateProjectionMatrix();
+  const sh = st.shake * 0.5;
+  camera.position.x += (Math.random() - 0.5) * sh; camera.position.y += (Math.random() - 0.5) * sh;
+  camera.lookAt(cam.tgt);
+  const under = cam.mode !== 3 && camera.position.y < lakeLevel - 0.05 && inLake(camera.position.x, camera.position.z);
+  scene.background.copy(under ? DEEP : SKY);
+  scene.fog.color.copy(under ? DEEP : SKY);
+  scene.fog.near = under ? 1 : 220; scene.fog.far = under ? 38 : 1900;
+}
+
+// ---- go
+camera.position.set(st.x + 4, st.y + 4, st.z + 8);
+cam.tgt.set(st.x, st.y, st.z);
+setMode(+(new URLSearchParams(location.search).get('cam') || 1));
+let last = performance.now();
+function frame(nowMs) {
+  const dt = Math.min(0.05, (nowMs - last) / 1000); last = nowMs;
+  step(dt, nowMs / 1000);
+  updateCamera(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+document.getElementById('loading').remove();
+window.__demo = { st, cam, setMode, lodge, dam, start: [startX, startZ], keys, teleport: (x, z) => { st.x = x; st.z = z; } };
+</script>
+</body>
+</html>

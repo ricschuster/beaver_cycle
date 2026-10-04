@@ -2,14 +2,16 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
 The stack was the open choice after the camera (ADR 0005), the tablet target
 (`docs/design/08_camera_and_platform.md`), and the streamed world (ADR 0006).
 The game is a stylized 3D world on real terrain, played on tablets by the
-author and friends, with online multiplayer wanted but not designed.
+author and friends. All of them use Android tablets, and play stays on the
+local WLAN with no internet service. Single player comes first. Multiplayer
+is still wanted but is not designed.
 
 Two routes were weighed:
 
@@ -32,31 +34,44 @@ performance, which has only been checked in headless Chromium.
 
 ## Decision
 
-- Build the game as a web app in TypeScript with Vite and three.js.
+- Build the game as a web app in TypeScript with Vite and three.js. Chrome on
+  Android is the target browser.
+- Deliver it as a sideloaded Android APK made with Capacitor. The game files
+  are packed in the app, so it needs no server and no app store. During
+  development it runs from a Vite dev server on the WLAN.
 - Use Playwright for browser tests and screenshots, and Blender for any
   models, run from the command line.
 - Keep the data tools in Python (GDAL, numpy, Pillow). They write tiles that the
   game loads at run time.
-- Test on a real tablet early, before the first playable is called done. If
-  the budgets cannot be met in the browser, revisit this ADR with measured
-  numbers and consider a native wrapper (for example Capacitor) before an
-  engine.
-- Multiplayer connection is not decided here. A web app leaves it open: a small
-  WebSocket server is the likely route. It gets its own ADR once round 3 and
-  the multiplayer design say what friends share.
+- Single player first. Multiplayer stays out of the first playable but is kept
+  in mind: game state and rules live in a simulation layer that does not touch
+  rendering or input, so another device can later drive or mirror it.
+- Test on a real Android tablet early, before the first playable is called
+  done. If the budgets cannot be met in the web view, revisit this ADR with
+  measured numbers and consider Godot.
+
+## Multiplayer, open
+
+Multiplayer is wanted, as friends on the same WLAN, with no internet service
+and no dedicated laptop as server. It is decided later in its own ADR. The
+routes to test then are Android Nearby Connections through a plugin, a small
+server embedded in the app on one tablet, and WebRTC with manual pairing. A
+web view cannot open a listening socket on its own, so hosting from a tablet
+needs a native plugin and must be proven with a spike first. If no route
+works, Godot, which has host and join built in, is the fallback.
 
 ## Consequences
 
-- No app store, one build for every tablet, and a fast loop: edit, reload,
-  look.
+- No app store and one build for every tablet. Updates mean installing a new
+  APK on each tablet. The loop in development is edit, reload, look.
 - Everything the engine would give for free is written by hand or taken from
   small libraries: animation, collision against terrain, water, input, audio,
   and save data. Plan time for it.
-- Browser limits apply: memory per tab, no background play, and audio that
-  starts only after a touch.
+- Web view limits apply: memory, no background play, and audio that starts
+  only after a touch.
 - The camera demo's code stays throwaway, but its scene export and ideas are
   reused.
 - If the tablet test fails, the cost of moving to an engine is high, because
   game code is not portable. This is why the tablet test comes first.
-- After acceptance, `CLAUDE.md` (Stack, Commands, Repo structure) and
+- `CLAUDE.md` (Stack, Commands, Repo structure) and
   `CONTRIBUTING.md` (Setup) are filled in, and a milestone plan follows.

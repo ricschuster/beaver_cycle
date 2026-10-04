@@ -96,6 +96,9 @@
     interactive: false
   });
 
+  landcover.addTo(map);
+  landcover.bringToBack(); // under the water lines
+
   var drawn = new L.FeatureGroup().addTo(map);
   function activeLayer() { return document.querySelector('input[name=layer]:checked').value; }
 

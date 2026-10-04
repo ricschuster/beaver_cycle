@@ -9,40 +9,63 @@ Beaver Cycle
 
 ## Project purpose
 
-{{One or two paragraphs: what this project is, who it is for, and the core
-idea in plain terms. See `docs/design/00_project_brief.md` for the full
-brief.}}
+A 3D, stylized game in which you play a beaver in the real Almsee valley in
+Austria. You grow up in a lodge, build your own, raise a family, and play the
+next generation, forever. It is for the author and friends, on tablets. See
+`docs/design/00_project_brief.md` for the full brief.
 
 ## Project status
 
-{{Where things stand right now: design, pre-build, MVP in progress, etc., and
-what the next milestone is. Open GitHub issues are the live task tracker;
-`docs/design/03_milestones.md` (if present) is the shape of the plan.}}
+Design phase, with no game code yet. Rounds 1 and 2 of the author's questions
+are answered, round 3 (variety) is next, and the stack is not chosen. The next
+milestone is a stack ADR, then a first playable of the core location on a
+tablet. Open GitHub issues are the live task tracker. There is no milestone
+plan yet.
 
 ## Scope
 
-{{What this project is, and just as importantly, what it deliberately is NOT.
-Do not expand scope without a design note in `docs/design/` or an ADR in
-`docs/decisions/`.}}
+A calm game with no death and no losing, set on real terrain, faster than life
+and stylized, not photoreal. Not a beaver simulation, not all six locations at
+once (core first), and no release of OpenStreetMap derived data before its
+licence is settled. Do not expand scope without a design note in
+`docs/design/` or an ADR in `docs/decisions/`.
 
 ## Stack
 
-{{Languages, frameworks, test runner, deployment target, and any hard
-architectural constraints (for example: "business logic stays framework-free
-under `src/core/` so it is unit-testable"). Link to the relevant ADR(s) in
-`docs/decisions/` for the reasoning.}}
+Not chosen yet. Direction so far: stylized 3D with a third person camera
+([ADR 0005](docs/decisions/0005-third-person-camera.md)), a tablet as the target
+(`docs/design/08_camera_and_platform.md`), and a world streamed in chunks, core
+first ([ADR 0006](docs/decisions/0006-streamed-world-core-first.md)). Terrain is
+BEV 5 m ([ADR 0002](docs/decisions/0002-terrain-source.md)). The camera demo in
+`prototypes/camera-demo/` uses three.js and is throwaway. Tooling is Python
+with GDAL, numpy, and Pillow. A stack ADR comes next.
 
 ## Commands
 
-{{The everyday commands: run, test, lint/typecheck, build. One line each, and
-mark which ones are gates (non-zero exit blocks a merge). Fill in once the
-stack is chosen; `CONTRIBUTING.md` Setup should match.}}
+No game commands yet. Everyday today (gate means CI blocks a merge on it):
+
+- `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore LICENSE` -
+  lint docs (gate)
+- `python3 tools/area-editor/build_data.py` - download and cache terrain and
+  map data into `data/raw/` (untracked, about 60 MB)
+- `python3 tools/area-editor/travel_graph.py` - rebuild travel links after a
+  play shape changes
+- `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene
+- `python3 scripts/build_question_docx.py QUESTIONS.md OUT.docx TEMPLATE.docx` -
+  build a printable handout
+
+Add run, test, and build once the stack is chosen; `CONTRIBUTING.md` Setup
+should match.
 
 ## Repo structure
 
-{{Optional: a short map of top-level directories, only if it adds real
-orientation beyond exploring the tree. Keep it brief and expect it to drift;
-when in doubt, explore the tree rather than trusting this section.}}
+- `docs/design/` - the brief, the author's answers (rounds 1 to 3), and design
+  notes. `docs/decisions/` holds ADRs, `docs/handoffs/` session handoffs.
+- `data/areas/` - the play area shapes and travel links (tracked). `data/raw/`
+  is downloaded data and untracked.
+- `tools/area-editor/` - browser editor for the play area and its data build.
+- `prototypes/` - throwaway demos, such as the camera demo. Not the game.
+- `scripts/` - helpers such as the question handout builder.
 
 ## Working rules
 

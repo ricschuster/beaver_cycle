@@ -232,8 +232,8 @@ def landcover_geojson(osm):
     return {"type": "FeatureCollection", "features": feats}
 
 
-def landcover_summary(fc):
-    """Area per class in km2: overlaps merged, holes removed, clipped to BBOX."""
+def landcover_classes(fc):
+    """Per class geometry in EPSG:31287: overlaps merged, holes removed, clipped to BBOX."""
     wgs = osr.SpatialReference()
     wgs.ImportFromEPSG(4326)
     wgs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
@@ -249,14 +249,31 @@ def landcover_summary(fc):
         bucket = holes if f["properties"].get("hole") else solid
         cls = f["properties"]["class"]
         bucket[cls] = geom if cls not in bucket else bucket[cls].Union(geom)
-    totals = {}
+    out = {}
     for cls, geom in solid.items():
         if cls in holes:
             geom = geom.Difference(holes[cls])
         geom = geom.Intersection(box)
         geom.Transform(to_aut)
-        totals[cls] = round(geom.Area() / 1e6, 1)
-    return dict(sorted(totals.items()))
+        out[cls] = geom
+    return out, aut, wgs
+
+
+def landcover_summary(classes):
+    """Area per class in km2."""
+    return {cls: round(g.Area() / 1e6, 1) for cls, g in sorted(classes.items())}
+
+
+def landcover_for_editor(classes, aut, wgs, tolerance=20):
+    """Simplified per class GeoJSON in lon/lat, small enough to embed in the page."""
+    back = osr.CoordinateTransformation(aut, wgs)
+    feats = []
+    for cls, g in classes.items():
+        g = g.SimplifyPreserveTopology(tolerance)
+        g.Transform(back)
+        feats.append({"type": "Feature", "properties": {"class": cls},
+                      "geometry": json.loads(g.ExportToJson(["COORDINATE_PRECISION=5"]))})
+    return {"type": "FeatureCollection", "features": feats}
 
 
 def to_geojson(osm):
@@ -290,9 +307,11 @@ def main():
     water = to_geojson(fetch_water())
     lc = landcover_geojson(fetch_landcover())
     (RAW / "landcover.geojson").write_text(json.dumps(lc))
-    print("land cover km2 in the box (classes may overlap each other):", landcover_summary(lc))
+    classes, aut, wgs = landcover_classes(lc)
+    print("land cover km2 in the box (classes may overlap each other):", landcover_summary(classes))
     w, s, e, n = BBOX
-    data = {"bounds": [[s, w], [n, e]], "zmin": zmin, "zmax": zmax, "water": water}
+    data = {"bounds": [[s, w], [n, e]], "zmin": zmin, "zmax": zmax, "water": water,
+            "landcover": landcover_for_editor(classes, aut, wgs)}
     (OUT / "data.js").write_text("window.AREA_DATA = " + json.dumps(data) + ";\n")
     print(f"relief {size}, elevation {zmin:.0f} to {zmax:.0f} m, {len(water['features'])} water features")
 

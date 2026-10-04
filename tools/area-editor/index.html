@@ -61,7 +61,7 @@
   <p class="note">Your drawing is also kept in this browser. To share it, download the file and save it as <code>data/areas/areas.geojson</code>.</p>
 
   <h2>Credits</h2>
-  <p class="note">Terrain: contains modified Copernicus DEM GLO-30 data. Water: &copy; OpenStreetMap contributors (ODbL).</p>
+  <p class="note">Water and land cover: &copy; OpenStreetMap contributors (ODbL). Terrain: BEV DGM 5 m (CC BY 4.0).</p>
 </div>
 <div id="map"></div>
 
@@ -89,6 +89,12 @@
     },
     interactive: false
   }).addTo(map);
+
+  var LC = { forest: '#2f6b3a', scrub: '#8a9a3c', meadow: '#c9d98a', wetland: '#2aa6a0', rock: '#a9a39a' };
+  var landcover = L.geoJSON(D.landcover || { type: 'FeatureCollection', features: [] }, {
+    style: function (f) { return { color: LC[f.properties['class']], weight: 0, fillColor: LC[f.properties['class']], fillOpacity: 0.45 }; },
+    interactive: false
+  });
 
   var drawn = new L.FeatureGroup().addTo(map);
   function activeLayer() { return document.querySelector('input[name=layer]:checked').value; }

@@ -78,8 +78,9 @@ async function start(): Promise<void> {
         menu.setStatus('');
       }
     } else {
-      const move = relativeToView(readActions().move, rig.view.yaw);
-      world = step(world, { move }, dt, terrain);
+      const actions = readActions();
+      const move = relativeToView(actions.move, rig.view.yaw);
+      world = step(world, { move, dive: actions.dive }, dt, terrain);
       streamer?.update(world.beaver.x, world.beaver.z);
       rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
     }

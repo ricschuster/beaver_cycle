@@ -1,6 +1,6 @@
 // Render layer: reads simulation state and draws it. It never changes state.
 import * as THREE from 'three';
-import type { WorldState } from '../sim/state';
+import { DIVE_RATE, type WorldState } from '../sim/state';
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
 import { createBeaverModel } from './beaverModel';
@@ -61,6 +61,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   let lastX = 0;
   let lastZ = 0;
   let pace = 0;
+  let lastY: number | null = null;
+  let lastTime = 0;
 
   return {
     terrain,
@@ -72,7 +74,13 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       lastZ = b.z;
       // Pace from the distance moved this frame, so the legs follow the sim, not the keys.
       pace += ((moved > 0.001 && moved < 5 ? 1 : 0) - pace) * 0.2;
-      beaverModel.update(performance.now() / 1000, pace, b.mode === 'swim');
+      const now = performance.now() / 1000;
+      const rate = lastY === null || now <= lastTime ? 0 : (b.y - lastY) / (now - lastTime);
+      lastY = b.y;
+      lastTime = now;
+      // Only a diver pitches: -1 rising and 1 sinking at the dive rate.
+      const tilt = b.mode === 'dive' ? Math.max(-1, Math.min(1, -rate / DIVE_RATE)) : 0;
+      beaverModel.update(now, pace, b.mode, tilt);
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
       const reach = view.dist * Math.cos(view.pitch);

@@ -17,10 +17,10 @@ next generation, forever. It is for the author and friends, on tablets. See
 ## Project status
 
 Design phase, with no game code yet. Rounds 1 and 2 of the author's questions
-are answered, round 3 (variety) is next, and the stack is not chosen. The next
-milestone is a stack ADR, then a first playable of the core location on a
-tablet. Open GitHub issues are the live task tracker. There is no milestone
-plan yet.
+are answered, round 3 (variety) is printed and awaits the author's answers, and
+the stack is chosen (ADR 0007). The next milestone is a milestone plan, then a
+first playable of the core location on a tablet. Open GitHub issues are the
+live task tracker. There is no milestone plan yet.
 
 ## Scope
 
@@ -32,13 +32,15 @@ licence is settled. Do not expand scope without a design note in
 
 ## Stack
 
-Not chosen yet. Direction so far: stylized 3D with a third person camera
-([ADR 0005](docs/decisions/0005-third-person-camera.md)), a tablet as the target
-(`docs/design/08_camera_and_platform.md`), and a world streamed in chunks, core
-first ([ADR 0006](docs/decisions/0006-streamed-world-core-first.md)). Terrain is
-BEV 5 m ([ADR 0002](docs/decisions/0002-terrain-source.md)). The camera demo in
-`prototypes/camera-demo/` uses three.js and is throwaway. Tooling is Python
-with GDAL, numpy, and Pillow. A stack ADR comes next.
+Web app in TypeScript, Vite, and three.js, shipped as a sideloaded Android APK
+with Capacitor ([ADR 0007](docs/decisions/0007-web-stack.md)). Android tablets
+on a local WLAN, single player first, multiplayer kept in mind and open.
+Stylized 3D with a third person camera
+([ADR 0005](docs/decisions/0005-third-person-camera.md)), and a world streamed
+in chunks, core first ([ADR 0006](docs/decisions/0006-streamed-world-core-first.md)).
+Terrain is BEV 5 m ([ADR 0002](docs/decisions/0002-terrain-source.md)). Tooling
+is Python with GDAL, numpy, and Pillow. The camera demo in
+`prototypes/camera-demo/` is throwaway. Game code is not started yet.
 
 ## Commands
 

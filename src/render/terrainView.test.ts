@@ -11,6 +11,22 @@ describe('water geometry', () => {
     expect(geo.getAttribute('position').getY(5)).toBe(580);
   });
 
+  it('cuts the water where the ground rises through the lake level', () => {
+    // ground rises 1 m per metre along x, crossing the level 580 at x = 160
+    const tile = makeTile(0, 0, 2, (x) => 580 + (x - 160), CLASS_LAKE);
+    const p = buildLakeGeometry(tile, 320, 580)!.getAttribute('position');
+    let maxX = -Infinity;
+    for (let k = 0; k < p.count; k++) maxX = Math.max(maxX, p.getX(k));
+    expect(maxX).toBeCloseTo(160, 3);
+  });
+
+  it('reaches onto non lake cells that lie below the level beside a lake', () => {
+    const tile = makeTile(0, 0, 2, () => 570, 1);
+    tile.classes[0] = CLASS_LAKE;
+    const p = buildLakeGeometry(tile, 320, 580)!.getAttribute('position');
+    expect(p.count).toBe(4 * 6); // the lake cell and its three neighbours
+  });
+
   it('draws no lake on a tile without lake cells', () => {
     expect(buildLakeGeometry(makeTile(0, 0, 2, () => 0, 1), 320, 580)).toBeNull();
   });

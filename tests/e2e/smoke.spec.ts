@@ -75,3 +75,55 @@ test('dragging turns the camera and forward still walks away from it', async ({ 
   expect(len).toBeGreaterThan(0.2);
   expect(Math.sin(v) * (dx / len) + Math.cos(v) * (dz / len)).toBeLessThan(-0.9);
 });
+
+test.describe('touch controls', () => {
+  test.use({ hasTouch: true, viewport: { width: 1000, height: 600 } });
+
+  test('the stick walks the beaver, the slap button slaps, and a drag on the view turns the camera', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+    await expect(page.locator('#touch-stick')).toBeVisible();
+    const box = (await page.locator('#touch-stick').boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    // Playwright has no multi touch drag, so send the pointer events the stick listens to.
+    const fire = (type: string, x: number, y: number): Promise<void> =>
+      page.evaluate(
+        ([t, px, py]) => {
+          const el = document.getElementById('touch-stick')!;
+          el.dispatchEvent(new PointerEvent(t as string, { pointerId: 7, clientX: px as number, clientY: py as number, bubbles: true }));
+        },
+        [type, x, y],
+      );
+    const start = await page.evaluate(() => ({ ...(window as any).__game.world().beaver }));
+    // Stub out pointer capture, which needs a real active pointer.
+    await page.evaluate(() => {
+      HTMLElement.prototype.setPointerCapture = () => {};
+    });
+    await fire('pointerdown', cx, cy);
+    await fire('pointermove', cx, cy - 70);
+    await page.waitForTimeout(500);
+    await fire('pointerup', cx, cy - 70);
+    const end = await page.evaluate(() => ({ ...(window as any).__game.world().beaver }));
+    expect(Math.hypot(end.x - start.x, end.z - start.z)).toBeGreaterThan(0.2);
+
+    await page.locator('#touch-slap').tap();
+    await page.waitForFunction(() => (window as any).__game.world().lastSlap !== null, null, { polling: 50 });
+
+    const before = await page.evaluate(() => (window as any).__game.view().yaw);
+    await page.mouse.move(500, 200);
+    await page.mouse.down();
+    await page.mouse.move(620, 200, { steps: 5 });
+    await page.mouse.up();
+    const after = await page.evaluate(() => (window as any).__game.view().yaw);
+    expect(Math.abs(after - before)).toBeGreaterThan(0.3);
+  });
+
+  test('desktop browsers without touch show no stick', async ({ browser }) => {
+    const ctx = await browser.newContext({ hasTouch: false });
+    const page = await ctx.newPage();
+    await page.goto('/');
+    await expect(page.locator('#touch-stick')).toBeHidden();
+    await ctx.close();
+  });
+});

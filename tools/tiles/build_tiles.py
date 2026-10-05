@@ -30,7 +30,8 @@ Height in metres = (stored + qmin) * scale.
 
 Fine tiles (ADR 0008): by default (--fine 2, 0 turns them off), tiles near a lake also
 get a level 3 file with cells of that size, cut from the BEV 1 m terrain
-(ALS-DGM, cached in data/raw/ by --fetch-fine). The 1 m heights are first
+(ALS-DGM, cached in data/raw/ by --fetch-fine, one file per region of connected fine
+tiles: the core and the north, the Oedsee, the south). The 1 m heights are first
 corrected by the smoothed difference to the 5 m data, so the fine ground meets
 the 5 m ground without a step. The lake level is the 5 m level, so the water
 plane fits both.
@@ -441,30 +442,58 @@ def anchors(keep):
 
 # Fine tiles (prototype, ADR 0008) --------------------------------------------
 
-FINE_URL = ("/vsicurl/https://data.bev.gv.at/download/ALS/DTM/20250915/"
-            "ALS_DTM_CRS3035RES50000mN2700000E4600000.tif")
-FINE_CACHE = ROOT / "data" / "raw" / "dtm1_core_31287.tif"
+FINE_URLS = [  # the 50 x 50 km BEV tiles (EPSG:3035) the play area touches, south to north
+    "/vsicurl/https://data.bev.gv.at/download/ALS/DTM/20250915/"
+    f"ALS_DTM_CRS3035RES50000mN{n}E4600000.tif" for n in (2700000, 2750000)]
 FINE_NEAR = 100.0  # metres from a lake within which tiles get a fine level
 FINE_HALO = 160.0  # metres of context around a fine tile, so the lake bed matches across edges
+FINE_PAD = 1  # tiles of 1 m terrain cached around a region, for the halo and the datum smoothing
 CORR_CELL = 20.0  # metres, the grid of the datum correction
 CORR_SMOOTH = 5  # correction cells (100 m) averaged
 
 
+def fine_regions(tiles):
+    """Group fine tiles that touch (also diagonally) into regions. Returns a list of
+    (region grid, tiles), the grid padded by FINE_PAD tiles. Each region has its own 1 m cache
+    and its own datum correction, so a region must not border another one."""
+    todo, out = set(tiles), []
+    while todo:
+        stack, group = [todo.pop()], []
+        while stack:
+            tx, tz = stack.pop()
+            group.append((tx, tz))
+            for dx in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    if (tx + dx, tz + dz) in todo:
+                        todo.remove((tx + dx, tz + dz))
+                        stack.append((tx + dx, tz + dz))
+        tx0, tx1 = min(t[0] for t in group) - FINE_PAD, max(t[0] for t in group) + FINE_PAD
+        tz0, tz1 = min(t[1] for t in group) - FINE_PAD, max(t[1] for t in group) + FINE_PAD
+        out.append((Grid(tx0, tz0, tx1 - tx0 + 1, tz1 - tz0 + 1), sorted(group)))
+    return sorted(out, key=lambda r: (r[0].tx0, r[0].tz0))
+
+
+def fine_cache(g):
+    """The cache file of a region grid in data/raw/."""
+    return ROOT / "data" / "raw" / f"dtm1_{g.tx0}_{g.tz0}_{g.ntx}x{g.ntz}_31287.tif"
+
+
 def fine_bounds(g):
-    """The core extent in EPSG:31287 (west, south, east, north)."""
+    """A region in EPSG:31287 (west, south, east, north)."""
     return (E0 + g.x0, N0 - g.z0 - g.ncz * g.cell, E0 + g.x0 + g.ncx * g.cell, N0 - g.z0)
 
 
 def fetch_fine(g):
-    """Cache the BEV 1 m terrain for the core extent in data/raw/ (about a few minutes)."""
-    if FINE_CACHE.exists():
+    """Cache the BEV 1 m terrain for a region in data/raw/ (about a few minutes)."""
+    cache = fine_cache(g)
+    if cache.exists():
         return
     w, s_, e, n = fine_bounds(g)
     print(f"fetching the BEV 1 m terrain, {(e - w):.0f} x {(n - s_):.0f} m ...")
-    part = FINE_CACHE.with_suffix(".part.tif")  # renamed when complete, so a stopped run leaves no stub
-    gdal.Warp(str(part), FINE_URL, dstSRS="EPSG:31287", outputBounds=(w, s_, e, n),
+    part = cache.with_suffix(".part.tif")  # renamed when complete, so a stopped run leaves no stub
+    gdal.Warp(str(part), FINE_URLS, dstSRS="EPSG:31287", outputBounds=(w, s_, e, n),
               xRes=1, yRes=1, resampleAlg="near", creationOptions=["COMPRESS=LZW", "TILED=YES"])
-    part.rename(FINE_CACHE)
+    part.rename(cache)
 
 
 def warp_array(src, **kw):
@@ -485,7 +514,7 @@ def datum_correction(g):
     nx, ny = int((e - w) // CORR_CELL), int((n - s_) // CORR_CELL)
     box = (w, n - ny * CORR_CELL, w + nx * CORR_CELL, n)
     kw = dict(outputBounds=box, width=nx, height=ny, resampleAlg="average")
-    fine = warp_array(str(FINE_CACHE), **kw)
+    fine = warp_array(str(fine_cache(g)), **kw)
     coarse = warp_array(str(ROOT / "data/raw/almsee_dgm5_31287.tif"), **kw)
     d = fine - coarse
     k = CORR_SMOOTH
@@ -505,7 +534,7 @@ def read_fine_heights(g, fg):
     west, east = E0 + fg.x0 - fg.cell / 2, E0 + fg.x0 + fg.ncx * fg.cell + fg.cell / 2
     north, south = N0 - fg.z0 + fg.cell / 2, N0 - fg.z0 - fg.ncz * fg.cell - fg.cell / 2
     kw = dict(outputBounds=(west, south, east, north), width=fg.ncx + 1, height=fg.ncz + 1)
-    h = warp_array(str(FINE_CACHE), resampleAlg="bilinear" if fg.cell <= 1 else "average", **kw)
+    h = warp_array(str(fine_cache(g)), resampleAlg="bilinear" if fg.cell <= 1 else "average", **kw)
     corr = warp_array(datum_correction(g), resampleAlg="bilinear", **kw)
     return h - corr
 
@@ -557,13 +586,12 @@ def build(out=OUT, fine=None, backdrop=True):
 
     fine_set = {}
     if fine:
-        # the 1 m terrain is cached for the core only, so fine tiles stop at its edge
-        core = core_extent()
-        fetch_fine(core)
-        inside = {(tx, tz) for tz in range(core.tz0, core.tz0 + core.ntz) for tx in range(core.tx0, core.tx0 + core.ntx)}
-        fine_list = [t for t in fine_tiles(g, lake_vert) if t in inside]
-        print(f"{len(fine_list)} fine tiles at {fine} m")
-        fine_set = build_fine(out, core, fine, fine_list, lakes, lake_levels)
+        fine_list = [t for t in fine_tiles(g, lake_vert) if t in keep]
+        regions = fine_regions(fine_list)
+        print(f"{len(fine_list)} fine tiles at {fine} m in {len(regions)} regions")
+        for rg, rtiles in regions:
+            fetch_fine(rg)
+            fine_set.update(build_fine(out, rg, fine, rtiles, lakes, lake_levels))
 
     modes = {step: block_mode(code, step) for step in sorted({*STEPS, FAR_STEP})}
     tiles = []
@@ -737,7 +765,13 @@ def main():
     ap.add_argument("--fetch-fine", action="store_true", help="only cache the BEV 1 m terrain in data/raw/")
     args = ap.parse_args()
     if args.fetch_fine:
-        fetch_fine(core_extent())
+        g = full_extent(far_tiles())
+        h = read_heights(g)
+        lakes, _ = read_water()
+        code = read_landcover(g)
+        lake_vert = make_lake_bed(g, h, lakes, code == CLASSES["wetland"])[2]
+        for rg, _ in fine_regions([t for t in fine_tiles(g, lake_vert) if t in wanted_tiles()]):
+            fetch_fine(rg)
         return
     if not args.check_only:
         build(args.out, args.fine, backdrop=not args.no_backdrop)

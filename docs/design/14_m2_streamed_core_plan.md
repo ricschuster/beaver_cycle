@@ -262,3 +262,21 @@ tiles around them, so the grid is sparse and about 570 tiles (17 MB). All
 buttons in the test menu are enabled. Fine 2 m tiles still exist only near the
 core lakes, because the BEV 1 m terrain is cached for the core only. The Oedsee
 and the other lakes have 5 m ground.
+
+## Update: fine tiles for every lake in the play area
+
+The fine level is no longer limited to the core (session 18). The tile tool now
+caches the BEV 1 m terrain per region, one file for each group of touching fine
+tiles, padded by one tile, in `data/raw/dtm1_<tx>_<tz>_<w>x<h>_31287.tif`. It
+reads both 50 km BEV tiles (`N2700000` and `N2750000`), because the north end of
+the Almsee reaches past the first. Each region has its own datum correction, and
+regions do not touch each other, so no seam has a step.
+
+- Fine tiles went from 37 to 70 (5.2 MB), in four regions: the north end of
+  the Almsee with the Alm outflow (a dam site), the Almsee shore in the core, the
+  south delta, and the Grosser and Kleiner Oedsee (9 tiles).
+- The cache is about 82 MB in four files (it was 99 MB for the core alone). The
+  old `dtm1_core_31287.tif` can be deleted.
+- `build_tiles.py` checks that fine tiles join and sit on the 5 m ground, and
+  passes for all 70.
+- 1 m cells for dam sites stay open (M5, ADR 0008).

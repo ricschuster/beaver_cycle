@@ -86,7 +86,7 @@ def test_south_bog_is_shallow_and_open_water_stays_deep(tiles):
     assert depth[z < bt.BOG_RAMP_Z[0]].max() > 5.0  # open water keeps its depth
 
 
-@pytest.mark.skipif(not bt.FINE_CACHE.exists(), reason="BEV 1 m terrain not cached (run build_tiles.py once)")
+@pytest.mark.skipif(not list(bt.ROOT.glob("data/raw/dtm1_*_31287.tif")), reason="BEV 1 m terrain not cached (run build_tiles.py once)")
 def test_fine_tiles_join_and_sit_on_the_5m_ground(tmp_path):
     index = bt.build(tmp_path, fine=2)
     fine = [t for t in index["tiles"] if t.get("fine")]
@@ -95,3 +95,10 @@ def test_fine_tiles_join_and_sit_on_the_5m_ground(tmp_path):
         assert (tmp_path / "L3" / f"{t['tx']}_{t['tz']}.bin").exists()
     assert index["levels"][-1] == {"level": 3, "cell_m": 2, "cells": 160, "fine": True}
     bt.check(tmp_path)
+
+
+def test_fine_regions_group_touching_tiles_and_pad_them():
+    regions = bt.fine_regions([(0, 0), (1, 1), (5, 5), (5, 6)])
+    assert [r[1] for r in regions] == [[(0, 0), (1, 1)], [(5, 5), (5, 6)]]
+    grid = regions[0][0]
+    assert (grid.tx0, grid.tz0, grid.ntx, grid.ntz) == (-1, -1, 4, 4)

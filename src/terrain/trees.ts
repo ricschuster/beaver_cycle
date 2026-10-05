@@ -20,8 +20,19 @@ export const TREE_SHAPE = [
   { radius: 1.8, height: 9, base: -0.5 },
   { radius: 2.4, height: 10, base: -0.5 },
 ];
-/** Floats per tree in the placement array: x, y, z, scale. */
-export const TREE_FLOATS = 4;
+/** Kinds of tree. Conifers stay green all year; broadleaf trees turn and drop their leaves in autumn. */
+export const KIND_CONIFER = 0;
+export const KIND_BROADLEAF = 1;
+/**
+ * Crown of a broadleaf tree at scale 1, by shown level: radius, and the height of its centre above
+ * the base. A trunk of the same base runs up into it.
+ */
+export const BROADLEAF_SHAPE = [
+  { radius: 3, centre: 6.3, base: -0.5 },
+  { radius: 3.6, centre: 6.5, base: -0.5 },
+];
+/** Floats per tree in the placement array: x, y, z, scale, kind. */
+export const TREE_FLOATS = 5;
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -34,11 +45,28 @@ function mulberry32(seed: number): () => number {
   };
 }
 
+/** A stable number in [0, 1) for a pair of integers, so a tree's kind never depends on the order trees are placed in. */
+function hash01(a: number, b: number, salt: number): number {
+  let h = (Math.imul(a, 374761393) ^ Math.imul(b, 668265263) ^ Math.imul(salt, 2246822519)) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Kind of the tree at a spot. The valley is mostly spruce, with beech and maple in stands: a stand is a
+ * 60 m patch, about three in ten of them mostly broadleaf, the rest mostly conifer.
+ */
+export function treeKind(x: number, z: number): number {
+  const stand = hash01(Math.floor(x / 60), Math.floor(z / 60), 1);
+  const share = stand < 0.3 ? 0.7 : 0.08;
+  return hash01(Math.floor(x * 4), Math.floor(z * 4), 2) < share ? KIND_BROADLEAF : KIND_CONIFER;
+}
+
 function seedFor(tx: number, tz: number, level: number): number {
   return (Math.imul(tx + 1000, 73856093) ^ Math.imul(tz + 1000, 19349663) ^ Math.imul(level + 1, 83492791)) >>> 0;
 }
 
-/** Trees of a tile as x, y, z, scale per tree, in world metres. */
+/** Trees of a tile as x, y, z, scale, kind per tree, in world metres. */
 export function placeTrees(tile: DecodedTile, size: number): Float32Array {
   // a fine tile has the trees of level 0, on its own finer ground
   const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
@@ -61,7 +89,9 @@ export function placeTrees(tile: DecodedTile, size: number): Float32Array {
         const u = i + rand();
         const v = j + rand();
         const scale = (0.8 + rand() * 0.5) * LEVEL_SCALE[shown]!;
-        out.push(tile.tx * size + u * cell, sampleHeight(tile, u, v), tile.tz * size + v * cell, scale);
+        const x = tile.tx * size + u * cell;
+        const z = tile.tz * size + v * cell;
+        out.push(x, sampleHeight(tile, u, v), z, scale, treeKind(x, z));
       }
     }
   }
@@ -74,12 +104,14 @@ const BUCKET = 16;
 export class TreeGrid {
   private readonly buckets = new Map<number, number[]>();
   private readonly shape: { radius: number; height: number; base: number };
+  private readonly crown: { radius: number; centre: number; base: number };
 
   constructor(
     private readonly trees: Float32Array,
     level: number,
   ) {
     this.shape = TREE_SHAPE[level]!;
+    this.crown = BROADLEAF_SHAPE[level]!;
     for (let o = 0; o < trees.length; o += TREE_FLOATS) {
       const key = this.key(Math.floor(trees[o]! / BUCKET), Math.floor(trees[o + 2]! / BUCKET));
       const list = this.buckets.get(key);
@@ -101,6 +133,12 @@ export class TreeGrid {
       for (let j = bj - 1; j <= bj + 1; j++) {
         for (const o of this.buckets.get(this.key(i, j)) ?? []) {
           const s = this.trees[o + 3]!;
+          if (this.trees[o + 4] === KIND_BROADLEAF) {
+            const c = this.crown;
+            const dy = y - (this.trees[o + 1]! + c.centre * s);
+            if (Math.hypot(x - this.trees[o]!, dy, z - this.trees[o + 2]!) < c.radius * s + margin) return true;
+            continue;
+          }
           const up = (y - this.trees[o + 1]!) / s - base;
           if (up < -margin / s || up > height + margin / s) continue;
           const r = (radius * (1 - Math.max(0, up) / height) + margin / s) * s;
@@ -109,5 +147,21 @@ export class TreeGrid {
       }
     }
     return false;
+  }
+
+  /** Appends x, y, z, scale of the broadleaf trees within `radius` metres of a point (flat, four per tree). */
+  broadleafNear(x: number, z: number, radius: number, out: number[]): void {
+    const r = Math.ceil(radius / BUCKET);
+    const bi = Math.floor(x / BUCKET);
+    const bj = Math.floor(z / BUCKET);
+    for (let i = bi - r; i <= bi + r; i++) {
+      for (let j = bj - r; j <= bj + r; j++) {
+        for (const o of this.buckets.get(this.key(i, j)) ?? []) {
+          if (this.trees[o + 4] !== KIND_BROADLEAF) continue;
+          if (Math.hypot(this.trees[o]! - x, this.trees[o + 2]! - z) > radius) continue;
+          out.push(this.trees[o]!, this.trees[o + 1]!, this.trees[o + 2]!, this.trees[o + 3]!);
+        }
+      }
+    }
   }
 }

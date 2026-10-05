@@ -67,8 +67,19 @@ Prove or disprove the stack before building on it.
   and a pale forest floor, with darker trees. Colours hold through the middle
   of a season and blend over three days at each turn. The ground is tinted in
   the shader by a per vertex weight, so tiles are not rebuilt; rock and lake
-  bed keep their colour. Leaves do not fall and there is no snow on branches
-  yet, and the lake and sky are not tied to the season beyond the sky colour.
+  bed keep their colour. There is no snow on branches yet, and the lake and
+  sky are not tied to the season beyond the sky colour.
+- Tree kinds (`src/terrain/trees.ts`): each tree is a conifer or a broadleaf
+  tree, picked from its position, in 60 m stands (about three in ten are mostly
+  broadleaf, the rest mostly conifer, about a quarter broadleaf overall).
+  Conifers keep their cone and stay green. Broadleaf trees are a low crown on a
+  trunk with a few branches: fresh green in spring, green in summer, orange in
+  autumn, and bare in winter (the crown shrinks away over the three day blend,
+  in the shadows too). In autumn they drop leaves
+  (`src/render/fallingLeaves.ts`): up to 140 drifting leaves near the beaver,
+  starting from the crowns of broadleaf trees within 45 m, ramping in and out
+  over the three day blends. Tree kinds change which trees stand where, so the
+  numbers are a first guess to look at on the tablet.
 - Night sky (`src/render/nightSky.ts`): a moon that rises in the east and sets
   in the west over the night, 700 fixed stars, both fading in as the light goes,
   and a dark underwater colour at night.

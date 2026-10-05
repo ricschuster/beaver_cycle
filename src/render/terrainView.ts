@@ -2,7 +2,7 @@
 // changes them. One mesh per tile, rebuilt when the level it shows changes.
 import * as THREE from 'three';
 import { CLASS_LAKE, LEVEL_FINE, type DecodedTile, type TileWater } from '../terrain/format';
-import { placeTrees, TREE_FLOATS } from '../terrain/trees';
+import { placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
 
@@ -209,12 +209,17 @@ export function buildStreamGeometry(
 
 // Trees are shared geometry, one per level, never disposed. Level 2 has none.
 const TREE_GEOMETRY = [
-  new THREE.ConeGeometry(1.8, 9, 6, 1, true).translate(0, 4, 0),
-  new THREE.ConeGeometry(2.4, 10, 4, 1, true).translate(0, 4.5, 0),
+  new THREE.ConeGeometry(TREE_SHAPE[0]!.radius, TREE_SHAPE[0]!.height, 6, 1, true).translate(0, 4, 0),
+  new THREE.ConeGeometry(TREE_SHAPE[1]!.radius, TREE_SHAPE[1]!.height, 4, 1, true).translate(0, 4.5, 0),
 ];
 
-function buildTrees(tile: DecodedTile, size: number, material: THREE.Material): THREE.InstancedMesh | null {
-  const geometry = TREE_GEOMETRY[tile.level === LEVEL_FINE ? 0 : tile.level];
+function buildTrees(
+  tile: DecodedTile,
+  size: number,
+  material: THREE.Material,
+): { mesh: THREE.InstancedMesh; grid: TreeGrid } | null {
+  const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
+  const geometry = TREE_GEOMETRY[shown];
   const trees = geometry ? placeTrees(tile, size) : new Float32Array(0);
   if (!geometry || trees.length === 0) return null;
   const count = trees.length / TREE_FLOATS;
@@ -227,7 +232,7 @@ function buildTrees(tile: DecodedTile, size: number, material: THREE.Material): 
     mesh.setMatrixAt(k, m);
   }
   mesh.computeBoundingSphere();
-  return mesh;
+  return { mesh, grid: new TreeGrid(trees, shown) };
 }
 
 /** Triangles a mesh draws, counting every instance. */
@@ -259,6 +264,8 @@ function disposeGroup(scene: THREE.Scene, group: THREE.Group): void {
 
 export interface TerrainView {
   update(x: number, z: number): void;
+  /** True when a point is inside a drawn tree, grown by `margin` metres. */
+  insideTree(x: number, y: number, z: number, margin: number): boolean;
   stats(): TerrainStats;
 }
 
@@ -274,7 +281,7 @@ export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer
   });
   const streamMaterial = new THREE.MeshLambertMaterial({ color: 0x3b8fb0, side: THREE.DoubleSide });
   const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x2f5a2f });
-  const meshes = new Map<string, { group: THREE.Group; level: number; streams: boolean }>();
+  const meshes = new Map<string, { group: THREE.Group; level: number; streams: boolean; grid: TreeGrid | null }>();
   const size = store.size;
 
   return {
@@ -305,11 +312,14 @@ export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer
         const streams = job.level !== 2 && water ? buildStreamGeometry(water, (x, z) => store.heightAt(x, z)) : null;
         if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
         const trees = buildTrees(tile, size, treeMaterial);
-        if (trees) group.add(trees);
+        if (trees) group.add(trees.mesh);
         scene.add(group);
-        meshes.set(key, { group, level: job.level, streams: job.level !== 2 && water !== undefined });
+        meshes.set(key, { group, level: job.level, streams: job.level !== 2 && water !== undefined, grid: trees?.grid ?? null });
         if (performance.now() - start > BUILD_BUDGET_MS) break;
       }
+    },
+    insideTree(x, y, z, margin) {
+      return meshes.get(tileKey(Math.floor(x / size), Math.floor(z / size)))?.grid?.hit(x, y, z, margin) ?? false;
     },
     stats() {
       let triangles = 0;

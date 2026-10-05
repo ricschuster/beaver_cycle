@@ -15,6 +15,11 @@ const DENSITY: Record<number, Record<number, number>> = {
 const LEVEL_SCALE = [1, 1.8];
 /** Test knob: multiplies every density (the stress runs for the tablet budgets set it from the URL). */
 export const treeTuning = { densityScale: 1 };
+/** Cone of a tree at scale 1, by shown level: base radius, height, and base height above the ground. */
+export const TREE_SHAPE = [
+  { radius: 1.8, height: 9, base: -0.5 },
+  { radius: 2.4, height: 10, base: -0.5 },
+];
 /** Floats per tree in the placement array: x, y, z, scale. */
 export const TREE_FLOATS = 4;
 
@@ -61,4 +66,48 @@ export function placeTrees(tile: DecodedTile, size: number): Float32Array {
     }
   }
   return Float32Array.from(out);
+}
+
+const BUCKET = 16;
+
+/** Finds trees near a point, for keeping the camera out of them. No three.js. */
+export class TreeGrid {
+  private readonly buckets = new Map<number, number[]>();
+  private readonly shape: { radius: number; height: number; base: number };
+
+  constructor(
+    private readonly trees: Float32Array,
+    level: number,
+  ) {
+    this.shape = TREE_SHAPE[level]!;
+    for (let o = 0; o < trees.length; o += TREE_FLOATS) {
+      const key = this.key(Math.floor(trees[o]! / BUCKET), Math.floor(trees[o + 2]! / BUCKET));
+      const list = this.buckets.get(key);
+      if (list) list.push(o);
+      else this.buckets.set(key, [o]);
+    }
+  }
+
+  private key(i: number, j: number): number {
+    return i * 100003 + j;
+  }
+
+  /** True when the point is inside a tree's cone, grown by `margin` metres. */
+  hit(x: number, y: number, z: number, margin: number): boolean {
+    const bi = Math.floor(x / BUCKET);
+    const bj = Math.floor(z / BUCKET);
+    const { radius, height, base } = this.shape;
+    for (let i = bi - 1; i <= bi + 1; i++) {
+      for (let j = bj - 1; j <= bj + 1; j++) {
+        for (const o of this.buckets.get(this.key(i, j)) ?? []) {
+          const s = this.trees[o + 3]!;
+          const up = (y - this.trees[o + 1]!) / s - base;
+          if (up < -margin / s || up > height + margin / s) continue;
+          const r = (radius * (1 - Math.max(0, up) / height) + margin / s) * s;
+          if (Math.hypot(x - this.trees[o]!, z - this.trees[o + 2]!) < r) return true;
+        }
+      }
+    }
+    return false;
+  }
 }

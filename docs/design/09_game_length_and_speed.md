@@ -62,10 +62,16 @@ value, to tune by playing: **4 real minutes per game day**.
 | 4 | 40 min | 2.7 h | 15 | 1.6 |
 | 5 | 50 min | 3.3 h | 12 | 1.3 |
 | 6 | 60 min | 4.0 h | 10 | 1.1 |
+| 8 | 80 min | 5.3 h | 7.5 | 0.8 |
 
 The core crossing is 6.5 minutes on land at 12 m/s. A generation of three game
 years (baby, teenager, own family) is 8 hours at 4 minutes per day before any
 skipping.
+
+Session 21: the author asked to try **8 minutes per day**, double the proposal.
+The game uses it now (`DAY_SECONDS` in `src/sim/clock.ts`), with 5 minutes of
+light and 3 of night. It is still a value to tune by playing (#114). The
+reasons below are for the original 4.
 
 Why 4:
 

@@ -7,6 +7,7 @@
 //   node tools/tablet-live/bench.mjs stress         ring and tree density sweep
 //   node tools/tablet-live/bench.mjs soak [minutes] walk and report every ~90 s
 //   node tools/tablet-live/bench.mjs lakes         jump to each fine tile region, still and walking
+//   BENCH_QUERY=cascades=1 node ...                 add URL options to every load
 //   node tools/tablet-live/bench.mjs fine          fine tile ring sweep at the shore and the bog (ADR 0008)
 //
 // Needs the dev server on port 5199, `adb reverse tcp:5199 tcp:5199`, the app
@@ -26,8 +27,12 @@ sh(`forward tcp:${PORT} localabstract:webview_devtools_remote_${pid}`);
 const browser = await chromium.connectOverCDP(`http://localhost:${PORT}`);
 const page = browser.contexts()[0].pages()[0];
 
+// BENCH_QUERY adds URL options to every load, such as `cascades=1` or `shadows=0`.
+const EXTRA = process.env.BENCH_QUERY ?? '';
+
 async function load(query = '') {
-  await page.goto(URL + (query ? `?${query}` : ''));
+  const q = [query, EXTRA].filter(Boolean).join('&');
+  await page.goto(URL + (q ? `?${q}` : ''));
   await page.waitForFunction(() => '__game' in window, null, { polling: 200, timeout: 60000 });
   await page.getByRole('button', { name: 'Test menu' }).click();
 }

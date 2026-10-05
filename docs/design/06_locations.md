@@ -28,18 +28,18 @@ are shorter than the figures below.
 Core is the hub. North, south, and east each touch it. East touches both
 Springbach valleys, and the two valleys touch each other.
 
-| From | To | Route | Straight line | Climb | Time at 2 m/s |
+| From | To | Route | Straight line | Climb | Time at 12 m/s |
 | --- | --- | --- | --- | --- | --- |
-| Core | North | 2.5 km | 2.1 km | 8 m | 21 min |
-| Core | South | 3.6 km | 3.5 km | 20 m | 30 min |
-| Core | East | 7.7 km | 4.9 km | 173 m | 64 min |
-| East | Vorderer Springbach | 5.6 km | 3.2 km | 208 m | 47 min |
-| East | Hinterer Springbach | 2.8 km | 1.7 km | 222 m | 23 min |
-| Vorderer Springbach | Hinterer Springbach | 1.9 km | 1.5 km | 112 m | 16 min |
+| Core | North | 2.5 km | 2.1 km | 8 m | 3.5 min |
+| Core | South | 3.6 km | 3.5 km | 20 m | 5 min |
+| Core | East | 7.7 km | 4.9 km | 173 m | 11 min |
+| East | Vorderer Springbach | 5.6 km | 3.2 km | 208 m | 8 min |
+| East | Hinterer Springbach | 2.8 km | 1.7 km | 222 m | 4 min |
+| Vorderer Springbach | Hinterer Springbach | 1.9 km | 1.5 km | 112 m | 3 min |
 
 The route is the easiest path between the two anchors on the 5 m terrain, where
 steep ground costs more, and it does not account for water, snow, or obstacles.
-The times assume 2 m/s and no compression of distances. Between the lake and
+The times assume the 12 m/s walking speed and no compression of distances. Between the lake and
 the Oedsee, the gentle corridor itself is 4.7 km from the edge of the core.
 The data is in `data/areas/travel.json`, rebuilt by
 `tools/area-editor/travel_graph.py`.

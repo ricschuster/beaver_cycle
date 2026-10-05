@@ -82,7 +82,20 @@ or `--fine 1`; the first run caches about 100 MB of the BEV 1 m terrain in
   0.44 to 0.53 million without, 0.57 to 0.78 million with a 150 to 200 m ring,
   and 0.76 to 0.98 million with 300 m. Each 2 m tile is about 51,000 triangles,
   so a 1 m tile is about 205,000 and only a ring of about 150 m would stay under
-  the 1.5 million budget. Frame rate on the tablet is not measured yet.
+  the 1.5 million budget.
+- Tablet (Tab A9+, 90 Hz, `node tools/tablet-live/bench.mjs fine`), at the bog
+  and at the Almsee marker:
+  - 2 m cells hold 89.8 fps standing and walking at x5 for rings of 150, 200,
+    300, and 450 m, up to 1.6 million triangles. The worst frame while walking
+    was 33 ms (one dropped frame, when a tile mesh is built).
+  - 1 m cells hold 89.8 fps at the bog with a 150 to 300 m ring (up to 2.6
+    million triangles standing), but at the Almsee marker the walk drops to
+    77 fps with frames of 120 to 145 ms. A 1 m tile has about 205,000 triangles
+    and building its mesh blocks the frame.
+  - Memory is not an issue: the heap stayed at 32 MB, and the 37 fine tiles are
+    4.5 MB at 2 m and 11 MB at 1 m.
+  - So 2 m has plenty of room. 1 m needs smaller fine tiles (for example 80 m)
+    or mesh building spread over several frames before it can be the base.
 - Looks: the bank is a smooth slope and the shoreline steps are 2 m, not 5 m.
   The lake water is still drawn in whole cells, so the water edge shows steps.
   Cutting the water at the true shore line is a follow up.

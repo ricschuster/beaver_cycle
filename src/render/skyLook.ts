@@ -8,6 +8,8 @@ export interface SkyLook {
   ambient: number;
   /** Sun strength: 0 at night. */
   sun: number;
+  /** Colour of the view under the water surface, dark at night. */
+  underwater: number;
 }
 
 const DAY_SKY: Record<Season, number> = {
@@ -17,6 +19,8 @@ const DAY_SKY: Record<Season, number> = {
   winter: 0xdde6ee,
 };
 const NIGHT_SKY = 0x0b1426;
+const DAY_UNDERWATER = 0x2c7a96;
+const NIGHT_UNDERWATER = 0x07151f;
 const NIGHT_AMBIENT = 0.35;
 const DAY_AMBIENT = 0.95;
 const DAY_SUN = 1.3;
@@ -36,5 +40,6 @@ export function skyLook(season: Season, timeOfDay: number): SkyLook {
     sky: mix(NIGHT_SKY, DAY_SKY[season], light),
     ambient: NIGHT_AMBIENT + (DAY_AMBIENT - NIGHT_AMBIENT) * light,
     sun: DAY_SUN * light,
+    underwater: mix(NIGHT_UNDERWATER, DAY_UNDERWATER, light),
   };
 }

@@ -58,6 +58,26 @@ describe('TileStore', () => {
     expect(dry.waterDepth(10, 10)).toBe(0);
   });
 
+  it('puts the water edge where the ground crosses the lake level', () => {
+    const s = new TileStore(makeIndex([0, 0], [0, 0], 586));
+    // the ground rises 1 m per 10 m from x = 100, so it meets the level 586 at x = 160
+    const tile = makeTile(0, 0, 0, (x) => 580 + Math.max(0, x - 100) * 0.1);
+    // lake cells are the first 20 columns (x < 100) and the rest is land
+    for (let j = 0; j < tile.n; j++) tile.classes.fill(CLASS_LAKE, j * tile.n, j * tile.n + 20);
+    s.put(tile);
+    expect(s.waterDepth(50, 100)).toBeCloseTo(6);
+    // a land cell beside the lake is wet below the level, and the edge is the crossing
+    expect(s.isWater(103, 100)).toBe(true);
+    // two cells from the lake there is no water, even below the level
+    expect(s.isWater(120, 100)).toBe(false);
+  });
+
+  it('has no water in a lake cell whose ground is above the level', () => {
+    const s = new TileStore(makeIndex([0, 0], [0, 0], 586));
+    s.put(makeTile(0, 0, 0, () => 590, CLASS_LAKE));
+    expect(s.isWater(10, 10)).toBe(false);
+  });
+
   it('counts tiles by level', () => {
     const s = new TileStore(makeIndex([0, 1], [0, 0]));
     s.put(makeTile(0, 0, 0, () => 0));

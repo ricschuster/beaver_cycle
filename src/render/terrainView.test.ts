@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLASS_LAKE } from '../terrain/format';
 import { makeTile } from '../terrain/testing';
-import { buildLakeGeometry, buildStreamGeometry } from './terrainView';
+import { buildLakeGeometry, buildStreamGeometry, farChunkKey } from './terrainView';
 
 describe('water geometry', () => {
   it('covers lake cells with flat quads at the lake level', () => {
@@ -46,5 +46,14 @@ describe('water geometry', () => {
 
   it('draws no ribbon when a tile has no streams', () => {
     expect(buildStreamGeometry({ lakeLevel_m: 580, streams: [] }, () => 0)).toBeNull();
+  });
+});
+
+describe('far chunks', () => {
+  it('groups neighbouring tiles, including negative ones, into the same chunk', () => {
+    expect(farChunkKey(0, 0)).toBe(farChunkKey(7, 7));
+    expect(farChunkKey(0, 0)).not.toBe(farChunkKey(8, 0));
+    expect(farChunkKey(-1, -1)).toBe(farChunkKey(-8, -8));
+    expect(farChunkKey(-1, 0)).not.toBe(farChunkKey(0, 0));
   });
 });

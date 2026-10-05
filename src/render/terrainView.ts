@@ -1,6 +1,7 @@
 // Draws the loaded tiles. Reads the tile store and the streamer's wishes, never
 // changes them. One mesh per tile, rebuilt when the level it shows changes.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLASS_LAKE, LEVEL_FINE, type DecodedTile, type TileWater } from '../terrain/format';
 import { placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
@@ -22,6 +23,14 @@ const COLORS = new Map(Object.entries(CLASS_COLORS).map(([k, v]) => [Number(k), 
 const SKIRT_PER_CELL = 1;
 /** Milliseconds per frame spent building tile meshes. At least one is always built. */
 const BUILD_BUDGET_MS = 4;
+
+/** Far backdrop tiles are merged into chunks of this many tiles per side, one draw call each. */
+export const FAR_CHUNK = 8;
+
+/** Key of the far chunk a tile belongs to. */
+export function farChunkKey(tx: number, tz: number): string {
+  return `${Math.floor(tx / FAR_CHUNK)},${Math.floor(tz / FAR_CHUNK)}`;
+}
 
 export function buildTileGeometry(tile: DecodedTile, size: number): THREE.BufferGeometry {
   const { n, heights: h, classes } = tile;
@@ -283,11 +292,44 @@ export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer
   const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x2f5a2f });
   const meshes = new Map<string, { group: THREE.Group; level: number; streams: boolean; grid: TreeGrid | null }>();
   const size = store.size;
+  // The far backdrop never changes level, so its tiles are merged into a mesh per chunk,
+  // rebuilt when more of the chunk has loaded. This is a few hundred draw calls fewer.
+  const farChunks = new Map<string, { mesh: THREE.Mesh | null; built: number; tiles: { tx: number; tz: number }[] }>();
+  for (const t of store.index.tiles) {
+    if (!t.far) continue;
+    const key = farChunkKey(t.tx, t.tz);
+    const chunk = farChunks.get(key) ?? { mesh: null, built: 0, tiles: [] };
+    chunk.tiles.push({ tx: t.tx, tz: t.tz });
+    farChunks.set(key, chunk);
+  }
+
+  function updateFar(): void {
+    const start = performance.now();
+    for (const chunk of farChunks.values()) {
+      const loaded = chunk.tiles.filter((t) => store.has(t.tx, t.tz, 2));
+      if (loaded.length === chunk.built) continue;
+      const geos = loaded.map((t) => buildTileGeometry(store.get(t.tx, t.tz, 2)!, size));
+      const merged = mergeGeometries(geos);
+      for (const g of geos) g.dispose();
+      if (!merged) continue;
+      merged.computeBoundingSphere();
+      if (chunk.mesh) {
+        scene.remove(chunk.mesh);
+        chunk.mesh.geometry.dispose();
+      }
+      chunk.mesh = new THREE.Mesh(merged, material);
+      scene.add(chunk.mesh);
+      chunk.built = loaded.length;
+      if (performance.now() - start > BUILD_BUDGET_MS) break;
+    }
+  }
 
   return {
     update(x, z) {
+      updateFar();
       const todo: { tx: number; tz: number; level: number; dist: number }[] = [];
       for (const t of store.index.tiles) {
+        if (t.far) continue;
         const fineOn = streamer.wantsFine(t.tx, t.tz) && store.has(t.tx, t.tz, LEVEL_FINE);
         const level = fineOn ? LEVEL_FINE : shownLevel(streamer.desiredLevel(t.tx, t.tz), (l) => store.has(t.tx, t.tz, l));
         if (level === undefined) continue;
@@ -324,13 +366,19 @@ export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer
     stats() {
       let triangles = 0;
       let trees = 0;
+      let drawn = meshes.size;
+      for (const { mesh } of farChunks.values()) {
+        if (!mesh) continue;
+        drawn++;
+        triangles += trianglesOf(mesh);
+      }
       for (const { group } of meshes.values()) {
         for (const child of group.children as THREE.Mesh[]) {
           triangles += trianglesOf(child);
           if (child instanceof THREE.InstancedMesh) trees += child.count;
         }
       }
-      return { meshes: meshes.size, triangles, trees, tilesByLevel: store.countByLevel() };
+      return { meshes: drawn, triangles, trees, tilesByLevel: store.countByLevel() };
     },
   };
 }

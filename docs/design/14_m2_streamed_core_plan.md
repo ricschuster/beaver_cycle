@@ -146,7 +146,7 @@ scene. Proposed targets for the full M2 scene, to be confirmed or changed:
 | Measure | Proposed |
 | --- | --- |
 | Frame rate while walking | at least 45 fps, no stalls over 100 ms |
-| Triangles per frame | at most 1.5 million (set from the stress test below) |
+| Triangles per frame | at most 2.5 million (set from the stress tests below; the far backdrop uses about 1.1 million) |
 | Trees drawn | at most 100,000 |
 | Memory | under 400 MB |
 | Temperature after ten minutes | under 45 C at the back (to be measured) |
@@ -181,6 +181,35 @@ The tablet holds 90 fps up to about 3 million triangles and drops at about
 tablets are not known and may be weaker, and because the beaver, water
 animation, and lodge will cost frames later. Not measured: battery drain, load
 time from a cold start, and a weaker device.
+
+### Measured with the far backdrop (2026-10-05)
+
+Same tablet and method, after the 5 km far backdrop (2,164 coarse tiles) was
+added. The backdrop adds about 1.1 million triangles, so normal play is now 1.3
+to 1.9 million triangles.
+
+- **One mesh per far tile** (about 2,200 draw calls): 82 to 88 fps, p99 frame
+  time 22 ms in the core and while walking, and a 67 ms worst frame on the first
+  idle run.
+- **Far tiles merged into chunks** of 8 x 8 tiles, one mesh per chunk: 89.3 to
+  89.8 fps and p99 11 ms at the core, walking, and at x100. The worst frame on
+  the first idle run fell to 22 ms. The cost was draw calls, not triangles.
+  Heap rose from 32 to 36 MB. A jump to a new place still dips to about 78 fps
+  while its tiles load.
+- **Stress test** with the backdrop (`?rings=` and `?trees=`, still / moving at
+  x20):
+
+| Setting | Triangles | Trees | fps | Worst frame |
+| --- | --- | --- | --- | --- |
+| Base | 1.5 million | 49,000 | 89.8 / 85.6 | 22 ms |
+| Rings x1.6, x2.5, x4 | 2.1, 3.4, 5.5 million | 94,000 to 360,000 | 87 to 75 / 80 to 67 | 22 to 44 ms |
+| Trees x2, x4, x8 | 1.8, 2.3, 3.3 million | 95,000 to 383,000 | 84 to 88 / 75 to 80 | 22 ms |
+| Trees x16 | 5.4 million | 765,000 | 61.5 / 65 | 33 ms |
+
+The stress rows were taken before the chunk merge, so they show the old draw
+call cost on top of the triangles and are a little pessimistic. Up to about 3.4
+million triangles and 200,000 trees the frame rate stayed at 75 fps or more with
+no frame over 45 ms, which is why the triangle budget is now 2.5 million.
 
 ## Risks
 

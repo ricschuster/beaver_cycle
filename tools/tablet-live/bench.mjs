@@ -6,6 +6,7 @@
 //   node tools/tablet-live/bench.mjs scenarios      each location, walking, x100
 //   node tools/tablet-live/bench.mjs stress         ring and tree density sweep
 //   node tools/tablet-live/bench.mjs soak [minutes] walk and report every ~90 s
+//   node tools/tablet-live/bench.mjs fine          fine tile ring sweep at the shore and the bog (ADR 0008)
 //
 // Needs the dev server on port 5199, `adb reverse tcp:5199 tcp:5199`, the app
 // running and the tablet unlocked (see README.md). The screen caps fps (90 Hz on
@@ -130,6 +131,23 @@ async function stress() {
   }
 }
 
+async function fine() {
+  for (const ring of (process.env.RINGS ?? "0,150,200,300,450").split(",").map(Number)) {
+    await load(`fine=${ring}`);
+    for (const id of ['south-shore-bog', 'almsee']) {
+      const jumpMs = await jump(id);
+      await stable();
+      const still = await sample(5000);
+      await speed(5);
+      await page.keyboard.down('KeyW');
+      const moving = await sample(6000);
+      await page.keyboard.up('KeyW');
+      await speed(1);
+      print(`fine=${ring} ${id}`, { ...still, jumpMs, moving5: { fps: moving.fps, p99ms: moving.p99ms, worstMs: moving.worstMs, tris: moving.tris } });
+    }
+  }
+}
+
 async function soak(minutes) {
   await load();
   await speed(5);
@@ -161,8 +179,9 @@ const [mode, arg] = process.argv.slice(2);
 try {
   if (mode === 'scenarios') await scenarios();
   else if (mode === 'stress') await stress();
+  else if (mode === 'fine') await fine();
   else if (mode === 'soak') await soak(Number(arg) || 10);
-  else console.log('usage: node tools/tablet-live/bench.mjs scenarios | stress | soak [minutes]');
+  else console.log('usage: node tools/tablet-live/bench.mjs scenarios | stress | fine | soak [minutes]');
 } finally {
   await browser.close();
 }

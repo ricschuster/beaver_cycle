@@ -206,10 +206,36 @@ to 1.9 million triangles.
 | Trees x2, x4, x8 | 1.8, 2.3, 3.3 million | 95,000 to 383,000 | 84 to 88 / 75 to 80 | 22 ms |
 | Trees x16 | 5.4 million | 765,000 | 61.5 / 65 | 33 ms |
 
-The stress rows were taken before the chunk merge, so they show the old draw
-call cost on top of the triangles and are a little pessimistic. Up to about 3.4
-million triangles and 200,000 trees the frame rate stayed at 75 fps or more with
-no frame over 45 ms, which is why the triangle budget is now 2.5 million.
+The first stress rows above were taken before the chunk merge, so they show the
+old draw call cost on top of the triangles. The re-run below replaces them.
+
+### Re-run with the chunk merge (2026-10-05)
+
+The stress sweep and a ten minute soak, repeated after the far tiles were merged
+into chunks (still / moving at x20):
+
+| Setting | Triangles | Trees | fps | Worst frame |
+| --- | --- | --- | --- | --- |
+| Base | 1.5 million | 48,000 | 89.8 / 89.6 | 22 ms |
+| Rings x1.6, x2.5, x4 | 2.1, 3.4, 5.5 million | 94,000 to 360,000 | 89.8 / 89.3 to 89.8 | 11 to 22 ms |
+| Trees x2, x4, x8 | 1.8, 2.3, 3.3 million | 95,000 to 383,000 | 89.8 / 89.1 to 89.6 | 22 to 33 ms |
+| Trees x16 | 5.4 million | 765,000 | 66 / 72.8 | 33 ms |
+| Rings x1.6, trees x4 | 3.6 million | 375,000 | 89.8 / 89.1 | 22 ms |
+
+- **Limit:** the first drop is at trees x16 (5.4 million triangles). Up to 5.5
+  million triangles with rings x4 the rate held at 89 fps or more, so the old
+  rows were dominated by draw calls. The budget stays at 2.5 million, which is
+  still more than twice below the limit.
+- **Ten minutes of walking at x5:** 87 to 90 fps after the first sample (80 fps
+  while tiles loaded), worst frames of 11 to 56 ms every few samples, and 1.4 to
+  2.0 million triangles. Heap stayed at 36 MB, then rose once to 78 MB at about
+  470 s and held. Total process memory (PSS) was 190 to 232 MB with no trend.
+- **Temperature:** skin 29.3 to 29.7 C (throttling starts at 40 C), battery
+  26.8 to 27.2 C, CPU 54 to 66 C and GPU 54 to 64 C, flat. CPU and GPU are
+  higher than in the first soak (45 to 49 C), probably the backdrop, not compared
+  under the same conditions.
+- **Not measured:** draw calls (the bench does not report them), what causes the
+  heap step and the 44 to 56 ms spikes.
 
 ## Risks
 

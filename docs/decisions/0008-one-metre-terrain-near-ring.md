@@ -2,8 +2,8 @@
 
 ## Status
 
-Proposed. Decide together with the scale question (issue #54), after the first
-walk through the M2 terrain on a tablet and before M3.
+Accepted (2026-10-04), with cells of 2 m, not 1 m. Settles issue #57. It changes
+ADR 0002 for the ground near the lake only: the 5 m model stays the base.
 
 ## Context
 
@@ -102,29 +102,40 @@ or `--fine 1`; the first run caches about 100 MB of the BEV 1 m terrain in
 
 ## Decision
 
-Not yet taken. The proposal:
+After the first desktop walk the author found the lake edge and the bog too
+blocky at 5 m. Decided, using the datum check and the prototype above:
 
-- Keep 5 m for M2 (issues #49 to #53) and judge the look on the tablet.
-- If the ground looks too coarse at beaver scale, add the 1 m model as a second
-  source in the tile tool, for a new level in front of level 0 (1 m or 2.5 m
-  cells) used only in a small ring around the beaver. The farther levels stay
-  derived from the 5 m data, so the shipped data stays small.
-- Fix the datum before mixing the sources. The check above shows a single
-  offset will not do, so either blend the ring into the 5 m ground with a
-  smooth correction (the 1 m minus 5 m difference, low pass filtered over about
-  100 m, subtracted from the 1 m heights, so the fine detail stays and the ring
-  edge has no step), or switch the whole build to the 1 m model where it exists.
-  The lake level should come from the same source as the ground around it.
+- Keep the 5 m model as the base, and for the farther levels (1 and 2). The
+  whole core at 1 m is not adopted.
+- Tiles within 100 m of a lake get a fine level (level 3) with **2 m cells**,
+  cut from the BEV 1 m model by the tile tool (`build_tiles.py`, on by default,
+  `--fine 0` turns it off). The first build caches about 100 MB of the 1 m
+  model in `data/raw/`.
+- The 1 m heights are put on the 5 m datum with the smoothed correction
+  (about 100 m), and the lake level and lake bed rules are the 5 m ones. The
+  fine ground and the 5 m ground meet without a step.
+- The game shows a fine tile within 200 m of the beaver, and the beaver stands
+  on it. `?fine=` changes the distance for tests. On the Tab A9+ the 2 m level
+  held 90 fps with rings up to 450 m, so the ring can grow if needed.
+- 1 m cells are not adopted. They stutter on the tablet (frames of 120 to 145 ms
+  when a 205,000 triangle tile is built). Revisit them for dam and lodge sites
+  in M5, with smaller fine tiles (for example 80 m) or mesh building spread over
+  several frames.
+- Not decided here: fine tiles beyond the lake shores (streams, the lodge
+  site), and cutting the water surface at the true shoreline, which still steps
+  in whole cells.
 
 ## Consequences
 
-- Cost if adopted: roughly 70 million cells for the core and margin, about
-  280 MB as raw float32 during the build, plus a second reader and a projection
-  step in `tools/tiles/build_tiles.py`. Shipped size grows with the near level
-  only. The tile format has a level number in its header, so a finer level is an
-  addition, not a break.
-- Gain: banks, channels, and dam sites become visible at beaver scale, and the
-  lake shore is better defined.
-- Risk: the datum offset, pop between a 1 m ring and the 5 m ground, and more
-  triangles near the camera on a tablet with a budget still to be measured.
+- Cost: a second reader, a projection step, and the datum correction in
+  `tools/tiles/build_tiles.py`; a 100 MB cache in `data/raw/`; 37 more tile
+  files (4.5 MB). The tile format has a level number in its header, so the fine
+  level was an addition, not a break. Fine tiles add about 0.1 to 0.5 million
+  triangles near the lake.
+- Gain: banks and the lake shore are smooth at beaver scale, and the beaver
+  stands on the ground it sees.
+- Risk: the fine ground differs from the 5 m ground by the fine detail (up to a
+  few metres on steep banks), so there is some pop when a tile changes level,
+  hidden mostly by the skirts. Trees are placed again on the fine tile, so they
+  move when it loads.
 - Attribution to BEV is required in both cases.

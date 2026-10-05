@@ -24,6 +24,9 @@ with the Adria Triest vertical datum. Raw downloads stay untracked in
 
 Copernicus GLO-30 stays as the fallback if the BEV service is unavailable.
 
+Update (ADR 0008): tiles near the lake also use the BEV 1 m model, cut to 2 m
+cells and put on this 5 m datum. The 5 m model stays the base elsewhere.
+
 ## Consequences
 
 - Terrain is about six times finer than before, and the licence is settled

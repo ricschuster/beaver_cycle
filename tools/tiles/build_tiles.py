@@ -27,7 +27,7 @@ Tile file, little endian:
   then         uint8 x n^2 land cover classes, same order
 Height in metres = (stored + qmin) * scale.
 
-Fine tiles (prototype, ADR 0008): with --fine 2 (or 1), tiles near a lake also
+Fine tiles (ADR 0008): by default (--fine 2, 0 turns them off), tiles near a lake also
 get a level 3 file with cells of that size, cut from the BEV 1 m terrain
 (ALS-DGM, cached in data/raw/ by --fetch-fine). The 1 m heights are first
 corrected by the smoothed difference to the 5 m data, so the fine ground meets
@@ -585,9 +585,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", default=str(OUT))
     ap.add_argument("--check-only", action="store_true", help="only check existing tiles")
-    ap.add_argument("--fine", type=float, default=None, metavar="CELL",
-                    help="also cut fine tiles (level 3) near the lake from the BEV 1 m terrain, "
-                         "with this cell size in metres (1 or 2)")
+    ap.add_argument("--fine", type=float, default=2.0, metavar="CELL",
+                    help="cell size in metres of the fine tiles (level 3) near the lake, cut from the "
+                         "BEV 1 m terrain: 2 by default (ADR 0008), 1 is heavy for a tablet, 0 turns them off")
     ap.add_argument("--fetch-fine", action="store_true", help="only cache the BEV 1 m terrain in data/raw/")
     args = ap.parse_args()
     if args.fetch_fine:

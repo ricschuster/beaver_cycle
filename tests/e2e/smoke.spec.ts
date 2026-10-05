@@ -69,6 +69,26 @@ test('the test menu moves the clock and the season, and sleep needs the lodge', 
   await expect(page.locator('button[data-action="shadows"]')).toBeDisabled();
 });
 
+test('at night in the lodge the bedtime panel offers sleep and the dream, and both wake at dawn', async ({ page }) => {
+  await page.goto('/?shadows=0');
+  await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator('button[data-time="night"]').click();
+  await expect(page.locator('#sleep-prompt')).toBeHidden();
+  await page.locator('button[data-action="lodge"]').click();
+  await expect(page.locator('#sleep-prompt')).toBeVisible();
+  await page.locator('button[data-action="sleep-skip"]').click();
+  await expect(page.locator('#clock-hud')).toContainText('day 2, morning');
+  await expect(page.locator('#sleep-prompt')).toBeHidden();
+  // The dream is a placeholder: a dark screen with a wake button.
+  await page.locator('button[data-time="night"]').click();
+  await expect(page.locator('#sleep-prompt')).toBeVisible();
+  await page.locator('button[data-action="sleep-dream"]').click();
+  await expect(page.locator('#sleep-dark')).toContainText('dreams');
+  await page.locator('button[data-action="sleep-wake"]').click();
+  await expect(page.locator('#clock-hud')).toContainText('day 3, morning');
+});
+
 test('dragging turns the camera and forward still walks away from it', async ({ page }) => {
   await page.goto('/?shadows=0');
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });

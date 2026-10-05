@@ -3,13 +3,14 @@ import { createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { createRenderer } from './render/renderer';
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
-import { createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport } from './sim/state';
+import { canSleep, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport } from './sim/state';
 import { step } from './sim/step';
 import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
 import { createClockHud } from './ui/clockHud';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
+import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { treeTuning } from './terrain/trees';
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
@@ -99,6 +100,11 @@ async function start(): Promise<void> {
   });
   const breathMeter = createBreathMeter(document.body);
   const clockHud = createClockHud(document.body);
+  const sleepPrompt = createSleepPrompt(document.body, {
+    onWake() {
+      world = sleep(world);
+    },
+  });
   let fps = 60;
   let lastReadout = 0;
 
@@ -123,6 +129,7 @@ async function start(): Promise<void> {
     }
     breathMeter.set(world.beaver.breath);
     clockHud.set(world.clock);
+    sleepPrompt.setAvailable(canSleep(world));
     renderer.draw(world, rig.view);
     if (now - lastReadout > 500) {
       lastReadout = now;

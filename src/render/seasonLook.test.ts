@@ -25,6 +25,11 @@ describe('season look', () => {
     expect(new Set([5, 15, 25, 35].map((d) => seasonLook(d).leaf)).size).toBe(4);
   });
 
+  it('has full crowns until the autumn ends and bare trees in the middle of winter', () => {
+    expect([5, 15, 25].map((d) => seasonLook(d).foliage)).toEqual([1, 1, 1]);
+    expect(seasonLook(35).foliage).toBe(0);
+  });
+
   it('does not jump at a season change or at the new year', () => {
     for (const edge of [10, 20, 30, DAYS_PER_YEAR]) {
       const before = seasonLook(edge - 0.001);
@@ -32,6 +37,7 @@ describe('season look', () => {
       expect(Math.abs(before.grass.amount - after.grass.amount)).toBeLessThan(0.01);
       expect(Math.abs(before.tree - after.tree)).toBeLessThan(0x010101 * 2);
       expect(Math.abs(before.leafFall - after.leafFall)).toBeLessThan(0.01);
+      expect(Math.abs(before.foliage - after.foliage)).toBeLessThan(0.01);
     }
   });
 

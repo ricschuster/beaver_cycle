@@ -238,30 +238,46 @@ const CONIFER_GEOMETRY = [
 ];
 
 /**
- * A low crown on a short trunk. The crown is white and the trunk dark in the vertex colours, so the season's
- * leaf colour (the material colour) tints the crown fully and the trunk only a little.
+ * A low crown on a short trunk with a few bare branches. The crown is white and the trunk dark in the vertex
+ * colours, so the season's leaf colour (the material colour) tints the crown fully and the wood only a little.
+ * The `crown` attribute is 1 and the crown's centre height for crown vertices, so the shader can shrink the
+ * crown away in winter, and 0 for the wood.
  */
 function broadleafGeometry(level: number): THREE.BufferGeometry {
   const { radius, centre } = BROADLEAF_SHAPE[level]!;
   const crown = new THREE.OctahedronGeometry(radius, 0).scale(1, 0.85, 1).translate(0, centre, 0);
-  const trunk = new THREE.CylinderGeometry(0.3, 0.45, centre, 4, 1, true).translate(0, centre / 2, 0).toNonIndexed();
-  const paint = (g: THREE.BufferGeometry, grey: number): void => {
+  const wood: THREE.BufferGeometry[] = [new THREE.CylinderGeometry(0.3, 0.45, centre, 4, 1, true).translate(0, centre / 2, 0).toNonIndexed()];
+  // Three thin branches from the top of the trunk, leaning out in different directions.
+  for (let k = 0; k < 3; k++) {
+    const length = radius * 1.1;
+    const branch = new THREE.CylinderGeometry(0.05, 0.16, length, 3, 1, true).translate(0, length / 2, 0).toNonIndexed();
+    branch.rotateZ(-0.75).rotateY((k * Math.PI * 2) / 3 + 0.4).translate(0, centre * 0.55, 0);
+    wood.push(branch);
+  }
+  const paint = (g: THREE.BufferGeometry, grey: number, isCrown: number): void => {
     const n = g.getAttribute('position').count;
     g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3).fill(grey), 3));
+    const info = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      info[i * 2] = isCrown;
+      info[i * 2 + 1] = centre;
+    }
+    g.setAttribute('crown', new THREE.BufferAttribute(info, 2));
   };
-  paint(crown, 1);
-  paint(trunk, 0.3);
-  const merged = mergeGeometries([crown, trunk]);
+  paint(crown, 1, 1);
+  wood.forEach((g) => paint(g, 0.3, 0));
+  const merged = mergeGeometries([crown, ...wood]);
   crown.dispose();
-  trunk.dispose();
+  wood.forEach((g) => g.dispose());
   return merged;
 }
 const BROADLEAF_GEOMETRY = [broadleafGeometry(0), broadleafGeometry(1)];
 
-function instanced(geometry: THREE.BufferGeometry, material: THREE.Material, trees: number[], shown: number) {
+function instanced(geometry: THREE.BufferGeometry, material: THREE.Material, trees: number[], depth?: THREE.Material) {
   const count = trees.length / TREE_FLOATS;
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.castShadow = true;
+  if (depth) mesh.customDepthMaterial = depth;
   const m = new THREE.Matrix4();
   for (let k = 0; k < count; k++) {
     const o = k * TREE_FLOATS;
@@ -276,7 +292,7 @@ function instanced(geometry: THREE.BufferGeometry, material: THREE.Material, tre
 function buildTrees(
   tile: DecodedTile,
   size: number,
-  materials: { conifer: THREE.Material; broadleaf: THREE.Material },
+  materials: { conifer: THREE.Material; broadleaf: THREE.Material; broadleafDepth: THREE.Material },
 ): { meshes: THREE.InstancedMesh[]; grid: TreeGrid } | null {
   const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
   const conifers = CONIFER_GEOMETRY[shown];
@@ -288,8 +304,8 @@ function buildTrees(
     (trees[o + 4] === KIND_BROADLEAF ? broadleaf : conifer).push(...trees.subarray(o, o + TREE_FLOATS));
   }
   const meshes: THREE.InstancedMesh[] = [];
-  if (conifer.length > 0) meshes.push(instanced(conifers, materials.conifer, conifer, shown));
-  if (broadleaf.length > 0) meshes.push(instanced(BROADLEAF_GEOMETRY[shown]!, materials.broadleaf, broadleaf, shown));
+  if (conifer.length > 0) meshes.push(instanced(conifers, materials.conifer, conifer));
+  if (broadleaf.length > 0) meshes.push(instanced(BROADLEAF_GEOMETRY[shown]!, materials.broadleaf, broadleaf, materials.broadleafDepth));
   return { meshes, grid: new TreeGrid(trees, shown) };
 }
 
@@ -353,6 +369,25 @@ export function createTerrainView(
   prepareMaterial(material);
   prepareMaterial(treeMaterial);
   prepareMaterial(leafMaterial);
+  // Broadleaf crowns shrink to nothing as the foliage goes, in the colour pass and in the shadow pass alike.
+  const foliage = { value: 1 };
+  const leafDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  const addFoliage = (material: THREE.Material): void => {
+    const previous = material.onBeforeCompile;
+    material.onBeforeCompile = (shader, renderer) => {
+      previous.call(material, shader, renderer);
+      shader.uniforms.foliage = foliage;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec2 crown;\nuniform float foliage;')
+        .replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>
+          transformed = mix(vec3(0.0, crown.y, 0.0), transformed, mix(1.0, foliage, crown.x));`,
+        );
+    };
+  };
+  addFoliage(leafMaterial);
+  addFoliage(leafDepthMaterial);
   // Pull the baked ground colours towards the season's colours, by the weights in the geometry.
   const grassTint = { value: new THREE.Vector4() };
   const forestTint = { value: new THREE.Vector4() };
@@ -443,7 +478,7 @@ export function createTerrainView(
         const water = store.waterOf(job.tx, job.tz);
         const streams = job.level !== 2 && water ? buildStreamGeometry(water, (x, z) => store.heightAt(x, z)) : null;
         if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
-        const trees = buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial });
+        const trees = buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial });
         if (trees) group.add(...trees.meshes);
         scene.add(group);
         meshes.set(key, { group, level: job.level, streams: job.level !== 2 && water !== undefined, grid: trees?.grid ?? null });
@@ -455,6 +490,7 @@ export function createTerrainView(
       setTint(forestTint, look.forest);
       treeMaterial.color.set(look.tree);
       leafMaterial.color.set(look.leaf);
+      foliage.value = look.foliage;
     },
     insideTree(x, y, z, margin) {
       return meshes.get(tileKey(Math.floor(x / size), Math.floor(z / size)))?.grid?.hit(x, y, z, margin) ?? false;

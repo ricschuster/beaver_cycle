@@ -74,8 +74,9 @@ Prove or disprove the stack before building on it.
   tree, picked from its position, in 60 m stands (about three in ten are mostly
   broadleaf, the rest mostly conifer, about a quarter broadleaf overall).
   Conifers keep their cone and stay green. Broadleaf trees are a low crown on a
-  trunk, fresh green in spring, green in summer, orange in autumn, and a dark
-  bare brown in winter. In autumn they drop leaves
+  trunk with a few branches: fresh green in spring, green in summer, orange in
+  autumn, and bare in winter (the crown shrinks away over the three day blend,
+  in the shadows too). In autumn they drop leaves
   (`src/render/fallingLeaves.ts`): up to 140 drifting leaves near the beaver,
   starting from the crowns of broadleaf trees within 45 m, ramping in and out
   over the three day blends. Tree kinds change which trees stand where, so the

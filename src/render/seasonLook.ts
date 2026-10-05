@@ -17,6 +17,8 @@ export interface SeasonLook {
   tree: number;
   /** Colour of the crowns of broadleaf trees: fresh, green, turning, then bare twigs. */
   leaf: number;
+  /** How much of its crown a broadleaf tree carries, 0 (bare) to 1. */
+  foliage: number;
   /** How hard the broadleaf trees are dropping leaves, 0 to 1. */
   leafFall: number;
 }
@@ -27,6 +29,7 @@ const KEYS: Record<Season, SeasonLook> = {
     forest: { color: 0x5a8a45, amount: 0.3 },
     tree: 0x3f7a3a,
     leaf: 0x86b84e,
+    foliage: 1,
     leafFall: 0,
   },
   summer: {
@@ -34,6 +37,7 @@ const KEYS: Record<Season, SeasonLook> = {
     forest: { color: 0x3f6b3a, amount: 0 },
     tree: 0x2f5a2f,
     leaf: 0x3f7a35,
+    foliage: 1,
     leafFall: 0,
   },
   autumn: {
@@ -41,6 +45,7 @@ const KEYS: Record<Season, SeasonLook> = {
     forest: { color: 0x9a6a30, amount: 0.4 },
     tree: 0x6a6a2c,
     leaf: 0xc9782a,
+    foliage: 1,
     leafFall: 1,
   },
   winter: {
@@ -48,6 +53,7 @@ const KEYS: Record<Season, SeasonLook> = {
     forest: { color: 0xdfe6ea, amount: 0.5 },
     tree: 0x3f5a4f,
     leaf: 0x6b5a4c,
+    foliage: 0,
     leafFall: 0,
   },
 };
@@ -74,6 +80,7 @@ function mixLook(a: SeasonLook, b: SeasonLook, t: number): SeasonLook {
     forest: mixTint(a.forest, b.forest, t),
     tree: mix(a.tree, b.tree, t),
     leaf: mix(a.leaf, b.leaf, t),
+    foliage: a.foliage + (b.foliage - a.foliage) * t,
     leafFall: a.leafFall + (b.leafFall - a.leafFall) * t,
   };
 }

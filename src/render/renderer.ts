@@ -1,5 +1,7 @@
 // Render layer: reads simulation state and draws it. It never changes state.
 import * as THREE from 'three';
+import { dateAt } from '../sim/clock';
+import { skyLook } from './skyLook';
 import { DIVE_RATE, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
@@ -28,13 +30,15 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xcfe3d4);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x556b4f, 1.6));
+  const hemisphere = new THREE.HemisphereLight(0xffffff, 0x556b4f, 1.6);
+  scene.add(hemisphere);
 
   const SKY = 0xcfe3d4;
   // Fog starts well out so far ridges stay readable, and ends just inside the camera far plane.
   const FOG_NEAR = 2500;
   const FOG_FAR = 8500;
   const SKY_COLOR = new THREE.Color(SKY);
+  let lastSky = SKY;
   let terrain: TerrainView | null = null;
   if (source) {
     // Fog hides the edge of the coarsest level (ADR 0006).
@@ -136,6 +140,13 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       camera.lookAt(look.x, look.y, look.z);
       // Under the surface the view turns blue and short.
       const under = level !== null && camY < level;
+      const date = dateAt(world.clock);
+      const sky = skyLook(date.season, date.timeOfDay);
+      if (sky.sky !== lastSky) {
+        lastSky = sky.sky;
+        SKY_COLOR.set(sky.sky);
+      }
+      hemisphere.intensity = sky.intensity;
       scene.background = under ? UNDERWATER : SKY_COLOR;
       if (scene.fog) {
         scene.fog.color.copy(under ? UNDERWATER : SKY_COLOR);

@@ -1,0 +1,67 @@
+import { describe, expect, it } from 'vitest';
+import { DAYS_PER_SEASON, DAYS_PER_YEAR, DAY_FRACTION, DAY_SECONDS, LODGE_CLOCK_RATE, START_CLOCK, dateAt, daylight, isNight, nextDawn } from './clock';
+import { noActions } from '../actions/actions';
+import { createWorld, setInLodge, sleep } from './state';
+import { step } from './step';
+import { flatTerrain } from './terrain';
+
+const flat = flatTerrain(0);
+
+describe('game date', () => {
+  it('starts in spring on day 1 of the season', () => {
+    expect(dateAt(0)).toMatchObject({ season: 'spring', dayOfSeason: 1, year: 0, timeOfDay: 0 });
+  });
+
+  it('changes season every ten days and rolls over after a year', () => {
+    expect(dateAt(DAYS_PER_SEASON * DAY_SECONDS).season).toBe('summer');
+    expect(dateAt((3 * DAYS_PER_SEASON + 9) * DAY_SECONDS)).toMatchObject({ season: 'winter', dayOfSeason: 10 });
+    expect(dateAt(DAYS_PER_YEAR * DAY_SECONDS)).toMatchObject({ season: 'spring', year: 1, dayOfSeason: 1 });
+  });
+});
+
+describe('daylight', () => {
+  it('is dark at night and bright at midday', () => {
+    expect(daylight(0.9)).toBe(0);
+    expect(daylight(DAY_FRACTION / 2)).toBe(1);
+  });
+
+  it('ramps up at dawn and down at dusk', () => {
+    expect(daylight(0)).toBe(0);
+    expect(daylight(0.02)).toBeGreaterThan(0);
+    expect(daylight(0.02)).toBeLessThan(1);
+    expect(daylight(DAY_FRACTION + 0.02)).toBeGreaterThan(0);
+    expect(daylight(DAY_FRACTION + 0.02)).toBeLessThan(1);
+  });
+
+  it('marks the dark part of the day as night', () => {
+    expect(isNight(DAY_SECONDS * 0.3)).toBe(false);
+    expect(isNight(DAY_SECONDS * 0.8)).toBe(true);
+  });
+});
+
+describe('world clock', () => {
+  it('starts a little after dawn and runs at full rate outside', () => {
+    const w = step(createWorld(flat), noActions(), 10, flat);
+    expect(w.clock).toBeCloseTo(START_CLOCK + 10);
+  });
+
+  it('runs at half rate in the lodge', () => {
+    const w = step(setInLodge(createWorld(flat), true), noActions(), 10, flat);
+    expect(w.clock).toBeCloseTo(START_CLOCK + 10 * LODGE_CLOCK_RATE);
+  });
+
+  it('is not scaled by the test speed multiplier', () => {
+    const w0 = { ...createWorld(flat), speedMultiplier: 20 };
+    expect(step(w0, noActions(), 1, flat).clock).toBeCloseTo(START_CLOCK + 1);
+  });
+
+  it('sleeps through the night to the next dawn, only in the lodge at night', () => {
+    const night = { ...createWorld(flat), clock: DAY_SECONDS * 0.8 };
+    expect(sleep(night)).toBe(night);
+    const slept = sleep(setInLodge(night, true));
+    expect(slept.clock).toBe(DAY_SECONDS);
+    expect(slept.clock).toBe(nextDawn(night.clock));
+    const day = setInLodge({ ...createWorld(flat), clock: DAY_SECONDS * 0.3 }, true);
+    expect(sleep(day)).toBe(day);
+  });
+});

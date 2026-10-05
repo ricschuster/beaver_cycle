@@ -2,11 +2,12 @@ import { mergeActions, relativeToView } from './actions/actions';
 import { createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { createRenderer } from './render/renderer';
-import { createWorld, setSpeedMultiplier, teleport } from './sim/state';
+import { createWorld, setInLodge, setSpeedMultiplier, sleep, teleport } from './sim/state';
 import { step } from './sim/step';
 import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
+import { createClockHud } from './ui/clockHud';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createTestMenu } from './ui/testMenu';
 import { treeTuning } from './terrain/trees';
@@ -59,6 +60,12 @@ async function start(): Promise<void> {
       world = setSpeedMultiplier(world, m);
       menu.setSpeed(m);
     },
+    onLodge(inLodge) {
+      world = setInLodge(world, inLodge);
+    },
+    onSleep() {
+      world = sleep(world);
+    },
     onJump(id) {
       const a = anchors.find((l) => l.id === id);
       if (!a || !a.inTiles || !streamer) return;
@@ -69,6 +76,7 @@ async function start(): Promise<void> {
     },
   });
   const breathMeter = createBreathMeter(document.body);
+  const clockHud = createClockHud(document.body);
   let fps = 60;
   let lastReadout = 0;
 
@@ -92,6 +100,7 @@ async function start(): Promise<void> {
       rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
     }
     breathMeter.set(world.beaver.breath);
+    clockHud.set(world.clock);
     renderer.draw(world, rig.view);
     if (now - lastReadout > 500) {
       lastReadout = now;

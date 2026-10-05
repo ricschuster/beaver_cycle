@@ -58,6 +58,10 @@ Prove or disprove the stack before building on it.
 
 - Day and night clock, four seasons of ten days, and the lodge at half speed.
 - The day length is still open (4 real minutes proposed).
+- First slice built: the clock and date (`src/sim/clock.ts`), sky and light by
+  time and season, a clock readout, and test menu buttons for the lodge (half
+  speed) and sleep to dawn. The lodge is only a toggle until M5. Not yet:
+  seasonal ground and tree colours, and the final day length.
 - Sleep through the night as a skip to the next day. The beaver's dream is the
   other idea from round 3 (Q65) and stays in Later until the author picks.
 

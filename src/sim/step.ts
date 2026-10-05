@@ -1,3 +1,4 @@
+import { LODGE_CLOCK_RATE } from './clock';
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
 import { BREATH_MIN_START, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type WorldState } from './state';
@@ -28,6 +29,7 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   return {
     ...world,
     time,
+    clock: world.clock + dt * (world.inLodge ? LODGE_CLOCK_RATE : 1),
     lastSlap,
     beaver: {
       x: nx,

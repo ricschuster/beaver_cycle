@@ -31,9 +31,9 @@ export interface WorldState {
   speedMultiplier: number;
 }
 
-// Speeds from docs/design/09_game_length_and_speed.md. Starting values to tune on a tablet.
-export const WALK_SPEED = 6;
-export const SWIM_SPEED = 9;
+// Speeds from docs/design/09_game_length_and_speed.md. Walk and swim were set by the author on desktop (2x the first values), still to tune on a tablet.
+export const WALK_SPEED = 12;
+export const SWIM_SPEED = 18;
 /** Water this deep (metres) starts a swim; it ends below the lower depth, so the shore does not flicker. */
 export const SWIM_ENTER_DEPTH = 0.6;
 export const SWIM_EXIT_DEPTH = 0.4;
@@ -41,7 +41,7 @@ export const SWIM_EXIT_DEPTH = 0.4;
 export const SWIM_SINK = 0.2;
 /** Simulated seconds before the beaver can slap its tail again. */
 export const SLAP_COOLDOWN = 1;
-export const DIVE_SPEED = 7;
+export const DIVE_SPEED = 14;
 /** Metres per second the beaver sinks and rises. Not scaled by the test speed multiplier. */
 export const DIVE_RATE = 2;
 /** The beaver dives only in water at least this deep (metres), so there is room under it. */

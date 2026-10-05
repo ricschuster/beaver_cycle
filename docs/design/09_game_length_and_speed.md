@@ -11,16 +11,20 @@ land, 7 m/s swimming, and 5.5 m/s diving: a little faster than that.
 
 | Movement | Starting value |
 | --- | --- |
-| Land | 6 m/s |
-| Swimming | 9 m/s |
-| Diving | 7 m/s |
+| Land | 12 m/s |
+| Swimming | 18 m/s |
+| Diving | 14 m/s |
 
-These are starting values to tune on a tablet, not fixed numbers. A real
+The first starting values were 6, 9, and 7 m/s. After the first desktop walk
+the author found them a bit slow and chose twice that (2026-10-04). That
+settles the scale question (issue #54): the terrain stays at real scale and the
+pace is faster, with no distance compression. These are still values to tune on
+a tablet, not fixed numbers. A real
 beaver is much slower, roughly 1 to 2 m/s swimming and slower on land (from
 memory, unchecked), so the game is deliberately faster than life. At the
-starting values, crossing the core (4.7 km long) takes about 13 minutes on
-land and 9 minutes swimming. The longest line across all six locations (9.7
-km) takes about 27 minutes on land.
+current values, crossing the core (4.7 km long) takes about 6.5 minutes on
+land and 4.4 minutes swimming. The longest line across all six locations (9.7
+km) takes about 13.5 minutes on land.
 
 Ideas, not decided:
 
@@ -43,14 +47,14 @@ Decided by the author:
 Not yet decided: how long a game day is in real minutes. Proposed starting
 value, to tune by playing: **4 real minutes per game day**.
 
-| Minutes per day | Season | Year | Days per hour | Core crossing, in days |
+| Minutes per day | Season | Year | Days per hour | Core crossing on land, in days |
 | --- | --- | --- | --- | --- |
-| 3 | 30 min | 2.0 h | 20 | 4.3 |
-| 4 | 40 min | 2.7 h | 15 | 3.2 |
-| 5 | 50 min | 3.3 h | 12 | 2.6 |
-| 6 | 60 min | 4.0 h | 10 | 2.2 |
+| 3 | 30 min | 2.0 h | 20 | 2.2 |
+| 4 | 40 min | 2.7 h | 15 | 1.6 |
+| 5 | 50 min | 3.3 h | 12 | 1.3 |
+| 6 | 60 min | 4.0 h | 10 | 1.1 |
 
-The core crossing is 13 minutes on land at 6 m/s. A generation of three game
+The core crossing is 6.5 minutes on land at 12 m/s. A generation of three game
 years (baby, teenager, own family) is 8 hours at 4 minutes per day before any
 skipping.
 
@@ -64,8 +68,8 @@ Why 4:
 
 Consequences to design for:
 
-- Travel between locations takes a few game days, so it is something the
-  player does now and then, not every day.
+- Travel between locations takes a day or two of game time, so it is something
+  the player does now and then, not every day.
 - Night is when the beaver is in the lodge, sleeps, and dreams (Q42), so it can
   be shorter than the day, for example 2.5 minutes of day and 1.5 of night.
 - Skipping ahead exists for the baby year (Q47), and a long game needs it for
@@ -95,8 +99,9 @@ Consequences to design for:
 - With no end, achievements and tasks need to be per generation (Q40), and a
   long run needs content that does not run out. Variation by season and by
   generation does that work.
-- Full speed time during travel means a trip across the core costs about three
-  game days, which is part of why a season matters (autumn food storage).
+- Full speed time during travel means a trip across the core costs about a day
+  and a half of game time, which is part of why a season matters (autumn food
+  storage).
 
 ## Game length: the rest
 

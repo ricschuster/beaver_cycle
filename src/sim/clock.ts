@@ -1,13 +1,13 @@
 // Game clock: day and night, and four seasons of ten days (docs/design/09_game_length_and_speed.md).
 // Pure functions of the clock value, so the renderer and the HUD can read the same time.
 
-/** Real seconds in one game day. 4 minutes is proposed, not settled by the author yet. */
-export const DAY_SECONDS = 240;
+/** Real seconds in one game day. 8 minutes after the author asked to double the proposed 4; still to tune by playing (#114). */
+export const DAY_SECONDS = 480;
 export const DAYS_PER_SEASON = 10;
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
 export type Season = (typeof SEASONS)[number];
 export const DAYS_PER_YEAR = DAYS_PER_SEASON * SEASONS.length;
-/** The day starts at dawn, and the light lasts this part of it (2.5 of 4 minutes); the rest is night. */
+/** The day starts at dawn, and the light lasts this part of it (5 of 8 minutes); the rest is night. */
 export const DAY_FRACTION = 0.625;
 /** The lodge clock runs at this share of the outside rate (decided by the author). */
 export const LODGE_CLOCK_RATE = 0.5;

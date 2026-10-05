@@ -44,3 +44,6 @@ __pycache__/
 
 # Tablet live shell build output
 tools/tablet-live/android/
+
+# LibreOffice lock files
+.~lock.*#

@@ -62,6 +62,10 @@ Prove or disprove the stack before building on it.
   time and season, a clock readout, and test menu buttons for the lodge (half
   speed) and sleep to dawn. The lodge is only a toggle until M5. Not yet:
   seasonal ground and tree colours, and the final day length.
+- Sun and shadows: a directional sun that follows the clock and season
+  (`src/render/sunShadow.ts`), with a shadow box of 120 m around the beaver.
+  `?shadows=0` turns it off and `?shadowmap=1024` shrinks the map, for tablet
+  tests. Cost on the tablet is not measured yet.
 - Sleep through the night as a skip to the next day. The beaver's dream is the
   other idea from round 3 (Q65) and stays in Later until the author picks.
 

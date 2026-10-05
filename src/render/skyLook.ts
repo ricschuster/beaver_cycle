@@ -4,8 +4,10 @@ import { daylight, type Season } from '../sim/clock';
 export interface SkyLook {
   /** Sky and fog colour. */
   sky: number;
-  /** Hemisphere light strength; the day value is the 1.6 the scene used before the clock. */
-  intensity: number;
+  /** Hemisphere (ambient) light strength. */
+  ambient: number;
+  /** Sun strength: 0 at night. */
+  sun: number;
 }
 
 const DAY_SKY: Record<Season, number> = {
@@ -15,8 +17,9 @@ const DAY_SKY: Record<Season, number> = {
   winter: 0xdde6ee,
 };
 const NIGHT_SKY = 0x0b1426;
-const NIGHT_INTENSITY = 0.35;
-const DAY_INTENSITY = 1.6;
+const NIGHT_AMBIENT = 0.35;
+const DAY_AMBIENT = 0.95;
+const DAY_SUN = 1.3;
 
 function mix(a: number, b: number, t: number): number {
   const ch = (shift: number): number => {
@@ -31,6 +34,7 @@ export function skyLook(season: Season, timeOfDay: number): SkyLook {
   const light = daylight(timeOfDay);
   return {
     sky: mix(NIGHT_SKY, DAY_SKY[season], light),
-    intensity: NIGHT_INTENSITY + (DAY_INTENSITY - NIGHT_INTENSITY) * light,
+    ambient: NIGHT_AMBIENT + (DAY_AMBIENT - NIGHT_AMBIENT) * light,
+    sun: DAY_SUN * light,
   };
 }

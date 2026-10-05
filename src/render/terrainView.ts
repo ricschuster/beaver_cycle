@@ -233,6 +233,7 @@ function buildTrees(
   if (!geometry || trees.length === 0) return null;
   const count = trees.length / TREE_FLOATS;
   const mesh = new THREE.InstancedMesh(geometry, material, count);
+  mesh.castShadow = true;
   const m = new THREE.Matrix4();
   for (let k = 0; k < count; k++) {
     const o = k * TREE_FLOATS;
@@ -346,7 +347,10 @@ export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer
         const old = meshes.get(key);
         if (old) disposeGroup(scene, old.group);
         const group = new THREE.Group();
-        group.add(own(new THREE.Mesh(buildTileGeometry(tile, size), material)));
+        const ground = own(new THREE.Mesh(buildTileGeometry(tile, size), material));
+        // Near tiles take and throw shadows; the far rings (level 2) are too far to matter.
+        ground.castShadow = ground.receiveShadow = job.level !== 2;
+        group.add(ground);
         const lakeLevel = store.tileInfo(job.tx, job.tz)?.lakeLevel_m;
         const lake = lakeLevel == null || job.level === 2 ? null : buildLakeGeometry(tile, size, lakeLevel);
         if (lake) group.add(own(new THREE.Mesh(lake, lakeMaterial)));

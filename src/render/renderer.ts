@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { dateAt } from '../sim/clock';
 import { skyLook } from './skyLook';
+import { snapShadowCentre, sunDirection } from './sunShadow';
 import { DIVE_RATE, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
@@ -23,8 +24,23 @@ export interface Renderer {
   canvas: HTMLCanvasElement;
 }
 
-export function createRenderer(parent: HTMLElement, source: TerrainSource | null): Renderer {
+export interface RenderOptions {
+  /** Sun shadows around the beaver. On by default. */
+  shadows?: boolean;
+  /** Shadow map size in pixels, a side. */
+  shadowMap?: number;
+}
+
+/** The shadow box reaches this far (metres) each way from the beaver. */
+const SHADOW_RADIUS = 60;
+const SUN_DISTANCE = 300;
+
+export function createRenderer(parent: HTMLElement, source: TerrainSource | null, options: RenderOptions = {}): Renderer {
+  const shadows = options.shadows ?? true;
+  const shadowMap = options.shadowMap ?? 2048;
   const gl = new THREE.WebGLRenderer({ antialias: true });
+  gl.shadowMap.enabled = shadows;
+  gl.shadowMap.type = THREE.PCFShadowMap;
   gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   parent.appendChild(gl.domElement);
 
@@ -32,6 +48,22 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   scene.background = new THREE.Color(0xcfe3d4);
   const hemisphere = new THREE.HemisphereLight(0xffffff, 0x556b4f, 1.6);
   scene.add(hemisphere);
+  const sun = new THREE.DirectionalLight(0xfff1d6, 0);
+  sun.castShadow = shadows;
+  if (shadows) {
+    const cam = sun.shadow.camera;
+    cam.left = -SHADOW_RADIUS;
+    cam.right = SHADOW_RADIUS;
+    cam.top = SHADOW_RADIUS;
+    cam.bottom = -SHADOW_RADIUS;
+    cam.near = 1;
+    cam.far = SUN_DISTANCE * 2;
+    sun.shadow.mapSize.set(shadowMap, shadowMap);
+    // Slopes and the cone trees would stripe without a push along the surface normal.
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.4;
+  }
+  scene.add(sun, sun.target);
 
   const SKY = 0xcfe3d4;
   // Fog starts well out so far ridges stay readable, and ends just inside the camera far plane.
@@ -56,6 +88,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
   scene.add(beaver);
+  beaver.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.castShadow = shadows;
+  });
 
   // A ring that spreads over the water where the beaver slapped its tail.
   const SPLASH_SECONDS = 0.9;
@@ -146,7 +181,14 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         lastSky = sky.sky;
         SKY_COLOR.set(sky.sky);
       }
-      hemisphere.intensity = sky.intensity;
+      hemisphere.intensity = sky.ambient;
+      sun.intensity = sky.sun;
+      // The shadow box follows the beaver, snapped to shadow map texels. No sun at night, so no shadow pass.
+      const toSun = sunDirection(date.season, date.timeOfDay);
+      const centre = snapShadowCentre({ x: b.x, y: b.y, z: b.z }, toSun, (2 * SHADOW_RADIUS) / shadowMap);
+      sun.target.position.set(centre.x, centre.y, centre.z);
+      sun.position.set(centre.x + toSun.x * SUN_DISTANCE, centre.y + toSun.y * SUN_DISTANCE, centre.z + toSun.z * SUN_DISTANCE);
+      sun.castShadow = shadows && sky.sun > 0.01;
       scene.background = under ? UNDERWATER : SKY_COLOR;
       if (scene.fog) {
         scene.fog.color.copy(under ? UNDERWATER : SKY_COLOR);

@@ -17,6 +17,7 @@ async function start(): Promise<void> {
   // Tiles are built locally (tools/tiles/build_tiles.py); without them the
   // game falls back to a flat plane.
   // Stress knobs for the tablet budgets (#53): ?rings=1000,2000 and ?trees=2.
+  // ?shadows=0 turns the sun shadows off and ?shadowmap=1024 shrinks their map.
   // ?fine=300 sets how far the fine tiles (ADR 0008) show, 0 turns them off.
   const query = new URLSearchParams(location.search);
   const rings = query.get('rings')?.split(',').map(Number);
@@ -42,7 +43,10 @@ async function start(): Promise<void> {
 
   const readKeyboard = createKeyboardInput(window);
   const touch = createTouchControls(document.body, wantsTouchControls(navigator, query));
-  const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null);
+  const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
+    shadows: query.get('shadows') !== '0',
+    shadowMap: Number(query.get('shadowmap')) || undefined,
+  });
 
   const rig = createCameraRig(renderer.canvas);
   let world = createWorld(terrain, startX, startZ);

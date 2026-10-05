@@ -1,4 +1,4 @@
-import { decodeTile, type DecodedTile, type TileWater } from './format';
+import { decodeTile, LEVEL_FINE, type DecodedTile, type TileWater } from './format';
 import { tileKey, type TileStore } from './store';
 
 export type FetchTile = (level: number, tx: number, tz: number) => Promise<DecodedTile>;
@@ -11,12 +11,15 @@ export interface StreamerOptions {
   /** A tile keeps its finer level this far past a ring, so it does not flicker. */
   hysteresis: number;
   maxConcurrent: number;
+  /** Tiles that have a fine level show it within this many metres. 0 turns it off. */
+  fineRing: number;
 }
 
 export const defaultStreamerOptions: StreamerOptions = {
   rings: [640, 1300],
   hysteresis: 40,
   maxConcurrent: 4,
+  fineRing: 200,
 };
 
 export const COARSEST = 2;
@@ -56,6 +59,7 @@ export function shownLevel(desired: number, loaded: (level: number) => boolean):
  */
 export class Streamer {
   private readonly desired = new Map<string, number>();
+  private readonly fine = new Set<string>();
   private readonly inFlight = new Set<string>();
   private readonly failed = new Set<string>();
 
@@ -68,6 +72,11 @@ export class Streamer {
 
   desiredLevel(tx: number, tz: number): number {
     return this.desired.get(tileKey(tx, tz)) ?? COARSEST;
+  }
+
+  /** True when the tile has a fine level and the beaver is close enough to want it. */
+  wantsFine(tx: number, tz: number): boolean {
+    return this.fine.has(tileKey(tx, tz));
   }
 
   get pending(): number {
@@ -86,6 +95,14 @@ export class Streamer {
         if (!this.store.has(t.tx, t.tz, l)) wanted.push({ tx: t.tx, tz: t.tz, level: l, dist });
       }
       this.evict(t.tx, t.tz, level);
+      const fine = !!t.fine && dist < this.options.fineRing + (this.fine.has(key) ? this.options.hysteresis : 0);
+      if (fine) {
+        this.fine.add(key);
+        if (!this.store.has(t.tx, t.tz, LEVEL_FINE)) wanted.push({ tx: t.tx, tz: t.tz, level: LEVEL_FINE, dist });
+      } else {
+        this.fine.delete(key);
+        this.store.drop(t.tx, t.tz, LEVEL_FINE);
+      }
       if (t.water && level < COARSEST && !this.store.waterOf(t.tx, t.tz)) this.startWater(t.tx, t.tz);
     }
     // nearest first, and the coarse ground of a tile before its fine level
@@ -151,7 +168,8 @@ export class Streamer {
     const end = performance.now() + timeoutMs;
     for (;;) {
       this.update(x, z);
-      if (this.store.has(tx, tz, this.desiredLevel(tx, tz))) return true;
+      const fineOk = !this.wantsFine(tx, tz) || this.store.has(tx, tz, LEVEL_FINE);
+      if (fineOk && this.store.has(tx, tz, this.desiredLevel(tx, tz))) return true;
       if (performance.now() > end) return false;
       await new Promise((r) => setTimeout(r, 30));
     }

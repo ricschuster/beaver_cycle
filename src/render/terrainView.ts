@@ -1,7 +1,7 @@
 // Draws the loaded tiles. Reads the tile store and the streamer's wishes, never
 // changes them. One mesh per tile, rebuilt when the level it shows changes.
 import * as THREE from 'three';
-import { CLASS_LAKE, type DecodedTile, type TileWater } from '../terrain/format';
+import { CLASS_LAKE, LEVEL_FINE, type DecodedTile, type TileWater } from '../terrain/format';
 import { placeTrees, TREE_FLOATS } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
@@ -175,7 +175,7 @@ const TREE_GEOMETRY = [
 ];
 
 function buildTrees(tile: DecodedTile, size: number, material: THREE.Material): THREE.InstancedMesh | null {
-  const geometry = TREE_GEOMETRY[tile.level];
+  const geometry = TREE_GEOMETRY[tile.level === LEVEL_FINE ? 0 : tile.level];
   const trees = geometry ? placeTrees(tile, size) : new Float32Array(0);
   if (!geometry || trees.length === 0) return null;
   const count = trees.length / TREE_FLOATS;
@@ -242,10 +242,11 @@ export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer
     update(x, z) {
       const todo: { tx: number; tz: number; level: number; dist: number }[] = [];
       for (const t of store.index.tiles) {
-        const level = shownLevel(streamer.desiredLevel(t.tx, t.tz), (l) => store.has(t.tx, t.tz, l));
+        const fineOn = streamer.wantsFine(t.tx, t.tz) && store.has(t.tx, t.tz, LEVEL_FINE);
+        const level = fineOn ? LEVEL_FINE : shownLevel(streamer.desiredLevel(t.tx, t.tz), (l) => store.has(t.tx, t.tz, l));
         if (level === undefined) continue;
         const shown = meshes.get(tileKey(t.tx, t.tz));
-        const wantsStreams = level < 2 && store.waterOf(t.tx, t.tz) !== undefined;
+        const wantsStreams = level !== 2 && store.waterOf(t.tx, t.tz) !== undefined;
         if (shown && shown.level === level && shown.streams === wantsStreams) continue;
         todo.push({ tx: t.tx, tz: t.tz, level, dist: distToTile(x, z, t.tx, t.tz, size) });
       }
@@ -259,15 +260,15 @@ export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer
         const group = new THREE.Group();
         group.add(own(new THREE.Mesh(buildTileGeometry(tile, size), material)));
         const lakeLevel = store.tileInfo(job.tx, job.tz)?.lakeLevel_m;
-        const lake = lakeLevel == null || job.level > 1 ? null : buildLakeGeometry(tile, size, lakeLevel);
+        const lake = lakeLevel == null || job.level === 2 ? null : buildLakeGeometry(tile, size, lakeLevel);
         if (lake) group.add(own(new THREE.Mesh(lake, lakeMaterial)));
         const water = store.waterOf(job.tx, job.tz);
-        const streams = job.level < 2 && water ? buildStreamGeometry(water, (x, z) => store.heightAt(x, z)) : null;
+        const streams = job.level !== 2 && water ? buildStreamGeometry(water, (x, z) => store.heightAt(x, z)) : null;
         if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
         const trees = buildTrees(tile, size, treeMaterial);
         if (trees) group.add(trees);
         scene.add(group);
-        meshes.set(key, { group, level: job.level, streams: job.level < 2 && water !== undefined });
+        meshes.set(key, { group, level: job.level, streams: job.level !== 2 && water !== undefined });
         if (performance.now() - start > BUILD_BUDGET_MS) break;
       }
     },

@@ -1,5 +1,5 @@
 import type { Terrain } from '../sim/terrain';
-import { CLASS_LAKE, sampleHeight, type DecodedTile, type IndexTile, type TileIndex, type TileWater } from './format';
+import { CLASS_LAKE, LEVEL_FINE, sampleHeight, type DecodedTile, type IndexTile, type TileIndex, type TileWater } from './format';
 
 export const tileKey = (tx: number, tz: number): string => `${tx}_${tz}`;
 
@@ -55,7 +55,7 @@ export class TileStore implements Terrain {
   /** The finest level loaded for a tile. */
   finest(tx: number, tz: number): DecodedTile | undefined {
     const levels = this.data.get(tileKey(tx, tz));
-    return levels?.find((t) => t !== undefined);
+    return levels?.[LEVEL_FINE] ?? levels?.find((t) => t !== undefined);
   }
 
   /** Tiles held, per level, for the test menu readout. */

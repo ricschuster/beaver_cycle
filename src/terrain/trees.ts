@@ -1,7 +1,7 @@
 // Tree placement. Trees are not stored: they are placed from a tile's land
 // cover classes with a seeded generator, so every device gets the same trees
 // (docs/design/14_m2_streamed_core_plan.md). No three.js here.
-import { CLASS_LAKE, sampleHeight, type DecodedTile } from './format';
+import { CLASS_LAKE, LEVEL_FINE, sampleHeight, type DecodedTile } from './format';
 
 const CLASS_FOREST = 2;
 const CLASS_SCRUB = 3;
@@ -35,7 +35,9 @@ function seedFor(tx: number, tz: number, level: number): number {
 
 /** Trees of a tile as x, y, z, scale per tree, in world metres. */
 export function placeTrees(tile: DecodedTile, size: number): Float32Array {
-  const density = DENSITY[tile.level];
+  // a fine tile has the trees of level 0, on its own finer ground
+  const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
+  const density = DENSITY[shown];
   if (!density) return new Float32Array(0);
   const { n, classes } = tile;
   const cell = size / n;
@@ -53,7 +55,7 @@ export function placeTrees(tile: DecodedTile, size: number): Float32Array {
       for (let k = 0; k < count; k++) {
         const u = i + rand();
         const v = j + rand();
-        const scale = (0.8 + rand() * 0.5) * LEVEL_SCALE[tile.level]!;
+        const scale = (0.8 + rand() * 0.5) * LEVEL_SCALE[shown]!;
         out.push(tile.tx * size + u * cell, sampleHeight(tile, u, v), tile.tz * size + v * cell, scale);
       }
     }

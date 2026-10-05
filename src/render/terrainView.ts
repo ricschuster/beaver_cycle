@@ -6,6 +6,7 @@ import { CLASS_LAKE, LEVEL_FINE, type DecodedTile, type TileWater } from '../ter
 import { placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
+import type { SeasonLook, Tint } from './seasonLook';
 
 const CLASS_COLORS: Record<number, number> = {
   0: 0x8a9a62, // ground
@@ -17,6 +18,15 @@ const CLASS_COLORS: Record<number, number> = {
   9: 0x2f6f8f, // lake bed, until the water plane arrives
 };
 const FALLBACK = new THREE.Color(CLASS_COLORS[0]);
+/** Which seasonal tint a ground class takes: [grass, forest]. Rock and lake bed keep their colour all year. */
+const SEASON_WEIGHT: Record<number, [number, number]> = {
+  0: [1, 0],
+  1: [1, 0],
+  2: [0, 1],
+  3: [1, 0],
+  5: [1, 0],
+};
+const NO_WEIGHT: [number, number] = [0, 0];
 const COLORS = new Map(Object.entries(CLASS_COLORS).map(([k, v]) => [Number(k), new THREE.Color(v)]));
 
 /** Metres a skirt hangs per metre of cell size, to hide gaps between levels. */
@@ -50,6 +60,7 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
   const pos = new Float32Array(total * 3);
   const nor = new Float32Array(total * 3);
   const col = new Float32Array(total * 3);
+  const weight = new Float32Array(total * 2);
   const at = (i: number, j: number): number => h[Math.min(Math.max(j, 0), n) * w + Math.min(Math.max(i, 0), n)]!;
 
   for (let j = 0; j <= n; j++) {
@@ -61,15 +72,17 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
       const len = Math.hypot(dx, 1, dz);
       nor.set([dx / len, 1 / len, dz / len], v * 3);
       // average the colours of the (up to four) cells around the vertex
-      let r = 0, g = 0, b = 0, count = 0;
+      let r = 0, g = 0, b = 0, wg = 0, wf = 0, count = 0;
       for (let cj = j - 1; cj <= j; cj++) {
         for (let ci = i - 1; ci <= i; ci++) {
           if (ci < 0 || cj < 0 || ci >= n || cj >= n) continue;
           const c = COLORS.get(classes[cj * n + ci]!) ?? FALLBACK;
-          r += c.r; g += c.g; b += c.b; count++;
+          const [sg, sf] = SEASON_WEIGHT[classes[cj * n + ci]!] ?? NO_WEIGHT;
+          r += c.r; g += c.g; b += c.b; wg += sg; wf += sf; count++;
         }
       }
       col.set([r / count, g / count, b / count], v * 3);
+      weight.set([wg / count, wf / count], v * 2);
     }
   }
   edge.forEach((v, k) => {
@@ -77,6 +90,7 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
     pos.set([pos[v * 3]!, pos[v * 3 + 1]! - drop, pos[v * 3 + 2]!], s * 3);
     nor.copyWithin(s * 3, v * 3, v * 3 + 3);
     col.copyWithin(s * 3, v * 3, v * 3 + 3);
+    weight.copyWithin(s * 2, v * 2, v * 2 + 2);
   });
 
   const index: number[] = [];
@@ -101,6 +115,7 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setAttribute('seasonWeight', new THREE.BufferAttribute(weight, 2));
   geo.setIndex(index);
   geo.computeBoundingSphere();
   return geo;
@@ -277,6 +292,8 @@ export interface TerrainView {
   /** True when a point is inside a drawn tree, grown by `margin` metres. */
   insideTree(x: number, y: number, z: number, margin: number): boolean;
   stats(): TerrainStats;
+  /** Sets the seasonal ground and tree colours. Cheap, so it can be called every frame. */
+  setSeason(look: SeasonLook): void;
 }
 
 export function createTerrainView(
@@ -299,6 +316,30 @@ export function createTerrainView(
   const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x2f5a2f });
   prepareMaterial(material);
   prepareMaterial(treeMaterial);
+  // Pull the baked ground colours towards the season's colours, by the weights in the geometry.
+  const grassTint = { value: new THREE.Vector4() };
+  const forestTint = { value: new THREE.Vector4() };
+  const shadowHook = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    shadowHook.call(material, shader, renderer);
+    shader.uniforms.grassTint = grassTint;
+    shader.uniforms.forestTint = forestTint;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec2 seasonWeight;\nuniform vec4 grassTint;\nuniform vec4 forestTint;')
+      .replace(
+        '#include <color_vertex>',
+        `#include <color_vertex>
+        #ifdef USE_COLOR
+        vColor.rgb = mix(vColor.rgb, grassTint.rgb, grassTint.a * seasonWeight.x);
+        vColor.rgb = mix(vColor.rgb, forestTint.rgb, forestTint.a * seasonWeight.y);
+        #endif`,
+      );
+  };
+  const tint = new THREE.Color();
+  const setTint = (uniform: { value: THREE.Vector4 }, t: Tint): void => {
+    tint.set(t.color);
+    uniform.value.set(tint.r, tint.g, tint.b, t.amount);
+  };
   const meshes = new Map<string, { group: THREE.Group; level: number; streams: boolean; grid: TreeGrid | null }>();
   const size = store.size;
   // The far backdrop never changes level, so its tiles are merged into a mesh per chunk,
@@ -371,6 +412,11 @@ export function createTerrainView(
         meshes.set(key, { group, level: job.level, streams: job.level !== 2 && water !== undefined, grid: trees?.grid ?? null });
         if (performance.now() - start > BUILD_BUDGET_MS) break;
       }
+    },
+    setSeason(look) {
+      setTint(grassTint, look.grass);
+      setTint(forestTint, look.forest);
+      treeMaterial.color.set(look.tree);
     },
     insideTree(x, y, z, margin) {
       return meshes.get(tileKey(Math.floor(x / size), Math.floor(z / size)))?.grid?.hit(x, y, z, margin) ?? false;

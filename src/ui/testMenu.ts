@@ -2,6 +2,8 @@
 // jump to each location, and a readout of frame rate, tiles, triangles, and
 // memory (M2, issue #52). DOM only; it asks the game to act through callbacks.
 
+import { DAY_FRACTION, SEASONS, type Season } from '../sim/clock';
+
 export interface MenuLocation {
   id: string;
   name: string;
@@ -29,6 +31,12 @@ export interface TestMenuOptions {
   onLodge(inLodge: boolean): void;
   /** Sleep through the night; only does something in the lodge at night. */
   onSleep(): void;
+  /** Jump to a part of the day, 0 dawn to 1. */
+  onTimeOfDay(timeOfDay: number): void;
+  onSeason(season: Season): void;
+  /** False when the game started without shadows (?shadows=0); the toggle is greyed out. */
+  shadowsAvailable: boolean;
+  onShadows(on: boolean): void;
 }
 
 export interface TestMenu {
@@ -89,7 +97,49 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     speedButtons.set(m, b);
   }
 
-  const timeRow = row('Time');
+  const timeRow = row('Time of day');
+  const parts: [string, number][] = [
+    ['Dawn', 0.02],
+    ['Morning', DAY_FRACTION * 0.2],
+    ['Noon', DAY_FRACTION * 0.5],
+    ['Evening', DAY_FRACTION * 0.9],
+    ['Night', 0.8],
+  ];
+  for (const [name, t] of parts) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.dataset.time = name.toLowerCase();
+    style(b);
+    b.onclick = () => opts.onTimeOfDay(t);
+    timeRow.appendChild(b);
+  }
+  const seasonRow = row('Season');
+  for (const season of SEASONS) {
+    const b = document.createElement('button');
+    b.textContent = season[0]!.toUpperCase() + season.slice(1);
+    b.dataset.season = season;
+    style(b);
+    b.onclick = () => opts.onSeason(season);
+    seasonRow.appendChild(b);
+  }
+  const lodgeRow = row('Lodge');
+  const shadowRow = row('Shadows');
+  const shadowButton = document.createElement('button');
+  shadowButton.dataset.action = 'shadows';
+  style(shadowButton);
+  let shadowsOn = opts.shadowsAvailable;
+  const showShadows = (): void => {
+    shadowButton.textContent = shadowsOn ? 'On' : 'Off';
+  };
+  showShadows();
+  shadowButton.disabled = !opts.shadowsAvailable;
+  if (!opts.shadowsAvailable) shadowButton.style.opacity = '0.4';
+  shadowButton.onclick = () => {
+    shadowsOn = !shadowsOn;
+    showShadows();
+    opts.onShadows(shadowsOn);
+  };
+  shadowRow.appendChild(shadowButton);
   const lodgeButton = document.createElement('button');
   lodgeButton.dataset.action = 'lodge';
   style(lodgeButton);
@@ -108,7 +158,7 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   sleepButton.dataset.action = 'sleep';
   style(sleepButton);
   sleepButton.onclick = () => opts.onSleep();
-  timeRow.append(lodgeButton, sleepButton);
+  lodgeRow.append(lodgeButton, sleepButton);
 
   const jumpRow = row('Jump to');
   for (const loc of opts.locations) {

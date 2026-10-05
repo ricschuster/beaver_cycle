@@ -21,6 +21,8 @@ export interface TerrainSource {
 export interface Renderer {
   draw(world: WorldState, view: ViewState): void;
   terrain: TerrainView | null;
+  /** Turn the sun shadows on or off while running. Does nothing if the game started without them. */
+  setShadows(on: boolean): void;
   /** The element that takes drag and zoom input. */
   canvas: HTMLCanvasElement;
 }
@@ -99,6 +101,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     // Coarser texels need a bigger push along the surface normal against stripes.
     csm.lights.forEach((l, i) => (l.shadow.normalBias = 0.4 + i * 0.8));
   }
+  let shadowsOn = shadows;
   const prepare = (m: THREE.Material): void => csm?.setupMaterial(m);
 
   const SKY = 0xcfe3d4;
@@ -169,6 +172,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   return {
     terrain,
     canvas: gl.domElement,
+    setShadows(on) {
+      shadowsOn = on && shadows;
+    },
     draw(world, view) {
       const b = world.beaver;
       const moved = Math.hypot(b.x - lastX, b.z - lastZ);
@@ -233,7 +239,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         csm.lightDirection.set(-toSun.x, -toSun.y, -toSun.z);
         for (const l of csm.lights) {
           l.intensity = sky.sun;
-          l.castShadow = sky.sun > 0.01;
+          l.castShadow = shadowsOn && sky.sun > 0.01;
         }
       }
       // Placed from the camera, not the beaver, so it hangs at the same spot in the sky. Redder and bigger near the horizon.

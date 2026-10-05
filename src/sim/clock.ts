@@ -62,3 +62,15 @@ export function daylight(timeOfDay: number): number {
 export function nextDawn(clock: number): number {
   return (dateAt(clock).day + 1) * DAY_SECONDS;
 }
+
+/** The same day with the clock moved to this part of the day (0 dawn up to 1). Used by the test menu. */
+export function withTimeOfDay(clock: number, timeOfDay: number): number {
+  return (dateAt(clock).day + Math.min(0.999, Math.max(0, timeOfDay))) * DAY_SECONDS;
+}
+
+/** The first day of this season in the same year, keeping the part of the day. Used by the test menu. */
+export function withSeason(clock: number, season: Season): number {
+  const d = dateAt(clock);
+  const day = d.year * DAYS_PER_YEAR + SEASONS.indexOf(season) * DAYS_PER_SEASON;
+  return (day + d.timeOfDay) * DAY_SECONDS;
+}

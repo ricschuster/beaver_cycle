@@ -53,6 +53,22 @@ test('the test menu sets the speed and jumps to a location', async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
+test('the test menu moves the clock and the season, and sleep needs the lodge', async ({ page }) => {
+  await page.goto('/?shadows=0');
+  await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator('button[data-time="night"]').click();
+  await expect(page.locator('#clock-hud')).toContainText('night');
+  await page.locator('button[data-season="winter"]').click();
+  await expect(page.locator('#clock-hud')).toContainText('Winter, day 1');
+  await page.locator('button[data-action="sleep"]').click();
+  await expect(page.locator('#clock-hud')).toContainText('Winter, day 1');
+  await page.locator('button[data-action="lodge"]').click();
+  await page.locator('button[data-action="sleep"]').click();
+  await expect(page.locator('#clock-hud')).toContainText('Winter, day 2, morning');
+  await expect(page.locator('button[data-action="shadows"]')).toBeDisabled();
+});
+
 test('dragging turns the camera and forward still walks away from it', async ({ page }) => {
   await page.goto('/?shadows=0');
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });

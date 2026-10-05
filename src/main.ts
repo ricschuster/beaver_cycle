@@ -2,8 +2,8 @@ import { mergeActions, relativeToView } from './actions/actions';
 import { createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { createRenderer } from './render/renderer';
-import { DAY_SECONDS } from './sim/clock';
-import { createWorld, setInLodge, setSpeedMultiplier, sleep, teleport } from './sim/state';
+import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
+import { createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport } from './sim/state';
 import { step } from './sim/step';
 import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
@@ -74,6 +74,16 @@ async function start(): Promise<void> {
     },
     onLodge(inLodge) {
       world = setInLodge(world, inLodge);
+    },
+    onTimeOfDay(t) {
+      world = setClock(world, withTimeOfDay(world.clock, t));
+    },
+    onSeason(season) {
+      world = setClock(world, withSeason(world.clock, season));
+    },
+    shadowsAvailable: query.get('shadows') !== '0',
+    onShadows(on) {
+      renderer.setShadows(on);
     },
     onSleep() {
       world = sleep(world);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DAYS_PER_SEASON, DAYS_PER_YEAR, DAY_FRACTION, DAY_SECONDS, LODGE_CLOCK_RATE, START_CLOCK, dateAt, daylight, isNight, nextDawn } from './clock';
+import { DAYS_PER_SEASON, DAYS_PER_YEAR, DAY_FRACTION, DAY_SECONDS, LODGE_CLOCK_RATE, START_CLOCK, dateAt, daylight, isNight, nextDawn, withSeason, withTimeOfDay } from './clock';
 import { noActions } from '../actions/actions';
 import { createWorld, setInLodge, sleep } from './state';
 import { step } from './step';
@@ -63,5 +63,18 @@ describe('world clock', () => {
     expect(slept.clock).toBe(nextDawn(night.clock));
     const day = setInLodge({ ...createWorld(flat), clock: DAY_SECONDS * 0.3 }, true);
     expect(sleep(day)).toBe(day);
+  });
+});
+
+describe('test menu clock moves', () => {
+  it('moves to a time of day on the same day', () => {
+    const c = withTimeOfDay(DAY_SECONDS * 3.2, 0.5);
+    expect(dateAt(c)).toMatchObject({ day: 3, timeOfDay: 0.5 });
+  });
+
+  it('moves to the start of a season in the same year, keeping the time of day', () => {
+    const c = withSeason((DAYS_PER_YEAR + 5.3) * DAY_SECONDS, 'autumn');
+    expect(dateAt(c)).toMatchObject({ season: 'autumn', dayOfSeason: 1, year: 1 });
+    expect(dateAt(c).timeOfDay).toBeCloseTo(0.3);
   });
 });

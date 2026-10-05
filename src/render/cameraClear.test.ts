@@ -38,7 +38,7 @@ describe('camera clearance', () => {
 
 describe('tree grid', () => {
   // one tree at (20, 100, 20), scale 1, level 0: radius 1.8 at the base, height 9
-  const grid = new TreeGrid(Float32Array.from([20, 100, 20, 1]), 0);
+  const grid = new TreeGrid(Float32Array.from([20, 100, 20, 1, 0]), 0);
 
   it('hits inside the cone and misses outside it', () => {
     expect(grid.hit(20.5, 101, 20, 0)).toBe(true);
@@ -52,9 +52,23 @@ describe('tree grid', () => {
     expect(grid.hit(20, 120, 20, 0.5)).toBe(false);
   });
 
+  it('hits a broadleaf tree in its crown and not beside its trunk', () => {
+    const broad = new TreeGrid(Float32Array.from([20, 100, 20, 1, 1]), 0);
+    expect(broad.hit(20, 106, 20, 0)).toBe(true);
+    expect(broad.hit(22.5, 106, 20, 0)).toBe(true);
+    expect(broad.hit(22.5, 101, 20, 0)).toBe(false);
+  });
+
+  it('lists the broadleaf trees near a point', () => {
+    const mixed = new TreeGrid(Float32Array.from([20, 100, 20, 1, 1, 25, 101, 20, 1.2, 0, 90, 100, 20, 1, 1]), 0);
+    const out: number[] = [];
+    mixed.broadleafNear(20, 20, 30, out);
+    expect(out).toEqual([20, 100, 20, 1]);
+  });
+
   it('finds a tree in a neighbouring bucket', () => {
     // the tree is in bucket 2 (x 32 to 48), the point in bucket 1
-    const edge = new TreeGrid(Float32Array.from([33, 100, 20, 1]), 0);
+    const edge = new TreeGrid(Float32Array.from([33, 100, 20, 1, 0]), 0);
     expect(edge.hit(31.5, 100.5, 20, 0)).toBe(true);
   });
 });

@@ -19,12 +19,19 @@ describe('season look', () => {
     expect(new Set(trees).size).toBe(4);
   });
 
+  it('drops leaves in autumn only, and turns them over the year', () => {
+    expect([5, 15, 35].map((d) => seasonLook(d).leafFall)).toEqual([0, 0, 0]);
+    expect(seasonLook(25).leafFall).toBe(1);
+    expect(new Set([5, 15, 25, 35].map((d) => seasonLook(d).leaf)).size).toBe(4);
+  });
+
   it('does not jump at a season change or at the new year', () => {
     for (const edge of [10, 20, 30, DAYS_PER_YEAR]) {
       const before = seasonLook(edge - 0.001);
       const after = seasonLook(edge + 0.001);
       expect(Math.abs(before.grass.amount - after.grass.amount)).toBeLessThan(0.01);
       expect(Math.abs(before.tree - after.tree)).toBeLessThan(0x010101 * 2);
+      expect(Math.abs(before.leafFall - after.leafFall)).toBeLessThan(0.01);
     }
   });
 

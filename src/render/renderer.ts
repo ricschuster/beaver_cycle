@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { CSM } from 'three/addons/csm/CSM.js';
 import { dateAt } from '../sim/clock';
+import { LeafFall, MAX_LEAVES } from './fallingLeaves';
 import { seasonLook } from './seasonLook';
 import { skyLook } from './skyLook';
 import { sunDirection } from './sunShadow';
@@ -152,6 +153,26 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   sunSprite.visible = false;
   scene.add(sunSprite);
 
+  // Autumn leaves drifting down from the broadleaf trees around the beaver.
+  const leafFall = new LeafFall();
+  const leafMesh = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(0.42, 0.3),
+    new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
+    MAX_LEAVES,
+  );
+  const LEAF_COLOURS = [0xc9782a, 0xb8501f, 0xd9a032, 0x8f5a22].map((c) => new THREE.Color(c));
+  for (let i = 0; i < MAX_LEAVES; i++) leafMesh.setColorAt(i, LEAF_COLOURS[i % LEAF_COLOURS.length]!);
+  leafMesh.frustumCulled = false;
+  leafMesh.visible = false;
+  scene.add(leafMesh);
+  const leafTrees: number[] = [];
+  let leafTreesAt = -Infinity;
+  const leafMatrix = new THREE.Matrix4();
+  const leafEuler = new THREE.Euler();
+  const leafQuat = new THREE.Quaternion();
+  const leafScale = new THREE.Vector3(1, 1, 1);
+  const leafPos = new THREE.Vector3();
+
   function resize(): void {
     gl.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -235,7 +256,26 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         SKY_COLOR.set(sky.sky);
       }
       hemisphere.intensity = sky.ambient;
-      terrain?.setSeason(seasonLook(date.dayOfYear + date.timeOfDay));
+      const season = seasonLook(date.dayOfYear + date.timeOfDay);
+      terrain?.setSeason(season);
+      if (terrain && season.leafFall > 0 && now - leafTreesAt > 1) {
+        leafTreesAt = now;
+        leafTrees.length = 0;
+        terrain.broadleafNear(b.x, b.z, 45, leafTrees);
+      }
+      leafFall.update(dt, season.leafFall, season.leafFall > 0 ? leafTrees : []);
+      leafMesh.visible = leafFall.count() > 0 && !under;
+      (leafMesh.material as THREE.MeshBasicMaterial).color.setScalar(0.3 + 0.7 * Math.min(1, sky.sun / 1.3));
+      if (leafMesh.visible) {
+        leafFall.leaves.forEach((l, i) => {
+          leafScale.setScalar(l.alive ? 1 : 0);
+          leafEuler.set(now * l.spin + l.phase, l.phase, now * l.spin * 0.7);
+          leafQuat.setFromEuler(leafEuler);
+          leafMatrix.compose(leafPos.set(l.x, l.y, l.z), leafQuat, leafScale);
+          leafMesh.setMatrixAt(i, leafMatrix);
+        });
+        leafMesh.instanceMatrix.needsUpdate = true;
+      }
       const toSun = sunDirection(date.season, date.timeOfDay);
       if (csm) {
         csm.lightDirection.set(-toSun.x, -toSun.y, -toSun.z);

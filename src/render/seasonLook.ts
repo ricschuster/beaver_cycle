@@ -13,8 +13,12 @@ export interface SeasonLook {
   grass: Tint;
   /** The forest floor seen from above. */
   forest: Tint;
-  /** Colour of the trees themselves. */
+  /** Colour of the conifers. */
   tree: number;
+  /** Colour of the crowns of broadleaf trees: fresh, green, turning, then bare twigs. */
+  leaf: number;
+  /** How hard the broadleaf trees are dropping leaves, 0 to 1. */
+  leafFall: number;
 }
 
 const KEYS: Record<Season, SeasonLook> = {
@@ -22,21 +26,29 @@ const KEYS: Record<Season, SeasonLook> = {
     grass: { color: 0xa8d46a, amount: 0.45 },
     forest: { color: 0x5a8a45, amount: 0.3 },
     tree: 0x3f7a3a,
+    leaf: 0x86b84e,
+    leafFall: 0,
   },
   summer: {
     grass: { color: 0x9bbf5f, amount: 0 },
     forest: { color: 0x3f6b3a, amount: 0 },
     tree: 0x2f5a2f,
+    leaf: 0x3f7a35,
+    leafFall: 0,
   },
   autumn: {
     grass: { color: 0xb59a4a, amount: 0.6 },
     forest: { color: 0x9a6a30, amount: 0.4 },
     tree: 0x6a6a2c,
+    leaf: 0xc9782a,
+    leafFall: 1,
   },
   winter: {
     grass: { color: 0xeef2f5, amount: 0.85 },
     forest: { color: 0xdfe6ea, amount: 0.5 },
     tree: 0x3f5a4f,
+    leaf: 0x6b5a4c,
+    leafFall: 0,
   },
 };
 
@@ -57,7 +69,13 @@ function mixTint(a: Tint, b: Tint, t: number): Tint {
 }
 
 function mixLook(a: SeasonLook, b: SeasonLook, t: number): SeasonLook {
-  return { grass: mixTint(a.grass, b.grass, t), forest: mixTint(a.forest, b.forest, t), tree: mix(a.tree, b.tree, t) };
+  return {
+    grass: mixTint(a.grass, b.grass, t),
+    forest: mixTint(a.forest, b.forest, t),
+    tree: mix(a.tree, b.tree, t),
+    leaf: mix(a.leaf, b.leaf, t),
+    leafFall: a.leafFall + (b.leafFall - a.leafFall) * t,
+  };
 }
 
 /**

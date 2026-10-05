@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLASS_LAKE, LEVEL_FINE, type DecodedTile, type TileWater } from '../terrain/format';
-import { placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid } from '../terrain/trees';
+import { BROADLEAF_SHAPE, KIND_BROADLEAF, placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
 import type { SeasonLook, Tint } from './seasonLook';
@@ -231,21 +231,34 @@ export function buildStreamGeometry(
   return geo;
 }
 
-// Trees are shared geometry, one per level, never disposed. Level 2 has none.
-const TREE_GEOMETRY = [
+// Trees are shared geometry, one per level and kind, never disposed. Level 2 has none.
+const CONIFER_GEOMETRY = [
   new THREE.ConeGeometry(TREE_SHAPE[0]!.radius, TREE_SHAPE[0]!.height, 6, 1, true).translate(0, 4, 0),
   new THREE.ConeGeometry(TREE_SHAPE[1]!.radius, TREE_SHAPE[1]!.height, 4, 1, true).translate(0, 4.5, 0),
 ];
 
-function buildTrees(
-  tile: DecodedTile,
-  size: number,
-  material: THREE.Material,
-): { mesh: THREE.InstancedMesh; grid: TreeGrid } | null {
-  const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
-  const geometry = TREE_GEOMETRY[shown];
-  const trees = geometry ? placeTrees(tile, size) : new Float32Array(0);
-  if (!geometry || trees.length === 0) return null;
+/**
+ * A low crown on a short trunk. The crown is white and the trunk dark in the vertex colours, so the season's
+ * leaf colour (the material colour) tints the crown fully and the trunk only a little.
+ */
+function broadleafGeometry(level: number): THREE.BufferGeometry {
+  const { radius, centre } = BROADLEAF_SHAPE[level]!;
+  const crown = new THREE.OctahedronGeometry(radius, 0).scale(1, 0.85, 1).translate(0, centre, 0);
+  const trunk = new THREE.CylinderGeometry(0.3, 0.45, centre, 4, 1, true).translate(0, centre / 2, 0).toNonIndexed();
+  const paint = (g: THREE.BufferGeometry, grey: number): void => {
+    const n = g.getAttribute('position').count;
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3).fill(grey), 3));
+  };
+  paint(crown, 1);
+  paint(trunk, 0.3);
+  const merged = mergeGeometries([crown, trunk]);
+  crown.dispose();
+  trunk.dispose();
+  return merged;
+}
+const BROADLEAF_GEOMETRY = [broadleafGeometry(0), broadleafGeometry(1)];
+
+function instanced(geometry: THREE.BufferGeometry, material: THREE.Material, trees: number[], shown: number) {
   const count = trees.length / TREE_FLOATS;
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.castShadow = true;
@@ -257,7 +270,27 @@ function buildTrees(
     mesh.setMatrixAt(k, m);
   }
   mesh.computeBoundingSphere();
-  return { mesh, grid: new TreeGrid(trees, shown) };
+  return mesh;
+}
+
+function buildTrees(
+  tile: DecodedTile,
+  size: number,
+  materials: { conifer: THREE.Material; broadleaf: THREE.Material },
+): { meshes: THREE.InstancedMesh[]; grid: TreeGrid } | null {
+  const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
+  const conifers = CONIFER_GEOMETRY[shown];
+  const trees = conifers ? placeTrees(tile, size) : new Float32Array(0);
+  if (!conifers || trees.length === 0) return null;
+  const conifer: number[] = [];
+  const broadleaf: number[] = [];
+  for (let o = 0; o < trees.length; o += TREE_FLOATS) {
+    (trees[o + 4] === KIND_BROADLEAF ? broadleaf : conifer).push(...trees.subarray(o, o + TREE_FLOATS));
+  }
+  const meshes: THREE.InstancedMesh[] = [];
+  if (conifer.length > 0) meshes.push(instanced(conifers, materials.conifer, conifer, shown));
+  if (broadleaf.length > 0) meshes.push(instanced(BROADLEAF_GEOMETRY[shown]!, materials.broadleaf, broadleaf, shown));
+  return { meshes, grid: new TreeGrid(trees, shown) };
 }
 
 /** Triangles a mesh draws, counting every instance. */
@@ -291,6 +324,8 @@ export interface TerrainView {
   update(x: number, z: number): void;
   /** True when a point is inside a drawn tree, grown by `margin` metres. */
   insideTree(x: number, y: number, z: number, margin: number): boolean;
+  /** Appends x, y, z, scale of the drawn broadleaf trees within `radius` metres of a point (four numbers per tree). */
+  broadleafNear(x: number, z: number, radius: number, out: number[]): void;
   stats(): TerrainStats;
   /** Sets the seasonal ground and tree colours. Cheap, so it can be called every frame. */
   setSeason(look: SeasonLook): void;
@@ -314,8 +349,10 @@ export function createTerrainView(
   });
   const streamMaterial = new THREE.MeshLambertMaterial({ color: 0x3b8fb0, side: THREE.DoubleSide });
   const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x2f5a2f });
+  const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x3f7a35, vertexColors: true });
   prepareMaterial(material);
   prepareMaterial(treeMaterial);
+  prepareMaterial(leafMaterial);
   // Pull the baked ground colours towards the season's colours, by the weights in the geometry.
   const grassTint = { value: new THREE.Vector4() };
   const forestTint = { value: new THREE.Vector4() };
@@ -406,8 +443,8 @@ export function createTerrainView(
         const water = store.waterOf(job.tx, job.tz);
         const streams = job.level !== 2 && water ? buildStreamGeometry(water, (x, z) => store.heightAt(x, z)) : null;
         if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
-        const trees = buildTrees(tile, size, treeMaterial);
-        if (trees) group.add(trees.mesh);
+        const trees = buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial });
+        if (trees) group.add(...trees.meshes);
         scene.add(group);
         meshes.set(key, { group, level: job.level, streams: job.level !== 2 && water !== undefined, grid: trees?.grid ?? null });
         if (performance.now() - start > BUILD_BUDGET_MS) break;
@@ -417,9 +454,17 @@ export function createTerrainView(
       setTint(grassTint, look.grass);
       setTint(forestTint, look.forest);
       treeMaterial.color.set(look.tree);
+      leafMaterial.color.set(look.leaf);
     },
     insideTree(x, y, z, margin) {
       return meshes.get(tileKey(Math.floor(x / size), Math.floor(z / size)))?.grid?.hit(x, y, z, margin) ?? false;
+    },
+    broadleafNear(x, z, radius, out) {
+      const tx = Math.floor(x / size);
+      const tz = Math.floor(z / size);
+      for (let i = tx - 1; i <= tx + 1; i++) {
+        for (let j = tz - 1; j <= tz + 1; j++) meshes.get(tileKey(i, j))?.grid?.broadleafNear(x, z, radius, out);
+      }
     },
     stats() {
       let triangles = 0;

@@ -63,9 +63,13 @@ Prove or disprove the stack before building on it.
   speed) and sleep to dawn. The lodge is only a toggle until M5. Not yet:
   seasonal ground and tree colours, and the final day length.
 - Sun and shadows: a directional sun that follows the clock and season
-  (`src/render/sunShadow.ts`), with a shadow box of 120 m around the beaver.
-  `?shadows=0` turns it off and `?shadowmap=1024` shrinks the map, for tablet
-  tests. Cost on the tablet is not measured yet.
+  (`src/render/sunShadow.ts`) and is drawn as a disc with a glow in the sky.
+  Shadows are cascaded (three's CSM): a sharp map out to 70 m and a coarser one
+  out to 800 m, faded together, so hills and far trees shade the valley too.
+  Beyond 800 m the slope shading from the sun is all there is. Query switches
+  for tablet tests: `?shadows=0`, `?cascades=1` (near only), `?shadowmap=1024`,
+  and `?day=2&time=0.3` to start at a time of day. Cost on the tablet is not
+  measured yet.
 - Sleep through the night as a skip to the next day. The beaver's dream is the
   other idea from round 3 (Q65) and stays in Later until the author picks.
 

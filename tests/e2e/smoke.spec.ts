@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+// Tests that click or walk load the page with ?shadows=0: the CI browser draws in software, where the cascaded shadows make frames too slow to click through. The first tests keep shadows on, so a shader error still shows.
 
 test('the game page renders a canvas', async ({ page }) => {
   const errors: string[] = [];
@@ -27,7 +28,7 @@ test('tiles stream in when they have been built', async ({ page }) => {
 test('the test menu sets the speed and jumps to a location', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
+  await page.goto('/?shadows=0');
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
   const hasTiles = await page.evaluate(() => (window as any).__game.stats() !== null);
   await page.getByRole('button', { name: 'Test menu' }).click();
@@ -53,7 +54,7 @@ test('the test menu sets the speed and jumps to a location', async ({ page }) =>
 });
 
 test('dragging turns the camera and forward still walks away from it', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?shadows=0');
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
   const before = await page.evaluate(() => (window as any).__game.view().yaw);
   await page.mouse.move(400, 300);
@@ -80,7 +81,7 @@ test.describe('touch controls', () => {
   test.use({ hasTouch: true, viewport: { width: 1000, height: 600 } });
 
   test('the stick walks the beaver, the slap button slaps, and a drag on the view turns the camera', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?shadows=0');
     await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
     await expect(page.locator('#touch-stick')).toBeVisible();
     const box = (await page.locator('#touch-stick').boundingBox())!;

@@ -279,7 +279,13 @@ export interface TerrainView {
   stats(): TerrainStats;
 }
 
-export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer: Streamer): TerrainView {
+export function createTerrainView(
+  scene: THREE.Scene,
+  store: TileStore,
+  streamer: Streamer,
+  /** Called once for each material that should take part in the shadows. */
+  prepareMaterial: (material: THREE.Material) => void = () => {},
+): TerrainView {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
   const lakeMaterial = new THREE.MeshLambertMaterial({
     color: 0x3b8fb0,
@@ -291,6 +297,8 @@ export function createTerrainView(scene: THREE.Scene, store: TileStore, streamer
   });
   const streamMaterial = new THREE.MeshLambertMaterial({ color: 0x3b8fb0, side: THREE.DoubleSide });
   const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x2f5a2f });
+  prepareMaterial(material);
+  prepareMaterial(treeMaterial);
   const meshes = new Map<string, { group: THREE.Group; level: number; streams: boolean; grid: TreeGrid | null }>();
   const size = store.size;
   // The far backdrop never changes level, so its tiles are merged into a mesh per chunk,

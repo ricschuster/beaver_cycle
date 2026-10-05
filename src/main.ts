@@ -2,6 +2,7 @@ import { mergeActions, relativeToView } from './actions/actions';
 import { createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { createRenderer } from './render/renderer';
+import { DAY_SECONDS } from './sim/clock';
 import { createWorld, setInLodge, setSpeedMultiplier, sleep, teleport } from './sim/state';
 import { step } from './sim/step';
 import { flatTerrain } from './sim/terrain';
@@ -17,7 +18,7 @@ async function start(): Promise<void> {
   // Tiles are built locally (tools/tiles/build_tiles.py); without them the
   // game falls back to a flat plane.
   // Stress knobs for the tablet budgets (#53): ?rings=1000,2000 and ?trees=2.
-  // ?shadows=0 turns the sun shadows off and ?shadowmap=1024 shrinks their map.
+  // ?shadows=0 turns the sun shadows off and ?shadowmap=1024 shrinks their map and ?cascades=1 keeps only the near box.
   // ?fine=300 sets how far the fine tiles (ADR 0008) show, 0 turns them off.
   const query = new URLSearchParams(location.search);
   const rings = query.get('rings')?.split(',').map(Number);
@@ -46,10 +47,17 @@ async function start(): Promise<void> {
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
     shadows: query.get('shadows') !== '0',
     shadowMap: Number(query.get('shadowmap')) || undefined,
+    cascades: Number(query.get('cascades')) || undefined,
   });
 
   const rig = createCameraRig(renderer.canvas);
   let world = createWorld(terrain, startX, startZ);
+  // ?day=12&time=0.3 starts on that game day at that part of the day (0 dawn, 0.625 dusk), to look at the light.
+  const startDay = Number(query.get('day') ?? 0);
+  const startTime = Number(query.get('time') ?? NaN);
+  if (query.has('day') || query.has('time')) {
+    world = { ...world, clock: (Math.max(0, startDay) + (Number.isFinite(startTime) ? startTime : 0.05)) * DAY_SECONDS };
+  }
   let last = performance.now();
 
   // A jump holds the beaver while the streamer loads the target, then moves it.

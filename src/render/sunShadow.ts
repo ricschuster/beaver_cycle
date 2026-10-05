@@ -23,26 +23,3 @@ export function sunDirection(season: Season, timeOfDay: number): Vec3 {
   const el = Math.max(MIN_ELEVATION, PEAK_ELEVATION[season] * Math.sin(az)) * (Math.PI / 180);
   return { x: Math.cos(az) * Math.cos(el), y: Math.sin(el), z: Math.sin(az) * Math.cos(el) };
 }
-
-/**
- * Move the centre of the shadow box to the nearest texel of the shadow map along the
- * light's own sideways axes, so the shadows do not shimmer as the beaver walks.
- */
-export function snapShadowCentre(centre: Vec3, toSun: Vec3, texel: number): Vec3 {
-  // right = up x toSun, normalised; up2 = toSun x right.
-  const rl = Math.hypot(toSun.z, toSun.x) || 1;
-  const right = { x: toSun.z / rl, y: 0, z: -toSun.x / rl };
-  const up2 = {
-    x: toSun.y * right.z - toSun.z * right.y,
-    y: toSun.z * right.x - toSun.x * right.z,
-    z: toSun.x * right.y - toSun.y * right.x,
-  };
-  const dot = (a: Vec3, b: Vec3): number => a.x * b.x + a.y * b.y + a.z * b.z;
-  const dr = Math.round(dot(centre, right) / texel) * texel - dot(centre, right);
-  const du = Math.round(dot(centre, up2) / texel) * texel - dot(centre, up2);
-  return {
-    x: centre.x + right.x * dr + up2.x * du,
-    y: centre.y + right.y * dr + up2.y * du,
-    z: centre.z + right.z * dr + up2.z * du,
-  };
-}

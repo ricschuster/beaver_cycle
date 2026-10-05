@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLASS_LAKE } from '../terrain/format';
 import { makeTile } from '../terrain/testing';
-import { buildLakeGeometry, buildStreamGeometry, farChunkKey } from './terrainView';
+import { buildLakeGeometry, buildStreamGeometry, buildTileGeometry, farChunkKey } from './terrainView';
 
 describe('water geometry', () => {
   it('covers lake cells with flat quads at the lake level', () => {
@@ -55,5 +55,19 @@ describe('far chunks', () => {
     expect(farChunkKey(0, 0)).not.toBe(farChunkKey(8, 0));
     expect(farChunkKey(-1, -1)).toBe(farChunkKey(-8, -8));
     expect(farChunkKey(-1, 0)).not.toBe(farChunkKey(0, 0));
+  });
+});
+
+describe('ground geometry', () => {
+  it('marks meadow vertices for the grass tint and forest vertices for the forest tint', () => {
+    const meadow = buildTileGeometry(makeTile(0, 0, 2, () => 0, 1), 320).getAttribute('seasonWeight');
+    expect([meadow.getX(0), meadow.getY(0)]).toEqual([1, 0]);
+    const forest = buildTileGeometry(makeTile(0, 0, 2, () => 0, 2), 320).getAttribute('seasonWeight');
+    expect([forest.getX(0), forest.getY(0)]).toEqual([0, 1]);
+  });
+
+  it('leaves rock without a seasonal tint', () => {
+    const rock = buildTileGeometry(makeTile(0, 0, 2, () => 0, 4), 320).getAttribute('seasonWeight');
+    expect([rock.getX(0), rock.getY(0)]).toEqual([0, 0]);
   });
 });

@@ -60,8 +60,15 @@ Prove or disprove the stack before building on it.
 - The day length is still open (4 real minutes proposed).
 - First slice built: the clock and date (`src/sim/clock.ts`), sky and light by
   time and season, a clock readout, and test menu buttons for the lodge (half
-  speed) and sleep to dawn. The lodge is only a toggle until M5. Not yet:
-  seasonal ground and tree colours, and the final day length.
+  speed) and sleep to dawn. The lodge is only a toggle until M5. Not yet: the
+  final day length.
+- Seasonal colours (`src/render/seasonLook.ts`): spring is fresher, summer is
+  the base look, autumn turns ochre and brown, and winter is snow on meadows
+  and a pale forest floor, with darker trees. Colours hold through the middle
+  of a season and blend over three days at each turn. The ground is tinted in
+  the shader by a per vertex weight, so tiles are not rebuilt; rock and lake
+  bed keep their colour. Leaves do not fall and there is no snow on branches
+  yet, and the lake and sky are not tied to the season beyond the sky colour.
 - Sun and shadows: a directional sun that follows the clock and season
   (`src/render/sunShadow.ts`) and is drawn as a disc with a glow in the sky.
   Shadows are cascaded (three's CSM): a sharp map out to 70 m and a coarser one

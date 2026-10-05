@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { CSM } from 'three/addons/csm/CSM.js';
 import { dateAt } from '../sim/clock';
+import { seasonLook } from './seasonLook';
 import { skyLook } from './skyLook';
 import { sunDirection } from './sunShadow';
 import { DIVE_RATE, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
@@ -234,6 +235,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         SKY_COLOR.set(sky.sky);
       }
       hemisphere.intensity = sky.ambient;
+      terrain?.setSeason(seasonLook(date.dayOfYear + date.timeOfDay));
       const toSun = sunDirection(date.season, date.timeOfDay);
       if (csm) {
         csm.lightDirection.set(-toSun.x, -toSun.y, -toSun.z);

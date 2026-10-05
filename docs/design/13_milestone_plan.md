@@ -69,6 +69,9 @@ Prove or disprove the stack before building on it.
   the shader by a per vertex weight, so tiles are not rebuilt; rock and lake
   bed keep their colour. Leaves do not fall and there is no snow on branches
   yet, and the lake and sky are not tied to the season beyond the sky colour.
+- Night sky (`src/render/nightSky.ts`): a moon that rises in the east and sets
+  in the west over the night, 700 fixed stars, both fading in as the light goes,
+  and a dark underwater colour at night.
 - Sun and shadows: a directional sun that follows the clock and season
   (`src/render/sunShadow.ts`) and is drawn as a disc with a glow in the sky.
   Shadows are cascaded (three's CSM): a sharp map out to 70 m and a coarser one

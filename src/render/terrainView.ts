@@ -97,20 +97,59 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
   return geo;
 }
 
-/** Flat quads at the lake level over the lake cells of a tile, or null when it has none. */
+/**
+ * Flat water at the lake level, cut where the ground rises through it. It covers
+ * the lake cells and their neighbours, and each ground triangle is clipped to the
+ * part below the level, so the shoreline follows the terrain rather than whole
+ * cells. Null when the tile has no lake cells.
+ */
 export function buildLakeGeometry(tile: DecodedTile, size: number, level: number): THREE.BufferGeometry | null {
-  const { n, classes } = tile;
+  const { n, classes, heights: h } = tile;
+  const w = n + 1;
   const cell = size / n;
+  const near = (i: number, j: number): boolean => {
+    for (let cj = Math.max(j - 1, 0); cj <= Math.min(j + 1, n - 1); cj++) {
+      for (let ci = Math.max(i - 1, 0); ci <= Math.min(i + 1, n - 1); ci++) {
+        if (classes[cj * n + ci] === CLASS_LAKE) return true;
+      }
+    }
+    return false;
+  };
   const pos: number[] = [];
+  const clipped: [number, number][] = [];
+  /** Emits the part of a ground triangle that lies below the level, as a fan. */
+  const clip = (tri: [number, number, number][]): void => {
+    clipped.length = 0;
+    for (let k = 0; k < 3; k++) {
+      const [ax, az, ah] = tri[k]!;
+      const [bx, bz, bh] = tri[(k + 1) % 3]!;
+      const aIn = ah <= level;
+      if (aIn) clipped.push([ax, az]);
+      if (aIn !== bh <= level) {
+        const t = (level - ah) / (bh - ah);
+        clipped.push([ax + (bx - ax) * t, az + (bz - az) * t]);
+      }
+    }
+    for (let k = 1; k + 1 < clipped.length; k++) {
+      for (const [x, z] of [clipped[0]!, clipped[k]!, clipped[k + 1]!]) pos.push(x, level, z);
+    }
+  };
+  let any = false;
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
-      if (classes[j * n + i] !== CLASS_LAKE) continue;
+      if (classes[j * n + i] === CLASS_LAKE) any = true;
+      else if (!near(i, j)) continue;
       const x = tile.tx * size + i * cell;
       const z = tile.tz * size + j * cell;
-      pos.push(x, level, z, x, level, z + cell, x + cell, level, z, x + cell, level, z, x, level, z + cell, x + cell, level, z + cell);
+      const a: [number, number, number] = [x, z, h[j * w + i]!];
+      const b: [number, number, number] = [x + cell, z, h[j * w + i + 1]!];
+      const c: [number, number, number] = [x, z + cell, h[(j + 1) * w + i]!];
+      const d: [number, number, number] = [x + cell, z + cell, h[(j + 1) * w + i + 1]!];
+      clip([a, c, b]); // the same split as the ground mesh
+      clip([b, c, d]);
     }
   }
-  if (pos.length === 0) return null;
+  if (!any || pos.length === 0) return null;
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(pos), 3));
   geo.computeVertexNormals();

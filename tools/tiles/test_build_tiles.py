@@ -30,8 +30,15 @@ def test_edges_and_known_height(tiles):
 def test_index_lists_every_tile_file(tiles):
     index = json.loads((tiles / "index.json").read_text())
     for t in index["tiles"]:
-        for level in range(3):
+        for level in ([2] if t.get("far") else range(3)):
             assert (tiles / f"L{level}" / f"{t['tx']}_{t['tz']}.bin").exists()
+
+
+def test_backdrop_reaches_the_ridges_beyond_the_play_area(tiles):
+    index = json.loads((tiles / "index.json").read_text())
+    far = [t for t in index["tiles"] if t.get("far")]
+    assert len(far) > 500
+    assert max(t["max_m"] for t in far) > 1500  # the peaks around the valley
 
 
 def test_lake_bed_is_below_the_lake_level(tiles):

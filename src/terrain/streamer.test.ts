@@ -119,6 +119,28 @@ describe('Streamer', () => {
     expect(streamer.settled(4 * 320 + 160, 160)).toBe(false); // the far end is still coarse
   });
 
+  it('loads a far backdrop tile at the coarsest level only, even right next to it', async () => {
+    const index = makeIndex([0, 1], [0, 0]);
+    index.tiles[1]!.far = true;
+    const store = new TileStore(index);
+    const calls: string[] = [];
+    const streamer = new Streamer(
+      store,
+      (level, tx, tz) => {
+        calls.push(`${level}:${tx}`);
+        return Promise.resolve(makeTile(tx, tz, level, () => 0));
+      },
+      o,
+    );
+    for (let i = 0; i < 4; i++) {
+      streamer.update(320, 160); // on the edge between the two tiles
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(calls.filter((c) => c.endsWith(':1'))).toEqual(['2:1']);
+    expect(store.has(1, 0, 2)).toBe(true);
+    expect(store.has(0, 0, 0)).toBe(true);
+  });
+
   it('does not retry a tile that failed', async () => {
     const store = new TileStore(makeIndex([0, 0], [0, 0]));
     let calls = 0;

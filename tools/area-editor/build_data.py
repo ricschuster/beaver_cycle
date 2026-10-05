@@ -20,9 +20,9 @@ from PIL import Image
 
 gdal.UseExceptions()
 
-# west, south, east, north (degrees). The view area (13.895, 47.675, 14.06,
-# 47.815) plus a 3 km buffer in case the play area grows.
-BBOX = (13.855, 47.648, 14.10, 47.842)
+# west, south, east, north (degrees). The play area plus the 5 km far backdrop of
+# the tile tool (ADR 0006), and well south of the Totes Gebirge marker.
+BBOX = (13.855, 47.590, 14.10, 47.842)
 HERE = Path(__file__).parent
 OUT = HERE / "generated"
 RAW = HERE.parent.parent / "data" / "raw"

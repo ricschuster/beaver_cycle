@@ -31,11 +31,14 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   scene.add(new THREE.HemisphereLight(0xffffff, 0x556b4f, 1.6));
 
   const SKY = 0xcfe3d4;
+  // Fog starts well out so far ridges stay readable, and ends just inside the camera far plane.
+  const FOG_NEAR = 2500;
+  const FOG_FAR = 8500;
   const SKY_COLOR = new THREE.Color(SKY);
   let terrain: TerrainView | null = null;
   if (source) {
     // Fog hides the edge of the coarsest level (ADR 0006).
-    scene.fog = new THREE.Fog(SKY, 700, 3300);
+    scene.fog = new THREE.Fog(SKY, FOG_NEAR, FOG_FAR);
     terrain = createTerrainView(scene, source.store, source.streamer);
   } else {
     const ground = new THREE.Mesh(
@@ -59,7 +62,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   let seenSlap: Slap | null = null;
   let splashAt: { slap: Slap; y: number } | null = null;
 
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, source ? 3600 : 500);
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, source ? 9000 : 500);
 
   function resize(): void {
     gl.setSize(window.innerWidth, window.innerHeight);
@@ -136,8 +139,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       scene.background = under ? UNDERWATER : SKY_COLOR;
       if (scene.fog) {
         scene.fog.color.copy(under ? UNDERWATER : SKY_COLOR);
-        (scene.fog as THREE.Fog).near = under ? 2 : 700;
-        (scene.fog as THREE.Fog).far = under ? 45 : 3300;
+        (scene.fog as THREE.Fog).near = under ? 2 : FOG_NEAR;
+        (scene.fog as THREE.Fog).far = under ? 45 : FOG_FAR;
       }
       terrain?.update(b.x, b.z);
       gl.render(scene, camera);

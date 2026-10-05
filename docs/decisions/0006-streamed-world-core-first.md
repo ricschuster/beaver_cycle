@@ -46,3 +46,20 @@ area.
   ADR 0004 holds the play area.
 - OpenStreetMap derived layers still need a licence decision before release
   (ADR 0003).
+
+## Addendum: far backdrop (session 15)
+
+The play area was cut with a 640 m margin, so the valley walls and peaks beyond
+it simply ended, with only tile skirts showing against the sky. The tile tool
+now adds a backdrop of far tiles out to 5 km from the play area, as far as the
+BEV raster reaches. A far tile has a level 2 file only, at 40 m cells (8 per
+side), and the index marks it `"far": true`. The streamer never asks for a
+finer level of a far tile. They cost about 6 MB of files and no extra requests
+for trees, water, or fine levels. The camera far plane and the fog were raised
+to match.
+
+The download box in `tools/area-editor/build_data.py` now reaches 0.06 degrees
+further south (about 6.7 km), so the backdrop is a full 5 km deep around the
+Totes Gebirge marker too. The same box feeds the BEV terrain, the OpenStreetMap
+land cover and water, and the editor relief, so the far ground has forest and
+rock classes like the near ground.

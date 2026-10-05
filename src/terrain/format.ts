@@ -20,6 +20,8 @@ export interface IndexTile {
   lakeLevel_m?: number | null;
   /** The tile also has a fine level file (level 3). */
   fine?: boolean;
+  /** A backdrop tile beyond the play area: a coarse level 2 file only, so it is never loaded finer. */
+  far?: boolean;
 }
 
 export interface TileIndex {

@@ -7,7 +7,7 @@ data/raw/ (run tools/area-editor/build_data.py first). Writes public/tiles/
 (untracked, see docs/design/14_m2_streamed_core_plan.md):
 
   index.json            origin, tile grid, class codes, lakes, anchors, tile list
-  L0/<tx>_<tz>.bin      5 m tiles, L1 at 10 m, L2 at 20 m
+  L0/<tx>_<tz>.bin      5 m tiles, L1 at 10 m, L2 at 20 m (far tiles: L2 only, 40 m, "far": true)
   water/<tx>_<tz>.json  lake level and stream lines for tiles that have water
   L3/<tx>_<tz>.bin      optional fine tiles (--fine CELL), see "Fine tiles" below
 
@@ -57,6 +57,10 @@ TILE = CELL * TILE_CELLS  # 320 m
 STEPS = (1, 2, 4)  # level 0, 1, 2 vertex steps
 SCALE = 0.05  # metres per stored height step
 MARGIN = 640.0  # metres of tiles kept around the core shape
+# The far backdrop: coarse tiles out to this distance from the play area, so the ridges beyond the
+# valley are there to see. They have a level 2 file only, with FAR_STEP times the 5 m cell.
+BACKDROP = 5000.0
+FAR_STEP = 8  # 40 m cells, 8 per tile side
 LAKE_BED_SLOPE = 0.12  # metres of depth per metre from the shore
 LAKE_BED_MAX = 14.0
 LAKE_BED_OFFSET = 0.5  # metres the bed sits below the lake level at the shore
@@ -192,6 +196,59 @@ def wanted_tiles():
             if any(sh.Intersects(box) for sh in shapes):
                 keep.add((tx, tz))
     return keep
+
+
+def dem_bounds():
+    """The BEV raster in local metres: (x0, z0, x1, z1), z from north to south."""
+    ds = gdal.Open(str(ROOT / "data/raw/almsee_dgm5_31287.tif"))
+    gt = ds.GetGeoTransform()
+    west, north = gt[0], gt[3]
+    east, south = west + gt[1] * ds.RasterXSize, north + gt[5] * ds.RasterYSize
+    return west - E0, N0 - north, east - E0, N0 - south
+
+
+@functools.cache
+def far_tiles():
+    """Tiles of the backdrop: within BACKDROP of the play area, wholly inside the BEV raster,
+    and not already kept at full detail."""
+    keep = wanted_tiles()
+    shapes = []
+    for f in areas["features"]:
+        if f["geometry"]["type"] == "Point":
+            x, z = local(*f["geometry"]["coordinates"])
+            shapes.append(ogr.CreateGeometryFromWkt(f"POINT({x} {z})").Buffer(BACKDROP))
+        elif f["properties"].get("id") in LOCATION_IDS:
+            for rings in polygons(f["geometry"]):
+                wkt = "POLYGON((" + ",".join(f"{x} {z}" for x, z in local_pts(rings[0])) + "))"
+                shapes.append(ogr.CreateGeometryFromWkt(wkt).Buffer(BACKDROP))
+    area = shapes[0]
+    for sh in shapes[1:]:
+        area = area.Union(sh)
+    x0, z0, x1, z1 = dem_bounds()
+    slack = 2 * CELL  # the bilinear sampling reads a cell beyond the tile edge
+    tx0, tx1 = int(np.ceil((x0 + slack) / TILE)), int(np.floor((x1 - slack) / TILE)) - 1
+    tz0, tz1 = int(np.ceil((z0 + slack) / TILE)), int(np.floor((z1 - slack) / TILE)) - 1
+    out = set()
+    for tz in range(tz0, tz1 + 1):
+        for tx in range(tx0, tx1 + 1):
+            if (tx, tz) in keep:
+                continue
+            box = ogr.CreateGeometryFromWkt(
+                f"POLYGON(({tx*TILE} {tz*TILE},{(tx+1)*TILE} {tz*TILE},{(tx+1)*TILE} {(tz+1)*TILE},"
+                f"{tx*TILE} {(tz+1)*TILE},{tx*TILE} {tz*TILE}))")
+            if area.Intersects(box):
+                out.add((tx, tz))
+    return out
+
+
+def full_extent(tiles):
+    """The grid that holds the play area and the given extra tiles."""
+    g = play_extent()
+    tx0 = min([g.tx0] + [t[0] for t in tiles])
+    tx1 = max([g.tx0 + g.ntx - 1] + [t[0] for t in tiles])
+    tz0 = min([g.tz0] + [t[1] for t in tiles])
+    tz1 = max([g.tz0 + g.ntz - 1] + [t[1] for t in tiles])
+    return Grid(tx0, tz0, tx1 - tx0 + 1, tz1 - tz0 + 1)
 
 
 def read_heights(g):
@@ -485,10 +542,11 @@ def build_fine(out, g, cell, tiles, lakes, lake_levels):
     return ranges
 
 
-def build(out=OUT, fine=None):
+def build(out=OUT, fine=None, backdrop=True):
     out = Path(out)
-    g = play_extent()
     keep = wanted_tiles()
+    far = far_tiles() if backdrop else set()
+    g = full_extent(far)
     h = read_heights(g)
     lakes, streams = read_water()
     code = read_landcover(g)
@@ -507,16 +565,27 @@ def build(out=OUT, fine=None):
         print(f"{len(fine_list)} fine tiles at {fine} m")
         fine_set = build_fine(out, core, fine, fine_list, lakes, lake_levels)
 
+    modes = {step: block_mode(code, step) for step in sorted({*STEPS, FAR_STEP})}
     tiles = []
     for tz in range(g.tz0, g.tz0 + g.ntz):
         for tx in range(g.tx0, g.tx0 + g.ntx):
+            vi, vj = (tx - g.tx0) * TILE_CELLS, (tz - g.tz0) * TILE_CELLS
+            if (tx, tz) in far:
+                n = TILE_CELLS // FAR_STEP
+                qt = q[vj:vj + TILE_CELLS + 1:FAR_STEP, vi:vi + TILE_CELLS + 1:FAR_STEP]
+                ct = modes[FAR_STEP][vj // FAR_STEP:vj // FAR_STEP + n, vi // FAR_STEP:vi // FAR_STEP + n]
+                write_tile(out / f"L{len(STEPS) - 1}" / f"{tx}_{tz}.bin", len(STEPS) - 1, qt, ct)
+                tile_h = h[vj:vj + TILE_CELLS + 1, vi:vi + TILE_CELLS + 1]
+                tiles.append({"tx": tx, "tz": tz, "water": False, "lakeLevel_m": None,
+                              "min_m": round(float(tile_h.min()), 1), "max_m": round(float(tile_h.max()), 1),
+                              "far": True})
+                continue
             if (tx, tz) not in keep:
                 continue
-            vi, vj = (tx - g.tx0) * TILE_CELLS, (tz - g.tz0) * TILE_CELLS
             for level, step in enumerate(STEPS):
                 n = TILE_CELLS // step
                 qt = q[vj:vj + TILE_CELLS + 1:step, vi:vi + TILE_CELLS + 1:step]
-                ct = block_mode(code, step)[vj // step:vj // step + n, vi // step:vi // step + n]
+                ct = modes[step][vj // step:vj // step + n, vi // step:vi // step + n]
                 write_tile(out / f"L{level}" / f"{tx}_{tz}.bin", level, qt, ct)
             tile_lake = lake_level[vj:vj + TILE_CELLS + 1, vi:vi + TILE_CELLS + 1]
             lines = clip_lines(streams, tx, tz)
@@ -548,7 +617,7 @@ def build(out=OUT, fine=None):
         "tiles": tiles,
     }
     (out / "index.json").write_text(json.dumps(index, indent=1))
-    print(f"{len(tiles)} tiles (grid {g.ntx} x {g.ntz}), {len(lake_list)} lakes, "
+    print(f"{len(tiles)} tiles ({len(far)} far, grid {g.ntx} x {g.ntz}), {len(lake_list)} lakes, "
           f"relief {h.min():.0f} to {h.max():.0f} m, written to {out}")
     return index
 
@@ -571,7 +640,8 @@ def check(out=OUT):
     """
     out = Path(out)
     index = json.loads((out / "index.json").read_text())
-    have = {(t["tx"], t["tz"]) for t in index["tiles"]}
+    have = {(t["tx"], t["tz"]) for t in index["tiles"] if not t.get("far")}
+    far = {(t["tx"], t["tz"]) for t in index["tiles"] if t.get("far")}
     for level in range(len(STEPS)):
         for tx, tz in have:
             _, n, h, _ = read_tile(out / f"L{level}" / f"{tx}_{tz}.bin")
@@ -586,6 +656,25 @@ def check(out=OUT):
         for level, step in enumerate(STEPS):
             _, _, hl, _ = read_tile(out / f"L{level}" / f"{tx}_{tz}.bin")
             assert np.array_equal(hl, h0[::step, ::step]), f"L{level} of {tx},{tz} is not a subsample"
+
+    # far tiles have a level 2 file only, at a coarser cell, and meet every neighbour on shared vertices
+    coarsest = len(STEPS) - 1
+
+    def level2(tx, tz):
+        _, n, h, _ = read_tile(out / f"L{coarsest}" / f"{tx}_{tz}.bin")
+        return n, h
+
+    for tx, tz in far:
+        n, h = level2(tx, tz)
+        assert n == TILE_CELLS // FAR_STEP, f"far tile {tx},{tz} has n={n}"
+        assert not (out / "L0" / f"{tx}_{tz}.bin").exists(), f"far tile {tx},{tz} has a level 0 file"
+        for dx, dz in ((1, 0), (0, 1)):
+            if (tx + dx, tz + dz) not in far and (tx + dx, tz + dz) not in have:
+                continue
+            n2, h2 = level2(tx + dx, tz + dz)
+            m = min(n, n2)  # compare on the vertices both tiles have
+            a, b = (h[:, -1], h2[:, 0]) if dx else (h[-1, :], h2[0, :])
+            assert np.array_equal(a[::n // m], b[::n2 // m]), f"far edge of {tx},{tz}"
 
     fine = {(t["tx"], t["tz"]) for t in index["tiles"] if t.get("fine")}
     for tx, tz in fine:  # fine tiles join each other and agree with the 5 m ground
@@ -643,13 +732,15 @@ def main():
     ap.add_argument("--fine", type=float, default=2.0, metavar="CELL",
                     help="cell size in metres of the fine tiles (level 3) near the lake, cut from the "
                          "BEV 1 m terrain: 2 by default (ADR 0008), 1 is heavy for a tablet, 0 turns them off")
+    ap.add_argument("--no-backdrop", action="store_true",
+                    help="skip the far backdrop (coarse tiles out to 5 km beyond the play area)")
     ap.add_argument("--fetch-fine", action="store_true", help="only cache the BEV 1 m terrain in data/raw/")
     args = ap.parse_args()
     if args.fetch_fine:
         fetch_fine(core_extent())
         return
     if not args.check_only:
-        build(args.out, args.fine)
+        build(args.out, args.fine, backdrop=not args.no_backdrop)
     check(args.out)
 
 

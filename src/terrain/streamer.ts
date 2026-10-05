@@ -89,7 +89,7 @@ export class Streamer {
     for (const t of this.store.index.tiles) {
       const key = tileKey(t.tx, t.tz);
       const dist = distToTile(x, z, t.tx, t.tz, size);
-      const level = levelFor(dist, this.desired.get(key), this.options);
+      const level = t.far ? COARSEST : levelFor(dist, this.desired.get(key), this.options);
       this.desired.set(key, level);
       for (const l of level === COARSEST ? [COARSEST] : [COARSEST, level]) {
         if (!this.store.has(t.tx, t.tz, l)) wanted.push({ tx: t.tx, tz: t.tz, level: l, dist });

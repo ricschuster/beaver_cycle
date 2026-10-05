@@ -1,6 +1,6 @@
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
-import { DIVE_SPEED, SWIM_SPEED, WALK_SPEED, settle, type WorldState } from './state';
+import { DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type WorldState } from './state';
 
 /** Advance the world by dt seconds. Pure: returns a new state. */
 export function step(world: WorldState, actions: Actions, dt: number, terrain: Terrain): WorldState {
@@ -14,9 +14,14 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   const speed = (b.mode === 'dive' ? DIVE_SPEED : b.mode === 'swim' ? SWIM_SPEED : WALK_SPEED) * world.speedMultiplier;
   const nx = b.x + x * speed * dt;
   const nz = b.z + z * speed * dt;
+  const time = world.time + dt;
+  // The tail slaps on land and at the surface, not under water, and not again during the cooldown.
+  const canSlap = b.mode !== 'dive' && (!world.lastSlap || time - world.lastSlap.time >= SLAP_COOLDOWN);
+  const lastSlap = actions.slap && canSlap ? { time, x: nx, z: nz } : world.lastSlap;
   return {
     ...world,
-    time: world.time + dt,
+    time,
+    lastSlap,
     beaver: {
       x: nx,
       z: nz,

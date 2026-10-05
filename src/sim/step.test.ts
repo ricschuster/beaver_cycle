@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
 import { flatTerrain, type Terrain } from './terrain';
-import { DIVE_FLOOR, DIVE_MIN_DEPTH, DIVE_RATE, DIVE_SPEED, SWIM_ENTER_DEPTH, SWIM_EXIT_DEPTH, SWIM_SINK, SWIM_SPEED, WALK_SPEED, createWorld, setSpeedMultiplier, teleport } from './state';
+import { SLAP_COOLDOWN, DIVE_FLOOR, DIVE_MIN_DEPTH, DIVE_RATE, DIVE_SPEED, SWIM_ENTER_DEPTH, SWIM_EXIT_DEPTH, SWIM_SINK, SWIM_SPEED, WALK_SPEED, createWorld, setSpeedMultiplier, teleport } from './state';
 import { step } from './step';
 
 const flat = flatTerrain(0);
@@ -166,6 +166,46 @@ describe('step', () => {
       w = step(w, { move: { x: 0, z: -1 }, dive: true }, 3, lake);
       expect(w.beaver.mode).toBe('walk');
       expect(w.beaver.y).toBeCloseTo(100);
+    });
+  });
+
+  describe('tail slap', () => {
+    const slap = { move: { x: 0, z: 0 }, slap: true };
+
+    it('records when and where the beaver slapped', () => {
+      const w0 = teleport(createWorld(flat), flat, 10, 20);
+      const w = step(w0, slap, 0.5, flat);
+      expect(w.lastSlap).toEqual({ time: 0.5, x: 10, z: 20 });
+    });
+
+    it('has no slap before the first', () => {
+      expect(step(createWorld(flat), noActions(), 1, flat).lastSlap).toBeNull();
+    });
+
+    it('does not slap again during the cooldown, then does', () => {
+      let w = step(createWorld(flat), slap, 0.1, flat);
+      const first = w.lastSlap;
+      w = step(w, slap, SLAP_COOLDOWN / 2, flat);
+      expect(w.lastSlap).toBe(first);
+      w = step(w, slap, SLAP_COOLDOWN, flat);
+      expect(w.lastSlap?.time).toBeGreaterThan(first!.time);
+    });
+
+    it('keeps the last slap while the button is not pressed', () => {
+      let w = step(createWorld(flat), slap, 0.1, flat);
+      const first = w.lastSlap;
+      w = step(w, noActions(), 5, flat);
+      expect(w.lastSlap).toBe(first);
+    });
+
+    it('slaps at the water surface but not under water', () => {
+      const lake: Terrain = { heightAt: () => 96, isWater: () => true, waterDepth: () => 4 };
+      const surface = step(createWorld(lake), slap, 0.1, lake);
+      expect(surface.lastSlap).not.toBeNull();
+      let under = createWorld(lake);
+      for (let i = 0; i < 4; i++) under = step(under, { move: { x: 0, z: 0 }, dive: true }, 0.25, lake);
+      expect(under.beaver.mode).toBe('dive');
+      expect(step(under, { move: { x: 0, z: 0 }, dive: true, slap: true }, 0.1, lake).lastSlap).toBeNull();
     });
   });
 });

@@ -14,10 +14,19 @@ export interface BeaverState {
   heading: number;
 }
 
+/** A tail slap other beavers can hear: when and where it happened, in simulated time. */
+export interface Slap {
+  time: number;
+  x: number;
+  z: number;
+}
+
 export interface WorldState {
   /** Simulated seconds since the start. */
   time: number;
   beaver: BeaverState;
+  /** The most recent tail slap, or null before the first. */
+  lastSlap: Slap | null;
   /** Test setting that scales movement speed (x1, x5, x20, x100). Not a game rule. */
   speedMultiplier: number;
 }
@@ -30,6 +39,8 @@ export const SWIM_ENTER_DEPTH = 0.6;
 export const SWIM_EXIT_DEPTH = 0.4;
 /** How far below the water surface a swimming beaver's feet hang, in metres. */
 export const SWIM_SINK = 0.2;
+/** Simulated seconds before the beaver can slap its tail again. */
+export const SLAP_COOLDOWN = 1;
 export const DIVE_SPEED = 7;
 /** Metres per second the beaver sinks and rises. Not scaled by the test speed multiplier. */
 export const DIVE_RATE = 2;
@@ -65,7 +76,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, beaver: { x, y, z, mode, heading: 0 }, speedMultiplier: 1 };
+  return { time: 0, beaver: { x, y, z, mode, heading: 0 }, lastSlap: null, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

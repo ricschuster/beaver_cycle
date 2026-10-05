@@ -4,6 +4,7 @@ import { DIVE_RATE, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
 import { createBeaverModel } from './beaverModel';
+import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
 import { createTerrainView, type TerrainView } from './terrainView';
 
@@ -30,6 +31,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   scene.add(new THREE.HemisphereLight(0xffffff, 0x556b4f, 1.6));
 
   const SKY = 0xcfe3d4;
+  const SKY_COLOR = new THREE.Color(SKY);
   let terrain: TerrainView | null = null;
   if (source) {
     // Fog hides the edge of the coarsest level (ADR 0006).
@@ -72,6 +74,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   let pace = 0;
   let lastY: number | null = null;
   let lastTime = 0;
+  let reach = 6.5;
+  let lastFrame = 0;
+  const UNDERWATER = new THREE.Color(0x2c7a96);
 
   return {
     terrain,
@@ -105,14 +110,35 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       }
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
-      const reach = view.dist * Math.cos(view.pitch);
-      const camX = b.x + Math.sin(view.yaw) * reach;
-      const camZ = b.z + Math.cos(view.yaw) * reach;
-      // Keep the camera above the ground it swings over.
+      const look = { x: b.x, y: b.y + 1.2, z: b.z };
+      const flat = Math.cos(view.pitch);
+      const want = {
+        x: b.x + Math.sin(view.yaw) * view.dist * flat,
+        y: look.y + Math.sin(view.pitch) * view.dist,
+        z: b.z + Math.cos(view.yaw) * view.dist * flat,
+      };
+      // Pull in before a tree, shortening at once and easing back out.
+      const clear = terrain ? clearDistance(look, want, view.dist, terrain) : view.dist;
+      const dt = Math.min(0.1, Math.max(0, now - lastFrame));
+      lastFrame = now;
+      reach = easeReach(reach, clear, dt);
+      const f = reach / view.dist;
+      const camX = look.x + (want.x - look.x) * f;
+      const camZ = look.z + (want.z - look.z) * f;
+      // Keep the camera above the ground it swings over, and out of the water surface band.
       const ground = source ? source.store.heightAt(camX, camZ) : 0;
-      const camY = Math.max(b.y + 1.2 + Math.sin(view.pitch) * view.dist, ground + 1);
+      const level = source && source.store.isWater(camX, camZ) ? ground + source.store.waterDepth(camX, camZ) : null;
+      const camY = clearSurface(Math.max(look.y + (want.y - look.y) * f, ground + 1), level);
       camera.position.set(camX, camY, camZ);
-      camera.lookAt(b.x, b.y + 1.2, b.z);
+      camera.lookAt(look.x, look.y, look.z);
+      // Under the surface the view turns blue and short.
+      const under = level !== null && camY < level;
+      scene.background = under ? UNDERWATER : SKY_COLOR;
+      if (scene.fog) {
+        scene.fog.color.copy(under ? UNDERWATER : SKY_COLOR);
+        (scene.fog as THREE.Fog).near = under ? 2 : 700;
+        (scene.fog as THREE.Fog).far = under ? 45 : 3300;
+      }
       terrain?.update(b.x, b.z);
       gl.render(scene, camera);
     },

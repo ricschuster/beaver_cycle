@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAYS_PER_SEASON, DAYS_PER_YEAR, DAY_FRACTION, DAY_SECONDS, LODGE_CLOCK_RATE, START_CLOCK, dateAt, daylight, isNight, nextDawn, withSeason, withTimeOfDay } from './clock';
 import { noActions } from '../actions/actions';
-import { createWorld, setInLodge, sleep } from './state';
+import { canSleep, createWorld, setInLodge, sleep } from './state';
 import { step } from './step';
 import { flatTerrain } from './terrain';
 
@@ -53,6 +53,13 @@ describe('world clock', () => {
   it('is not scaled by the test speed multiplier', () => {
     const w0 = { ...createWorld(flat), speedMultiplier: 20 };
     expect(step(w0, noActions(), 1, flat).clock).toBeCloseTo(START_CLOCK + 1);
+  });
+
+  it('can sleep only in the lodge and at night', () => {
+    const night = { ...createWorld(flat), clock: DAY_SECONDS * 0.8 };
+    expect(canSleep(night)).toBe(false);
+    expect(canSleep(setInLodge(night, true))).toBe(true);
+    expect(canSleep(setInLodge({ ...night, clock: DAY_SECONDS * 0.3 }, true))).toBe(false);
   });
 
   it('sleeps through the night to the next dawn, only in the lodge at night', () => {

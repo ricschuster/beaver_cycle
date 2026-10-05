@@ -107,9 +107,17 @@ export function setInLodge(world: WorldState, inLodge: boolean): WorldState {
   return { ...world, inLodge };
 }
 
-/** Sleep through the night: in the lodge at night, jump the clock to the next dawn. Otherwise nothing happens. */
+/** The beaver can go to sleep only in its lodge and at night. */
+export function canSleep(world: WorldState): boolean {
+  return world.inLodge && isNight(world.clock);
+}
+
+/**
+ * Sleep through the night: in the lodge at night, jump the clock to the next dawn. Otherwise nothing happens.
+ * The dream (Q65) ends the same way, so both ways of sleeping wake the beaver here.
+ */
 export function sleep(world: WorldState): WorldState {
-  if (!world.inLodge || !isNight(world.clock)) return world;
+  if (!canSleep(world)) return world;
   return { ...world, clock: nextDawn(world.clock) };
 }
 

@@ -81,8 +81,10 @@ Prove or disprove the stack before building on it.
   measured: two cascades run at 40 to 55 fps, one cascade at 55 to 65, and no
   shadows at the 90 Hz cap. The default is an open decision, see
   `16_shadow_cost.md`.
-- Sleep through the night as a skip to the next day. The beaver's dream is the
-  other idea from round 3 (Q65) and stays in Later until the author picks.
+- Sleep through the night (Q65): in the lodge at night a bedtime panel offers
+  "Sleep until morning" (fade to black, wake at dawn) and "Dream" (a placeholder
+  dark screen with a wake button). The author wants both. The dream is to become
+  a mini game later; the lodge is still a test toggle until M5.
 
 ## M5: Doing things
 
@@ -119,4 +121,5 @@ Prove or disprove the stack before building on it.
 - **Player speed-up,** press and hold, and the beaver never gets tired (Q66).
   The test menu multiplier in M2 is the first form of it.
 - **Travel between locations, and dream side quests.** The dream at night is
-  the round 3 idea for sleep (Q65).
+  the round 3 idea for sleep (Q65). A placeholder is in place; the author wants
+  it to become a mini game.

@@ -64,7 +64,8 @@ The author answered the variety questions in round 3
 ### Sleeping and speed
 
 - Sleep is either played as the beaver's dream, or skipped to the next day
-  (Q65). The author gave both, so which one is open.
+  (Q65). The author chose both, and the player picks each night. The skip is
+  built. The dream is a placeholder and should become a mini game.
 - The speed-up button is press and hold. The beaver never gets tired (Q66).
 
 ## Open questions
@@ -74,8 +75,7 @@ The author answered the variety questions in round 3
   stated.
 - The open build questions are in `15_build_and_repair.md`: dam placement,
   pond water, rocks, and moving the lodge.
-- Does the dream at night replace the skip, or does the player choose each
-  night (Q65)?
+- What is the dream mini game (Q65)? Candy land was one example (Q42).
 - Q64 says each generation starts in a different pond. How does the new baby
   reach it, and how does that fit the old dam and lodge that still stand (Q63)?
 - What does help, trade, and play with other beavers look like in practice

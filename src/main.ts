@@ -1,4 +1,4 @@
-import { relativeToView } from './actions/actions';
+import { mergeActions, relativeToView } from './actions/actions';
 import { createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { createRenderer } from './render/renderer';
@@ -7,6 +7,7 @@ import { step } from './sim/step';
 import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
+import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createTestMenu } from './ui/testMenu';
 import { treeTuning } from './terrain/trees';
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
@@ -38,7 +39,8 @@ async function start(): Promise<void> {
   const startZ = store ? 1750 : 0;
   if (streamer) await streamer.ready(startX, startZ, 8000);
 
-  const readActions = createKeyboardInput(window);
+  const readKeyboard = createKeyboardInput(window);
+  const touch = createTouchControls(document.body, wantsTouchControls(navigator, query));
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null);
 
   const rig = createCameraRig(renderer.canvas);
@@ -83,7 +85,7 @@ async function start(): Promise<void> {
         menu.setStatus('');
       }
     } else {
-      const actions = readActions();
+      const actions = mergeActions(readKeyboard(), touch.read());
       const move = relativeToView(actions.move, rig.view.yaw);
       world = step(world, { move, dive: actions.dive, slap: actions.slap }, dt, terrain);
       streamer?.update(world.beaver.x, world.beaver.z);

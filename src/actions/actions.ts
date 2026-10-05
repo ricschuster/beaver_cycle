@@ -24,3 +24,12 @@ export function relativeToView(move: Actions['move'], yaw: number): Actions['mov
   const c = Math.cos(t);
   return { x: move.x * c + move.z * s, z: -move.x * s + move.z * c };
 }
+
+/** Combine two input devices: moves add up (capped at full speed), buttons are on if either is. */
+export function mergeActions(a: Actions, b: Actions): Actions {
+  const x = a.move.x + b.move.x;
+  const z = a.move.z + b.move.z;
+  const len = Math.hypot(x, z);
+  const k = len > 1 ? 1 / len : 1;
+  return { move: { x: x * k, z: z * k }, dive: !!(a.dive || b.dive), slap: !!(a.slap || b.slap) };
+}

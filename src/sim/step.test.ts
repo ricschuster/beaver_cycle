@@ -86,10 +86,10 @@ describe('step', () => {
       const mid = (SWIM_ENTER_DEPTH + SWIM_EXIT_DEPTH) / 2;
       const ramp = lake((z) => (z < 10 ? 0 : z < 20 ? mid : 1));
       expect(createWorld(ramp, 0, 15).beaver.mode).toBe('walk');
-      const swimming = step(createWorld(ramp, 0, 25), { move: { x: 0, z: -1 } }, 1.5, ramp);
+      const swimming = step(createWorld(ramp, 0, 25), { move: { x: 0, z: -1 } }, 13 / SWIM_SPEED, ramp);
       expect(swimming.beaver.z).toBeLessThan(20);
       expect(swimming.beaver.mode).toBe('swim');
-      const stillSwimming = step(createWorld(ramp, 0, 25), { move: { x: 0, z: -1 } }, 0.5, ramp);
+      const stillSwimming = step(createWorld(ramp, 0, 25), { move: { x: 0, z: -1 } }, 5 / SWIM_SPEED, ramp);
       expect(stillSwimming.beaver.mode).toBe('swim');
     });
 

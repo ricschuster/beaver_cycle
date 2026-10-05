@@ -62,8 +62,8 @@ Everyday (gate means CI blocks a merge on it):
   map data into `data/raw/` (untracked, about 60 MB)
 - `python3 tools/area-editor/travel_graph.py` - rebuild travel links after a
   play shape changes
-- `python3 tools/tiles/build_tiles.py` - cut the core into streamable tiles in
-  `public/tiles/` (untracked, about 10 MB, 30 s; the first run also caches about
+- `python3 tools/tiles/build_tiles.py` - cut the play area into streamable tiles in
+  `public/tiles/` (untracked, about 17 MB, 4 min; the first run also caches about
   100 MB of the BEV 1 m terrain in `data/raw/` for the fine tiles, ADR 0008); `python3 -m pytest tools/tiles`
   checks them (needs `data/raw/`)
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene

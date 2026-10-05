@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Cut the core of the game world into tiles the game can stream.
+"""Cut the game world into tiles the game can stream: the core rectangle, plus the tiles around the
+other five locations and the named markers (so the test menu can jump to all of them).
 
 Reads the BEV 5 m terrain and the OpenStreetMap water and land cover in
 data/raw/ (run tools/area-editor/build_data.py first). Writes public/tiles/
@@ -65,6 +66,7 @@ LAKE_BED_OFFSET = 0.5  # metres the bed sits below the lake level at the shore
 BOG_RAMP_Z = (1100.0, 1700.0)  # z in metres where the south ramp starts and is full
 BOG_WETLAND_REACH = 60.0  # metres from a wetland cell over which the shallows fade out
 BOG_BED_OFFSET = 0.3  # metres below the lake level in full shallows
+LOCATION_IDS = {"core", "north", "south", "east-oedseen", "vorderer-springbach", "hinterer-springbach"}
 CLASSES = {"ground": 0, "meadow": 1, "forest": 2, "scrub": 3, "rock": 4, "wetland": 5, "lake": 9}
 PAINT_ORDER = ("meadow", "scrub", "forest", "wetland", "rock")  # later wins, as in the camera demo
 OUT = ROOT / "public" / "tiles"
@@ -142,6 +144,54 @@ def core_extent():
     tz0 = int(np.floor((min(zs) - MARGIN) / TILE))
     tz1 = int(np.floor((max(zs) + MARGIN) / TILE))
     return Grid(tx0, tz0, tx1 - tx0 + 1, tz1 - tz0 + 1)
+
+
+@functools.cache
+def play_extent():
+    """The grid for the whole play area: all six locations and the named markers, with a margin."""
+    xs, zs = [], []
+    for f in areas["features"]:
+        p = f["properties"]
+        if f["geometry"]["type"] == "Point":
+            pts = [local(*f["geometry"]["coordinates"])]
+        elif p.get("id") in LOCATION_IDS:
+            pts = [q for rings in polygons(f["geometry"]) for q in local_pts(rings[0])]
+        else:
+            continue
+        xs += [q[0] for q in pts]
+        zs += [q[1] for q in pts]
+    core = core_extent()
+    tx0 = min(core.tx0, int(np.floor((min(xs) - MARGIN) / TILE)))
+    tx1 = max(core.tx0 + core.ntx - 1, int(np.floor((max(xs) + MARGIN) / TILE)))
+    tz0 = min(core.tz0, int(np.floor((min(zs) - MARGIN) / TILE)))
+    tz1 = max(core.tz0 + core.ntz - 1, int(np.floor((max(zs) + MARGIN) / TILE)))
+    return Grid(tx0, tz0, tx1 - tx0 + 1, tz1 - tz0 + 1)
+
+
+def wanted_tiles():
+    """Tiles to write, as a set of (tx, tz): the whole core rectangle, plus every tile within
+    MARGIN of another location, so the corridors between places are not cut as empty squares.
+    A marker far from the play area (the Totes Gebirge) gets the tiles around it only."""
+    core = core_extent()
+    keep = {(tx, tz) for tz in range(core.tz0, core.tz0 + core.ntz) for tx in range(core.tx0, core.tx0 + core.ntx)}
+    shapes = []
+    for f in areas["features"]:
+        if f["geometry"]["type"] == "Point":
+            x, z = local(*f["geometry"]["coordinates"])
+            shapes.append(ogr.CreateGeometryFromWkt(f"POINT({x} {z})").Buffer(MARGIN))
+        elif f["properties"].get("id") in LOCATION_IDS:
+            for rings in polygons(f["geometry"]):
+                wkt = "POLYGON((" + ",".join(f"{x} {z}" for x, z in local_pts(rings[0])) + "))"
+                shapes.append(ogr.CreateGeometryFromWkt(wkt).Buffer(MARGIN))
+    g = play_extent()
+    for tz in range(g.tz0, g.tz0 + g.ntz):
+        for tx in range(g.tx0, g.tx0 + g.ntx):
+            box = ogr.CreateGeometryFromWkt(
+                f"POLYGON(({tx*TILE} {tz*TILE},{(tx+1)*TILE} {tz*TILE},{(tx+1)*TILE} {(tz+1)*TILE},"
+                f"{tx*TILE} {(tz+1)*TILE},{tx*TILE} {tz*TILE}))")
+            if any(sh.Intersects(box) for sh in shapes):
+                keep.add((tx, tz))
+    return keep
 
 
 def read_heights(g):
@@ -314,15 +364,14 @@ def clip_lines(streams, tx, tz):
     return out
 
 
-def anchors(g):
-    """Anchors for the test menu: travel nodes plus the named markers."""
-    x1, z1 = g.x0 + g.ncx * CELL, g.z0 + g.ncz * CELL
+def anchors(keep):
+    """Anchors for the test menu: travel nodes plus the named markers. `keep` is the set of tiles written."""
     out = []
 
     def add(kind, id_, name, lon, lat, elev=None):
         x, z = local(lon, lat)
         out.append({"kind": kind, "id": id_, "name": name, "x": round(x, 1), "z": round(z, 1),
-                    "elevation_m": elev, "inTiles": bool(g.x0 <= x <= x1 and g.z0 <= z <= z1)})
+                    "elevation_m": elev, "inTiles": (int(np.floor(x / TILE)), int(np.floor(z / TILE))) in keep})
 
     for n in travel["nodes"]:
         add("location", n["id"], n["name"], *n["anchor"], n.get("anchor_elevation_m"))
@@ -438,7 +487,8 @@ def build_fine(out, g, cell, tiles, lakes, lake_levels):
 
 def build(out=OUT, fine=None):
     out = Path(out)
-    g = core_extent()
+    g = play_extent()
+    keep = wanted_tiles()
     h = read_heights(g)
     lakes, streams = read_water()
     code = read_landcover(g)
@@ -449,14 +499,19 @@ def build(out=OUT, fine=None):
 
     fine_set = {}
     if fine:
-        fetch_fine(g)
-        fine_list = fine_tiles(g, lake_vert)
+        # the 1 m terrain is cached for the core only, so fine tiles stop at its edge
+        core = core_extent()
+        fetch_fine(core)
+        inside = {(tx, tz) for tz in range(core.tz0, core.tz0 + core.ntz) for tx in range(core.tx0, core.tx0 + core.ntx)}
+        fine_list = [t for t in fine_tiles(g, lake_vert) if t in inside]
         print(f"{len(fine_list)} fine tiles at {fine} m")
-        fine_set = build_fine(out, g, fine, fine_list, lakes, lake_levels)
+        fine_set = build_fine(out, core, fine, fine_list, lakes, lake_levels)
 
     tiles = []
     for tz in range(g.tz0, g.tz0 + g.ntz):
         for tx in range(g.tx0, g.tx0 + g.ntx):
+            if (tx, tz) not in keep:
+                continue
             vi, vj = (tx - g.tx0) * TILE_CELLS, (tz - g.tz0) * TILE_CELLS
             for level, step in enumerate(STEPS):
                 n = TILE_CELLS // step
@@ -489,11 +544,11 @@ def build(out=OUT, fine=None):
         "classes": CLASSES,
         "tileRange": {"tx": [g.tx0, g.tx0 + g.ntx - 1], "tz": [g.tz0, g.tz0 + g.ntz - 1]},
         "lakes": lake_list,
-        "anchors": anchors(g),
+        "anchors": anchors(keep),
         "tiles": tiles,
     }
     (out / "index.json").write_text(json.dumps(index, indent=1))
-    print(f"{len(tiles)} tiles ({g.ntx} x {g.ntz}), {len(lake_list)} lakes, "
+    print(f"{len(tiles)} tiles (grid {g.ntx} x {g.ntz}), {len(lake_list)} lakes, "
           f"relief {h.min():.0f} to {h.max():.0f} m, written to {out}")
     return index
 

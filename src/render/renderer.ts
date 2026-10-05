@@ -1,9 +1,10 @@
 // Render layer: reads simulation state and draws it. It never changes state.
 import * as THREE from 'three';
 import { CSM } from 'three/addons/csm/CSM.js';
-import { dateAt } from '../sim/clock';
+import { dateAt, daylight } from '../sim/clock';
 import { LeafFall, MAX_LEAVES } from './fallingLeaves';
 import { seasonLook } from './seasonLook';
+import { moonDirection, nightness, starDirections } from './nightSky';
 import { skyLook } from './skyLook';
 import { sunDirection } from './sunShadow';
 import { DIVE_RATE, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
@@ -41,6 +42,29 @@ export interface RenderOptions {
 /** The near cascade ends this far (metres) from the camera, and the far one at SHADOW_REACH. */
 const SHADOW_NEAR_SPLIT = 70;
 const SHADOW_REACH = 800;
+
+const STAR_COUNT = 700;
+
+/** A pale disc with a faint halo, as one texture for the moon sprite. */
+function createMoonTexture(): THREE.CanvasTexture {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const c = canvas.getContext('2d');
+  if (c) {
+    const g = c.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    g.addColorStop(0, 'rgba(240,245,255,1)');
+    g.addColorStop(0.26, 'rgba(232,238,252,1)');
+    g.addColorStop(0.3, 'rgba(210,222,245,0.35)');
+    g.addColorStop(0.55, 'rgba(190,205,235,0.08)');
+    g.addColorStop(1, 'rgba(190,205,235,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, size, size);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
 
 /** A bright core with a soft glow, as one texture for the sun sprite. */
 function createSunTexture(): THREE.CanvasTexture {
@@ -173,6 +197,25 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const leafScale = new THREE.Vector3(1, 1, 1);
   const leafPos = new THREE.Vector3();
 
+  // The moon and the stars, hung the same way as the sun and faded in as the light goes.
+  const moonSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: createMoonTexture(), transparent: true, fog: false, depthWrite: false }),
+  );
+  moonSprite.renderOrder = -1;
+  moonSprite.visible = false;
+  scene.add(moonSprite);
+  const starGeometry = new THREE.BufferGeometry();
+  const starUnit = starDirections(STAR_COUNT);
+  starGeometry.setAttribute('position', new THREE.BufferAttribute(starUnit.map((v) => v * camera.far * 0.9), 3));
+  const stars = new THREE.Points(
+    starGeometry,
+    new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, fog: false, depthWrite: false }),
+  );
+  stars.renderOrder = -1;
+  stars.frustumCulled = false;
+  stars.visible = false;
+  scene.add(stars);
+
   function resize(): void {
     gl.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -190,6 +233,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   let reach = 6.5;
   let lastFrame = 0;
   const UNDERWATER = new THREE.Color(0x2c7a96);
+  let lastUnderwater = 0x2c7a96;
 
   return {
     terrain,
@@ -292,6 +336,19 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       sunSprite.scale.setScalar(sunAt * (0.3 + 0.1 * low));
       sunSprite.material.color.setRGB(1, 1 - 0.35 * low, 1 - 0.65 * low);
       sunSprite.material.opacity = Math.min(1, sky.sun / 0.6);
+      if (sky.underwater !== lastUnderwater) {
+        lastUnderwater = sky.underwater;
+        UNDERWATER.set(sky.underwater);
+      }
+      const dark = nightness(daylight(date.timeOfDay));
+      const toMoon = moonDirection(date.timeOfDay);
+      moonSprite.visible = dark > 0.01 && !under;
+      moonSprite.position.set(camera.position.x + toMoon.x * sunAt, camera.position.y + toMoon.y * sunAt, camera.position.z + toMoon.z * sunAt);
+      moonSprite.scale.setScalar(sunAt * 0.12);
+      moonSprite.material.opacity = dark;
+      stars.visible = dark > 0.01 && !under;
+      stars.position.copy(camera.position);
+      stars.material.opacity = dark * 0.9;
       scene.background = under ? UNDERWATER : SKY_COLOR;
       if (scene.fog) {
         scene.fog.color.copy(under ? UNDERWATER : SKY_COLOR);

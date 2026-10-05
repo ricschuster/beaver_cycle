@@ -15,6 +15,11 @@ describe('sky look', () => {
     expect(night.ambient).toBeLessThan(skyLook('summer', 0.3).ambient);
   });
 
+  it('darkens the underwater view at night', () => {
+    expect(skyLook('summer', 0.3).underwater).toBe(0x2c7a96);
+    expect(skyLook('summer', 0.9).underwater).toBe(0x07151f);
+  });
+
   it('differs by season at midday', () => {
     expect(skyLook('autumn', 0.3).sky).not.toBe(skyLook('winter', 0.3).sky);
   });

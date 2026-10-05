@@ -25,6 +25,10 @@ export interface TestMenuOptions {
   locations: MenuLocation[];
   onSpeed(multiplier: number): void;
   onJump(id: string): void;
+  /** Test stand-in for entering and leaving a lodge (M4): the clock runs at half speed inside. */
+  onLodge(inLodge: boolean): void;
+  /** Sleep through the night; only does something in the lodge at night. */
+  onSleep(): void;
 }
 
 export interface TestMenu {
@@ -84,6 +88,27 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     speedRow.appendChild(b);
     speedButtons.set(m, b);
   }
+
+  const timeRow = row('Time');
+  const lodgeButton = document.createElement('button');
+  lodgeButton.dataset.action = 'lodge';
+  style(lodgeButton);
+  let inLodge = false;
+  const showLodge = (): void => {
+    lodgeButton.textContent = inLodge ? 'In lodge (half speed)' : 'Outside';
+  };
+  showLodge();
+  lodgeButton.onclick = () => {
+    inLodge = !inLodge;
+    showLodge();
+    opts.onLodge(inLodge);
+  };
+  const sleepButton = document.createElement('button');
+  sleepButton.textContent = 'Sleep to dawn';
+  sleepButton.dataset.action = 'sleep';
+  style(sleepButton);
+  sleepButton.onclick = () => opts.onSleep();
+  timeRow.append(lodgeButton, sleepButton);
 
   const jumpRow = row('Jump to');
   for (const loc of opts.locations) {

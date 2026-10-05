@@ -1,5 +1,6 @@
 // Simulation layer: game state and rules. No DOM, no three.js, no input, so
 // another device can later drive or mirror it (ADR 0007).
+import { START_CLOCK, nextDawn, isNight } from './clock';
 import type { Terrain } from './terrain';
 
 export type BeaverMode = 'walk' | 'swim' | 'dive';
@@ -26,6 +27,10 @@ export interface Slap {
 export interface WorldState {
   /** Simulated seconds since the start. */
   time: number;
+  /** Game clock in seconds from day 0 dawn. Runs at half rate in the lodge, and sleep skips it ahead. */
+  clock: number;
+  /** True while the beaver is in its lodge. A test toggle until the lodge exists (M5). */
+  inLodge: boolean;
   beaver: BeaverState;
   /** The most recent tail slap, or null before the first. */
   lastSlap: Slap | null;
@@ -85,7 +90,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {
@@ -95,4 +100,15 @@ export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): 
 /** Put the beaver at a point, on the ground or on the water, keeping its heading. */
 export function teleport(world: WorldState, terrain: Terrain, x: number, z: number): WorldState {
   return { ...world, beaver: { ...world.beaver, x, z, ...settle(terrain, x, z, { mode: 'walk', y: 0 }) } };
+}
+
+/** Test toggle until there is a lodge to enter: the clock runs at half speed while in. */
+export function setInLodge(world: WorldState, inLodge: boolean): WorldState {
+  return { ...world, inLodge };
+}
+
+/** Sleep through the night: in the lodge at night, jump the clock to the next dawn. Otherwise nothing happens. */
+export function sleep(world: WorldState): WorldState {
+  if (!world.inLodge || !isNight(world.clock)) return world;
+  return { ...world, clock: nextDawn(world.clock) };
 }

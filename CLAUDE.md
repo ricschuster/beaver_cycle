@@ -39,7 +39,9 @@ on a local WLAN, single player first, multiplayer kept in mind and open.
 Stylized 3D with a third person camera
 ([ADR 0005](docs/decisions/0005-third-person-camera.md)), and a world streamed
 in chunks, core first ([ADR 0006](docs/decisions/0006-streamed-world-core-first.md)).
-Terrain is BEV 5 m ([ADR 0002](docs/decisions/0002-terrain-source.md)). Tooling
+Terrain is BEV 5 m ([ADR 0002](docs/decisions/0002-terrain-source.md)), with
+2 m fine tiles near the lake from the BEV 1 m model
+([ADR 0008](docs/decisions/0008-one-metre-terrain-near-ring.md)). Tooling
 is Python with GDAL, numpy, and Pillow. The camera demo in
 `prototypes/camera-demo/` is throwaway. Game code lives in `src/`.
 
@@ -61,7 +63,8 @@ Everyday (gate means CI blocks a merge on it):
 - `python3 tools/area-editor/travel_graph.py` - rebuild travel links after a
   play shape changes
 - `python3 tools/tiles/build_tiles.py` - cut the core into streamable tiles in
-  `public/tiles/` (untracked, about 7 MB, 30 s); `python3 -m pytest tools/tiles`
+  `public/tiles/` (untracked, about 10 MB, 30 s; the first run also caches about
+  100 MB of the BEV 1 m terrain in `data/raw/` for the fine tiles, ADR 0008); `python3 -m pytest tools/tiles`
   checks them (needs `data/raw/`)
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene
 - `python3 scripts/build_question_docx.py QUESTIONS.md OUT.docx TEMPLATE.docx` -

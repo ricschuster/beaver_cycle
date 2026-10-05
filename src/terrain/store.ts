@@ -89,19 +89,33 @@ export class TileStore implements Terrain {
     return sampleHeight(tile, u, v);
   }
 
-  isWater(x: number, z: number): boolean {
+  /**
+   * Metres of water above the ground at a point. Water is where the ground is
+   * below the lake level, in a lake cell or beside one, which is the same rule
+   * the drawn lake surface follows, so the sim edge is the shoreline on screen.
+   */
+  waterDepth(x: number, z: number): number {
     const at = this.locate(x, z);
-    if (!at) return false;
+    if (!at) return 0;
     const { tile, u, v } = at;
-    const i = Math.min(Math.floor(u), tile.n - 1);
-    const j = Math.min(Math.floor(v), tile.n - 1);
-    return tile.classes[j * tile.n + i] === CLASS_LAKE;
+    const n = tile.n;
+    const i = Math.min(Math.floor(u), n - 1);
+    const j = Math.min(Math.floor(v), n - 1);
+    let lake = false;
+    for (let cj = Math.max(j - 1, 0); cj <= Math.min(j + 1, n - 1) && !lake; cj++) {
+      for (let ci = Math.max(i - 1, 0); ci <= Math.min(i + 1, n - 1); ci++) {
+        if (tile.classes[cj * n + ci] === CLASS_LAKE) {
+          lake = true;
+          break;
+        }
+      }
+    }
+    if (!lake) return 0;
+    const level = this.info.get(tileKey(tile.tx, tile.tz))?.lakeLevel_m;
+    return level == null ? 0 : Math.max(0, level - sampleHeight(tile, u, v));
   }
 
-  waterDepth(x: number, z: number): number {
-    if (!this.isWater(x, z)) return 0;
-    const s = this.size;
-    const level = this.info.get(tileKey(Math.floor(x / s), Math.floor(z / s)))?.lakeLevel_m;
-    return level == null ? 0 : Math.max(0, level - this.heightAt(x, z));
+  isWater(x: number, z: number): boolean {
+    return this.waterDepth(x, z) > 0;
   }
 }

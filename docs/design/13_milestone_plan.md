@@ -57,12 +57,11 @@ Prove or disprove the stack before building on it.
 ## M4: Time and seasons
 
 - Day and night clock, four seasons of ten days, and the lodge at half speed.
-- The day length is 8 real minutes, doubled from the 4 proposed, and still to tune
-  by playing (#114).
+- The day length is 8 real minutes, doubled from the 4 proposed. The author
+  played it and keeps it as is (#114).
 - First slice built: the clock and date (`src/sim/clock.ts`), sky and light by
   time and season, a clock readout, and test menu buttons for the lodge (half
-  speed) and sleep to dawn. The lodge is only a toggle until M5. Not yet: the
-  final day length.
+  speed) and sleep to dawn. The lodge is only a toggle until M5.
 - Seasonal colours (`src/render/seasonLook.ts`): spring is fresher, summer is
   the base look, autumn turns ochre and brown, and winter is snow on meadows
   and a pale forest floor, with darker trees. Colours hold through the middle

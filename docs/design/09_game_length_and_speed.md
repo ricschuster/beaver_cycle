@@ -35,6 +35,15 @@ Ideas, not decided:
 - The test menu with a speed multiplier and a jump to any location is a
   testing tool only (ADR 0006).
 
+## Breath
+
+The author wants a breath limit shorter than the real 15 minutes (Q24), and no
+losing. The first value is a guess to tune: 60 seconds under water (`BREATH_TIME`
+in `src/sim/state.ts`), refilled in 8 seconds at the surface or on land. When it
+runs out the beaver rises by itself and cannot dive again until a fifth of the
+breath is back. Nothing else happens. Breath time is real time, not scaled by the
+test speed multiplier. At 14 m/s diving, a minute reaches the far side of the lake.
+
 ## Game time
 
 Decided by the author:

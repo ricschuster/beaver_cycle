@@ -12,6 +12,8 @@ export interface BeaverState {
   mode: BeaverMode;
   /** Heading in radians, 0 faces +z. */
   heading: number;
+  /** Breath left, 0 to 1. Drains under water, refills at the surface and on land. */
+  breath: number;
 }
 
 /** A tail slap other beavers can hear: when and where it happened, in simulated time. */
@@ -49,6 +51,13 @@ export const DIVE_MIN_DEPTH = 1;
 /** Feet height above the lake bed when diving along the bottom, in metres. */
 export const DIVE_FLOOR = 0.15;
 
+/** Simulated seconds of breath under water. A short time on purpose (Q24); the real beaver holds 15 minutes. Not set by the author yet. */
+export const BREATH_TIME = 60;
+/** Seconds to refill from empty at the surface or on land. */
+export const BREATH_REFILL_TIME = 8;
+/** An empty beaver must recover this much breath before it dives again, so it does not bob at the limit. */
+export const BREATH_MIN_START = 0.2;
+
 /**
  * Where the feet are and which mode the beaver is in at a point, given how it was
  * before. Walks on dry ground and in shallows, floats in deep water, and goes
@@ -76,7 +85,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, beaver: { x, y, z, mode, heading: 0 }, lastSlap: null, speedMultiplier: 1 };
+  return { time: 0, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

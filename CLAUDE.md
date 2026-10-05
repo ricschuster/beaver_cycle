@@ -54,7 +54,7 @@ Everyday (gate means CI blocks a merge on it):
 - `npm run typecheck` - TypeScript check (gate)
 - `npm test` - Vitest unit tests (gate)
 - `npm run build` - type check and production build into `dist/` (gate)
-- `npm run test:e2e` - Playwright browser smoke test (gate; first run
+- `npm run test:e2e` - Playwright browser smoke test (gate; `E2E_PORT=5191` if 5173 is taken; first run
   `npx playwright install chromium`)
 - `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore LICENSE` -
   lint docs (gate)

@@ -112,3 +112,8 @@ export function sleep(world: WorldState): WorldState {
   if (!world.inLodge || !isNight(world.clock)) return world;
   return { ...world, clock: nextDawn(world.clock) };
 }
+
+/** Set the game clock directly. A test tool, like the speed multiplier. */
+export function setClock(world: WorldState, clock: number): WorldState {
+  return { ...world, clock };
+}

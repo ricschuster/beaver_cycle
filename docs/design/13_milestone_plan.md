@@ -68,7 +68,8 @@ Prove or disprove the stack before building on it.
   out to 800 m, faded together, so hills and far trees shade the valley too.
   Beyond 800 m the slope shading from the sun is all there is. Query switches
   for tablet tests: `?shadows=0`, `?cascades=1` (near only), `?shadowmap=1024`,
-  and `?day=2&time=0.3` to start at a time of day. Cost on the tablet is not
+  and `?day=2&time=0.3` to start at a time of day. The test menu also has
+  time of day, season, and shadow on/off buttons. Cost on the tablet is not
   measured yet.
 - Sleep through the night as a skip to the next day. The beaver's dream is the
   other idea from round 3 (Q65) and stays in Later until the author picks.

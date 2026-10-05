@@ -197,3 +197,13 @@ time from a cold start, and a weaker device.
 
 The real beaver and controls (M3), seasons and time (M4), lodge and dam pieces
 (M5), the other five locations' tiles, and any game rules.
+
+## Update: all six locations have tiles
+
+The tile tool now cuts the whole play area, not only the core (session 13). The
+core rectangle is unchanged. The other locations get the tiles within 640 m of
+their shapes, and the named markers (the Totes Gebirge, 8 km south) get the
+tiles around them, so the grid is sparse and about 570 tiles (17 MB). All
+buttons in the test menu are enabled. Fine 2 m tiles still exist only near the
+core lakes, because the BEV 1 m terrain is cached for the core only. The Oedsee
+and the other lakes have 5 m ground.

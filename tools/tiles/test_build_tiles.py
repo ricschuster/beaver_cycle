@@ -39,6 +39,8 @@ def test_lake_bed_is_below_the_lake_level(tiles):
     level = next(l["level_m"] for l in index["lakes"] if l["name"] == "Almsee")
     depths = []
     for t in index["tiles"]:
+        if t["lakeLevel_m"] is None or abs(t["lakeLevel_m"] - level) > 0.5:
+            continue  # tiles of the other lakes (the Oedsee) have their own level
         _, _, h, c = bt.read_tile(tiles / "L0" / f"{t['tx']}_{t['tz']}.bin")
         wet = c == bt.CLASSES["lake"]
         if wet.any():
@@ -54,6 +56,8 @@ def lake_depths_by_z(tiles, level):
     index = json.loads((tiles / "index.json").read_text())
     out = []
     for t in index["tiles"]:
+        if t["lakeLevel_m"] is None or abs(t["lakeLevel_m"] - level) > 0.5:
+            continue
         _, _, h, c = bt.read_tile(tiles / "L0" / f"{t['tx']}_{t['tz']}.bin")
         wet = c == bt.CLASSES["lake"]
         if not wet.any():

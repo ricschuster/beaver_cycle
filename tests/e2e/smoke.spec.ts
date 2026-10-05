@@ -35,10 +35,19 @@ test('the test menu sets the speed and jumps to a location', async ({ page }) =>
   expect(await page.evaluate(() => (window as any).__game.world().speedMultiplier)).toBe(100);
   // Locations exist only with tiles (absent in CI).
   if (hasTiles) {
-    await expect(page.locator('button[data-location="east-oedseen"]')).toBeDisabled();
+    for (const id of ['east-oedseen', 'hinterer-springbach', 'totes-gebirge']) {
+      await expect(page.locator(`button[data-location="${id}"]`)).toBeEnabled();
+    }
     await page.locator('button[data-location="north"]').click();
     await page.waitForFunction(() => (window as any).__game.world().beaver.z < -1900, null, { polling: 100 });
     expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(500);
+    // the far locations stand on real ground, well above the valley floor
+    await page.locator('button[data-location="east-oedseen"]').click();
+    await page.waitForFunction(() => (window as any).__game.world().beaver.x > 4800, null, { polling: 100 });
+    expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(650);
+    await page.locator('button[data-location="hinterer-springbach"]').click();
+    await page.waitForFunction(() => Math.abs((window as any).__game.world().beaver.x - 3207) < 50, null, { polling: 100 });
+    expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(750);
   }
   expect(errors).toEqual([]);
 });

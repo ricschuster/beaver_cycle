@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { createBeaverModel } from './beaverModel';
+import { SLAP_DURATION, createBeaverModel, slapPose } from './beaverModel';
 
 describe('createBeaverModel', () => {
   it('is about a metre and a half long with its tail, and stands on its origin', () => {
@@ -56,5 +56,39 @@ describe('createBeaverModel', () => {
     };
     expect(noseOverTail(1)).toBeLessThan(noseOverTail(0));
     expect(noseOverTail(-1)).toBeGreaterThan(noseOverTail(0));
+  });
+
+  describe('slapPose', () => {
+    it('does nothing before and after the slap', () => {
+      expect(slapPose(-0.1).tail).toBeNull();
+      expect(slapPose(SLAP_DURATION).tail).toBeNull();
+    });
+
+    it('raises the tail, slams it down, and settles', () => {
+      const raised = slapPose(0.28).tail!;
+      const slammed = slapPose(0.36).tail!;
+      expect(raised).toBeGreaterThan(1);
+      expect(slammed).toBeLessThan(0);
+      expect(Math.abs(slapPose(SLAP_DURATION - 0.001).tail!)).toBeLessThan(0.01);
+    });
+
+    it('is continuous, with no jumps from one moment to the next', () => {
+      let prev = slapPose(0).tail!;
+      for (let t = 0.005; t < SLAP_DURATION; t += 0.005) {
+        const cur = slapPose(t).tail!;
+        // the slam is the fastest part: about 1.45 rad in 0.08 s
+        expect(Math.abs(cur - prev)).toBeLessThan(0.12);
+        prev = cur;
+      }
+    });
+  });
+
+  it('moves the tail during a slap', () => {
+    const tailTip = (age: number | null): number => {
+      const m = createBeaverModel();
+      m.update(1, 0, 'walk', 0, age);
+      return new THREE.Box3().setFromObject(m.group).max.y;
+    };
+    expect(tailTip(0.28)).toBeGreaterThan(tailTip(null) + 0.1);
   });
 });

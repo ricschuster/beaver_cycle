@@ -7,9 +7,11 @@ export interface Actions {
   move: { x: number; z: number };
   /** Held to go under water, released to come up. False when missing. */
   dive?: boolean;
+  /** True on the frame the player presses the tail slap button, not while it is held. False when missing. */
+  slap?: boolean;
 }
 
-export const noActions = (): Actions => ({ move: { x: 0, z: 0 }, dive: false });
+export const noActions = (): Actions => ({ move: { x: 0, z: 0 }, dive: false, slap: false });
 
 /**
  * Turn a move given in the default view (forward is +z, left is +x) into a

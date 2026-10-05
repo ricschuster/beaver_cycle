@@ -10,13 +10,37 @@ const BELLY = 0xa8794a;
 const TAIL = 0x3b2a1a;
 const TEETH = 0xf2ead0;
 
+/** Seconds a tail slap takes to play: wind up, slam, settle. */
+export const SLAP_DURATION = 0.7;
+
+/** Tail angle (radians, positive lifts the tip) and body dip while slapping, `age` seconds after the press. */
+export function slapPose(age: number): { tail: number | null; dip: number } {
+  if (age < 0 || age >= SLAP_DURATION) return { tail: null, dip: 0 };
+  const WIND = 0.28;
+  const SLAM = 0.08;
+  const UP = 1.15;
+  const DOWN = -0.3;
+  if (age < WIND) {
+    const t = age / WIND;
+    return { tail: UP * (1 - (1 - t) * (1 - t)), dip: -0.05 * t };
+  }
+  if (age < WIND + SLAM) {
+    const t = (age - WIND) / SLAM;
+    return { tail: UP + (DOWN - UP) * t, dip: -0.05 + 0.2 * t };
+  }
+  const t = (age - WIND - SLAM) / (SLAP_DURATION - WIND - SLAM);
+  const ease = t * t * (3 - 2 * t);
+  return { tail: DOWN * (1 - ease), dip: 0.15 * (1 - ease) };
+}
+
 export interface BeaverModel {
   group: THREE.Group;
   /**
    * Poses the model. `time` is seconds, `speed01` is 0 standing and 1 at full pace,
-   * `mode` picks the pose, and `tilt` (-1 rising to 1 sinking) pitches a diver's nose.
+   * `mode` picks the pose, `tilt` (-1 rising to 1 sinking) pitches a diver's nose, and
+   * `slapAge` is the seconds since a tail slap began, or null.
    */
-  update(time: number, speed01: number, mode?: BeaverMode, tilt?: number): void;
+  update(time: number, speed01: number, mode?: BeaverMode, tilt?: number, slapAge?: number | null): void;
 }
 
 function part(geometry: THREE.BufferGeometry, color: number, x: number, y: number, z: number): THREE.Mesh {
@@ -78,7 +102,7 @@ export function createBeaverModel(): BeaverModel {
 
   return {
     group,
-    update(time, speed01, mode = 'walk', tilt = 0) {
+    update(time, speed01, mode = 'walk', tilt = 0, slapAge = null) {
       const dt = Math.min(Math.max(time - last, 0), 0.1);
       last = time;
       const ease = Math.min(1, dt * 8);
@@ -92,7 +116,8 @@ export function createBeaverModel(): BeaverModel {
       const swimBob = Math.sin(time * 3) * 0.015 * (0.4 + 0.6 * speed01);
       body.position.y = walkBob * (1 - swim) + swimBob * swim;
       // Nose down while sinking, up while rising; a diver also kicks harder.
-      body.rotation.x = -0.12 * swim * speed01 * (1 - under) + pitch * 0.9 * under;
+      const slapping = slapAge === null ? null : slapPose(slapAge);
+      body.rotation.x = -0.12 * swim * speed01 * (1 - under) + pitch * 0.9 * under + (slapping?.dip ?? 0);
       head.rotation.x = -0.15 * swim - pitch * 0.35 * under;
 
       legs.forEach((l, i) => {
@@ -105,7 +130,7 @@ export function createBeaverModel(): BeaverModel {
       });
 
       const walkTail = 0.35 + Math.sin(phase * 0.5) * 0.05 * speed01;
-      tail.rotation.x = walkTail * (1 - swim) + -0.05 * swim;
+      tail.rotation.x = slapping?.tail ?? walkTail * (1 - swim) + -0.05 * swim;
       tail.rotation.y = Math.sin(time * 2.5) * 0.25 * swim * speed01;
     },
   };

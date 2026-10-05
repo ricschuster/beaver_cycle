@@ -80,7 +80,7 @@ async function start(): Promise<void> {
     } else {
       const actions = readActions();
       const move = relativeToView(actions.move, rig.view.yaw);
-      world = step(world, { move, dive: actions.dive }, dt, terrain);
+      world = step(world, { move, dive: actions.dive, slap: actions.slap }, dt, terrain);
       streamer?.update(world.beaver.x, world.beaver.z);
       rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
     }

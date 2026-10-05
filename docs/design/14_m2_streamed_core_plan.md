@@ -280,3 +280,75 @@ regions do not touch each other, so no seam has a step.
 - `build_tiles.py` checks that fine tiles join and sit on the 5 m ground, and
   passes for all 70.
 - 1 m cells for dam sites stay open (M5, ADR 0008).
+
+## How a fine tile is meshed, and where it hitches
+
+Written in session 19 from the code (`src/terrain/streamer.ts`,
+`src/render/terrainView.ts`) and the `lakes` bench run. It describes what
+happens today, so a later fix has something to compare against.
+
+### The path from file to mesh
+
+1. The streamer wants a fine tile when the tile has a fine level and the beaver
+   is within `fineRing` (200 m) of it, plus 40 m of hysteresis once it is held.
+   Beyond that the tile is dropped. It fetches the file (nearest first, at most
+   four in flight) and `decodeTile` runs in the promise callback, so decoding is
+   on the main thread too.
+2. Each frame `TerrainView.update` compares what each tile shows with what is
+   wanted. A tile is rebuilt when its level changes (so a fine tile arriving
+   replaces the level 0 mesh) or when its stream data arrives. The old group is
+   disposed and a new one built.
+3. A rebuilt tile gets a group of up to four parts: the ground
+   (`buildTileGeometry`), the lake surface (`buildLakeGeometry`, only for tiles
+   with a lake level), the stream ribbons (`buildStreamGeometry`), and the
+   instanced trees (`placeTrees` then `buildTrees`). Trees are placed again on
+   the fine ground, so they move when the tile loads.
+4. Building is on the main thread, nearest tile first. `BUILD_BUDGET_MS` is 4 ms,
+   but it is only checked after a tile is finished, and at least one tile is
+   always built. A tile that takes longer than 4 ms therefore takes the whole
+   frame, and the budget cannot split it.
+
+### Size of one fine tile
+
+A fine tile is 320 m with 160 cells of 2 m, so 161 x 161 = 25,921 vertices and
+about 51,000 ground triangles, plus 640 skirt vertices with four triangles each.
+The ground builder walks every vertex, averages the colours of up to four cells
+and takes a height difference for the normal, and it fills the index in a plain
+JavaScript array that has about 300,000 entries before it is copied into a typed
+array. A level 0 tile has 65 x 65 vertices, about six times fewer. Trees on a
+fine tile use the level 0 density over 25,600 cells.
+
+### What the tablet showed
+
+The `lakes` bench mode (`node tools/tablet-live/bench.mjs lakes`, Tab A9+, 90 Hz)
+jumps to each fine tile region, waits for the tiles to settle, then samples
+standing still and walking at x5.
+
+| Place | Walking x5 fps | p99 ms | Worst frame ms |
+| --- | --- | --- | --- |
+| Alm outflow | 88.9 | 11.3 | 44.6 |
+| Almsee | 87.2 | 22.3 | 111.3 |
+| South shore bog | 89.8 | 11.3 | 11.3 |
+| Aagbach inflow | 89.8 | 11.3 | 11.3 |
+| East Oedseen | 89.8 | 11.3 | 11.3 |
+
+Standing still is clean everywhere (11.3 ms worst frame, 1.6 to 1.8 million
+triangles, heap 36 MB). The two spikes happened while walking, when the number
+of tiles held changed, which fits a fine tile being built. Session 18 saw the
+same kind of frame (33 ms) in the `fine` mode (ADR 0008). It is a single run per
+place, and nothing has been profiled, so the share of the time that goes to
+decoding, the ground, the lake, or the trees is not known. The Almsee shore has
+the largest tile count and lake surface to clip, which may be why it is worst.
+
+### Options, not yet decided
+
+- Measure first: time each part of a tile build on the tablet and print it in
+  the bench output, so the fix goes where the time is.
+- Build the parts of one tile on different frames (ground, then lake and
+  streams, then trees), so no frame builds the whole tile.
+- Build the ground in typed arrays from the start rather than a number array.
+- Smaller fine tiles (for example 80 m), as ADR 0008 suggests for 1 m cells.
+- Move decoding and the geometry work to a Web Worker, which is the plan in the
+  Risks section above.
+- Do the work spread over several frames only for tiles that are not under the
+  beaver, since the one it stands on is needed at once.

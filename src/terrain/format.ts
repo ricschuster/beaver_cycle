@@ -3,6 +3,13 @@
 
 export const CLASS_LAKE = 9;
 
+/**
+ * The fine level (prototype, ADR 0008): cells of 1 or 2 m cut from the BEV 1 m
+ * terrain, only for tiles near a lake. It is finer than level 0, and its tile
+ * has fewer or more cells per side than the others, so always use `tile.n`.
+ */
+export const LEVEL_FINE = 3;
+
 export interface IndexTile {
   tx: number;
   tz: number;
@@ -11,12 +18,14 @@ export interface IndexTile {
   max_m: number;
   /** Flat lake level in metres, when the tile has lake. */
   lakeLevel_m?: number | null;
+  /** The tile also has a fine level file (level 3). */
+  fine?: boolean;
 }
 
 export interface TileIndex {
   version: number;
   tileSize_m: number;
-  levels: { level: number; cell_m: number; cells: number }[];
+  levels: { level: number; cell_m: number; cells: number; fine?: boolean }[];
   heightScale_m: number;
   classes: Record<string, number>;
   tileRange: { tx: [number, number]; tz: [number, number] };

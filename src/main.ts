@@ -14,12 +14,15 @@ async function start(): Promise<void> {
   // Tiles are built locally (tools/tiles/build_tiles.py); without them the
   // game falls back to a flat plane.
   // Stress knobs for the tablet budgets (#53): ?rings=1000,2000 and ?trees=2.
+  // ?fine=300 sets how far the fine tiles (ADR 0008) show, 0 turns them off.
   const query = new URLSearchParams(location.search);
   const rings = query.get('rings')?.split(',').map(Number);
-  const streamOptions =
-    rings?.length === 2 && rings.every((r) => r > 0)
-      ? { ...defaultStreamerOptions, rings: [rings[0]!, rings[1]!] as [number, number] }
-      : undefined;
+  const fineRing = query.get('fine');
+  const streamOptions = {
+    ...defaultStreamerOptions,
+    ...(rings?.length === 2 && rings.every((r) => r > 0) ? { rings: [rings[0]!, rings[1]!] as [number, number] } : {}),
+    ...(fineRing !== null && Number.isFinite(Number(fineRing)) ? { fineRing: Number(fineRing) } : {}),
+  };
   const treeScale = Number(query.get('trees'));
   if (treeScale > 0) treeTuning.densityScale = treeScale;
 

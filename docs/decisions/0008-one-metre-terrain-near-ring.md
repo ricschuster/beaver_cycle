@@ -62,6 +62,31 @@ to 1 m with a cubic spline. Difference is 1 m minus 5 m, lake cells left out
   Joining a 1 m ring to 5 m ground with no correction would leave a visible step
   of up to about 1 m at the ring edge.
 
+## Prototype (2026-10-04)
+
+The tile tool can cut fine tiles (`python3 tools/tiles/build_tiles.py --fine 2`,
+or `--fine 1`; the first run caches about 100 MB of the BEV 1 m terrain in
+`data/raw/`). It is a prototype of the "1 m as the base" direction:
+
+- Only tiles within 100 m of a lake get a fine level (level 3, 37 of 266
+  tiles), so the shore and the bog are covered, not the whole core.
+- The 1 m heights are put on the 5 m datum by subtracting the 1 m minus 5 m
+  difference, smoothed over 100 m. The 1 m detail stays and the fine ground
+  meets the 5 m ground with no step (the median difference on dry ground is
+  about 0 m per tile, and `--check-only` asserts it).
+- The lake level and the lake bed rules are the 5 m ones, run on the fine grid.
+- The game shows a fine tile within `?fine=` metres of the beaver (default 200,
+  0 turns it off), and the beaver stands on it. Trees are placed on it with the
+  level 0 density.
+- Triangles (headless, normal view), without and with fine tiles at 2 m cells:
+  0.44 to 0.53 million without, 0.57 to 0.78 million with a 150 to 200 m ring,
+  and 0.76 to 0.98 million with 300 m. Each 2 m tile is about 51,000 triangles,
+  so a 1 m tile is about 205,000 and only a ring of about 150 m would stay under
+  the 1.5 million budget. Frame rate on the tablet is not measured yet.
+- Looks: the bank is a smooth slope and the shoreline steps are 2 m, not 5 m.
+  The lake water is still drawn in whole cells, so the water edge shows steps.
+  Cutting the water at the true shore line is a follow up.
+
 ## Decision
 
 Not yet taken. The proposal:

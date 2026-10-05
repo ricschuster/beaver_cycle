@@ -136,3 +136,56 @@ describe('Streamer', () => {
     expect(calls).toBe(2); // level 2 and level 0, once each
   });
 });
+
+describe('Streamer with fine tiles', () => {
+  const fineTile = (tx: number, tz: number, h: number) => ({
+    tx,
+    tz,
+    level: 3,
+    n: 8,
+    heights: new Float32Array(81).fill(h),
+    classes: new Uint8Array(64),
+  });
+
+  function setup() {
+    const index = makeIndex([0, 3], [0, 0]);
+    index.tiles[0]!.fine = true;
+    index.tiles[3]!.fine = true;
+    const store = new TileStore(index);
+    const calls: string[] = [];
+    const fetchTile: FetchTile = async (level, tx, tz) => {
+      calls.push(`${level}:${tx}`);
+      return level === 3 ? fineTile(tx, tz, 50) : makeTile(tx, tz, level, () => 10);
+    };
+    const streamer = new Streamer(store, fetchTile, { ...o, fineRing: 200 });
+    const run = async (x: number) => {
+      for (let i = 0; i < 6; i++) {
+        streamer.update(x, 160);
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    };
+    return { store, streamer, calls, run };
+  }
+
+  it('loads the fine level only for fine tiles within the fine ring, and answers heights from it', async () => {
+    const { store, streamer, calls, run } = setup();
+    await run(160);
+    expect(store.has(0, 0, 3)).toBe(true);
+    expect(streamer.wantsFine(0, 0)).toBe(true);
+    expect(store.has(1, 0, 3)).toBe(false); // no fine file for this tile
+    expect(calls).not.toContain('3:1');
+    expect(calls).not.toContain('3:3'); // far away
+    expect(store.heightAt(100, 100)).toBe(50);
+    expect(store.heightAt(500, 100)).toBe(10);
+  });
+
+  it('drops the fine level once the beaver is past the ring and its margin', async () => {
+    const { store, streamer, run } = setup();
+    await run(160);
+    await run(3 * 320 + 160);
+    expect(store.has(0, 0, 3)).toBe(false);
+    expect(streamer.wantsFine(0, 0)).toBe(false);
+    expect(store.has(3, 0, 3)).toBe(true);
+    expect(store.heightAt(100, 100)).toBe(10);
+  });
+});

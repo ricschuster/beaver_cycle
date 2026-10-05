@@ -47,7 +47,7 @@ async function start(): Promise<void> {
   // Locations first, then the named markers (the lake, the bog, the inflows) as test jump points.
   const anchors = store?.index.anchors ?? [];
   const menu = createTestMenu(document.body, {
-    speeds: [1, 5, 20, 100],
+    speeds: [1, 2, 5, 20, 100],
     locations: anchors.map((a) => ({ id: a.id, name: a.name, enabled: a.inTiles })),
     onSpeed(m) {
       world = setSpeedMultiplier(world, m);

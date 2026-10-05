@@ -6,6 +6,7 @@ import { createWorld, setSpeedMultiplier, teleport } from './sim/state';
 import { step } from './sim/step';
 import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
+import { createBreathMeter } from './ui/breathMeter';
 import { createTestMenu } from './ui/testMenu';
 import { treeTuning } from './terrain/trees';
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
@@ -65,6 +66,7 @@ async function start(): Promise<void> {
       menu.setStatus('Loading...');
     },
   });
+  const breathMeter = createBreathMeter(document.body);
   let fps = 60;
   let lastReadout = 0;
 
@@ -87,6 +89,7 @@ async function start(): Promise<void> {
       streamer?.update(world.beaver.x, world.beaver.z);
       rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
     }
+    breathMeter.set(world.beaver.breath);
     renderer.draw(world, rig.view);
     if (now - lastReadout > 500) {
       lastReadout = now;

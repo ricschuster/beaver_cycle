@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
 import { flatTerrain, type Terrain } from './terrain';
-import { SLAP_COOLDOWN, DIVE_FLOOR, DIVE_MIN_DEPTH, DIVE_RATE, DIVE_SPEED, SWIM_ENTER_DEPTH, SWIM_EXIT_DEPTH, SWIM_SINK, SWIM_SPEED, WALK_SPEED, createWorld, setSpeedMultiplier, teleport } from './state';
+import { BREATH_MIN_START, BREATH_REFILL_TIME, BREATH_TIME, SLAP_COOLDOWN, DIVE_FLOOR, DIVE_MIN_DEPTH, DIVE_RATE, DIVE_SPEED, SWIM_ENTER_DEPTH, SWIM_EXIT_DEPTH, SWIM_SINK, SWIM_SPEED, WALK_SPEED, createWorld, setSpeedMultiplier, teleport } from './state';
 import { step } from './step';
 
 const flat = flatTerrain(0);
@@ -166,6 +166,62 @@ describe('step', () => {
       w = step(w, { move: { x: 0, z: -1 }, dive: true }, 3, lake);
       expect(w.beaver.mode).toBe('walk');
       expect(w.beaver.y).toBeCloseTo(100);
+    });
+  });
+
+  describe('breath', () => {
+    const lake: Terrain = {
+      heightAt: (_x, z) => (z >= 10 ? 96 : 100),
+      isWater: (_x, z) => z >= 10,
+      waterDepth: (_x, z) => (z >= 10 ? 4 : 0),
+    };
+    const dive = { move: { x: 0, z: 0 }, dive: true };
+    const idle = { move: { x: 0, z: 0 } };
+
+    it('starts full and stays full on land and at the surface', () => {
+      let w = createWorld(lake, 0, 20);
+      expect(w.beaver.breath).toBe(1);
+      w = step(w, idle, 5, lake);
+      expect(w.beaver.breath).toBe(1);
+    });
+
+    it('drains under water by one breath time in total', () => {
+      let w = step(createWorld(lake, 0, 20), dive, 1, lake);
+      w = step(w, dive, 1, lake);
+      expect(w.beaver.mode).toBe('dive');
+      expect(w.beaver.breath).toBeCloseTo(1 - 2 / BREATH_TIME, 5);
+    });
+
+    it('is not scaled by the test speed multiplier', () => {
+      let w = setSpeedMultiplier(createWorld(lake, 0, 20), 100);
+      w = step(step(w, dive, 1, lake), dive, 1, lake);
+      expect(w.beaver.breath).toBeCloseTo(1 - 2 / BREATH_TIME, 5);
+    });
+
+    it('refills at the surface', () => {
+      let w = step(createWorld(lake, 0, 20), dive, 1, lake);
+      w = { ...w, beaver: { ...w.beaver, breath: 0.5 } };
+      w = step(w, idle, 2, lake);
+      expect(w.beaver.breath).toBeCloseTo(0.5 + 2 / BREATH_REFILL_TIME, 5);
+    });
+
+    it('rises by itself when the breath runs out, and loses nothing else', () => {
+      let w = step(createWorld(lake, 0, 20), dive, 1, lake);
+      w = step(w, dive, 1, lake);
+      w = { ...w, beaver: { ...w.beaver, breath: 0.001 } };
+      for (let i = 0; i < 5; i++) w = step(w, dive, 0.5, lake);
+      expect(w.beaver.mode).toBe('swim');
+      expect(w.beaver.breath).toBeLessThan(BREATH_MIN_START);
+    });
+
+    it('does not dive again until some breath is back', () => {
+      let w = createWorld(lake, 0, 20);
+      w = { ...w, beaver: { ...w.beaver, breath: BREATH_MIN_START - 0.05 } };
+      w = step(w, dive, 0.1, lake);
+      expect(w.beaver.mode).toBe('swim');
+      w = { ...w, beaver: { ...w.beaver, breath: BREATH_MIN_START } };
+      w = step(w, dive, 0.5, lake);
+      expect(w.beaver.mode).toBe('dive');
     });
   });
 

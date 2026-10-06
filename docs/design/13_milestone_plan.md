@@ -145,7 +145,7 @@ the quality budget (#120).
   water hole in the floor; the beaver walks round the hole and over the nest
   (half speed clock). Sleep and the dream are offered only on the nest at night.
   The way out is the water hole: stand by it and press Build, and the beaver
-  dives out of the entrance. The family joins the room later (M6). The test menu toggle stays. While dragging a log with no lodge
+  dives out of the entrance. The family joins the room later (M6). For testing, the game starts with a whole lodge at the nearest valid spot to the start (`findSite`); `?lodge=0` leaves it out. The test menu toggle stays. While dragging a log with no lodge
   yet, a ring on the spot ahead is green where a lodge can start and red where
   not, and the HUD says why (face the water, too deep, no deep water near). No mud or rock yet, a log that cannot be placed stays in the beaver's mouth, and one
   lodge per world. Numbers are a first guess. Wear and the glowing repair circle

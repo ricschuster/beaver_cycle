@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { noActions, type Actions } from '../actions/actions';
-import { DOOR_DISTANCE, HOLE, INTERIOR_RADIUS, NEST, LODGE_REACH, LODGE_WOOD, SOLID_RADIUS, addWood, atHole, atNest, doorPoint, checkSite, lodgeComplete, lodgeProgress, lodgeSite, logWood } from './lodge';
+import { DOOR_DISTANCE, HOLE, INTERIOR_RADIUS, NEST, LODGE_REACH, LODGE_WOOD, SOLID_RADIUS, addWood, atHole, atNest, doorPoint, findSite, checkSite, lodgeComplete, lodgeProgress, lodgeSite, logWood } from './lodge';
 import type { Log } from './logs';
 import { isNight } from './clock';
 import { canSleep, createWorld, type WorldState } from './state';
 import { step } from './step';
-import type { Terrain } from './terrain';
+import { flatTerrain, type Terrain } from './terrain';
 
 /** Dry land for z < 0, then a lake whose depth grows 0.5 m per metre south of the shore (z = 0), so it is deep from z = 3. */
 const shore: Terrain = {
@@ -48,6 +48,16 @@ describe('site check', () => {
     expect(checkSite(shore, 0, 5, 0).problem).toBe('deep');
     const puddle: Terrain = { ...shore, waterDepth: (x, z) => (Math.hypot(x, z - 2) < 8 ? 0.5 : 0) };
     expect(checkSite(puddle, 0, -1, 0).problem).toBe('far');
+  });
+});
+
+describe('find site', () => {
+  it('finds the nearest spot where a lodge can start, or none', () => {
+    const site = findSite(shore, 0, -10, 40);
+    expect(site).not.toBeNull();
+    expect(site!.z).toBeGreaterThan(0);
+    expect(site!.z).toBeLessThan(4);
+    expect(findSite(flatTerrain(0), 0, 0, 40)).toBeNull();
   });
 });
 

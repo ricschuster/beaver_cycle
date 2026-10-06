@@ -3,7 +3,6 @@
 // come with the dam (15_build_and_repair.md). Plain data and pure functions, no three.js (ADR 0007).
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
-import { DIVE_MIN_DEPTH } from './state';
 import type { Trunk } from './trees';
 
 export interface Lodge {
@@ -28,8 +27,12 @@ export const SITE_AHEAD = 3;
 /** A lodge site is shallow water or the wet shore: deeper than this it is too deep to pile logs on, shallower is dry land. */
 export const SITE_MIN_DEPTH = 0.1;
 export const SITE_MAX_DEPTH = 1.2;
-/** The entrance is under water, so deep water must lie within this many metres of the site. */
-export const SITE_DEEP_REACH = 6;
+/**
+ * The entrance is under water, so the water at the door must be deep enough to dive in, with some to spare, and stay
+ * that deep for `DOOR_RUN` metres further out (the way in, and later the food store beside it).
+ */
+export const DOOR_MIN_DEPTH = 1.2;
+export const DOOR_RUN = 3;
 
 /** The dome is solid out to this radius (a trunk to the beaver), a little inside the drawn dome. */
 export const SOLID_RADIUS = LODGE_RADIUS - 0.2;
@@ -107,25 +110,19 @@ export function checkSpot(terrain: Terrain, sx: number, sz: number): SiteCheck {
   const fail = (problem: SiteProblem): SiteCheck => ({ x: sx, z: sz, problem, lodge: null });
   if (depth < SITE_MIN_DEPTH) return fail('dry');
   if (depth > SITE_MAX_DEPTH) return fail('deep');
-  let deep = false;
-  for (let r = 2; r <= SITE_DEEP_REACH && !deep; r += 2) {
-    for (let i = 0; i < 8 && !deep; i++) {
-      const a = (i * Math.PI) / 4;
-      deep = terrain.waterDepth(sx + Math.sin(a) * r, sz + Math.cos(a) * r) >= DIVE_MIN_DEPTH;
-    }
-  }
-  if (!deep) return fail('far');
-  // The entrance faces the deepest water around the site.
+  // The entrance faces the direction where the water is deepest at the door and along the way out.
   let door = 0;
-  let deepest = -1;
+  let best = -1;
   for (let i = 0; i < 16; i++) {
     const a = (i * Math.PI) / 8;
-    const d = terrain.waterDepth(sx + Math.sin(a) * 4, sz + Math.cos(a) * 4);
-    if (d > deepest) {
-      deepest = d;
+    const at = (r: number): number => terrain.waterDepth(sx + Math.sin(a) * r, sz + Math.cos(a) * r);
+    const d = Math.min(at(DOOR_DISTANCE), at(DOOR_DISTANCE + DOOR_RUN));
+    if (d > best) {
+      best = d;
       door = a;
     }
   }
+  if (best < DOOR_MIN_DEPTH) return fail('far');
   return { x: sx, z: sz, problem: null, lodge: { x: sx, z: sz, base: terrain.heightAt(sx, sz) + depth, door, wood: 0 } };
 }
 

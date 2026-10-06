@@ -49,6 +49,17 @@ describe('site check', () => {
     const puddle: Terrain = { ...shore, waterDepth: (x, z) => (Math.hypot(x, z - 2) < 8 ? 0.5 : 0) };
     expect(checkSite(puddle, 0, -1, 0).problem).toBe('far');
   });
+
+  it('needs deep water at the door, not just somewhere near', () => {
+    // A deep hole 5 m out at z = 7 is too far for the door (2.9 m) and its run, so the door would open onto shallows.
+    const hole: Terrain = { ...shore, waterDepth: (x, z) => (Math.hypot(x, z - 12) < 3 ? 3 : z > 1 && z < 3 ? 1 : 0.4) };
+    expect(checkSite(hole, 0, -1, 0).problem).toBe('far');
+    // Deep water right in front of the door is fine, and the door faces it.
+    const deepAhead: Terrain = { ...shore, waterDepth: (x, z) => (z > 4 ? 2 : z > 1 ? 1 : 0) };
+    const ok = checkSite(deepAhead, 0, -1, 0);
+    expect(ok.problem).toBeNull();
+    expect(Math.cos(ok.lodge!.door)).toBeGreaterThan(0.9);
+  });
 });
 
 describe('find site', () => {

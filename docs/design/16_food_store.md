@@ -56,12 +56,19 @@ Built in session 28. The sim is in `src/sim/food.ts`, the heap is drawn by
 - The HUD shows the piece in the mouth, the store as "12 of 40", and what a
   press would do here.
 
-- **Lily pads** (`src/sim/lily.ts`, `src/render/lilyView.ts`, my defaults, not
-  the author's): green discs float in water 0.6 to 2.5 m deep, on a 5 m grid
-  with about 4 cells in 10 holding one, the same places every time. Gnaw within
-  1.8 m of a pad, at the surface or on foot, with an empty mouth, picks it into
-  the mouth. It goes in the store and is eaten like a branch. They die back in
-  winter (Q45) and a picked pad grows back the next year (`WorldState.picked`).
+- **Lily pads** (`src/sim/lily.ts`, `src/render/lilyView.ts`; the clusters are
+  the author's call from session 30, the numbers are my defaults): green discs
+  float in patches, like a bay full of them. A patch is 7 to 15 m from its
+  centre, thick in the middle and thin at the edge. About 7 in 10 cells of 40 m
+  hold a patch, but only where the water at its centre is 0.3 to 2.5 m deep, so
+  patches lie in shallow bays and not on steep banks. The same places every
+  time, nothing saved. Gnaw within 1.8 m of a pad, at the surface or on foot,
+  with an empty mouth, picks it into the mouth. It goes in the store and is
+  eaten like a branch. They die back in winter (Q45) and a picked pad grows
+  back the next year (`WorldState.picked`).
+- Session 30 fix: the first version used 0.6 m as the least depth and spread
+  pads evenly, and the lake near the start is steep, so none lay within 100 m
+  of the start. With patches and 0.3 m the nearest lie about 90 m away.
 
 ## Open numbers
 
@@ -74,8 +81,8 @@ First guesses, to tune on the tablet:
 
 ## Not decided
 
-- Whether lily pads should cluster in a bay instead of lying evenly, and how
-  many a year the lake gives.
+- How many pads a year the lake gives, and whether the lake near the lodge has
+  a bay for them.
 - The wear of the store (doc 15) is not built.
 - How the store looks as it fills and as it wears.
 - Whether the store has its own repair glow, or shares the lodge's.

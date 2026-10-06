@@ -1,6 +1,7 @@
 import { LODGE_CLOCK_RATE } from './clock';
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
+import { LODGE_REACH, addWood, lodgeComplete, lodgeSite, nearLodge } from './lodge';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
 import { BREATH_MIN_START, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
@@ -45,7 +46,8 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   // On land the beaver climbs over a log that lies in its way; in water it pushes floating ones aside.
   const lift = settled.mode === 'walk' ? climbLift(world.logs, nx, nz, world.drag) : 0;
   const after = { ...b, x: nx, z: nz, ...settled, y: settled.y + lift, breath, heading };
-  const { chop, felled, logs, drag } = work({ ...world, logs: pushed }, after, actions, dt, len > 0, trees, terrain);
+  const built = build({ ...world, logs: pushed }, after, actions, terrain);
+  const { chop, felled, logs, drag } = work(built, after, actions, dt, len > 0, trees, terrain);
   return {
     ...world,
     time,
@@ -53,10 +55,36 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
     felled,
     logs,
     drag,
+    lodge: built.lodge,
+    inLodge: built.inLodge,
     clock: world.clock + dt * (world.inLodge ? LODGE_CLOCK_RATE : 1),
     lastSlap,
     beaver: after,
   };
+}
+
+/**
+ * The build button, one action for what is at hand. Dragging a log: put it on the lodge, which starts a new one at
+ * a spot in shallow water ahead of the beaver if there is none yet. Not dragging, near a whole lodge: go in or out.
+ * Walking away from the lodge leaves it. A log that cannot be placed stays in the beaver's mouth.
+ */
+function build(world: WorldState, b: BeaverState, actions: Actions, terrain: Terrain): WorldState {
+  let { lodge, logs, drag, inLodge } = world;
+  if (inLodge && lodge && !nearLodge(lodge, b.x, b.z, LODGE_REACH + 1)) inLodge = false;
+  if (actions.build && b.mode !== 'dive') {
+    const log = drag ? logs.find((l) => l.id === drag) : undefined;
+    if (log) {
+      const target = lodge ?? lodgeSite(terrain, b.x, b.z, b.heading);
+      if (target && !lodgeComplete(target) && nearLodge(target, b.x, b.z)) {
+        lodge = addWood(target, log);
+        logs = logs.filter((l) => l.id !== log.id);
+        drag = null;
+      }
+    } else if (lodgeComplete(lodge) && nearLodge(lodge, b.x, b.z)) {
+      inLodge = !inLodge;
+    }
+  }
+  return { ...world, lodge, logs, drag, inLodge };
 }
 
 /**

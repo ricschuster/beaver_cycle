@@ -62,6 +62,13 @@ describe('createKeyboardInput', () => {
     expect(k.read().grab).toBe(false);
   });
 
+  it('builds once per press of B', () => {
+    const k = setup();
+    k.press('KeyB');
+    expect(k.read().build).toBe(true);
+    expect(k.read().build).toBe(false);
+  });
+
   it('keeps Space from pressing the focused button', () => {
     const target = new EventTarget();
     createKeyboardInput(target as unknown as Window);

@@ -2,6 +2,7 @@ import { mergeActions, relativeToView } from './actions/actions';
 import { createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { createRenderer } from './render/renderer';
+import { lodgeProgress } from './sim/lodge';
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
 import { canSleep, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport } from './sim/state';
 import { step } from './sim/step';
@@ -127,13 +128,13 @@ async function start(): Promise<void> {
     } else {
       const actions = mergeActions(readKeyboard(), touch.read());
       const move = relativeToView(actions.move, rig.view.yaw);
-      world = step(world, { move, dive: actions.dive, slap: actions.slap, chop: actions.chop, grab: actions.grab }, dt, terrain, trees);
+      world = step(world, { move, dive: actions.dive, slap: actions.slap, chop: actions.chop, grab: actions.grab, build: actions.build }, dt, terrain, trees);
       streamer?.update(world.beaver.x, world.beaver.z);
       rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
     }
     breathMeter.set(world.beaver.breath);
     clockHud.set(world.clock);
-    carryHud.set(world.felled.length, world.drag !== null, world.chop ? world.chop.progress / CHOP_TIME : null);
+    carryHud.set(world.felled.length, world.drag !== null, world.chop ? world.chop.progress / CHOP_TIME : null, world.lodge ? lodgeProgress(world.lodge) : null);
     sleepPrompt.setAvailable(canSleep(world));
     renderer.draw(world, rig.view);
     if (now - lastReadout > 500) {

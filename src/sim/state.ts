@@ -1,6 +1,7 @@
 // Simulation layer: game state and rules. No DOM, no three.js, no input, so
 // another device can later drive or mirror it (ADR 0007).
 import { START_CLOCK, nextDawn, isNight } from './clock';
+import { emptyStock, type Food, type Stock } from './food';
 import { atNest, type Lodge } from './lodge';
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
@@ -46,6 +47,14 @@ export interface WorldState {
   felled: string[];
   /** The tree being gnawed and how many seconds are done, or null. Standing still is needed; moving stops it. */
   chop: { id: string; x: number; z: number; wood: number; progress: number } | null;
+  /** The piece of food in the beaver's mouth, or null. A log being dragged and a piece in the mouth exclude each other. */
+  carry: Food | null;
+  /** The food store beside the lodge door: what is in it. Usable once the lodge is whole. */
+  store: Stock;
+  /** Branches stripped so far off each log, by log id, so a log runs out (`branchesOf`). */
+  stripped: Record<string, number>;
+  /** Pieces eaten so far inside the lodge. Eating has no effect on the beaver yet (Q17), this only counts. */
+  eaten: number;
   /** Test setting that scales movement speed (x1, x5, x20, x100). Not a game rule. */
   speedMultiplier: number;
 }
@@ -102,7 +111,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, store: emptyStock(), stripped: {}, eaten: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

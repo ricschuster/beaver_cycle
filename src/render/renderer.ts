@@ -17,6 +17,7 @@ import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
 import { INTERIOR_RADIUS } from '../sim/lodge';
 import { createLodgeView } from './lodgeView';
 import { createLogView } from './logView';
+import { createStoreView } from './storeView';
 import { createTerrainView, type TerrainView } from './terrainView';
 
 /** Tiles to draw, when they exist. Without them the game shows a flat plane. */
@@ -158,6 +159,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
 
   const logView = createLogView(scene, shadows, prepare);
   const lodgeView = createLodgeView(scene, shadows, prepare);
+  const storeView = createStoreView(scene, shadows, prepare);
   const interior = createLodgeInterior();
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
@@ -392,6 +394,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       }
       terrain?.update(b.x, b.z);
       lodgeView.update(inside ? null : world.lodge);
+      storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0));
       csm?.update();
       gl.render(drawn, camera);
     },

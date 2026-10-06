@@ -1,6 +1,7 @@
 import { LODGE_CLOCK_RATE } from './clock';
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
+import { atStore, pieceFrom, stored, strippable, taken } from './food';
 import { DOOR_DISTANCE, ENTER_DISTANCE, addWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
@@ -51,9 +52,14 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   const lift = settled.mode === 'walk' ? climbLift(world.logs, nx, nz, world.drag) : 0;
   const after = { ...b, x: nx, z: nz, ...settled, y: settled.y + lift, breath, heading };
   const { world: built, beaver } = build({ ...world, logs: pushed }, after, actions, { x, z }, terrain);
-  const { chop, felled, logs, drag } = work(built, beaver, actions, dt, len > 0, trees, terrain);
+  // With a piece in the mouth the beaver cannot grab a log, and in the lodge the gnaw button eats it instead.
+  const eating = built.inLodge && world.carry !== null && !!actions.chop;
+  const workActions = { ...actions, chop: actions.chop && !eating, grab: actions.grab && !(world.carry && !world.drag) };
+  const { chop, felled, logs, drag } = work(built, beaver, workActions, dt, len > 0, trees, terrain);
+  const food = feed({ ...built, logs, drag, chop }, beaver, actions, eating, world.drag === null);
   return {
     ...world,
+    ...food,
     time,
     chop,
     felled,
@@ -97,6 +103,37 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
     }
   }
   return { world: { ...world, lodge, logs, drag, inLodge }, beaver };
+}
+
+/**
+ * The food. Gnawing a log with no tree to gnaw strips a branch into the mouth. At the store the build button drops
+ * the piece in, and the drag button takes one out when the mouth is empty (it does not, if it just let go of a log or
+ * took hold of one). Inside the lodge the gnaw button eats the piece.
+ */
+function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean): Pick<WorldState, 'carry' | 'store' | 'stripped' | 'eaten'> {
+  let { carry, store, stripped, eaten } = world;
+  if (eating) return { carry: null, store, stripped, eaten: eaten + 1 };
+  if (world.inLodge) return { carry, store, stripped, eaten };
+  if (carry && actions.build && atStore(world.lodge, b.x, b.z)) {
+    const after = stored(store, carry);
+    if (after !== store) {
+      store = after;
+      carry = null;
+    }
+  } else if (!carry && actions.grab && wasFree && world.drag === null && atStore(world.lodge, b.x, b.z)) {
+    const piece = pieceFrom(store);
+    if (piece) {
+      store = taken(store, piece);
+      carry = piece;
+    }
+  } else if (!carry && actions.chop && !world.chop && !world.drag && b.mode !== 'dive') {
+    const log = strippable(world.logs, stripped, b.x, b.z);
+    if (log) {
+      stripped = { ...stripped, [log.id]: (stripped[log.id] ?? 0) + 1 };
+      carry = 'branch';
+    }
+  }
+  return { carry, store, stripped, eaten };
 }
 
 /**

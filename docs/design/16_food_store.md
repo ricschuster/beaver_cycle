@@ -36,15 +36,41 @@ store.
 Near the start the shore is shallow, so the test lodge moved from 132 m to
 144 m away. A depth of 1.5 m found no spot within 300 m.
 
+## How it works in the game
+
+Built in session 28. The sim is in `src/sim/food.ts`, the heap is drawn by
+`src/render/storeView.ts`.
+
+- The store lies `STORE_DISTANCE` (about 4.4 m) from the lodge's centre toward
+  the door, once the lodge is whole. It is a heap of branches on the lake bed
+  that grows as it fills, and a few sticks mark it when empty.
+- **Branches come from felled logs.** Pressing Gnaw next to a log, with no tree
+  to gnaw and nothing in the mouth, strips one branch into the mouth. A log
+  gives one branch a metre of its length (4 or 6), then it is bare.
+- **Drop in:** Build at the store (within 3.5 m, at the surface or diving) puts
+  the piece in. A full store keeps the piece in the mouth.
+- **Take out:** Drag at the store with an empty mouth takes a piece, branches
+  first. A beaver with a piece in its mouth cannot take hold of a log.
+- **Eat:** inside the lodge, Gnaw eats the piece in the mouth. Eating only
+  counts (`eaten`), as not eating has no effect (Q17).
+- The HUD shows the piece in the mouth, the store as "12 of 40", and what a
+  press would do here.
+
+Lily pads are in the store's data (`Stock.lily`) but nothing gives the beaver
+one yet. Lily pads need a source in the water, which is not built.
+
 ## Open numbers
 
 First guesses, to tune on the tablet:
 
-- Capacity: about 40 pieces for 7 beavers over a winter.
+- Capacity: 40 pieces (`STORE_CAPACITY`) for 7 beavers over a winter. No winter
+  need is simulated yet, so it is a guess.
 - Portions: a branch gives more than a lily pad.
 - Lily pads stay in the store until eaten, since they would die outside.
 
 ## Not decided
 
+- Where lily pads come from, and when they are picked.
+- The wear of the store (doc 15) is not built.
 - How the store looks as it fills and as it wears.
 - Whether the store has its own repair glow, or shares the lodge's.

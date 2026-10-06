@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { formatCarry } from './carryHud';
+import { LODGE_WOOD } from '../sim/lodge';
+import { createWorld } from '../sim/state';
+import { flatTerrain } from '../sim/terrain';
+import { formatCarry, foodInfoOf } from './carryHud';
 
 describe('carry hud', () => {
   it('shows the trees felled', () => {
@@ -30,5 +33,25 @@ describe('carry hud', () => {
     expect(formatCarry(1, false, null, 1, null, 'hole')).toBe('in the lodge, press Build to dive out through the water hole');
     expect(formatCarry(1, false, null, 1, null, 'room')).toBe('in the lodge, the water hole is the way out');
     expect(formatCarry(1, false, null, 1, null, null)).toBe('1 tree felled, lodge done');
+  });
+});
+
+describe('food line', () => {
+  const lodge = { x: 0, z: 0, base: 0, door: 0, wood: LODGE_WOOD };
+
+  it('says what is in the mouth, the store, and what a press does', () => {
+    const info = { carry: 'branch' as const, store: { total: 12, capacity: 40 }, hint: 'store' as const };
+    expect(formatCarry(2, false, null, 1, null, null, info)).toBe('2 trees felled, lodge done, carrying a branch, store 12 of 40, press Build to put it in the store');
+    expect(formatCarry(2, false, null, null, null, 'nest', { carry: null, store: null, hint: null })).toBe('in the lodge, on the nest');
+  });
+
+  it('has nothing to say before there is food or a lodge', () => {
+    expect(foodInfoOf(createWorld(flatTerrain(0)))).toBeNull();
+  });
+
+  it('shows the store once the lodge is whole, and eating inside', () => {
+    const w = { ...createWorld(flatTerrain(0)), lodge };
+    expect(foodInfoOf(w)).toEqual({ carry: null, store: { total: 0, capacity: 40 }, hint: null });
+    expect(foodInfoOf({ ...w, carry: 'branch', inLodge: true })!.hint).toBe('eat');
   });
 });

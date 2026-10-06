@@ -10,7 +10,7 @@ import { CHOP_TIME, noTrees, type TreeSource } from './sim/trees';
 import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
-import { createCarryHud } from './ui/carryHud';
+import { createCarryHud, foodInfoOf } from './ui/carryHud';
 import { createClockHud } from './ui/clockHud';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
@@ -144,7 +144,7 @@ async function start(): Promise<void> {
     renderer.setLodgePreview(site ? { x: site.x, y: terrain.heightAt(site.x, site.z) + terrain.waterDepth(site.x, site.z), z: site.z, ok: site.problem === null } : null);
     const l = world.inLodge ? world.lodge : null;
     const spot = l ? (atHole(l, world.beaver.x, world.beaver.z) ? 'hole' : atNest(l, world.beaver.x, world.beaver.z) ? 'nest' : 'room') : null;
-    carryHud.set(world.felled.length, world.drag !== null, world.chop ? world.chop.progress / CHOP_TIME : null, world.lodge ? lodgeProgress(world.lodge) : null, site?.problem ?? (site ? 'ok' : null), spot);
+    carryHud.set(world.felled.length, world.drag !== null, world.chop ? world.chop.progress / CHOP_TIME : null, world.lodge ? lodgeProgress(world.lodge) : null, site?.problem ?? (site ? 'ok' : null), spot, foodInfoOf(world));
     sleepPrompt.setAvailable(canSleep(world));
     renderer.draw(world, rig.view);
     if (now - lastReadout > 500) {

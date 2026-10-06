@@ -13,6 +13,8 @@ import type { TileStore } from '../terrain/store';
 import { createBeaverModel } from './beaverModel';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
+import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
+import { INTERIOR_RADIUS } from '../sim/lodge';
 import { createLodgeView } from './lodgeView';
 import { createLogView } from './logView';
 import { createTerrainView, type TerrainView } from './terrainView';
@@ -156,6 +158,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
 
   const logView = createLogView(scene, shadows, prepare);
   const lodgeView = createLodgeView(scene, shadows, prepare);
+  const interior = createLodgeInterior();
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
   scene.add(beaver);
@@ -277,9 +280,13 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         splash.scale.setScalar(0.4 + f * 2.6);
         splashMaterial.opacity = 0.8 * (1 - f);
       }
+      // In the lodge the beaver moves to the room's own scene, which is drawn instead of the world.
+      const inside = world.inLodge && world.lodge !== null;
+      const drawn = inside ? interior.scene : scene;
+      if (beaver.parent !== drawn) drawn.add(beaver);
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
-      const look = { x: b.x, y: b.y + 1.2, z: b.z };
+      const look = { x: b.x, y: b.y + 1.0, z: b.z };
       const flat = Math.cos(view.pitch);
       const want = {
         x: b.x + Math.sin(view.yaw) * view.dist * flat,
@@ -287,7 +294,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         z: b.z + Math.cos(view.yaw) * view.dist * flat,
       };
       // Pull in before a tree, shortening at once and easing back out.
-      const clear = terrain ? clearDistance(look, want, view.dist, terrain) : view.dist;
+      const clear = terrain && !inside ? clearDistance(look, want, view.dist, terrain) : view.dist;
       const dt = Math.min(0.1, Math.max(0, now - lastFrame));
       lastFrame = now;
       reach = easeReach(reach, clear, dt);
@@ -295,13 +302,30 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const camX = look.x + (want.x - look.x) * f;
       const camZ = look.z + (want.z - look.z) * f;
       // Keep the camera above the ground it swings over, and out of the water surface band.
-      const ground = source ? source.store.heightAt(camX, camZ) : 0;
-      const level = source && source.store.isWater(camX, camZ) ? ground + source.store.waterDepth(camX, camZ) : null;
-      const camY = clearSurface(Math.max(look.y + (want.y - look.y) * f, ground + 1), level);
-      camera.position.set(camX, camY, camZ);
+      const ground = source && !inside ? source.store.heightAt(camX, camZ) : 0;
+      const level = source && !inside && source.store.isWater(camX, camZ) ? ground + source.store.waterDepth(camX, camZ) : null;
+      let camY = clearSurface(Math.max(look.y + (want.y - look.y) * f, ground + 1), level);
+      let cx = camX;
+      let cz = camZ;
+      if (inside && world.lodge) {
+        // Keep the camera inside the dome: under the ceiling, and within the dome's width at the camera's height.
+        const l = world.lodge;
+        camY = Math.min(Math.max(camY, l.base + 0.8), l.base + INTERIOR_HEIGHT * 0.7);
+        const up = (camY - l.base) / INTERIOR_HEIGHT;
+        const max = (INTERIOR_RADIUS + 0.6) * Math.sqrt(Math.max(0, 1 - up * up)) - 0.2;
+        const dx = cx - l.x;
+        const dz = cz - l.z;
+        const d = Math.hypot(dx, dz);
+        if (d > max) {
+          cx = l.x + (dx / d) * max;
+          cz = l.z + (dz / d) * max;
+        }
+      }
+      camera.position.set(cx, camY, cz);
       camera.lookAt(look.x, look.y, look.z);
       // Under the surface the view turns blue and short.
       const under = level !== null && camY < level;
+      interior.update(inside ? world.lodge : null);
       const date = dateAt(world.clock);
       const sky = skyLook(date.season, date.timeOfDay);
       if (sky.sky !== lastSky) {
@@ -313,14 +337,13 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       terrain?.setSeason(season);
       terrain?.setFelled(world.felled);
       logView.update(world.logs);
-      lodgeView.update(world.lodge);
       if (terrain && season.leafFall > 0 && now - leafTreesAt > 1) {
         leafTreesAt = now;
         leafTrees.length = 0;
         terrain.broadleafNear(b.x, b.z, 45, leafTrees);
       }
       leafFall.update(dt, season.leafFall, season.leafFall > 0 ? leafTrees : []);
-      leafMesh.visible = leafFall.count() > 0 && !under;
+      leafMesh.visible = leafFall.count() > 0 && !under && !inside;
       (leafMesh.material as THREE.MeshBasicMaterial).color.setScalar(0.3 + 0.7 * Math.min(1, sky.sun / 1.3));
       if (leafMesh.visible) {
         leafFall.leaves.forEach((l, i) => {
@@ -337,13 +360,13 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         csm.lightDirection.set(-toSun.x, -toSun.y, -toSun.z);
         for (const l of csm.lights) {
           l.intensity = sky.sun;
-          l.castShadow = shadowsOn && sky.sun > 0.01;
+          l.castShadow = shadowsOn && sky.sun > 0.01 && !inside;
         }
       }
       // Placed from the camera, not the beaver, so it hangs at the same spot in the sky. Redder and bigger near the horizon.
       const sunAt = camera.far * 0.95;
       const low = 1 - Math.min(1, toSun.y / 0.4);
-      sunSprite.visible = sky.sun > 0.01 && !under;
+      sunSprite.visible = sky.sun > 0.01 && !under && !inside;
       sunSprite.position.set(camera.position.x + toSun.x * sunAt, camera.position.y + toSun.y * sunAt, camera.position.z + toSun.z * sunAt);
       sunSprite.scale.setScalar(sunAt * (0.3 + 0.1 * low));
       sunSprite.material.color.setRGB(1, 1 - 0.35 * low, 1 - 0.65 * low);
@@ -354,11 +377,11 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       }
       const dark = nightness(daylight(date.timeOfDay));
       const toMoon = moonDirection(date.timeOfDay);
-      moonSprite.visible = dark > 0.01 && !under;
+      moonSprite.visible = dark > 0.01 && !under && !inside;
       moonSprite.position.set(camera.position.x + toMoon.x * sunAt, camera.position.y + toMoon.y * sunAt, camera.position.z + toMoon.z * sunAt);
       moonSprite.scale.setScalar(sunAt * 0.12);
       moonSprite.material.opacity = dark;
-      stars.visible = dark > 0.01 && !under;
+      stars.visible = dark > 0.01 && !under && !inside;
       stars.position.copy(camera.position);
       stars.material.opacity = dark * 0.9;
       scene.background = under ? UNDERWATER : SKY_COLOR;
@@ -368,8 +391,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         (scene.fog as THREE.Fog).far = under ? 45 : FOG_FAR;
       }
       terrain?.update(b.x, b.z);
+      lodgeView.update(inside ? null : world.lodge);
       csm?.update();
-      gl.render(scene, camera);
+      gl.render(drawn, camera);
     },
   };
 }

@@ -54,7 +54,7 @@ test('the test menu sets the speed and jumps to a location', async ({ page }) =>
 });
 
 test('the test menu moves the clock and the season, and sleep needs the lodge', async ({ page }) => {
-  await page.goto('/?shadows=0');
+  await page.goto('/?shadows=0&lodge=0');
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
   await page.getByRole('button', { name: 'Test menu' }).click();
   await page.locator('button[data-time="night"]').click();
@@ -70,7 +70,7 @@ test('the test menu moves the clock and the season, and sleep needs the lodge', 
 });
 
 test('at night in the lodge the bedtime panel offers sleep and the dream, and both wake at dawn', async ({ page }) => {
-  await page.goto('/?shadows=0');
+  await page.goto('/?shadows=0&lodge=0');
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
   await page.getByRole('button', { name: 'Test menu' }).click();
   await page.locator('button[data-time="night"]').click();

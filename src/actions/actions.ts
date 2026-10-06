@@ -11,9 +11,11 @@ export interface Actions {
   slap?: boolean;
   /** True on the frame the player presses the gnaw button, not while it is held. False when missing. */
   chop?: boolean;
+  /** True on the frame the player presses the drag button: grabs a log in reach, or lets go of the one it drags. False when missing. */
+  grab?: boolean;
 }
 
-export const noActions = (): Actions => ({ move: { x: 0, z: 0 }, dive: false, slap: false, chop: false });
+export const noActions = (): Actions => ({ move: { x: 0, z: 0 }, dive: false, slap: false, chop: false, grab: false });
 
 /**
  * Turn a move given in the default view (forward is +z, left is +x) into a
@@ -33,5 +35,5 @@ export function mergeActions(a: Actions, b: Actions): Actions {
   const z = a.move.z + b.move.z;
   const len = Math.hypot(x, z);
   const k = len > 1 ? 1 / len : 1;
-  return { move: { x: x * k, z: z * k }, dive: !!(a.dive || b.dive), slap: !!(a.slap || b.slap), chop: !!(a.chop || b.chop) };
+  return { move: { x: x * k, z: z * k }, dive: !!(a.dive || b.dive), slap: !!(a.slap || b.slap), chop: !!(a.chop || b.chop), grab: !!(a.grab || b.grab) };
 }

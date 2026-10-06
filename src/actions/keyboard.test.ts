@@ -55,6 +55,13 @@ describe('createKeyboardInput', () => {
     expect(k.read().chop).toBe(false);
   });
 
+  it('grabs or lets go once per press of G', () => {
+    const k = setup();
+    k.press('KeyG');
+    expect(k.read().grab).toBe(true);
+    expect(k.read().grab).toBe(false);
+  });
+
   it('keeps Space from pressing the focused button', () => {
     const target = new EventTarget();
     createKeyboardInput(target as unknown as Window);

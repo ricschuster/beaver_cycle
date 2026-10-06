@@ -1,6 +1,7 @@
 // Simulation layer: game state and rules. No DOM, no three.js, no input, so
 // another device can later drive or mirror it (ADR 0007).
 import { START_CLOCK, nextDawn, isNight } from './clock';
+import type { Log } from './logs';
 import type { Terrain } from './terrain';
 
 export type BeaverMode = 'walk' | 'swim' | 'dive';
@@ -34,8 +35,10 @@ export interface WorldState {
   beaver: BeaverState;
   /** The most recent tail slap, or null before the first. */
   lastSlap: Slap | null;
-  /** What the beaver carries in its paws. */
-  carry: { wood: number };
+  /** Felled trees lying where they fell, and in water floating. */
+  logs: Log[];
+  /** The id of the log the beaver is dragging, or null. One at a time. */
+  drag: string | null;
   /** Ids of the trees felled so far (`TreeRef.id`). Plain data, so a save keeps them. */
   felled: string[];
   /** The tree being gnawed and how many seconds are done, or null. Standing still is needed; moving stops it. */
@@ -96,7 +99,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, carry: { wood: 0 }, felled: [], chop: null, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, logs: [], drag: null, felled: [], chop: null, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

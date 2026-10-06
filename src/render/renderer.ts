@@ -16,6 +16,7 @@ import type { ViewState } from './cameraRig';
 import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
 import { INTERIOR_RADIUS } from '../sim/lodge';
 import { createLodgeView } from './lodgeView';
+import { createLilyView } from './lilyView';
 import { createLogView } from './logView';
 import { createStoreView } from './storeView';
 import { createTerrainView, type TerrainView } from './terrainView';
@@ -160,6 +161,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const logView = createLogView(scene, shadows, prepare);
   const lodgeView = createLodgeView(scene, shadows, prepare);
   const storeView = createStoreView(scene, shadows, prepare);
+  const lilyView = createLilyView(scene, prepare);
   const interior = createLodgeInterior();
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
@@ -395,6 +397,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       terrain?.update(b.x, b.z);
       lodgeView.update(inside ? null : world.lodge);
       storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0));
+      if (source) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
       csm?.update();
       gl.render(drawn, camera);
     },

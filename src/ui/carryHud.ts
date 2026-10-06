@@ -1,5 +1,7 @@
 // Trees felled, the log being dragged, and how far a gnaw has got, top left under the clock. DOM only.
 import { STORE_CAPACITY, atStore, pieceFrom, stockTotal, strippable } from '../sim/food';
+import { reachablePad } from '../sim/lily';
+import type { Terrain } from '../sim/terrain';
 import { lodgeComplete, type SiteProblem } from '../sim/lodge';
 import type { WorldState } from '../sim/state';
 
@@ -26,10 +28,11 @@ const SPOT_TEXT: Record<'hole' | 'nest' | 'room', string> = {
 export interface FoodInfo {
   carry: 'branch' | 'lily' | null;
   store: { total: number; capacity: number } | null;
-  hint: 'strip' | 'store' | 'take' | 'eat' | null;
+  hint: 'pick' | 'strip' | 'store' | 'take' | 'eat' | null;
 }
 
 const HINT_TEXT: Record<NonNullable<FoodInfo['hint']>, string> = {
+  pick: 'press Gnaw to pick a lily pad',
   strip: 'press Gnaw to strip a branch',
   store: 'press Build to put it in the store',
   take: 'press Drag to take a piece from the store',
@@ -47,7 +50,7 @@ export function formatFood(food: FoodInfo | null): string {
 }
 
 /** The food line for a world: the store once the lodge is whole, the piece in the mouth, and what a press would do here. */
-export function foodInfoOf(world: WorldState): FoodInfo | null {
+export function foodInfoOf(world: WorldState, terrain: Terrain): FoodInfo | null {
   const { lodge, beaver: b, carry, store } = world;
   const whole = lodgeComplete(lodge);
   let hint: FoodInfo['hint'] = null;
@@ -55,6 +58,8 @@ export function foodInfoOf(world: WorldState): FoodInfo | null {
     if (carry) hint = 'eat';
   } else if (whole && atStore(lodge, b.x, b.z) && (carry || pieceFrom(store)) && !world.drag) {
     hint = carry ? 'store' : 'take';
+  } else if (!carry && !world.drag && !world.chop && b.mode !== 'dive' && reachablePad(terrain, b.x, b.z, world.clock, world.picked)) {
+    hint = 'pick';
   } else if (!carry && !world.drag && !world.chop && b.mode !== 'dive' && strippable(world.logs, world.stripped, b.x, b.z)) {
     hint = 'strip';
   }

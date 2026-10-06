@@ -53,6 +53,8 @@ export interface WorldState {
   store: Stock;
   /** Branches stripped so far off each log, by log id, so a log runs out (`branchesOf`). */
   stripped: Record<string, number>;
+  /** Lily pads picked, by pad id, with the year (`dateAt(clock).year`) they were picked: they grow back next year. */
+  picked: Record<string, number>;
   /** Pieces eaten so far inside the lodge. Eating has no effect on the beaver yet (Q17), this only counts. */
   eaten: number;
   /** Test setting that scales movement speed (x1, x5, x20, x100). Not a game rule. */
@@ -111,7 +113,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, store: emptyStock(), stripped: {}, eaten: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, store: emptyStock(), stripped: {}, picked: {}, eaten: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

@@ -56,8 +56,12 @@ Built in session 28. The sim is in `src/sim/food.ts`, the heap is drawn by
 - The HUD shows the piece in the mouth, the store as "12 of 40", and what a
   press would do here.
 
-Lily pads are in the store's data (`Stock.lily`) but nothing gives the beaver
-one yet. Lily pads need a source in the water, which is not built.
+- **Lily pads** (`src/sim/lily.ts`, `src/render/lilyView.ts`, my defaults, not
+  the author's): green discs float in water 0.6 to 2.5 m deep, on a 5 m grid
+  with about 4 cells in 10 holding one, the same places every time. Gnaw within
+  1.8 m of a pad, at the surface or on foot, with an empty mouth, picks it into
+  the mouth. It goes in the store and is eaten like a branch. They die back in
+  winter (Q45) and a picked pad grows back the next year (`WorldState.picked`).
 
 ## Open numbers
 
@@ -70,7 +74,8 @@ First guesses, to tune on the tablet:
 
 ## Not decided
 
-- Where lily pads come from, and when they are picked.
+- Whether lily pads should cluster in a bay instead of lying evenly, and how
+  many a year the lake gives.
 - The wear of the store (doc 15) is not built.
 - How the store looks as it fills and as it wears.
 - Whether the store has its own repair glow, or shares the lodge's.

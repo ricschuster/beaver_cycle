@@ -103,7 +103,7 @@ async function start(): Promise<void> {
   const breathMeter = createBreathMeter(document.body);
   const clockHud = createClockHud(document.body);
   const carryHud = createCarryHud(document.body);
-  const trees: TreeSource = renderer.terrain ? { nearest: (x, z, reach, felled) => renderer.terrain!.nearestTree(x, z, reach, felled) } : noTrees;
+  const trees: TreeSource = renderer.terrain ? { nearest: (x, z, reach, felled) => renderer.terrain!.nearestTree(x, z, reach, felled), trunksNear: (x, z, reach, felled) => renderer.terrain!.trunksNear(x, z, reach, felled) } : noTrees;
   const sleepPrompt = createSleepPrompt(document.body, {
     onWake() {
       world = sleep(world);

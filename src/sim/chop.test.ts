@@ -12,6 +12,7 @@ function source(list: TreeRef[]): TreeSource {
   return {
     nearest: (x, z, reach, felled) =>
       list.find((t) => !felled.has(t.id) && Math.hypot(t.x - x, t.z - z) <= reach) ?? null,
+    trunksNear: () => [],
   };
 }
 

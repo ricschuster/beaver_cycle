@@ -1,9 +1,12 @@
 import { LODGE_CLOCK_RATE } from './clock';
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
-import { DRAG_SPEED, GRAB_REACH, dragged, fallenLog, logLength, nearestLog, type Log } from './logs';
-import { CHOP_REACH, CHOP_TIME, noTrees, type TreeSource } from './trees';
+import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
+import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
 import { BREATH_MIN_START, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
+
+/** The longest stretch of a move, in metres, checked for bumps in one go. */
+const SWEEP_STEP = 0.4;
 
 /** Advance the world by dt seconds. Pure: returns a new state. */
 export function step(world: WorldState, actions: Actions, dt: number, terrain: Terrain, trees: TreeSource = noTrees): WorldState {
@@ -15,8 +18,18 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   }
   const b = world.beaver;
   const speed = (b.mode === 'dive' ? DIVE_SPEED : b.mode === 'swim' ? SWIM_SPEED : WALK_SPEED) * world.speedMultiplier * (world.drag ? DRAG_SPEED : 1);
-  const nx = b.x + x * speed * dt;
-  const nz = b.z + z * speed * dt;
+  // The move is swept in short steps so a fast beaver cannot jump through a trunk or over a floating log. Trunks
+  // stop the beaver, which slides round them, and it shoves floating logs out of its way.
+  const total = { x: x * speed * dt, z: z * speed * dt };
+  const n = Math.max(1, Math.ceil(Math.hypot(total.x, total.z) / SWEEP_STEP));
+  const trunks = trees.trunksNear(b.x + total.x / 2, b.z + total.z / 2, Math.hypot(total.x, total.z) / 2 + 2 * BEAVER_RADIUS + MAX_TRUNK, new Set(world.felled));
+  let p = { x: b.x, z: b.z };
+  let pushed = world.logs;
+  for (let i = 0; i < n; i++) {
+    p = avoidTrunks(p.x + total.x / n, p.z + total.z / n, trunks);
+    pushed = pushFloating(terrain, pushed, p.x, p.z, b.mode === 'dive', world.drag);
+  }
+  const { x: nx, z: nz } = p;
   const time = world.time + dt;
   // The tail slaps on land and at the surface, not under water, and not again during the cooldown.
   const canSlap = b.mode !== 'dive' && (!world.lastSlap || time - world.lastSlap.time >= SLAP_COOLDOWN);
@@ -29,8 +42,10 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
       ? Math.max(0, b.breath - dt / BREATH_TIME)
       : Math.min(1, b.breath + dt / BREATH_REFILL_TIME);
   const heading = len > 0 ? Math.atan2(x, z) : b.heading;
-  const after = { ...b, x: nx, z: nz, ...settled, breath, heading };
-  const { chop, felled, logs, drag } = work(world, after, actions, dt, len > 0, trees, terrain);
+  // On land the beaver climbs over a log that lies in its way; in water it pushes floating ones aside.
+  const lift = settled.mode === 'walk' ? climbLift(world.logs, nx, nz, world.drag) : 0;
+  const after = { ...b, x: nx, z: nz, ...settled, y: settled.y + lift, breath, heading };
+  const { chop, felled, logs, drag } = work({ ...world, logs: pushed }, after, actions, dt, len > 0, trees, terrain);
   return {
     ...world,
     time,

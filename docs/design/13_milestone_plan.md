@@ -125,7 +125,12 @@ the quality budget (#120).
   position (to half a metre) in `WorldState.felled`, so it stays gone when its
   tile is rebuilt; only the near, detailed trees can be felled. A small HUD shows
   trees felled (the count toward the 30 tree wood achievement). All numbers are a
-  first guess to feel on the tablet. Not done: floating logs drifting with the
+  first guess to feel on the tablet. Trunks are solid: the beaver slides round
+  a standing tree (trunk 0.45 m radius at scale 1). On land it climbs over a log
+  lying in its way (a smooth hump the height of the log), and in water it
+  shoves floating logs aside; a diver swims under them. Moves are checked in
+  steps of 0.4 m, so a fast beaver cannot skip a trunk. Logs do not stop
+  other logs, and the dragged log passes through trees. Not done: floating logs drifting with the
   stream, eating, building with logs, the dam and lodge, wear.
 
 ## M6: One life, then the next

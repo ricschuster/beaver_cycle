@@ -1,6 +1,7 @@
 // Logs: a felled tree lies where it fell. A beaver cannot carry one, only drag it by the end, one at a
 // time, and it floats in deep water. Plain data and pure functions, no three.js (ADR 0007).
 import type { Terrain } from './terrain';
+import { BEAVER_RADIUS } from './trees';
 
 export interface Log {
   /** The id of the tree it came from. */
@@ -85,4 +86,59 @@ export function dragged(terrain: Terrain, log: Log, x: number, z: number, headin
   const cx = x - Math.sin(h) * back;
   const cz = z - Math.cos(h) * back;
   return { ...log, x: cx, z: cz, heading: h, ...rest(terrain, cx, cz) };
+}
+
+/** Metres from a log's edge over which a beaver on land starts to climb it. */
+const CLIMB_RUN = 0.6;
+/** Height of the top of a lying log above the ground in metres. */
+export const LOG_HEIGHT = LOG_RADIUS * 2;
+
+/**
+ * How far a beaver walking at (x, z) is lifted by the logs under it: it climbs over a log lying on the ground,
+ * up the side and down the other, and is at full height over the middle. Floating and dragged logs do not lift.
+ */
+export function climbLift(logs: readonly Log[], x: number, z: number, skipId: string | null): number {
+  let lift = 0;
+  for (const log of logs) {
+    if (log.floating || log.id === skipId) continue;
+    const d = distanceToLog(log, x, z);
+    if (d >= LOG_RADIUS + CLIMB_RUN) continue;
+    const t = Math.min(1, (LOG_RADIUS + CLIMB_RUN - d) / CLIMB_RUN);
+    lift = Math.max(lift, LOG_HEIGHT * t * t * (3 - 2 * t));
+  }
+  return lift;
+}
+
+/**
+ * Floating logs a swimming beaver at (x, z) bumps into are pushed out of its way, along the line from the log
+ * to the beaver. A diver passes underneath, and logs on the ground are climbed, not pushed.
+ */
+export function pushFloating(terrain: Terrain, logs: readonly Log[], x: number, z: number, diving: boolean, skipId: string | null): Log[] {
+  if (diving) return logs as Log[];
+  return logs.map((log) => {
+    if (!log.floating || log.id === skipId) return log;
+    const min = LOG_RADIUS + BEAVER_RADIUS;
+    const d = distanceToLog(log, x, z);
+    if (d >= min) return log;
+    // the way from the nearest point on the log to the beaver; the log moves the other way
+    const dx = Math.sin(log.heading);
+    const dz = Math.cos(log.heading);
+    const along = Math.max(-log.length / 2, Math.min(log.length / 2, (x - log.x) * dx + (z - log.z) * dz));
+    const px = log.x + dx * along;
+    const pz = log.z + dz * along;
+    let ox = px - x;
+    let oz = pz - z;
+    const len = Math.hypot(ox, oz);
+    if (len < 1e-6) {
+      // dead centre: push sideways of the log
+      ox = dz;
+      oz = -dx;
+    } else {
+      ox /= len;
+      oz /= len;
+    }
+    const nx = log.x + ox * (min - d);
+    const nz = log.z + oz * (min - d);
+    return { ...log, x: nx, z: nz, ...rest(terrain, nx, nz) };
+  });
 }

@@ -1,7 +1,7 @@
 // Tree placement. Trees are not stored: they are placed from a tile's land
 // cover classes with a seeded generator, so every device gets the same trees
 // (docs/design/14_m2_streamed_core_plan.md). No three.js here.
-import type { TreeRef } from '../sim/trees';
+import type { TreeRef, Trunk } from '../sim/trees';
 import { CLASS_LAKE, LEVEL_FINE, sampleHeight, type DecodedTile } from './format';
 
 const CLASS_FOREST = 2;
@@ -62,6 +62,9 @@ export function treeKind(x: number, z: number): number {
   const share = stand < 0.3 ? 0.7 : 0.08;
   return hash01(Math.floor(x * 4), Math.floor(z * 4), 2) < share ? KIND_BROADLEAF : KIND_CONIFER;
 }
+
+/** Radius of a trunk at tree scale 1, in metres. */
+export const TRUNK_RADIUS = 0.45;
 
 /** Stable id of a tree from where it stands (to half a metre), so felled trees can be skipped when tiles are rebuilt. */
 export function treeId(x: number, z: number): string {
@@ -166,6 +169,23 @@ export class TreeGrid {
       }
     }
     return false;
+  }
+
+  /** Appends the trunks of standing trees within `reach` metres of a point. */
+  trunksNear(x: number, z: number, reach: number, felled: ReadonlySet<string>, out: Trunk[]): void {
+    const r = Math.ceil(reach / BUCKET);
+    const bi = Math.floor(x / BUCKET);
+    const bj = Math.floor(z / BUCKET);
+    for (let i = bi - r; i <= bi + r; i++) {
+      for (let j = bj - r; j <= bj + r; j++) {
+        for (const o of this.buckets.get(this.key(i, j)) ?? []) {
+          const tx = this.trees[o]!;
+          const tz = this.trees[o + 2]!;
+          if (Math.hypot(tx - x, tz - z) > reach || felled.has(treeId(tx, tz))) continue;
+          out.push({ x: tx, z: tz, radius: TRUNK_RADIUS * this.trees[o + 3]! });
+        }
+      }
+    }
   }
 
   /** The nearest tree within `reach` metres of a point, other than the felled ones, or null. */

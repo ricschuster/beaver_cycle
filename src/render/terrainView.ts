@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLASS_LAKE, LEVEL_FINE, type DecodedTile, type TileWater } from '../terrain/format';
-import type { TreeRef } from '../sim/trees';
+import type { TreeRef, Trunk } from '../sim/trees';
 import { BROADLEAF_SHAPE, KIND_BROADLEAF, placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid, treeIdPosition } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
@@ -346,6 +346,8 @@ export interface TerrainView {
   broadleafNear(x: number, z: number, radius: number, out: number[]): void;
   /** The nearest standing tree within `reach` metres of a point, for chopping. Only the near, detailed trees count. */
   nearestTree(x: number, z: number, reach: number, felled: ReadonlySet<string>): TreeRef | null;
+  /** Trunks of the standing trees within `reach` metres of a point, for walking into. */
+  trunksNear(x: number, z: number, reach: number, felled: ReadonlySet<string>): Trunk[];
   /** Tells the view which trees are felled, given in the order they fell. Tiles that had one are rebuilt without it. */
   setFelled(ids: readonly string[]): void;
   stats(): TerrainStats;
@@ -526,6 +528,15 @@ export function createTerrainView(
         }
       }
       return best;
+    },
+    trunksNear(x, z, reach, felled) {
+      const out: Trunk[] = [];
+      const tx = Math.floor(x / size);
+      const tz = Math.floor(z / size);
+      for (let i = tx - 1; i <= tx + 1; i++) {
+        for (let j = tz - 1; j <= tz + 1; j++) meshes.get(tileKey(i, j))?.grid?.trunksNear(x, z, reach, felled, out);
+      }
+      return out;
     },
     setFelled(ids) {
       if (ids.length < felledIds.size) {

@@ -13,6 +13,7 @@ import type { TileStore } from '../terrain/store';
 import { createBeaverModel } from './beaverModel';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
+import { createLodgeView } from './lodgeView';
 import { createLogView } from './logView';
 import { createTerrainView, type TerrainView } from './terrainView';
 
@@ -152,6 +153,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   }
 
   const logView = createLogView(scene, shadows, prepare);
+  const lodgeView = createLodgeView(scene, shadows, prepare);
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
   scene.add(beaver);
@@ -306,6 +308,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       terrain?.setSeason(season);
       terrain?.setFelled(world.felled);
       logView.update(world.logs);
+      lodgeView.update(world.lodge);
       if (terrain && season.leafFall > 0 && now - leafTreesAt > 1) {
         leafTreesAt = now;
         leafTrees.length = 0;

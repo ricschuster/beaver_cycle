@@ -14,4 +14,9 @@ describe('carry hud', () => {
   it('says when a log is being dragged', () => {
     expect(formatCarry(2, true, null)).toBe('2 trees felled, dragging a log');
   });
+
+  it('shows the lodge once it is started', () => {
+    expect(formatCarry(1, false, null, 0.4)).toBe('1 tree felled, lodge 40%');
+    expect(formatCarry(1, false, null, 1)).toBe('1 tree felled, lodge done');
+  });
 });

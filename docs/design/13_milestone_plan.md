@@ -131,7 +131,18 @@ the quality budget (#120).
   shoves floating logs aside; a diver swims under them. Moves are checked in
   steps of 0.4 m, so a fast beaver cannot skip a trunk. Logs do not stop
   other logs, and the dragged log passes through trees. Not done: floating logs drifting with the
-  stream, eating, building with logs, the dam and lodge, wear.
+  stream, eating, the dam, wear.
+- Done so far (lodge, wood only): B (or the Build button) while dragging a log
+  places it (`src/sim/lodge.ts`). The first log starts the lodge at a spot 3 m
+  ahead of the beaver in shallow water (0.1 to 1.2 m deep) with deep water within
+  6 m for the underwater entrance, like a real bank lodge or den; each log after
+  it adds wood (a 6 m log is 2 units, a 4 m log 1, a whole lodge 10) while the
+  beaver is within 5 m. A dome of sticks grows with the wood. Near a whole lodge,
+  B with no log goes in or out (half speed clock, bedtime at night), and walking
+  away leaves it. The test menu toggle stays. No mud or rock yet, the lodge is
+  not solid, a log that cannot be placed stays in the beaver's mouth, and one
+  lodge per world. Numbers are a first guess. Wear and the glowing repair circle
+  come next; the middle of a pond is for later, with the dam.
 
 ## M6: One life, then the next
 

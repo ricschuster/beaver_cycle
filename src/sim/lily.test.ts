@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
 import { DAY_SECONDS, DAYS_PER_SEASON } from './clock';
-import { LILY_DENSITY, LILY_MAX_DEPTH, LILY_MIN_DEPTH, LILY_REACH, lilyPadsNear, pickedPad, reachablePad } from './lily';
+import { LILY_MAX_DEPTH, LILY_MIN_DEPTH, LILY_REACH, lilyPadsNear, pickedPad, reachablePad } from './lily';
 import { createWorld } from './state';
 import { step } from './step';
 import type { Terrain } from './terrain';
@@ -12,12 +12,15 @@ const summer = DAY_SECONDS * DAYS_PER_SEASON * 1.5;
 const winter = DAY_SECONDS * DAYS_PER_SEASON * 3.5;
 
 describe('lily pads', () => {
-  it('lie in the same places every time, about as dense as set', () => {
-    const a = lilyPadsNear(lake, 0, 0, 50, summer);
-    expect(lilyPadsNear(lake, 0, 0, 50, summer)).toEqual(a);
-    const cells = (100 / 5) ** 2;
-    expect(a.length).toBeGreaterThan(cells * LILY_DENSITY * 0.5);
-    expect(a.length).toBeLessThan(cells * LILY_DENSITY * 1.5);
+  it('lie in the same places every time, in clusters', () => {
+    const a = lilyPadsNear(lake, 0, 0, 100, summer);
+    expect(lilyPadsNear(lake, 0, 0, 100, summer)).toEqual(a);
+    expect(a.length).toBeGreaterThan(20);
+    // Clustered: far fewer occupied 40 m blocks than an even spread would fill, with several pads in each.
+    const blocks = new Map<string, number>();
+    for (const p of a) blocks.set(`${Math.floor(p.x / 10)}:${Math.floor(p.z / 10)}`, (blocks.get(`${Math.floor(p.x / 10)}:${Math.floor(p.z / 10)}`) ?? 0) + 1);
+    expect(Math.max(...blocks.values())).toBeGreaterThan(4);
+    expect(blocks.size).toBeLessThan(200 * 200 / 100 / 2);
   });
 
   it('grow only in water of the right depth', () => {
@@ -61,6 +64,6 @@ describe('picking a lily pad', () => {
     expect(step({ ...at(summer), carry: 'branch' }, { ...noActions(), chop: true }, 0.1, lake).carry).toBe('branch');
     const far = at(summer);
     const moved = { ...far, beaver: { ...far.beaver, x: pad.x + LILY_REACH + 3, z: pad.z + 3 } };
-    expect(reachablePad(lake, moved.beaver.x, moved.beaver.z, summer, {})).toBeNull();
+    expect(reachablePad(lake, moved.beaver.x, moved.beaver.z, summer, {})?.id).not.toBe(pad.id);
   });
 });

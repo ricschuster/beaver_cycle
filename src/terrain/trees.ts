@@ -1,6 +1,7 @@
 // Tree placement. Trees are not stored: they are placed from a tile's land
 // cover classes with a seeded generator, so every device gets the same trees
 // (docs/design/14_m2_streamed_core_plan.md). No three.js here.
+import type { TreeRef } from '../sim/trees';
 import { CLASS_LAKE, LEVEL_FINE, sampleHeight, type DecodedTile } from './format';
 
 const CLASS_FOREST = 2;
@@ -62,12 +63,28 @@ export function treeKind(x: number, z: number): number {
   return hash01(Math.floor(x * 4), Math.floor(z * 4), 2) < share ? KIND_BROADLEAF : KIND_CONIFER;
 }
 
+/** Stable id of a tree from where it stands (to half a metre), so felled trees can be skipped when tiles are rebuilt. */
+export function treeId(x: number, z: number): string {
+  return `${Math.round(x * 2)}:${Math.round(z * 2)}`;
+}
+
+/** Where a tree id says the tree stands, in metres. */
+export function treeIdPosition(id: string): { x: number; z: number } {
+  const [x, z] = id.split(':').map(Number);
+  return { x: x! / 2, z: z! / 2 };
+}
+
+/** Logs a tree of this scale gives when felled: the bigger trees give two (Q16). */
+export function woodOfTree(scale: number): number {
+  return scale >= 1.1 ? 2 : 1;
+}
+
 function seedFor(tx: number, tz: number, level: number): number {
   return (Math.imul(tx + 1000, 73856093) ^ Math.imul(tz + 1000, 19349663) ^ Math.imul(level + 1, 83492791)) >>> 0;
 }
 
 /** Trees of a tile as x, y, z, scale, kind per tree, in world metres. */
-export function placeTrees(tile: DecodedTile, size: number): Float32Array {
+export function placeTrees(tile: DecodedTile, size: number, felled?: ReadonlySet<string>): Float32Array {
   // a fine tile has the trees of level 0, on its own finer ground
   const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
   const density = DENSITY[shown];
@@ -91,6 +108,8 @@ export function placeTrees(tile: DecodedTile, size: number): Float32Array {
         const scale = (0.8 + rand() * 0.5) * LEVEL_SCALE[shown]!;
         const x = tile.tx * size + u * cell;
         const z = tile.tz * size + v * cell;
+        // the roll above still ran, so a felled tree never moves the others
+        if (felled?.has(treeId(x, z))) continue;
         out.push(x, sampleHeight(tile, u, v), z, scale, treeKind(x, z));
       }
     }
@@ -147,6 +166,29 @@ export class TreeGrid {
       }
     }
     return false;
+  }
+
+  /** The nearest tree within `reach` metres of a point, other than the felled ones, or null. */
+  nearest(x: number, z: number, reach: number, felled: ReadonlySet<string>): TreeRef | null {
+    const r = Math.ceil(reach / BUCKET);
+    const bi = Math.floor(x / BUCKET);
+    const bj = Math.floor(z / BUCKET);
+    let best: TreeRef | null = null;
+    let bestDist = reach;
+    for (let i = bi - r; i <= bi + r; i++) {
+      for (let j = bj - r; j <= bj + r; j++) {
+        for (const o of this.buckets.get(this.key(i, j)) ?? []) {
+          const tx = this.trees[o]!;
+          const tz = this.trees[o + 2]!;
+          const d = Math.hypot(tx - x, tz - z);
+          const id = treeId(tx, tz);
+          if (d > bestDist || felled.has(id)) continue;
+          bestDist = d;
+          best = { id, x: tx, z: tz, wood: woodOfTree(this.trees[o + 3]!) };
+        }
+      }
+    }
+    return best;
   }
 
   /** Appends x, y, z, scale of the broadleaf trees within `radius` metres of a point (flat, four per tree). */

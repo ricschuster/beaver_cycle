@@ -9,9 +9,11 @@ export interface Actions {
   dive?: boolean;
   /** True on the frame the player presses the tail slap button, not while it is held. False when missing. */
   slap?: boolean;
+  /** True on the frame the player presses the gnaw button, not while it is held. False when missing. */
+  chop?: boolean;
 }
 
-export const noActions = (): Actions => ({ move: { x: 0, z: 0 }, dive: false, slap: false });
+export const noActions = (): Actions => ({ move: { x: 0, z: 0 }, dive: false, slap: false, chop: false });
 
 /**
  * Turn a move given in the default view (forward is +z, left is +x) into a
@@ -31,5 +33,5 @@ export function mergeActions(a: Actions, b: Actions): Actions {
   const z = a.move.z + b.move.z;
   const len = Math.hypot(x, z);
   const k = len > 1 ? 1 / len : 1;
-  return { move: { x: x * k, z: z * k }, dive: !!(a.dive || b.dive), slap: !!(a.slap || b.slap) };
+  return { move: { x: x * k, z: z * k }, dive: !!(a.dive || b.dive), slap: !!(a.slap || b.slap), chop: !!(a.chop || b.chop) };
 }

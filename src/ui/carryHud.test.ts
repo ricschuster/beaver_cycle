@@ -19,4 +19,10 @@ describe('carry hud', () => {
     expect(formatCarry(1, false, null, 0.4)).toBe('1 tree felled, lodge 40%');
     expect(formatCarry(1, false, null, 1)).toBe('1 tree felled, lodge done');
   });
+
+  it('says whether the spot ahead takes a lodge while dragging', () => {
+    expect(formatCarry(1, true, null, null, 'ok')).toBe('1 tree felled, dragging a log, press Build to start the lodge here');
+    expect(formatCarry(1, true, null, null, 'deep')).toBe('1 tree felled, dragging a log, no lodge spot, too deep');
+    expect(formatCarry(1, true, null, null, null)).toBe('1 tree felled, dragging a log');
+  });
 });

@@ -28,6 +28,8 @@ export interface Renderer {
   terrain: TerrainView | null;
   /** Turn the sun shadows on or off while running. Does nothing if the game started without them. */
   setShadows(on: boolean): void;
+  /** Show or hide the ring where a lodge would start (see `LodgeView.preview`). */
+  setLodgePreview(at: { x: number; y: number; z: number; ok: boolean } | null): void;
   /** The element that takes drag and zoom input. */
   canvas: HTMLCanvasElement;
 }
@@ -242,6 +244,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   return {
     terrain,
     canvas: gl.domElement,
+    setLodgePreview(at) {
+      lodgeView.preview(at);
+    },
     setShadows(on) {
       shadowsOn = on && shadows;
     },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { noActions, type Actions } from '../actions/actions';
-import { LODGE_REACH, LODGE_WOOD, addWood, lodgeComplete, lodgeProgress, lodgeSite, logWood } from './lodge';
+import { LODGE_REACH, LODGE_WOOD, addWood, checkSite, lodgeComplete, lodgeProgress, lodgeSite, logWood } from './lodge';
 import type { Log } from './logs';
 import { createWorld, type WorldState } from './state';
 import { step } from './step';
@@ -37,6 +37,16 @@ describe('lodge site', () => {
     expect(lodgeSite(shore, 0, 5, 0)).toBeNull();
     const puddle: Terrain = { ...shore, waterDepth: (x, z) => (Math.hypot(x, z - 2) < 8 ? 0.5 : 0) };
     expect(lodgeSite(puddle, 0, -1, 0)).toBeNull();
+  });
+});
+
+describe('site check', () => {
+  it('says why a spot fails', () => {
+    expect(checkSite(shore, 0, -1, 0).problem).toBeNull();
+    expect(checkSite(shore, 0, -10, 0).problem).toBe('dry');
+    expect(checkSite(shore, 0, 5, 0).problem).toBe('deep');
+    const puddle: Terrain = { ...shore, waterDepth: (x, z) => (Math.hypot(x, z - 2) < 8 ? 0.5 : 0) };
+    expect(checkSite(puddle, 0, -1, 0).problem).toBe('far');
   });
 });
 

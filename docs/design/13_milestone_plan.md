@@ -139,7 +139,9 @@ the quality budget (#120).
   it adds wood (a 6 m log is 2 units, a 4 m log 1, a whole lodge 10) while the
   beaver is within 5 m. A dome of sticks grows with the wood. Near a whole lodge,
   B with no log goes in or out (half speed clock, bedtime at night), and walking
-  away leaves it. The test menu toggle stays. No mud or rock yet, the lodge is
+  away leaves it. The test menu toggle stays. While dragging a log with no lodge
+  yet, a ring on the spot ahead is green where a lodge can start and red where
+  not, and the HUD says why (face the water, too deep, no deep water near). No mud or rock yet, the lodge is
   not solid, a log that cannot be placed stays in the beaver's mouth, and one
   lodge per world. Numbers are a first guess. Wear and the glowing repair circle
   come next; the middle of a pond is for later, with the dam.

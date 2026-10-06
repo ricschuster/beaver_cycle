@@ -46,15 +46,30 @@ export function nearLodge(lodge: Lodge, x: number, z: number, reach = LODGE_REAC
   return Math.hypot(x - lodge.x, z - lodge.z) <= reach;
 }
 
+/** Why a spot cannot start a lodge: dry land or too shallow, water too deep, or no deep water near for the entrance. */
+export type SiteProblem = 'dry' | 'deep' | 'far';
+
+export interface SiteCheck {
+  /** The spot checked: ahead of the beaver. */
+  x: number;
+  z: number;
+  /** Null when a lodge can start here. */
+  problem: SiteProblem | null;
+  /** The new lodge when it can start here, else null. */
+  lodge: Lodge | null;
+}
+
 /**
- * Where a lodge could start for a beaver at (x, z) facing `heading`: a spot ahead in shallow water, with deep
- * water close by for the underwater entrance (as a real beaver's lodge or bank den has). Null if not there.
+ * Check the spot where a lodge would start for a beaver at (x, z) facing `heading`: ahead in shallow water, with
+ * deep water close by for the underwater entrance (as a real beaver's lodge or bank den has).
  */
-export function lodgeSite(terrain: Terrain, x: number, z: number, heading: number): Lodge | null {
+export function checkSite(terrain: Terrain, x: number, z: number, heading: number): SiteCheck {
   const sx = x + Math.sin(heading) * SITE_AHEAD;
   const sz = z + Math.cos(heading) * SITE_AHEAD;
   const depth = terrain.waterDepth(sx, sz);
-  if (depth < SITE_MIN_DEPTH || depth > SITE_MAX_DEPTH) return null;
+  const fail = (problem: SiteProblem): SiteCheck => ({ x: sx, z: sz, problem, lodge: null });
+  if (depth < SITE_MIN_DEPTH) return fail('dry');
+  if (depth > SITE_MAX_DEPTH) return fail('deep');
   let deep = false;
   for (let r = 2; r <= SITE_DEEP_REACH && !deep; r += 2) {
     for (let i = 0; i < 8 && !deep; i++) {
@@ -62,8 +77,13 @@ export function lodgeSite(terrain: Terrain, x: number, z: number, heading: numbe
       deep = terrain.waterDepth(sx + Math.sin(a) * r, sz + Math.cos(a) * r) >= DIVE_MIN_DEPTH;
     }
   }
-  if (!deep) return null;
-  return { x: sx, z: sz, base: terrain.heightAt(sx, sz) + depth, wood: 0 };
+  if (!deep) return fail('far');
+  return { x: sx, z: sz, problem: null, lodge: { x: sx, z: sz, base: terrain.heightAt(sx, sz) + depth, wood: 0 } };
+}
+
+/** The lodge that could start for a beaver at (x, z) facing `heading`, or null. */
+export function lodgeSite(terrain: Terrain, x: number, z: number, heading: number): Lodge | null {
+  return checkSite(terrain, x, z, heading).lodge;
 }
 
 /** The lodge with one more log's wood added, never past a whole lodge. */

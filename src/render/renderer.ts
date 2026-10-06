@@ -13,7 +13,7 @@ import type { TileStore } from '../terrain/store';
 import { createBeaverModel } from './beaverModel';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
-import { INTERIOR_HEIGHT, INTERIOR_LIFT, createLodgeInterior } from './lodgeInterior';
+import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
 import { INTERIOR_RADIUS } from '../sim/lodge';
 import { createLodgeView } from './lodgeView';
 import { createLogView } from './logView';
@@ -158,7 +158,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
 
   const logView = createLogView(scene, shadows, prepare);
   const lodgeView = createLodgeView(scene, shadows, prepare);
-  const interior = createLodgeInterior(scene);
+  const interior = createLodgeInterior();
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
   scene.add(beaver);
@@ -280,12 +280,13 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         splash.scale.setScalar(0.4 + f * 2.6);
         splashMaterial.opacity = 0.8 * (1 - f);
       }
-      // In the lodge the beaver and the camera move up to the room that hangs above the world.
+      // In the lodge the beaver moves to the room's own scene, which is drawn instead of the world.
       const inside = world.inLodge && world.lodge !== null;
-      const lift = inside ? INTERIOR_LIFT : 0;
-      beaver.position.set(b.x, b.y + lift, b.z);
+      const drawn = inside ? interior.scene : scene;
+      if (beaver.parent !== drawn) drawn.add(beaver);
+      beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
-      const look = { x: b.x, y: b.y + lift + 1.0, z: b.z };
+      const look = { x: b.x, y: b.y + 1.0, z: b.z };
       const flat = Math.cos(view.pitch);
       const want = {
         x: b.x + Math.sin(view.yaw) * view.dist * flat,
@@ -307,17 +308,18 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       let cx = camX;
       let cz = camZ;
       if (inside && world.lodge) {
-        // Keep the camera inside the dome, near the wall and under the ceiling.
+        // Keep the camera inside the dome: under the ceiling, and within the dome's width at the camera's height.
         const l = world.lodge;
+        camY = Math.min(Math.max(camY, l.base + 0.8), l.base + INTERIOR_HEIGHT * 0.7);
+        const up = (camY - l.base) / INTERIOR_HEIGHT;
+        const max = (INTERIOR_RADIUS + 0.6) * Math.sqrt(Math.max(0, 1 - up * up)) - 0.2;
         const dx = cx - l.x;
         const dz = cz - l.z;
         const d = Math.hypot(dx, dz);
-        const max = INTERIOR_RADIUS + 0.3;
         if (d > max) {
           cx = l.x + (dx / d) * max;
           cz = l.z + (dz / d) * max;
         }
-        camY = Math.min(Math.max(camY, l.base + INTERIOR_LIFT + 0.8), l.base + INTERIOR_LIFT + INTERIOR_HEIGHT * 0.7);
       }
       camera.position.set(cx, camY, cz);
       camera.lookAt(look.x, look.y, look.z);
@@ -391,7 +393,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       terrain?.update(b.x, b.z);
       lodgeView.update(inside ? null : world.lodge);
       csm?.update();
-      gl.render(scene, camera);
+      gl.render(drawn, camera);
     },
   };
 }

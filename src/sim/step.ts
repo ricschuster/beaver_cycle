@@ -1,7 +1,7 @@
 import { LODGE_CLOCK_RATE } from './clock';
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
-import { DOOR_DISTANCE, addWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
+import { DOOR_DISTANCE, ENTER_DISTANCE, addWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
 import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
@@ -86,7 +86,7 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
     }
   } else if (lodgeComplete(lodge) && b.mode === 'dive' && atDoor(lodge, b.x, b.z) && towardDoor(lodge, move.x, move.z) < -0.3) {
     inLodge = true;
-    beaver = { ...b, x: lodge.x, z: lodge.z, y: lodge.base, mode: 'walk' };
+    beaver = { ...b, ...doorPoint(lodge, ENTER_DISTANCE), y: lodge.base, mode: 'walk' };
   } else if (actions.build && b.mode !== 'dive') {
     const log = drag ? logs.find((l) => l.id === drag) : undefined;
     const target = log ? lodge ?? lodgeSite(terrain, b.x, b.z, b.heading) : null;

@@ -1,20 +1,25 @@
-// The inside of the lodge: a round room of woven sticks with a sleeping nest and a water hole in the floor. It hangs
-// high above the world at the lodge's spot (INTERIOR_LIFT), so the outside cannot show through, and the renderer
-// moves the camera and the beaver there while the beaver is in. Reads state only.
+// The inside of the lodge: a round room of woven sticks with a water hole in the floor and a sleeping nest for each
+// of up to 7 beavers. It lives in a scene of its own, which the renderer draws instead of the world while the beaver
+// is in, so no ground or sky can show through at any angle. The room is placed at the lodge's spot so the beaver and
+// the camera keep their world coordinates. Reads state only.
 import * as THREE from 'three';
-import { HOLE, INTERIOR_RADIUS, NEST, type Lodge } from '../sim/lodge';
+import { HOLE, INTERIOR_RADIUS, NEST_SPOTS, type Lodge } from '../sim/lodge';
 
-/** Metres above the lodge's floor level that the room hangs, higher than any ground in the valley. */
-export const INTERIOR_LIFT = 3000;
 /** Height of the dome ceiling in metres. */
-export const INTERIOR_HEIGHT = 2.8;
+export const INTERIOR_HEIGHT = 3.5;
+/** Background of the interior scene, a dark warm brown. It is never seen through the sealed room. */
+export const INTERIOR_BACKGROUND = 0x1c140d;
 
 export interface LodgeInterior {
-  /** Show the room at the lodge, or hide it for null. */
+  /** The scene to draw while the beaver is in. */
+  scene: THREE.Scene;
+  /** Place the room at the lodge, or hide it for null. */
   update(lodge: Lodge | null): void;
 }
 
-export function createLodgeInterior(scene: THREE.Scene): LodgeInterior {
+export function createLodgeInterior(): LodgeInterior {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(INTERIOR_BACKGROUND);
   const group = new THREE.Group();
   group.visible = false;
   const wood = new THREE.MeshLambertMaterial({ color: 0x8a6a44, flatShading: true });
@@ -37,11 +42,15 @@ export function createLodgeInterior(scene: THREE.Scene): LodgeInterior {
     rib.rotation.y = (i * Math.PI) / 6;
     group.add(rib);
   }
-  // The nest: a low heap of shredded wood.
-  const nest = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xd9c08a, flatShading: true }));
-  nest.scale.set(NEST.radius, 0.28, NEST.radius);
-  nest.position.set(NEST.x, 0, NEST.z);
-  group.add(nest);
+  // The nests: low heaps of shredded wood round the wall.
+  const nestGeometry = new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+  const nestMaterial = new THREE.MeshLambertMaterial({ color: 0xd9c08a, flatShading: true });
+  for (const spot of NEST_SPOTS) {
+    const nest = new THREE.Mesh(nestGeometry, nestMaterial);
+    nest.scale.set(spot.radius, 0.28, spot.radius);
+    nest.position.set(spot.x, 0, spot.z);
+    group.add(nest);
+  }
   // The water hole: a rim of sticks round dark water.
   const water = new THREE.Mesh(new THREE.CircleGeometry(HOLE.radius, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1d4f66 }));
   water.position.set(HOLE.x, 0.03, HOLE.z);
@@ -50,7 +59,7 @@ export function createLodgeInterior(scene: THREE.Scene): LodgeInterior {
   rim.position.set(HOLE.x, 0.06, HOLE.z);
   group.add(rim);
   // A warm light, so the room is lit by day and at night alike.
-  const light = new THREE.PointLight(0xffd9a0, 40, 12, 1.5);
+  const light = new THREE.PointLight(0xffd9a0, 55, 20, 1.5);
   light.position.set(0, INTERIOR_HEIGHT - 0.8, 0);
   group.add(light);
   const glow = new THREE.AmbientLight(0xffe2b8, 0.9);
@@ -58,9 +67,10 @@ export function createLodgeInterior(scene: THREE.Scene): LodgeInterior {
   scene.add(group);
 
   return {
+    scene,
     update(lodge) {
       group.visible = lodge !== null;
-      if (lodge) group.position.set(lodge.x, lodge.base + INTERIOR_LIFT, lodge.z);
+      if (lodge) group.position.set(lodge.x, lodge.base, lodge.z);
     },
   };
 }

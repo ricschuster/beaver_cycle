@@ -3,6 +3,17 @@ import * as THREE from 'three';
 import { SLAP_DURATION, createBeaverModel, slapPose } from './beaverModel';
 
 describe('createBeaverModel', () => {
+  it('shows a branch in the mouth only while carrying one', () => {
+    const m = createBeaverModel();
+    m.update(0.1, 0);
+    const empty = new THREE.Box3().setFromObject(m.group);
+    m.update(0.2, 0, 'walk', 0, null, 'branch');
+    const full = new THREE.Box3().setFromObject(m.group);
+    expect(full.max.x - full.min.x).toBeGreaterThan(empty.max.x - empty.min.x + 0.2);
+    m.update(0.3, 0, 'walk', 0, null, null);
+    expect(new THREE.Box3().setFromObject(m.group).max.x).toBeCloseTo(empty.max.x);
+  });
+
   it('is about a metre and a half long with its tail, and stands on its origin', () => {
     const { group } = createBeaverModel();
     const box = new THREE.Box3().setFromObject(group);

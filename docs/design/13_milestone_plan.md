@@ -67,8 +67,9 @@ Prove or disprove the stack before building on it.
   and a pale forest floor, with darker trees. Colours hold through the middle
   of a season and blend over three days at each turn. The ground is tinted in
   the shader by a per vertex weight, so tiles are not rebuilt; rock and lake
-  bed keep their colour. There is no snow on branches yet, and the lake and
-  sky are not tied to the season beyond the sky colour.
+  bed keep their colour. Snow on branches and a seasonal lake are not
+  done; they moved to the art pass (#105). The lake and sky are not tied to the
+  season beyond the sky colour.
 - Tree kinds (`src/terrain/trees.ts`): each tree is a conifer or a broadleaf
   tree, picked from its position, in 60 m stands (about three in ten are mostly
   broadleaf, the rest mostly conifer, about a quarter broadleaf overall).

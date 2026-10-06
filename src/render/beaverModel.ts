@@ -3,6 +3,7 @@
 // that later poses move (tail, legs) sit in their own groups.
 import * as THREE from 'three';
 import type { BeaverMode } from '../sim/state';
+import type { Food } from '../sim/food';
 
 const FUR = 0x8b5a2b;
 const DARK_FUR = 0x5a3a1c;
@@ -38,9 +39,9 @@ export interface BeaverModel {
   /**
    * Poses the model. `time` is seconds, `speed01` is 0 standing and 1 at full pace,
    * `mode` picks the pose, `tilt` (-1 rising to 1 sinking) pitches a diver's nose, and
-   * `slapAge` is the seconds since a tail slap began, or null.
+   * `slapAge` is the seconds since a tail slap began, or null, and `carry` is the piece held in the mouth.
    */
-  update(time: number, speed01: number, mode?: BeaverMode, tilt?: number, slapAge?: number | null): void;
+  update(time: number, speed01: number, mode?: BeaverMode, tilt?: number, slapAge?: number | null, carry?: Food | null): void;
 }
 
 function part(geometry: THREE.BufferGeometry, color: number, x: number, y: number, z: number): THREE.Mesh {
@@ -84,6 +85,25 @@ export function createBeaverModel(): BeaverModel {
     head.add(ellipsoid(0.05, 0.05, 0.02, DARK_FUR, s * 0.12, 0.17, -0.04));
   }
 
+  // A piece held crosswise in the teeth, shown only while the mouth is full.
+  const branch = new THREE.Group();
+  branch.position.set(0, -0.1, 0.25);
+  const stick = part(new THREE.CylinderGeometry(0.022, 0.03, 0.8, 6).rotateZ(Math.PI / 2), 0x7a5230, 0, 0, 0);
+  branch.add(stick);
+  for (const [x, a] of [[-0.18, 0.7], [0.12, -0.8]] as const) {
+    const twig = part(new THREE.CylinderGeometry(0.01, 0.015, 0.22, 5), 0x7a5230, x, 0.08, 0);
+    twig.rotation.z = a;
+    branch.add(twig);
+  }
+  for (const x of [-0.4, 0.4]) branch.add(ellipsoid(0.09, 0.03, 0.07, 0x5f8a3a, x, 0.02, 0));
+  branch.visible = false;
+  head.add(branch);
+  const lily = new THREE.Group();
+  lily.position.set(0, -0.1, 0.27);
+  lily.add(part(new THREE.CylinderGeometry(0.2, 0.2, 0.015, 14), 0x4f9a46, 0, 0, 0));
+  lily.visible = false;
+  head.add(lily);
+
   // Tail: a flat paddle hinged at the rump. Rotate `tail.rotation.x` to slap.
   const tail = new THREE.Group();
   tail.position.set(0, 0.28, -0.5);
@@ -102,7 +122,9 @@ export function createBeaverModel(): BeaverModel {
 
   return {
     group,
-    update(time, speed01, mode = 'walk', tilt = 0, slapAge = null) {
+    update(time, speed01, mode = 'walk', tilt = 0, slapAge = null, carry = null) {
+      branch.visible = carry === 'branch';
+      lily.visible = carry === 'lily';
       const dt = Math.min(Math.max(time - last, 0), 0.1);
       last = time;
       const ease = Math.min(1, dt * 8);

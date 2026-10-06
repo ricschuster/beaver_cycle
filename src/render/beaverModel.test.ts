@@ -2,10 +2,31 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { SLAP_DURATION, createBeaverModel, slapPose } from './beaverModel';
 
+/** The box of what is drawn: hidden parts do not count. */
+function visibleBox(group: THREE.Object3D): THREE.Box3 {
+  group.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  group.traverseVisible((o) => {
+    if (o instanceof THREE.Mesh) box.union(new THREE.Box3().setFromObject(o));
+  });
+  return box;
+}
+
 describe('createBeaverModel', () => {
+  it('shows a branch in the mouth only while carrying one', () => {
+    const m = createBeaverModel();
+    m.update(0.1, 0);
+    const empty = visibleBox(m.group);
+    m.update(0.2, 0, 'walk', 0, null, 'branch');
+    const full = visibleBox(m.group);
+    expect(full.max.x - full.min.x).toBeGreaterThan(empty.max.x - empty.min.x + 0.2);
+    m.update(0.3, 0, 'walk', 0, null, null);
+    expect(visibleBox(m.group).max.x).toBeCloseTo(empty.max.x);
+  });
+
   it('is about a metre and a half long with its tail, and stands on its origin', () => {
     const { group } = createBeaverModel();
-    const box = new THREE.Box3().setFromObject(group);
+    const box = visibleBox(group);
     expect(box.min.y).toBeGreaterThanOrEqual(-0.01);
     expect(box.max.y).toBeLessThan(0.9);
     expect(box.max.z - box.min.z).toBeGreaterThan(1);
@@ -14,7 +35,7 @@ describe('createBeaverModel', () => {
 
   it('faces +z: the head is in front of the tail', () => {
     const { group } = createBeaverModel();
-    const box = new THREE.Box3().setFromObject(group);
+    const box = visibleBox(group);
     const front = box.max.z;
     const back = box.min.z;
     expect(front).toBeGreaterThan(0.4);
@@ -24,9 +45,9 @@ describe('createBeaverModel', () => {
   it('stands still at speed 0 and bobs when walking', () => {
     const m = createBeaverModel();
     m.update(0.3, 0);
-    const still = new THREE.Box3().setFromObject(m.group).max.y;
+    const still = visibleBox(m.group).max.y;
     m.update(0.3, 1);
-    const walking = new THREE.Box3().setFromObject(m.group).max.y;
+    const walking = visibleBox(m.group).max.y;
     expect(walking).toBeGreaterThanOrEqual(still);
   });
 
@@ -34,9 +55,9 @@ describe('createBeaverModel', () => {
     const m = createBeaverModel();
     m.update(0, 0, 'walk');
     m.update(1, 0, 'walk');
-    const standing = new THREE.Box3().setFromObject(m.group);
+    const standing = visibleBox(m.group);
     for (let t = 1.1; t < 3; t += 0.1) m.update(t, 1, 'swim');
-    const swimming = new THREE.Box3().setFromObject(m.group);
+    const swimming = visibleBox(m.group);
     expect(Math.abs(swimming.min.y - standing.min.y)).toBeGreaterThan(0.02); // the legs moved
     expect(Math.abs(swimming.max.y - standing.max.y)).toBeLessThan(0.1); // the back and head did not drop
   });
@@ -87,7 +108,7 @@ describe('createBeaverModel', () => {
     const tailTip = (age: number | null): number => {
       const m = createBeaverModel();
       m.update(1, 0, 'walk', 0, age);
-      return new THREE.Box3().setFromObject(m.group).max.y;
+      return visibleBox(m.group).max.y;
     };
     expect(tailTip(0.28)).toBeGreaterThan(tailTip(null) + 0.1);
   });

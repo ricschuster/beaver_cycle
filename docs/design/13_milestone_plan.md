@@ -107,6 +107,8 @@ the quality budget (#120).
 ## M5: Doing things
 
 - Chop, eat, and carry. Build a dam and a lodge. Wear and repair.
+- The food store is outside and underwater, by the lodge door
+  (`16_food_store.md`).
 - Starts the first tasks and the wood achievement.
 - Wear: the dam wears out first, then the food store, and a worn dam looks
   broken (Q54). A glowing circle marks what needs repair (Q55). Ignored, it

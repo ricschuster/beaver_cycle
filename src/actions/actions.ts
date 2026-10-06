@@ -13,7 +13,7 @@ export interface Actions {
   chop?: boolean;
   /** True on the frame the player presses the drag button: grabs a log in reach, or lets go of the one it drags. False when missing. */
   grab?: boolean;
-  /** True on the frame the player presses the build button: places the dragged log at the lodge, or goes into or out of a whole lodge. False when missing. */
+  /** True on the frame the player presses the build button: places the dragged log at the lodge, or leaves the lodge from inside. False when missing. */
   build?: boolean;
 }
 

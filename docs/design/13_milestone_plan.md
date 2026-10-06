@@ -137,12 +137,13 @@ the quality budget (#120).
   ahead of the beaver in shallow water (0.1 to 1.2 m deep) with deep water within
   6 m for the underwater entrance, like a real bank lodge or den; each log after
   it adds wood (a 6 m log is 2 units, a 4 m log 1, a whole lodge 10) while the
-  beaver is within 5 m. A dome of sticks grows with the wood. Near a whole lodge,
-  B with no log goes in or out (half speed clock, bedtime at night), and walking
-  away leaves it. The test menu toggle stays. While dragging a log with no lodge
+  beaver is within 5 m. A dome of sticks grows with the wood. The dome is solid
+  (2.3 m radius, the beaver slides round it) and has a dark entrance at its foot
+  facing the deepest water. A whole lodge is entered by diving and swimming in at
+  the entrance; inside, the beaver moves in a 1.2 m chamber (half speed clock,
+  bedtime at night) and leaves with B or by pushing out through the entrance. The test menu toggle stays. While dragging a log with no lodge
   yet, a ring on the spot ahead is green where a lodge can start and red where
-  not, and the HUD says why (face the water, too deep, no deep water near). No mud or rock yet, the lodge is
-  not solid, a log that cannot be placed stays in the beaver's mouth, and one
+  not, and the HUD says why (face the water, too deep, no deep water near). No mud or rock yet, a log that cannot be placed stays in the beaver's mouth, and one
   lodge per world. Numbers are a first guess. Wear and the glowing repair circle
   come next; the middle of a pond is for later, with the dam.
 

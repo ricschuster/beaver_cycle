@@ -1,6 +1,6 @@
 // Draws the lodge of the sim: a dome of sticks that grows as logs are placed. Reads state only.
 import * as THREE from 'three';
-import { LODGE_RADIUS, lodgeProgress, type Lodge } from '../sim/lodge';
+import { LODGE_RADIUS, doorPoint, lodgeProgress, type Lodge } from '../sim/lodge';
 
 export interface LodgeView {
   update(lodge: Lodge | null): void;
@@ -23,6 +23,10 @@ export function createLodgeView(scene: THREE.Scene, shadows: boolean, prepare: (
   mesh.receiveShadow = shadows;
   mesh.visible = false;
   scene.add(mesh);
+  // The entrance: a dark mouth at the foot of the dome, facing the deep water.
+  const doorMesh = new THREE.Mesh(new THREE.CircleGeometry(0.6, 12), new THREE.MeshBasicMaterial({ color: 0x1a120a, side: THREE.DoubleSide }));
+  doorMesh.visible = false;
+  scene.add(doorMesh);
   // A flat ring on the water or ground at the spot, drawn over everything so the shore does not hide it.
   const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x4cd964, transparent: true, opacity: 0.7, depthTest: false, side: THREE.DoubleSide });
   const ring = new THREE.Mesh(new THREE.RingGeometry(LODGE_RADIUS - 0.25, LODGE_RADIUS, 32).rotateX(-Math.PI / 2), ringMaterial);
@@ -38,7 +42,11 @@ export function createLodgeView(scene: THREE.Scene, shadows: boolean, prepare: (
     },
     update(lodge) {
       mesh.visible = lodge !== null;
+      doorMesh.visible = lodge !== null;
       if (!lodge) return;
+      const mouth = doorPoint(lodge, LODGE_RADIUS * 0.85);
+      doorMesh.position.set(mouth.x, lodge.base - 0.2, mouth.z);
+      doorMesh.rotation.y = lodge.door;
       const p = lodgeProgress(lodge);
       mesh.position.set(lodge.x, lodge.base - SINK, lodge.z);
       mesh.scale.set(LODGE_RADIUS, DOME_HEIGHT * (0.25 + 0.75 * p), LODGE_RADIUS);

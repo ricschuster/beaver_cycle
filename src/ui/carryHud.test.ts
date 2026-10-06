@@ -46,12 +46,12 @@ describe('food line', () => {
   });
 
   it('has nothing to say before there is food or a lodge', () => {
-    expect(foodInfoOf(createWorld(flatTerrain(0)))).toBeNull();
+    expect(foodInfoOf(createWorld(flatTerrain(0)), flatTerrain(0))).toBeNull();
   });
 
   it('shows the store once the lodge is whole, and eating inside', () => {
     const w = { ...createWorld(flatTerrain(0)), lodge };
-    expect(foodInfoOf(w)).toEqual({ carry: null, store: { total: 0, capacity: 40 }, hint: null });
-    expect(foodInfoOf({ ...w, carry: 'branch', inLodge: true })!.hint).toBe('eat');
+    expect(foodInfoOf(w, flatTerrain(0))).toEqual({ carry: null, store: { total: 0, capacity: 40 }, hint: null });
+    expect(foodInfoOf({ ...w, carry: 'branch', inLodge: true }, flatTerrain(0))!.hint).toBe('eat');
   });
 });

@@ -2,6 +2,7 @@ import { LODGE_CLOCK_RATE } from './clock';
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
 import { atStore, pieceFrom, stored, strippable, taken } from './food';
+import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, addWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
@@ -56,7 +57,7 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   const eating = built.inLodge && world.carry !== null && !!actions.chop;
   const workActions = { ...actions, chop: actions.chop && !eating, grab: actions.grab && !(world.carry && !world.drag) };
   const { chop, felled, logs, drag } = work(built, beaver, workActions, dt, len > 0, trees, terrain);
-  const food = feed({ ...built, logs, drag, chop }, beaver, actions, eating, world.drag === null);
+  const food = feed({ ...built, logs, drag, chop }, beaver, actions, eating, world.drag === null, terrain);
   return {
     ...world,
     ...food,
@@ -106,14 +107,15 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
 }
 
 /**
- * The food. Gnawing a log with no tree to gnaw strips a branch into the mouth. At the store the build button drops
+ * The food. Gnawing next to a floating lily pad picks it into the mouth, and gnawing a log with no tree to gnaw
+ * strips a branch into it. At the store the build button drops
  * the piece in, and the drag button takes one out when the mouth is empty (it does not, if it just let go of a log or
  * took hold of one). Inside the lodge the gnaw button eats the piece.
  */
-function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean): Pick<WorldState, 'carry' | 'store' | 'stripped' | 'eaten'> {
-  let { carry, store, stripped, eaten } = world;
-  if (eating) return { carry: null, store, stripped, eaten: eaten + 1 };
-  if (world.inLodge) return { carry, store, stripped, eaten };
+function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain): Pick<WorldState, 'carry' | 'store' | 'stripped' | 'picked' | 'eaten'> {
+  let { carry, store, stripped, picked, eaten } = world;
+  if (eating) return { carry: null, store, stripped, picked, eaten: eaten + 1 };
+  if (world.inLodge) return { carry, store, stripped, picked, eaten };
   if (carry && actions.build && atStore(world.lodge, b.x, b.z)) {
     const after = stored(store, carry);
     if (after !== store) {
@@ -127,13 +129,17 @@ function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boole
       carry = piece;
     }
   } else if (!carry && actions.chop && !world.chop && !world.drag && b.mode !== 'dive') {
-    const log = strippable(world.logs, stripped, b.x, b.z);
-    if (log) {
+    const pad = reachablePad(terrain, b.x, b.z, world.clock, picked);
+    const log = pad ? null : strippable(world.logs, stripped, b.x, b.z);
+    if (pad) {
+      picked = pickedPad(picked, pad, world.clock);
+      carry = 'lily';
+    } else if (log) {
       stripped = { ...stripped, [log.id]: (stripped[log.id] ?? 0) + 1 };
       carry = 'branch';
     }
   }
-  return { carry, store, stripped, eaten };
+  return { carry, store, stripped, picked, eaten };
 }
 
 /**

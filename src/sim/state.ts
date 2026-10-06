@@ -34,6 +34,12 @@ export interface WorldState {
   beaver: BeaverState;
   /** The most recent tail slap, or null before the first. */
   lastSlap: Slap | null;
+  /** What the beaver carries in its paws. */
+  carry: { wood: number };
+  /** Ids of the trees felled so far (`TreeRef.id`). Plain data, so a save keeps them. */
+  felled: string[];
+  /** The tree being gnawed and how many seconds are done, or null. Standing still is needed; moving stops it. */
+  chop: { id: string; x: number; z: number; wood: number; progress: number } | null;
   /** Test setting that scales movement speed (x1, x5, x20, x100). Not a game rule. */
   speedMultiplier: number;
 }
@@ -90,7 +96,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, carry: { wood: 0 }, felled: [], chop: null, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

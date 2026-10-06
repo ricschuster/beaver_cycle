@@ -46,7 +46,8 @@ export function createTouchControls(parent: HTMLElement, visible: boolean): Touc
   };
   const dive = button('touch-dive', 'Dive', 'max(32px,env(safe-area-inset-right))', '48px');
   const slap = button('touch-slap', 'Slap', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, '88px');
-  root.append(base, dive, slap);
+  const chop = button('touch-chop', 'Gnaw', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, `calc(88px + ${buttonSize + 12}px)`);
+  root.append(base, dive, slap, chop);
   parent.appendChild(root);
 
   // The stick follows one finger, found by its pointer id, so a second finger
@@ -107,6 +108,11 @@ export function createTouchControls(parent: HTMLElement, visible: boolean): Touc
     slapped = true;
   });
 
+  let chopped = false;
+  chop.addEventListener('pointerdown', () => {
+    chopped = true;
+  });
+
   // A long press on a button would open the browser's context menu.
   root.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -117,6 +123,8 @@ export function createTouchControls(parent: HTMLElement, visible: boolean): Touc
       a.dive = diveId !== null;
       a.slap = slapped;
       slapped = false;
+      a.chop = chopped;
+      chopped = false;
       return a;
     },
     setVisible(v) {

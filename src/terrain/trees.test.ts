@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLASS_LAKE } from './format';
 import { makeTile } from './testing';
-import { KIND_BROADLEAF, KIND_CONIFER, placeTrees, TREE_FLOATS, treeKind } from './trees';
+import { KIND_BROADLEAF, KIND_CONIFER, placeTrees, TREE_FLOATS, TreeGrid, treeId, treeIdPosition, treeKind, woodOfTree } from './trees';
 
 const count = (a: Float32Array): number => a.length / TREE_FLOATS;
 
@@ -53,5 +53,40 @@ describe('placeTrees', () => {
 
   it('gives a spot the same kind every time', () => {
     expect(treeKind(123.4, -56.7)).toBe(treeKind(123.4, -56.7));
+  });
+});
+
+describe('felling', () => {
+  const tile = () => makeTile(3, -2, 0, () => 600, 2);
+  const idOf = (t: Float32Array, k: number): string => treeId(t[k * 5]!, t[k * 5 + 2]!);
+
+  it('leaves a felled tree out and keeps all the others where they were', () => {
+    const all = placeTrees(tile(), 320);
+    const gone = idOf(all, 7);
+    const left = placeTrees(tile(), 320, new Set([gone]));
+    expect(count(left)).toBe(count(all) - 1);
+    const rest = Array.from(all).filter((_, i) => i < 7 * 5 || i >= 8 * 5);
+    expect(Array.from(left)).toEqual(rest);
+  });
+
+  it('turns an id back into its position, to half a metre', () => {
+    const at = treeIdPosition(treeId(-123.26, 40.74));
+    expect(at.x).toBeCloseTo(-123.5, 5);
+    expect(at.z).toBeCloseTo(40.5, 5);
+  });
+
+  it('gives two logs for big trees and one for small', () => {
+    expect(woodOfTree(0.8)).toBe(1);
+    expect(woodOfTree(1.25)).toBe(2);
+  });
+
+  it('finds the nearest standing tree in reach', () => {
+    const t = placeTrees(tile(), 320);
+    const grid = new TreeGrid(t, 0);
+    const [x, z] = [t[0]!, t[2]!];
+    const found = grid.nearest(x + 0.1, z, 3, new Set());
+    expect(found?.id).toBe(idOf(t, 0));
+    expect(grid.nearest(x + 0.1, z, 3, new Set([found!.id]))?.id).not.toBe(found!.id);
+    expect(grid.nearest(x, z, 0.001, new Set([found!.id]))).toBeNull();
   });
 });

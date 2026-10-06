@@ -48,6 +48,13 @@ describe('createKeyboardInput', () => {
     expect(k.read().slap).toBe(true);
   });
 
+  it('gnaws once per press of E', () => {
+    const k = setup();
+    k.press('KeyE');
+    expect(k.read().chop).toBe(true);
+    expect(k.read().chop).toBe(false);
+  });
+
   it('keeps Space from pressing the focused button', () => {
     const target = new EventTarget();
     createKeyboardInput(target as unknown as Window);

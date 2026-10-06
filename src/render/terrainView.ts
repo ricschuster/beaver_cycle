@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLASS_LAKE, LEVEL_FINE, type DecodedTile, type TileWater } from '../terrain/format';
-import { BROADLEAF_SHAPE, KIND_BROADLEAF, placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid } from '../terrain/trees';
+import type { TreeRef } from '../sim/trees';
+import { BROADLEAF_SHAPE, KIND_BROADLEAF, placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid, treeIdPosition } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
 import type { SeasonLook, Tint } from './seasonLook';
@@ -293,10 +294,11 @@ function buildTrees(
   tile: DecodedTile,
   size: number,
   materials: { conifer: THREE.Material; broadleaf: THREE.Material; broadleafDepth: THREE.Material },
+  felled: ReadonlySet<string>,
 ): { meshes: THREE.InstancedMesh[]; grid: TreeGrid } | null {
   const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
   const conifers = CONIFER_GEOMETRY[shown];
-  const trees = conifers ? placeTrees(tile, size) : new Float32Array(0);
+  const trees = conifers ? placeTrees(tile, size, felled) : new Float32Array(0);
   if (!conifers || trees.length === 0) return null;
   const conifer: number[] = [];
   const broadleaf: number[] = [];
@@ -342,6 +344,10 @@ export interface TerrainView {
   insideTree(x: number, y: number, z: number, margin: number): boolean;
   /** Appends x, y, z, scale of the drawn broadleaf trees within `radius` metres of a point (four numbers per tree). */
   broadleafNear(x: number, z: number, radius: number, out: number[]): void;
+  /** The nearest standing tree within `reach` metres of a point, for chopping. Only the near, detailed trees count. */
+  nearestTree(x: number, z: number, reach: number, felled: ReadonlySet<string>): TreeRef | null;
+  /** Tells the view which trees are felled, given in the order they fell. Tiles that had one are rebuilt without it. */
+  setFelled(ids: readonly string[]): void;
   stats(): TerrainStats;
   /** Sets the seasonal ground and tree colours. Cheap, so it can be called every frame. */
   setSeason(look: SeasonLook): void;
@@ -414,6 +420,9 @@ export function createTerrainView(
   };
   const meshes = new Map<string, { group: THREE.Group; level: number; streams: boolean; grid: TreeGrid | null }>();
   const size = store.size;
+  // Felled trees are left out when a tile's trees are placed; a tile that lost one is rebuilt.
+  const felledIds = new Set<string>();
+  const dirty = new Set<string>();
   // The far backdrop never changes level, so its tiles are merged into a mesh per chunk,
   // rebuilt when more of the chunk has loaded. This is a few hundred draw calls fewer.
   const farChunks = new Map<string, { mesh: THREE.Mesh | null; built: number; tiles: { tx: number; tz: number }[] }>();
@@ -457,7 +466,7 @@ export function createTerrainView(
         if (level === undefined) continue;
         const shown = meshes.get(tileKey(t.tx, t.tz));
         const wantsStreams = level !== 2 && store.waterOf(t.tx, t.tz) !== undefined;
-        if (shown && shown.level === level && shown.streams === wantsStreams) continue;
+        if (shown && shown.level === level && shown.streams === wantsStreams && !dirty.has(tileKey(t.tx, t.tz))) continue;
         todo.push({ tx: t.tx, tz: t.tz, level, dist: distToTile(x, z, t.tx, t.tz, size) });
       }
       todo.sort((a, b) => a.dist - b.dist);
@@ -478,9 +487,10 @@ export function createTerrainView(
         const water = store.waterOf(job.tx, job.tz);
         const streams = job.level !== 2 && water ? buildStreamGeometry(water, (x, z) => store.heightAt(x, z)) : null;
         if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
-        const trees = buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial });
+        const trees = buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds);
         if (trees) group.add(...trees.meshes);
         scene.add(group);
+        dirty.delete(key);
         meshes.set(key, { group, level: job.level, streams: job.level !== 2 && water !== undefined, grid: trees?.grid ?? null });
         if (performance.now() - start > BUILD_BUDGET_MS) break;
       }
@@ -500,6 +510,33 @@ export function createTerrainView(
       const tz = Math.floor(z / size);
       for (let i = tx - 1; i <= tx + 1; i++) {
         for (let j = tz - 1; j <= tz + 1; j++) meshes.get(tileKey(i, j))?.grid?.broadleafNear(x, z, radius, out);
+      }
+    },
+    nearestTree(x, z, reach, felled) {
+      const tx = Math.floor(x / size);
+      const tz = Math.floor(z / size);
+      let best: TreeRef | null = null;
+      let bestDist = reach;
+      for (let i = tx - 1; i <= tx + 1; i++) {
+        for (let j = tz - 1; j <= tz + 1; j++) {
+          const t = meshes.get(tileKey(i, j))?.grid?.nearest(x, z, bestDist, felled);
+          if (!t) continue;
+          best = t;
+          bestDist = Math.hypot(t.x - x, t.z - z);
+        }
+      }
+      return best;
+    },
+    setFelled(ids) {
+      if (ids.length < felledIds.size) {
+        felledIds.clear();
+        for (const key of meshes.keys()) dirty.add(key);
+      }
+      for (let i = felledIds.size; i < ids.length; i++) {
+        const id = ids[i]!;
+        felledIds.add(id);
+        const at = treeIdPosition(id);
+        dirty.add(tileKey(Math.floor(at.x / size), Math.floor(at.z / size)));
       }
     },
     stats() {

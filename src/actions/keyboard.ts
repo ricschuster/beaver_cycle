@@ -20,6 +20,7 @@ export function createKeyboardInput(target: Window): () => Actions {
     if (down.has('KeyA') || down.has('ArrowLeft')) a.move.x += 1;
     a.dive = down.has('Space');
     a.slap = pressed.has('KeyT');
+    a.chop = pressed.has('KeyE');
     pressed.clear();
     return a;
   };

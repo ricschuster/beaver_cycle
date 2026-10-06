@@ -302,6 +302,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       hemisphere.intensity = sky.ambient;
       const season = seasonLook(date.dayOfYear + date.timeOfDay);
       terrain?.setSeason(season);
+      terrain?.setFelled(world.felled);
       if (terrain && season.leafFall > 0 && now - leafTreesAt > 1) {
         leafTreesAt = now;
         leafTrees.length = 0;

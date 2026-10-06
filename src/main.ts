@@ -5,9 +5,11 @@ import { createRenderer } from './render/renderer';
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
 import { canSleep, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport } from './sim/state';
 import { step } from './sim/step';
+import { CHOP_TIME, noTrees, type TreeSource } from './sim/trees';
 import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
+import { createCarryHud } from './ui/carryHud';
 import { createClockHud } from './ui/clockHud';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
@@ -100,6 +102,8 @@ async function start(): Promise<void> {
   });
   const breathMeter = createBreathMeter(document.body);
   const clockHud = createClockHud(document.body);
+  const carryHud = createCarryHud(document.body);
+  const trees: TreeSource = renderer.terrain ? { nearest: (x, z, reach, felled) => renderer.terrain!.nearestTree(x, z, reach, felled) } : noTrees;
   const sleepPrompt = createSleepPrompt(document.body, {
     onWake() {
       world = sleep(world);
@@ -123,12 +127,13 @@ async function start(): Promise<void> {
     } else {
       const actions = mergeActions(readKeyboard(), touch.read());
       const move = relativeToView(actions.move, rig.view.yaw);
-      world = step(world, { move, dive: actions.dive, slap: actions.slap }, dt, terrain);
+      world = step(world, { move, dive: actions.dive, slap: actions.slap, chop: actions.chop }, dt, terrain, trees);
       streamer?.update(world.beaver.x, world.beaver.z);
       rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
     }
     breathMeter.set(world.beaver.breath);
     clockHud.set(world.clock);
+    carryHud.set(world.carry.wood, world.felled.length, world.chop ? world.chop.progress / CHOP_TIME : null);
     sleepPrompt.setAvailable(canSleep(world));
     renderer.draw(world, rig.view);
     if (now - lastReadout > 500) {

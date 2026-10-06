@@ -21,6 +21,7 @@ export function createKeyboardInput(target: Window): () => Actions {
     a.dive = down.has('Space');
     a.slap = pressed.has('KeyT');
     a.chop = pressed.has('KeyE');
+    a.grab = pressed.has('KeyG');
     pressed.clear();
     return a;
   };

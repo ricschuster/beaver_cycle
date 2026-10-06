@@ -6,7 +6,7 @@ export interface TreeRef {
   id: string;
   x: number;
   z: number;
-  /** Logs it gives when felled (Q16: bigger trees give more). */
+  /** Wood it gives when felled (Q16: bigger trees give more), which sets how long its log is. */
   wood: number;
 }
 
@@ -21,5 +21,3 @@ export const noTrees: TreeSource = { nearest: () => null };
 export const CHOP_REACH = 3;
 /** Seconds of standing and gnawing to fell a tree. Not set by the author yet. */
 export const CHOP_TIME = 3;
-/** Logs the beaver carries at most. Not set by the author yet. */
-export const CARRY_MAX = 4;

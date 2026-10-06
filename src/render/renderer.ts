@@ -13,6 +13,7 @@ import type { TileStore } from '../terrain/store';
 import { createBeaverModel } from './beaverModel';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
+import { createLogView } from './logView';
 import { createTerrainView, type TerrainView } from './terrainView';
 
 /** Tiles to draw, when they exist. Without them the game shows a flat plane. */
@@ -150,6 +151,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     scene.add(ground);
   }
 
+  const logView = createLogView(scene, shadows, prepare);
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
   scene.add(beaver);
@@ -303,6 +305,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const season = seasonLook(date.dayOfYear + date.timeOfDay);
       terrain?.setSeason(season);
       terrain?.setFelled(world.felled);
+      logView.update(world.logs);
       if (terrain && season.leafFall > 0 && now - leafTreesAt > 1) {
         leafTreesAt = now;
         leafTrees.length = 0;

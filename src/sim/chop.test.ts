@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { noActions, type Actions } from '../actions/actions';
-import { createWorld, type WorldState } from './state';
+import { DRAG_GAP, DRAG_SPEED, FLOAT_DEPTH, distanceToLog, logLength } from './logs';
+import { createWorld, type WorldState, WALK_SPEED } from './state';
 import { step } from './step';
-import { flatTerrain } from './terrain';
-import { CARRY_MAX, CHOP_REACH, CHOP_TIME, type TreeRef, type TreeSource } from './trees';
+import { flatTerrain, type Terrain } from './terrain';
+import { CHOP_REACH, CHOP_TIME, type TreeRef, type TreeSource } from './trees';
 
 const flat = flatTerrain(0);
 
@@ -16,6 +17,7 @@ function source(list: TreeRef[]): TreeSource {
 
 const oak: TreeRef = { id: 'a', x: 1, z: 0, wood: 2 };
 const press: Actions = { ...noActions(), chop: true };
+const grab: Actions = { ...noActions(), grab: true };
 
 /** Press the gnaw button, then stand still for `seconds` in half second steps. */
 function gnawFor(w: WorldState, trees: TreeSource, seconds: number): WorldState {
@@ -25,16 +27,24 @@ function gnawFor(w: WorldState, trees: TreeSource, seconds: number): WorldState 
 }
 
 describe('chop', () => {
-  it('fells the tree after the chop time and carries its logs', () => {
+  it('fells the tree after the chop time and leaves a log lying where it fell', () => {
     const w = gnawFor(createWorld(flat), source([oak]), CHOP_TIME);
     expect(w.felled).toEqual(['a']);
-    expect(w.carry.wood).toBe(2);
     expect(w.chop).toBeNull();
+    expect(w.logs).toHaveLength(1);
+    const log = w.logs[0]!;
+    expect(log.id).toBe('a');
+    expect(log.length).toBe(logLength(2));
+    expect(log.floating).toBe(false);
+    // it falls away from the beaver, its near end at the trunk
+    expect(log.heading).toBeCloseTo(Math.PI / 2);
+    expect(log.x).toBeCloseTo(1 + log.length / 2);
   });
 
   it('is still gnawing before the chop time', () => {
     const w = gnawFor(createWorld(flat), source([oak]), CHOP_TIME - 1);
     expect(w.felled).toEqual([]);
+    expect(w.logs).toEqual([]);
     expect(w.chop?.id).toBe('a');
   });
 
@@ -63,18 +73,80 @@ describe('chop', () => {
     const trees = source([oak]);
     const w = gnawFor(gnawFor(createWorld(flat), trees, CHOP_TIME), trees, CHOP_TIME);
     expect(w.felled).toEqual(['a']);
-    expect(w.carry.wood).toBe(2);
-  });
-
-  it('does not start with full paws, and caps what it carries', () => {
-    const full: WorldState = { ...createWorld(flat), carry: { wood: CARRY_MAX } };
-    expect(gnawFor(full, source([oak]), CHOP_TIME).felled).toEqual([]);
-    const nearly: WorldState = { ...createWorld(flat), carry: { wood: CARRY_MAX - 1 } };
-    expect(gnawFor(nearly, source([oak]), CHOP_TIME).carry.wood).toBe(CARRY_MAX);
+    expect(w.logs).toHaveLength(1);
   });
 
   it('does nothing without a tree source', () => {
     const w = step(createWorld(flat), press, 1, flat);
     expect(w.chop).toBeNull();
+  });
+});
+
+describe('drag', () => {
+  const felled = (): WorldState => gnawFor(createWorld(flat), source([oak]), CHOP_TIME);
+
+  it('grabs a log in reach and lets go on the next press', () => {
+    const w = step(felled(), grab, 0, flat);
+    expect(w.drag).toBe('a');
+    expect(step(w, grab, 0, flat).drag).toBeNull();
+  });
+
+  it('cannot grab a log out of reach', () => {
+    const w = { ...felled(), beaver: { ...felled().beaver, z: 40 } };
+    expect(step(w, grab, 0, flat).drag).toBeNull();
+  });
+
+  it('takes one log at a time', () => {
+    const base = felled();
+    const other = { ...base.logs[0]!, id: 'b' };
+    let w = step({ ...base, logs: [...base.logs, other] }, grab, 0, flat);
+    const first = w.drag;
+    w = step(w, grab, 0, flat); // lets go
+    w = step({ ...w, beaver: { ...w.beaver, x: other.x, z: 0 } }, grab, 0, flat);
+    expect(first).not.toBeNull();
+    expect(w.drag).not.toBeNull();
+    expect(w.logs.filter((l) => l.id === w.drag)).toHaveLength(1);
+  });
+
+  it('drags the log behind the beaver, slower than a walk', () => {
+    let w = step(felled(), grab, 0, flat);
+    w = step(w, { move: { x: 0, z: 1 } }, 1, flat);
+    expect(w.beaver.z).toBeCloseTo(WALK_SPEED * DRAG_SPEED);
+    // after a few seconds it trails behind with its near end a gap from the beaver
+    for (let i = 0; i < 40; i++) w = step(w, { move: { x: 0, z: 1 } }, 0.25, flat);
+    const log = w.logs[0]!;
+    expect(log.z).toBeLessThan(w.beaver.z);
+    expect(distanceToLog(log, w.beaver.x, w.beaver.z)).toBeCloseTo(DRAG_GAP, 1);
+  });
+
+  it('leaves the log lying when let go, and a chop needs both free paws', () => {
+    let w = step(felled(), grab, 0, flat);
+    w = step(w, { move: { x: 0, z: 1 } }, 2, flat);
+    w = step(w, grab, 0, flat);
+    const at = { x: w.logs[0]!.x, z: w.logs[0]!.z };
+    w = step(w, noActions(), 5, flat);
+    expect(w.logs[0]).toMatchObject(at);
+    let dragging = step(w, { ...grab, move: { x: 0, z: 0 } }, 0, flat);
+    dragging = step(dragging, press, 0, flat, source([{ id: 'c', x: dragging.beaver.x, z: dragging.beaver.z, wood: 1 }]));
+    expect(dragging.chop).toBeNull();
+  });
+
+  it('floats in deep water and rests on the ground in shallows', () => {
+    const lake: Terrain = { heightAt: () => -5, isWater: (x) => x > 20, waterDepth: (x) => (x > 20 ? 5 : 0) };
+    let w = step(felled(), grab, 0, lake);
+    // walk the beaver to the water with the log in tow, mid stride so a swim begins
+    w = { ...w, beaver: { ...w.beaver, x: 30, z: 0, mode: 'swim', y: -0.2 } };
+    for (let i = 0; i < 20; i++) w = step(w, { move: { x: 1, z: 0 } }, 0.25, lake);
+    expect(w.logs[0]!.floating).toBe(true);
+    expect(w.logs[0]!.y).toBeGreaterThan(-0.5);
+    expect(lake.waterDepth(30, 0)).toBeGreaterThan(FLOAT_DEPTH);
+  });
+
+  it('lets go when the beaver dives', () => {
+    const lake: Terrain = { heightAt: () => -5, isWater: () => true, waterDepth: () => 5 };
+    let w = step(felled(), grab, 0, flat);
+    w = { ...w, beaver: { ...w.beaver, mode: 'swim', y: -0.2 } };
+    expect(step(w, noActions(), 0.1, lake).drag).toBe('a');
+    expect(step(w, { ...noActions(), dive: true }, 0.5, lake).drag).toBeNull();
   });
 });

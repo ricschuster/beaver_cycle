@@ -114,14 +114,19 @@ the quality budget (#120).
 - Repair is done by the beavers, or by building again (Q57). It is the same
   carry and place action as building, with no repair button. The design is in
   `15_build_and_repair.md`.
-- Done so far, first slice (chop and carry): press E (or the Gnaw button) near
-  a tree and stand still for 3 seconds to fell it. Big trees give two logs, small
-  ones one, and the paws hold four (`src/sim/trees.ts`, all numbers a first guess
-  to feel on the tablet). Moving stops the gnaw and the tree stands. A felled
-  tree is a stable id from its position (to half a metre) in `WorldState.felled`,
-  so it stays gone when its tile is rebuilt; only the near, detailed trees can be
-  felled. A small HUD shows wood and trees felled (the count toward the 30 tree
-  wood achievement). Not done: eating, placing wood, the dam and lodge, wear.
+- Done so far (chop and drag): press E (or the Gnaw button) near a tree and
+  stand still for 3 seconds to fell it. The tree falls away from the beaver and
+  lies there as a log (`src/sim/logs.ts`); big trees make a 6 m log, small ones
+  4 m. The beaver cannot carry a log. It drags one at a time by the end: G (or
+  the Drag button) grabs the nearest log in reach, and another press lets go, as
+  does diving. A dragged log trails behind and slows the beaver to 60 percent. A
+  log lies where it is left, and floats where the water is deeper than 0.4 m.
+  Moving stops a gnaw and the tree stands. A felled tree is a stable id from its
+  position (to half a metre) in `WorldState.felled`, so it stays gone when its
+  tile is rebuilt; only the near, detailed trees can be felled. A small HUD shows
+  trees felled (the count toward the 30 tree wood achievement). All numbers are a
+  first guess to feel on the tablet. Not done: floating logs drifting with the
+  stream, eating, building with logs, the dam and lodge, wear.
 
 ## M6: One life, then the next
 

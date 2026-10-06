@@ -54,7 +54,11 @@ Prove or disprove the stack before building on it.
 - Breath meter, with a short breath time. Touch controls as in
   `08_camera_and_platform.md`.
 
-## M4: Time and seasons
+## M4: Time and seasons (done 2026-10-05)
+
+Result: the author checked it on the tablet and it is good, and confirmed the
+broadleaf share. The shadow default stays at two cascades and is decided with
+the quality budget (#120).
 
 - Day and night clock, four seasons of ten days, and the lodge at half speed.
 - The day length is 8 real minutes, doubled from the 4 proposed. The author

@@ -85,8 +85,11 @@ export interface SiteCheck {
  * deep water close by for the underwater entrance (as a real beaver's lodge or bank den has).
  */
 export function checkSite(terrain: Terrain, x: number, z: number, heading: number): SiteCheck {
-  const sx = x + Math.sin(heading) * SITE_AHEAD;
-  const sz = z + Math.cos(heading) * SITE_AHEAD;
+  return checkSpot(terrain, x + Math.sin(heading) * SITE_AHEAD, z + Math.cos(heading) * SITE_AHEAD);
+}
+
+/** Check whether a lodge can start at exactly (sx, sz). */
+export function checkSpot(terrain: Terrain, sx: number, sz: number): SiteCheck {
   const depth = terrain.waterDepth(sx, sz);
   const fail = (problem: SiteProblem): SiteCheck => ({ x: sx, z: sz, problem, lodge: null });
   if (depth < SITE_MIN_DEPTH) return fail('dry');
@@ -165,4 +168,20 @@ export function towardDoor(lodge: Lodge, x: number, z: number): number {
 export function atDoor(lodge: Lodge, x: number, z: number): boolean {
   const d = doorPoint(lodge, DOOR_DISTANCE);
   return Math.hypot(x - d.x, z - d.z) <= DOOR_REACH;
+}
+
+/**
+ * The nearest spot to (x, z), within `radius` metres, where a lodge can start, found by scanning rings outward in
+ * steps of 2 m. Null when there is none (no water near, as on the flat test plane).
+ */
+export function findSite(terrain: Terrain, x: number, z: number, radius: number): Lodge | null {
+  for (let r = 0; r <= radius; r += 2) {
+    const n = Math.max(1, Math.round((r * Math.PI) / 1.5));
+    for (let i = 0; i < n; i++) {
+      const a = (i * 2 * Math.PI) / n;
+      const lodge = checkSpot(terrain, x + Math.sin(a) * r, z + Math.cos(a) * r).lodge;
+      if (lodge) return lodge;
+    }
+  }
+  return null;
 }

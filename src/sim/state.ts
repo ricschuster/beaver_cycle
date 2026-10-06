@@ -1,7 +1,7 @@
 // Simulation layer: game state and rules. No DOM, no three.js, no input, so
 // another device can later drive or mirror it (ADR 0007).
 import { START_CLOCK, nextDawn, isNight } from './clock';
-import type { Lodge } from './lodge';
+import { atNest, type Lodge } from './lodge';
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
 
@@ -119,9 +119,9 @@ export function setInLodge(world: WorldState, inLodge: boolean): WorldState {
   return { ...world, inLodge };
 }
 
-/** The beaver can go to sleep only in its lodge and at night. */
+/** The beaver can go to sleep only in its lodge, on the nest, and at night. */
 export function canSleep(world: WorldState): boolean {
-  return world.inLodge && isNight(world.clock);
+  return world.inLodge && isNight(world.clock) && (!world.lodge || atNest(world.lodge, world.beaver.x, world.beaver.z));
 }
 
 /**

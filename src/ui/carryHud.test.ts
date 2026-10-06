@@ -25,4 +25,10 @@ describe('carry hud', () => {
     expect(formatCarry(1, true, null, null, 'deep')).toBe('1 tree felled, dragging a log, no lodge spot, too deep');
     expect(formatCarry(1, true, null, null, null)).toBe('1 tree felled, dragging a log');
   });
+
+  it('says what the lodge room offers while inside', () => {
+    expect(formatCarry(1, false, null, 1, null, 'hole')).toBe('in the lodge, press Build to dive out through the water hole');
+    expect(formatCarry(1, false, null, 1, null, 'room')).toBe('in the lodge, the water hole is the way out');
+    expect(formatCarry(1, false, null, 1, null, null)).toBe('1 tree felled, lodge done');
+  });
 });

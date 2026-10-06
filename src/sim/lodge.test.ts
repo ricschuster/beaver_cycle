@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { noActions, type Actions } from '../actions/actions';
-import { CHAMBER_RADIUS, DOOR_DISTANCE, LODGE_REACH, LODGE_WOOD, SOLID_RADIUS, addWood, doorPoint, checkSite, lodgeComplete, lodgeProgress, lodgeSite, logWood } from './lodge';
+import { DOOR_DISTANCE, HOLE, INTERIOR_RADIUS, NEST, LODGE_REACH, LODGE_WOOD, SOLID_RADIUS, addWood, atHole, atNest, doorPoint, checkSite, lodgeComplete, lodgeProgress, lodgeSite, logWood } from './lodge';
 import type { Log } from './logs';
-import { createWorld, type WorldState } from './state';
+import { isNight } from './clock';
+import { canSleep, createWorld, type WorldState } from './state';
 import { step } from './step';
 import type { Terrain } from './terrain';
 
@@ -127,25 +128,46 @@ describe('solid lodge', () => {
     const inside = step(w, toward, 0.1, shore);
     expect(inside.inLodge).toBe(true);
     expect(inside.beaver.mode).toBe('walk');
-    expect(Math.hypot(inside.beaver.x - w.lodge!.x, inside.beaver.z - w.lodge!.z)).toBeLessThan(CHAMBER_RADIUS);
+    expect(Math.hypot(inside.beaver.x - w.lodge!.x, inside.beaver.z - w.lodge!.z)).toBeLessThan(INTERIOR_RADIUS);
     const away = { ...w, beaver: { ...w.beaver, ...doorPoint(w.lodge!, 6) } };
     expect(step(away, toward, 0.1, shore).inLodge).toBe(false);
     const wrongSide = { ...w, beaver: { ...w.beaver, ...doorPoint(w.lodge!, -DOOR_DISTANCE - 0.5) } };
     expect(step(wrongSide, toward, 0.1, shore).inLodge).toBe(false);
   });
 
-  it('stays in the chamber, and leaves by the build button or by pushing out the entrance', () => {
+  it('stays in the room and walks round the water hole', () => {
     const w = wholeLodge();
     const door = w.lodge!.door;
     let inside = step(w, { ...noActions(), move: { x: -Math.sin(door), z: -Math.cos(door) }, dive: true }, 0.1, shore);
-    for (let i = 0; i < 30; i++) inside = step(inside, { ...noActions(), move: { x: 0, z: -1 } }, 0.1, shore);
-    expect(Math.hypot(inside.beaver.x - w.lodge!.x, inside.beaver.z - w.lodge!.z)).toBeLessThanOrEqual(CHAMBER_RADIUS + 1e-6);
+    const l = w.lodge!;
+    for (let i = 0; i < 60; i++) inside = step(inside, { ...noActions(), move: { x: 0, z: 1 } }, 0.1, shore);
+    expect(Math.hypot(inside.beaver.x - l.x, inside.beaver.z - l.z)).toBeLessThanOrEqual(INTERIOR_RADIUS + 1e-6);
+    expect(Math.hypot(inside.beaver.x - l.x - HOLE.x, inside.beaver.z - l.z - HOLE.z)).toBeGreaterThanOrEqual(HOLE.radius + 0.5 - 1e-6);
     expect(inside.inLodge).toBe(true);
-    const byButton = step(inside, build, 0.1, shore);
-    expect(byButton.inLodge).toBe(false);
-    expect(Math.hypot(byButton.beaver.x - w.lodge!.x, byButton.beaver.z - w.lodge!.z)).toBeGreaterThan(SOLID_RADIUS);
-    let out = inside;
-    for (let i = 0; i < 30 && out.inLodge; i++) out = step(out, { ...noActions(), move: { x: Math.sin(door), z: Math.cos(door) } }, 0.1, shore);
+  });
+
+  it('leaves only by the water hole: build at the hole dives out the entrance', () => {
+    const w = wholeLodge();
+    const l = w.lodge!;
+    const inside = step(w, { ...noActions(), move: { x: -Math.sin(l.door), z: -Math.cos(l.door) }, dive: true }, 0.1, shore);
+    expect(step(inside, build, 0.1, shore).inLodge).toBe(true);
+    expect(step({ ...inside, beaver: { ...inside.beaver, x: l.x + 3, z: l.z + 3 } }, build, 0.1, shore).inLodge).toBe(true);
+    const atPool = { ...inside, beaver: { ...inside.beaver, x: l.x + HOLE.x, z: l.z + HOLE.z - HOLE.radius - 0.5 } };
+    expect(atHole(l, atPool.beaver.x, atPool.beaver.z)).toBe(true);
+    const out = step(atPool, build, 0.1, shore);
     expect(out.inLodge).toBe(false);
+    expect(Math.hypot(out.beaver.x - l.x, out.beaver.z - l.z)).toBeGreaterThan(SOLID_RADIUS);
+    expect(out.beaver.mode).toBe('dive');
+  });
+
+  it('sleeps only on the nest', () => {
+    const w = { ...wholeLodge(), clock: 0.8 * 480 };
+    const l = w.lodge!;
+    const inside = step(w, { ...noActions(), move: { x: -Math.sin(l.door), z: -Math.cos(l.door) }, dive: true }, 0.1, shore);
+    expect(isNight(inside.clock)).toBe(true);
+    expect(canSleep(inside)).toBe(false);
+    const onNest = { ...inside, beaver: { ...inside.beaver, x: l.x + NEST.x, z: l.z + NEST.z } };
+    expect(atNest(l, onNest.beaver.x, onNest.beaver.z)).toBe(true);
+    expect(canSleep(onNest)).toBe(true);
   });
 });

@@ -1,10 +1,10 @@
 import { LODGE_CLOCK_RATE } from './clock';
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
-import { CHAMBER_RADIUS, DOOR_DISTANCE, addWood, atDoor, clampChamber, doorPoint, lodgeComplete, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
+import { DOOR_DISTANCE, addWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
-import { BREATH_MIN_START, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
+import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
 /** The longest stretch of a move, in metres, checked for bumps in one go. */
 const SWEEP_STEP = 0.4;
@@ -23,17 +23,17 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   // stop the beaver, which slides round them, and it shoves floating logs out of its way.
   const total = { x: x * speed * dt, z: z * speed * dt };
   const n = Math.max(1, Math.ceil(Math.hypot(total.x, total.z) / SWEEP_STEP));
-  // The lodge is solid from outside; inside it the beaver moves in the chamber and meets no trees.
+  // The lodge is solid from outside; inside it the beaver walks the round room, round the water hole, and meets no trees.
   const housed = world.inLodge && world.lodge !== null;
   const near = housed ? [] : trees.trunksNear(b.x + total.x / 2, b.z + total.z / 2, Math.hypot(total.x, total.z) / 2 + 2 * BEAVER_RADIUS + MAX_TRUNK, new Set(world.felled));
-  const trunks = world.lodge && !housed ? [...near, lodgeSolid(world.lodge)] : near;
+  const trunks = housed ? [holeSolid(world.lodge!)] : world.lodge ? [...near, lodgeSolid(world.lodge)] : near;
   let p = { x: b.x, z: b.z };
   let pushed = world.logs;
   for (let i = 0; i < n; i++) {
     p = avoidTrunks(p.x + total.x / n, p.z + total.z / n, trunks);
     pushed = pushFloating(terrain, pushed, p.x, p.z, b.mode === 'dive', world.drag);
   }
-  if (housed) p = clampChamber(world.lodge!, p.x, p.z);
+  if (housed) p = clampInterior(world.lodge!, p.x, p.z);
   const { x: nx, z: nz } = p;
   const time = world.time + dt;
   // The tail slaps on land and at the surface, not under water, and not again during the cooldown.
@@ -70,18 +70,19 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
 /**
  * The build button, one action for what is at hand. Dragging a log: put it on the lodge, which starts a new one at
  * a spot in shallow water ahead of the beaver if there is none yet. The lodge is solid, and its entrance is under
- * water: a diving beaver that swims at the entrance of a whole lodge goes in. Inside, the build button or pushing
- * out through the entrance leaves it. A log that cannot be placed stays in the beaver's mouth.
+ * water: a diving beaver that swims at the entrance of a whole lodge goes in, into the round room. Inside, the
+ * build button at the water hole dives out through the entrance. A log that cannot be placed stays in the
+ * beaver's mouth.
  */
 function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: number; z: number }, terrain: Terrain): { world: WorldState; beaver: BeaverState } {
   let { lodge, logs, drag, inLodge } = world;
   let beaver = b;
   if (inLodge && lodge) {
-    const atEdge = Math.hypot(b.x - lodge.x, b.z - lodge.z) >= CHAMBER_RADIUS - 0.05;
-    if (actions.build || (atEdge && towardDoor(lodge, move.x, move.z) > 0.5)) {
+    if (actions.build && atHole(lodge, b.x, b.z)) {
       const out = doorPoint(lodge, DOOR_DISTANCE);
       inLodge = false;
-      beaver = { ...b, ...out, ...settle(terrain, out.x, out.z, { mode: 'swim', y: 0 }) };
+      // Out of the hole the beaver is under water and rises by itself.
+      beaver = { ...b, ...out, y: terrain.heightAt(out.x, out.z) + DIVE_FLOOR, mode: 'dive' };
     }
   } else if (lodgeComplete(lodge) && b.mode === 'dive' && atDoor(lodge, b.x, b.z) && towardDoor(lodge, move.x, move.z) < -0.3) {
     inLodge = true;

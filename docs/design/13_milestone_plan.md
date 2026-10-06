@@ -140,8 +140,12 @@ the quality budget (#120).
   beaver is within 5 m. A dome of sticks grows with the wood. The dome is solid
   (2.3 m radius, the beaver slides round it) and has a dark entrance at its foot
   facing the deepest water. A whole lodge is entered by diving and swimming in at
-  the entrance; inside, the beaver moves in a 1.2 m chamber (half speed clock,
-  bedtime at night) and leaves with B or by pushing out through the entrance. The test menu toggle stays. While dragging a log with no lodge
+  the entrance. Inside, the view changes to a round room (3.6 m radius, drawn
+  high above the world so the outside cannot show) with a sleeping nest and a
+  water hole in the floor; the beaver walks round the hole and over the nest
+  (half speed clock). Sleep and the dream are offered only on the nest at night.
+  The way out is the water hole: stand by it and press Build, and the beaver
+  dives out of the entrance. The family joins the room later (M6). The test menu toggle stays. While dragging a log with no lodge
   yet, a ring on the spot ahead is green where a lodge can start and red where
   not, and the HUD says why (face the water, too deep, no deep water near). No mud or rock yet, a log that cannot be placed stays in the beaver's mouth, and one
   lodge per world. Numbers are a first guess. Wear and the glowing repair circle

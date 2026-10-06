@@ -33,8 +33,17 @@ export const SITE_DEEP_REACH = 6;
 
 /** The dome is solid out to this radius (a trunk to the beaver), a little inside the drawn dome. */
 export const SOLID_RADIUS = LODGE_RADIUS - 0.2;
-/** The chamber inside, where the beaver can move once it has swum in, in metres from the centre. */
-export const CHAMBER_RADIUS = 1.2;
+/**
+ * The inside is a round room, its own space around the lodge's centre (the renderer shows it instead of the
+ * outside). The beaver stays within this radius of the centre, in metres.
+ */
+export const INTERIOR_RADIUS = 3.6;
+/** The water hole in the floor, the way out, as an offset from the lodge's centre and a radius, in metres. */
+export const HOLE = { x: 0, z: 2.4, radius: 0.8 };
+/** The sleeping nest of shredded wood, the same way. The beaver walks on it. */
+export const NEST = { x: 0, z: -2.2, radius: 1.1 };
+/** The beaver can use the hole or the nest from this far from the edge of it. */
+export const USE_REACH = 0.7;
 /** A diving beaver this close (metres) to the entrance, heading in, swims into a whole lodge. */
 export const DOOR_REACH = 1.5;
 /** How far from the centre the beaver stands at the entrance outside, just clear of the solid dome. */
@@ -124,12 +133,27 @@ export function doorPoint(lodge: Lodge, r: number): { x: number; z: number } {
   return { x: lodge.x + Math.sin(lodge.door) * r, z: lodge.z + Math.cos(lodge.door) * r };
 }
 
-/** The point nearest (x, z) inside the chamber. */
-export function clampChamber(lodge: Lodge, x: number, z: number): { x: number; z: number } {
+/** The point nearest (x, z) inside the room. */
+export function clampInterior(lodge: Lodge, x: number, z: number): { x: number; z: number } {
   const dx = x - lodge.x;
   const dz = z - lodge.z;
   const d = Math.hypot(dx, dz);
-  return d <= CHAMBER_RADIUS ? { x, z } : { x: lodge.x + (dx / d) * CHAMBER_RADIUS, z: lodge.z + (dz / d) * CHAMBER_RADIUS };
+  return d <= INTERIOR_RADIUS ? { x, z } : { x: lodge.x + (dx / d) * INTERIOR_RADIUS, z: lodge.z + (dz / d) * INTERIOR_RADIUS };
+}
+
+/** The water hole as a trunk, so the beaver walks round it and does not fall in. */
+export function holeSolid(lodge: Lodge): Trunk {
+  return { x: lodge.x + HOLE.x, z: lodge.z + HOLE.z, radius: HOLE.radius };
+}
+
+/** True when the beaver is next to the water hole (BEAVER_RADIUS 0.5 is how close it can get). */
+export function atHole(lodge: Lodge, x: number, z: number): boolean {
+  return Math.hypot(x - lodge.x - HOLE.x, z - lodge.z - HOLE.z) <= HOLE.radius + 0.5 + USE_REACH;
+}
+
+/** True when the beaver is on the nest. */
+export function atNest(lodge: Lodge, x: number, z: number): boolean {
+  return Math.hypot(x - lodge.x - NEST.x, z - lodge.z - NEST.z) <= NEST.radius + USE_REACH;
 }
 
 /** How far a move (x, z) points toward the entrance: 1 straight out through it, -1 straight in from it. */

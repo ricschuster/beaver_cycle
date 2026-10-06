@@ -172,10 +172,10 @@ export function atDoor(lodge: Lodge, x: number, z: number): boolean {
 
 /**
  * The nearest spot to (x, z), within `radius` metres, where a lodge can start, found by scanning rings outward in
- * steps of 2 m. Null when there is none (no water near, as on the flat test plane).
+ * steps of 2 m (4 m past 100 m). Null when there is none (no water near, as on the flat test plane).
  */
 export function findSite(terrain: Terrain, x: number, z: number, radius: number): Lodge | null {
-  for (let r = 0; r <= radius; r += 2) {
+  for (let r = 0; r <= radius; r += r < 100 ? 2 : 4) {
     const n = Math.max(1, Math.round((r * Math.PI) / 1.5));
     for (let i = 0; i < n; i++) {
       const a = (i * 2 * Math.PI) / n;

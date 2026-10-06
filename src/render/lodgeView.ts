@@ -4,6 +4,8 @@ import { LODGE_RADIUS, lodgeProgress, type Lodge } from '../sim/lodge';
 
 export interface LodgeView {
   update(lodge: Lodge | null): void;
+  /** A ring where a lodge would start: green if it can start there, red if not. Null hides it. */
+  preview(at: { x: number; y: number; z: number; ok: boolean } | null): void;
 }
 
 /** Height of a whole dome above the water in metres. */
@@ -21,7 +23,19 @@ export function createLodgeView(scene: THREE.Scene, shadows: boolean, prepare: (
   mesh.receiveShadow = shadows;
   mesh.visible = false;
   scene.add(mesh);
+  // A flat ring on the water or ground at the spot, drawn over everything so the shore does not hide it.
+  const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x4cd964, transparent: true, opacity: 0.7, depthTest: false, side: THREE.DoubleSide });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(LODGE_RADIUS - 0.25, LODGE_RADIUS, 32).rotateX(-Math.PI / 2), ringMaterial);
+  ring.renderOrder = 10;
+  ring.visible = false;
+  scene.add(ring);
   return {
+    preview(at) {
+      ring.visible = at !== null;
+      if (!at) return;
+      ring.position.set(at.x, at.y + 0.05, at.z);
+      ringMaterial.color.set(at.ok ? 0x4cd964 : 0xff5a4d);
+    },
     update(lodge) {
       mesh.visible = lodge !== null;
       if (!lodge) return;

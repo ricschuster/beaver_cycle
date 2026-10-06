@@ -140,10 +140,12 @@ the quality budget (#120).
   beaver is within 5 m. A dome of sticks grows with the wood. The dome is solid
   (2.3 m radius, the beaver slides round it) and has a dark entrance at its foot
   facing the deepest water. A whole lodge is entered by diving and swimming in at
-  the entrance. Inside, the view changes to a round room (3.6 m radius, drawn
-  high above the world so the outside cannot show) with a sleeping nest and a
-  water hole in the floor; the beaver walks round the hole and over the nest
-  (half speed clock). Sleep and the dream are offered only on the nest at night.
+  the entrance. Inside, the view changes to a round room (6 m radius, 3.5 m
+  high, big enough for a family of 7) with a water hole at the centre and a nest
+  for each of 7 beavers round the wall; the beaver walks round the hole and over
+  the nests (half speed clock). The room is drawn in a scene of its own instead
+  of the world (ADR 0009), so no ground or sky shows at any camera angle. Sleep
+  and the dream are offered only on a nest at night.
   The way out is the water hole: stand by it and press Build, and the beaver
   dives out of the entrance. The family joins the room later (M6). For testing, the game starts with a whole lodge at the nearest valid spot to the start (`findSite`, searching up to 300 m); `?lodge=0` leaves it out. The test menu toggle stays. While dragging a log with no lodge
   yet, a ring on the spot ahead is green where a lodge can start and red where

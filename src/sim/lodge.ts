@@ -34,18 +34,31 @@ export const SITE_DEEP_REACH = 6;
 /** The dome is solid out to this radius (a trunk to the beaver), a little inside the drawn dome. */
 export const SOLID_RADIUS = LODGE_RADIUS - 0.2;
 /**
- * The inside is a round room, its own space around the lodge's centre (the renderer shows it instead of the
- * outside). The beaver stays within this radius of the centre, in metres.
+ * The inside is a round room, its own space around the lodge's centre (the renderer draws it in a scene of its
+ * own instead of the outside). The beaver stays within this radius of the centre, in metres. It is big enough
+ * for a family of up to 7 beavers, each with a nest.
  */
-export const INTERIOR_RADIUS = 3.6;
+export const INTERIOR_RADIUS = 6;
 /** The water hole in the floor, the way out, as an offset from the lodge's centre and a radius, in metres. */
-export const HOLE = { x: 0, z: 2.4, radius: 0.8 };
-/** The sleeping nest of shredded wood, the same way. The beaver walks on it. */
-export const NEST = { x: 0, z: -2.2, radius: 1.1 };
+export const HOLE = { x: 0, z: 0, radius: 1.2 };
+/** How many beavers the room has a nest for. */
+export const NEST_COUNT = 7;
+/** Distance of the nests from the centre, and the radius of each, in metres. */
+const NEST_RING = 4.5;
+const NEST_RADIUS = 0.9;
+/** The sleeping nests of shredded wood round the wall, as offsets from the lodge's centre. The beaver walks on them. */
+export const NEST_SPOTS = Array.from({ length: NEST_COUNT }, (_, i) => {
+  const a = Math.PI + (i * 2 * Math.PI) / NEST_COUNT;
+  return { x: Math.sin(a) * NEST_RING, z: Math.cos(a) * NEST_RING, radius: NEST_RADIUS };
+});
+/** The first nest, the player's own. */
+export const NEST = NEST_SPOTS[0]!;
 /** The beaver can use the hole or the nest from this far from the edge of it. */
 export const USE_REACH = 0.7;
 /** A diving beaver this close (metres) to the entrance, heading in, swims into a whole lodge. */
 export const DOOR_REACH = 1.5;
+/** How far from the centre, toward the entrance side, the beaver appears when it swims in (clear of the water hole). */
+export const ENTER_DISTANCE = 3;
 /** How far from the centre the beaver stands at the entrance outside, just clear of the solid dome. */
 export const DOOR_DISTANCE = SOLID_RADIUS + 0.6;
 
@@ -154,9 +167,9 @@ export function atHole(lodge: Lodge, x: number, z: number): boolean {
   return Math.hypot(x - lodge.x - HOLE.x, z - lodge.z - HOLE.z) <= HOLE.radius + 0.5 + USE_REACH;
 }
 
-/** True when the beaver is on the nest. */
+/** True when the beaver is on a nest. */
 export function atNest(lodge: Lodge, x: number, z: number): boolean {
-  return Math.hypot(x - lodge.x - NEST.x, z - lodge.z - NEST.z) <= NEST.radius + USE_REACH;
+  return NEST_SPOTS.some((n) => Math.hypot(x - lodge.x - n.x, z - lodge.z - n.z) <= n.radius + USE_REACH);
 }
 
 /** How far a move (x, z) points toward the entrance: 1 straight out through it, -1 straight in from it. */

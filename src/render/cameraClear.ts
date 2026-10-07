@@ -41,7 +41,10 @@ export function clearSurface(camY: number, level: number | null): number {
   return camY >= level ? level + SURFACE_BAND : level - SURFACE_BAND;
 }
 
-/** Eases the used distance: it shortens at once and lengthens over about a second. */
+/** Per second, how fast the camera closes on a tree in its way (the gap shrinks by 1 - e^-12 each second). */
+const COME_IN_RATE = 12;
+
+/** Eases the used distance: it shortens over about a quarter second and lengthens over about a second. */
 export function easeReach(current: number, target: number, dt: number): number {
-  return target < current ? target : Math.min(target, current + dt * 8);
+  return target < current ? target + (current - target) * Math.exp(-COME_IN_RATE * dt) : Math.min(target, current + dt * 8);
 }

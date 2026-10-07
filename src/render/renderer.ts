@@ -312,7 +312,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         y: look.y + Math.sin(view.pitch) * view.dist,
         z: b.z + Math.cos(view.yaw) * view.dist * flat,
       };
-      // Pull in before a tree, shortening at once and easing back out.
+      // Pull in before a tree, easing in over a quarter second and back out over a second.
       const clear = terrain && !inside ? clearDistance(look, want, view.dist, terrain) : view.dist;
       const dt = Math.min(0.1, Math.max(0, now - lastFrame));
       lastFrame = now;

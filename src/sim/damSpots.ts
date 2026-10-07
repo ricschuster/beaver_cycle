@@ -2,6 +2,8 @@
 // flows and the tallest crest that still holds a pond there. The first spots come from the dam site scan
 // (tools/dam-sites). No three.js and no DOM here.
 
+import type { Terrain } from './terrain';
+
 /** One site as the scan writes it to dam_sites.json, the fields a spot needs. */
 export interface ScannedSite {
   x: number;
@@ -51,9 +53,9 @@ export function spotFromSite(s: ScannedSite): DamSpot {
 /** A pond must be big enough to see and deep enough to swim in (Q67), or it is no first spot. */
 export const FIRST_MIN_POND_M2 = 600;
 export const FIRST_MIN_DEPTH_M = 1;
-/** First spots lie at least this far apart, so they are three different places (Q74). */
+/** First spots lie at least this far apart, so they are different places (Q74, six per area by the author, session 38). */
 export const FIRST_SPACING_M = 150;
-export const FIRST_COUNT = 3;
+export const FIRST_COUNT = 6;
 
 /**
  * The first spots of a play location: the ones nearest the anchor that hold a swimmable pond, each at least
@@ -77,4 +79,42 @@ export function spotsNear(spots: readonly DamSpot[], x: number, z: number, range
     .filter((e) => e.d <= range)
     .sort((a, b) => a.d - b.d)
     .map((e) => e.s);
+}
+
+/** A start place is this close to a dam spot, metres (the author, session 38). */
+export const SPAWN_REACH_M = 200;
+/** How far from the bed point the search for dry ground starts, and the steps it widens by. */
+const SPAWN_RADII = [50, 80, 110, 140];
+const SPAWN_STEEPEST = 0.5;
+
+/** Whether a site would be a first spot, as `firstSpots` judges it. */
+export function qualifies(s: ScannedSite): boolean {
+  return s.pond_m2 >= FIRST_MIN_POND_M2 && s.max_depth_m >= FIRST_MIN_DEPTH_M;
+}
+
+/** The qualifying site closest to a point, or null. */
+export function nearestQualifying(p: { x: number; z: number }, sites: readonly ScannedSite[]): ScannedSite | null {
+  const d = (s: ScannedSite): number => Math.hypot(s.x - p.x, s.z - p.z);
+  return sites.filter(qualifies).reduce<ScannedSite | null>((best, s) => (best === null || d(s) < d(best) ? s : best), null);
+}
+
+/**
+ * Where to start in a play location: the anchor itself when a qualifying site lies within SPAWN_REACH_M, else dry,
+ * gentle ground near the closest qualifying site (on the side facing the anchor), so a dam spot is always close by.
+ * Returns the anchor when there are no sites at all.
+ */
+export function spawnNear(anchor: { x: number; z: number }, sites: readonly ScannedSite[], terrain: Terrain): { x: number; z: number } {
+  const nearest = nearestQualifying(anchor, sites);
+  if (!nearest || Math.hypot(nearest.x - anchor.x, nearest.z - anchor.z) <= SPAWN_REACH_M) return anchor;
+  const face = Math.atan2(anchor.z - nearest.z, anchor.x - nearest.x);
+  for (const r of SPAWN_RADII) {
+    // Try the angles nearest the anchor's side first.
+    for (let i = 0; i < 16; i++) {
+      const a = face + (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * ((2 * Math.PI) / 16);
+      const p = { x: nearest.x + Math.cos(a) * r, z: nearest.z + Math.sin(a) * r };
+      const slope = Math.hypot(terrain.heightAt(p.x + 2, p.z) - terrain.heightAt(p.x - 2, p.z), terrain.heightAt(p.x, p.z + 2) - terrain.heightAt(p.x, p.z - 2)) / 4;
+      if (terrain.waterDepth(p.x, p.z) === 0 && slope <= SPAWN_STEEPEST) return p;
+    }
+  }
+  return { x: nearest.x, z: nearest.z };
 }

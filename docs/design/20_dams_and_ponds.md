@@ -14,8 +14,8 @@ repeated here. It is for M5 (`13_milestone_plan.md`).
 - A pond is a safe place away from predators, and where lily pads grow (Q69).
 - There is no limit on dams or ponds (Q70).
 - A broken dam lets the pond shrink back to how it was. You fix the dam (Q71).
-- The game marks where a dam can go, where a stream and a pond meet (Q72). There
-  are three such places at first (Q74), and a new pond can create the next spot.
+- The game marks where a dam can go, where a stream and a pond meet (Q72). The author
+  said three such places at first (Q74), changed to six per area in session 38, and a new pond can create the next spot.
 - The first dam is small, bigger ones come later (Q73). A bigger dam needs more
   wood, mud, and rocks (Q75).
 - Rocks are everywhere where it makes sense (Q76).
@@ -32,11 +32,10 @@ has to guess.
 - The game marks a free spot with a ring on the water or the bed, only when the
   beaver is near, so the valley stays calm. A gold ring is already "repair"
   (doc 15), so a free spot uses a different look, for example a calm white ring.
-- **First spots.** Each play location starts with a few spots from the scan on
-  the side streams. The author said three (Q74). Proposal: three per location,
-  chosen so the first one is close to the start and has a pond a beaver can
-  swim in, and the other two are further up the same stream. Which three is a
-  tuning step on a tablet, not a design question.
+- **First spots.** Each play location starts with six spots from the scan on the
+  side streams (the author said three in Q74 and changed it to six in session 38).
+  They are the swimmable ponds nearest the start, at least 150 m apart. Which six
+  is a tuning step on a tablet, not a design question.
 - **Spots that come later.** A built dam makes a pond. The pond's edge, and the
   streams that run into it, are scanned again for new spots (Q74). So spots are
   found as ponds grow, not fixed up front. The scan runs in the sim at build
@@ -180,7 +179,7 @@ interface Dam {
 
 ## Build order
 
-1. Dam site data into the game: the first spots for the start location, the free
+1. Dam site data into the game: the first spots for every location, the free
    spot ring, one level 1 dam (wood, mud, rock as plain piles), no pond yet.
 2. The flood fill and the pond surface at the crest height.
 3. Wear of the dam and the pond level that follows it. Repair (doc 15).
@@ -192,14 +191,24 @@ Each step is playable on a tablet and small enough for one pull request.
 ## Built so far (step 1, dam spots)
 
 - `src/sim/damSpots.ts`: the `DamSpot` data, `firstSpots` and `spotsNear`. The first
-  spots of a location are the three nearest the start that hold a pond of at least
+  spots of a location are the six (the author, session 38, instead of the three
+  in Q74) nearest the start that hold a pond of at least
   600 m2 and 1 m deep (a swimmable pond, Q67), at least 150 m apart.
 - `src/render/spotRing.ts`: a calm white ring on each first spot, shown within
   120 m of the beaver.
-- The core location gets three side stream spots (at x -846, -733 and -834, z 1232, 1064 and 894), 1.0 to 1.2 km from the
-  start, since the scan finds nothing on the valley floor. The note's wish for a
-  first spot close to the start does not hold with the scan data. Tune on the
-  tablet.
+- The core spots are on side streams 1.0 to 1.5 km from the start, since the scan
+  finds nothing on the valley floor. The other areas have a first spot close to
+  their start (below). Tune on the tablet.
+- Start places (the author, session 38): the core start stays where it is. Every
+  other location starts on dry, gentle ground within 200 m of a qualifying dam
+  spot (`spawnNear`), moved there when you jump to the location. North, south, and
+  east-oedseen anchors were 330 to 460 m from the nearest spot, so those move.
+  Vorderer and Hinterer Springbach already had one within 200 m. The nearest
+  qualifying spot is always the first of the six, so the start is near a first spot.
+- Number of dams per area: six first spots per location, then no limit (Q70). The
+  scan found 295 sites, 132 of them swimmable ponds: core 23, north 31, south 21,
+  Vorderer Springbach 19, Hinterer Springbach 32, east-oedseen 6. All six areas
+  give six spots at 150 m spacing.
 - Not built yet: the level 1 dam, the materials, the pond.
 
 ## Decided
@@ -209,5 +218,5 @@ Each step is playable on a tablet and small enough for one pull request.
 
 ## Open questions
 
-- Which three spots are the first ones for each location? A tuning step, with the
+- Which six spots are the first ones for each location? A tuning step, with the
   author on the tablet.

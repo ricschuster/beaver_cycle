@@ -1,10 +1,11 @@
 import { LODGE_CLOCK_RATE } from './clock';
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
-import { atStore, pieceFrom, stored, strippable, taken } from './food';
+import { atStore, pieceFrom, storeCapacity, storeCondition, stored, strippable, taken } from './food';
 import { pickedPad, reachablePad } from './lily';
-import { DOOR_DISTANCE, ENTER_DISTANCE, addWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
+import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
+import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
 import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
@@ -67,6 +68,7 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
     logs,
     drag,
     lodge: built.lodge,
+    storeWear: built.storeWear,
     inLodge: built.inLodge,
     clock: world.clock + dt * (world.inLodge ? LODGE_CLOCK_RATE : 1),
     lastSlap,
@@ -82,7 +84,7 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
  * beaver's mouth.
  */
 function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: number; z: number }, terrain: Terrain): { world: WorldState; beaver: BeaverState } {
-  let { lodge, logs, drag, inLodge } = world;
+  let { lodge, logs, drag, inLodge, storeWear } = world;
   let beaver = b;
   if (inLodge && lodge) {
     if (actions.build && atHole(lodge, b.x, b.z)) {
@@ -91,7 +93,7 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
       // Out of the hole the beaver is under water and rises by itself.
       beaver = { ...b, ...out, y: terrain.heightAt(out.x, out.z) + DIVE_FLOOR, mode: 'dive' };
     }
-  } else if (lodgeComplete(lodge) && b.mode === 'dive' && atDoor(lodge, b.x, b.z) && towardDoor(lodge, move.x, move.z) < -0.3) {
+  } else if (lodgeComplete(lodge) && lodgeCondition(lodge, world.clock) >= BROKEN_BELOW && b.mode === 'dive' && atDoor(lodge, b.x, b.z) && towardDoor(lodge, move.x, move.z) < -0.3) {
     inLodge = true;
     beaver = { ...b, ...doorPoint(lodge, ENTER_DISTANCE), y: lodge.base, mode: 'walk' };
   } else if (actions.build && b.mode !== 'dive') {
@@ -99,11 +101,32 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
     const target = log ? lodge ?? lodgeSite(terrain, b.x, b.z, b.heading) : null;
     if (log && target && !lodgeComplete(target) && nearLodge(target, b.x, b.z)) {
       lodge = addWood(target, log);
+      // A whole lodge and its store are new from this moment.
+      if (lodgeComplete(lodge)) {
+        lodge = { ...lodge, wear: newWear(world.clock) };
+        storeWear = newWear(world.clock);
+      }
       logs = logs.filter((l) => l.id !== log.id);
       drag = null;
+    } else if (log && lodgeComplete(lodge)) {
+      // A whole lodge: the log mends whichever of the lodge and the store is in reach and in the worse state.
+      const lodgeLevel = lodgeCondition(lodge, world.clock);
+      const storeLevel = storeCondition(storeWear, world.clock);
+      const wood = logWood(log);
+      const mendLodge = nearLodge(lodge, b.x, b.z) && lodgeLevel < 1;
+      const mendStore = atStore(lodge, b.x, b.z) && storeLevel < 1;
+      if (mendLodge && (!mendStore || lodgeLevel <= storeLevel)) {
+        lodge = { ...lodge, wear: mended(lodge.wear, world.clock, LODGE_WORN_DAYS, wood, LODGE_WOOD) };
+      } else if (mendStore) {
+        storeWear = mended(storeWear, world.clock, STORE_WORN_DAYS, wood, STORE_REBUILD_WOOD);
+      }
+      if (mendLodge || mendStore) {
+        logs = logs.filter((l) => l.id !== log.id);
+        drag = null;
+      }
     }
   }
-  return { world: { ...world, lodge, logs, drag, inLodge }, beaver };
+  return { world: { ...world, lodge, logs, drag, inLodge, storeWear }, beaver };
 }
 
 /**
@@ -116,13 +139,14 @@ function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boole
   let { carry, store, stripped, picked, eaten } = world;
   if (eating) return { carry: null, store, stripped, picked, eaten: eaten + 1 };
   if (world.inLodge) return { carry, store, stripped, picked, eaten };
+  const capacity = storeCapacity(storeCondition(world.storeWear, world.clock));
   if (carry && actions.build && atStore(world.lodge, b.x, b.z)) {
-    const after = stored(store, carry);
+    const after = stored(store, carry, capacity);
     if (after !== store) {
       store = after;
       carry = null;
     }
-  } else if (!carry && actions.grab && wasFree && world.drag === null && atStore(world.lodge, b.x, b.z)) {
+  } else if (!carry && actions.grab && wasFree && world.drag === null && atStore(world.lodge, b.x, b.z) && capacity > 0) {
     const piece = pieceFrom(store);
     if (piece) {
       store = taken(store, piece);

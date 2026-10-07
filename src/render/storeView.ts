@@ -3,10 +3,12 @@
 import * as THREE from 'three';
 import { STORE_RADIUS, stockTotal, storeFill, storeSpot, type Stock } from '../sim/food';
 import type { Lodge } from '../sim/lodge';
+import { BROKEN_BELOW, needsRepair } from '../sim/wear';
+import { createRepairGlow } from './repairGlow';
 
 export interface StoreView {
-  /** Draw the store for a whole lodge, or hide it. `bed` is the height of the lake bed at a point. */
-  update(lodge: Lodge | null, stock: Stock, bed: (x: number, z: number) => number): void;
+  /** Draw the store for a whole lodge, or hide it. `bed` is the height of the lake bed at a point, `level` the store's condition. */
+  update(lodge: Lodge | null, stock: Stock, bed: (x: number, z: number) => number, level?: number): void;
 }
 
 /** Height of a full heap in metres, and of an empty one (a few sticks that mark the spot). */
@@ -36,13 +38,18 @@ export function createStoreView(scene: THREE.Scene, shadows: boolean, prepare: (
     group.add(mesh);
     sticks.push(mesh);
   }
+  const glow = createRepairGlow(scene, STORE_RADIUS + 0.4);
   return {
-    update(lodge, stock, bed) {
+    update(lodge, stock, bed, level = 1) {
       const spot = storeSpot(lodge);
       group.visible = spot !== null;
-      if (!spot) return;
+      if (!spot) {
+        glow.set(null);
+        return;
+      }
       const y = bed(spot.x, spot.z);
       group.position.set(spot.x, y, spot.z);
+      glow.set(needsRepair(level) ? { x: spot.x, y, z: spot.z, broken: level < BROKEN_BELOW } : null);
       const fill = storeFill(stock);
       const height = EMPTY_HEIGHT + (FULL_HEIGHT - EMPTY_HEIGHT) * fill;
       // The heap's sticks appear one after another as it fills; an empty store keeps a few.

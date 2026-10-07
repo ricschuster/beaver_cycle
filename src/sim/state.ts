@@ -5,6 +5,7 @@ import { emptyStock, type Food, type Stock } from './food';
 import { atNest, type Lodge } from './lodge';
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
+import type { Wear } from './wear';
 
 export type BeaverMode = 'walk' | 'swim' | 'dive';
 
@@ -51,6 +52,8 @@ export interface WorldState {
   carry: Food | null;
   /** The food store beside the lodge door: what is in it. Usable once the lodge is whole. */
   store: Stock;
+  /** Wear of the food store, set when the lodge is whole. Missing means it never wears. */
+  storeWear?: Wear;
   /** Branches stripped so far off each log, by log id, so a log runs out (`branchesOf`). */
   stripped: Record<string, number>;
   /** Lily pads picked, by pad id, with the year (`dateAt(clock).year`) they were picked: they grow back next year. */

@@ -2,6 +2,7 @@ import { mergeActions, relativeToView } from './actions/actions';
 import { createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { createRenderer } from './render/renderer';
+import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
 import { canSleep, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport } from './sim/state';
@@ -65,7 +66,7 @@ async function start(): Promise<void> {
   // A whole lodge near the start, so the lodge can be tried without building one first. ?lodge=0 leaves it out.
   if (query.get('lodge') !== '0') {
     const site = findSite(terrain, startX, startZ, 300);
-    if (site) world = { ...world, lodge: { ...site, wood: LODGE_WOOD } };
+    if (site) world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear: newWear(world.clock) }, storeWear: newWear(world.clock) };
   }
   let last = performance.now();
 

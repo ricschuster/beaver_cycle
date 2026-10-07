@@ -18,6 +18,7 @@ import { storeCapacity, storeCondition } from './sim/food';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
+import { loadDamSites } from './render/damSites';
 import { treeTuning } from './terrain/trees';
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
 
@@ -56,6 +57,19 @@ async function start(): Promise<void> {
     shadowMap: Number(query.get('shadowmap')) || undefined,
     cascades: Number(query.get('cascades')) || undefined,
   });
+
+  // Marks for the candidate dam sites from tools/dam-sites, a debug view for the dam placement talk. Off at first, the
+  // test menu toggles them, and ?damsites=1 starts with them on. They load the first time they are shown.
+  const damSitesFile = store ? await loadDamSites(base) : [];
+  const setDamSites = (on: boolean): void => {
+    if (on && !damSitesAdded) {
+      renderer.addDamSites(damSitesFile);
+      damSitesAdded = true;
+    }
+    renderer.setDamSitesVisible(on);
+  };
+  let damSitesAdded = false;
+  if (query.get('damsites') === '1') setDamSites(true);
 
   const rig = createCameraRig(renderer.canvas);
   let world = createWorld(terrain, startX, startZ);
@@ -102,6 +116,7 @@ async function start(): Promise<void> {
     onShadows(on) {
       renderer.setShadows(on);
     },
+    damSites: damSitesFile.length > 0 ? { initiallyOn: query.get('damsites') === '1', onToggle: setDamSites } : undefined,
     onSleep() {
       world = sleep(world);
     },

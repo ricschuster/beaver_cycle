@@ -22,6 +22,8 @@ import { createLogView } from './logView';
 import { createStoreView } from './storeView';
 import type { DamSite } from './damSites';
 import { createDamSiteView } from './damSites';
+import { createSpotRings, type SpotRings } from './spotRing';
+import type { DamSpot } from '../sim/damSpots';
 import { createTerrainView, type TerrainView } from './terrainView';
 
 /** Tiles to draw, when they exist. Without them the game shows a flat plane. */
@@ -41,6 +43,8 @@ export interface Renderer {
   addDamSites(sites: DamSite[]): void;
   /** Show or hide those marks. */
   setDamSitesVisible(on: boolean): void;
+  /** Mark the free dam spots with rings that show when the beaver is near. */
+  setDamSpots(spots: readonly DamSpot[]): void;
   /** The element that takes drag and zoom input. */
   canvas: HTMLCanvasElement;
 }
@@ -253,6 +257,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   let reach = 6.5;
   let lastFrame = 0;
   let damSiteGroup: THREE.Group | null = null;
+  let spotRings: SpotRings | null = null;
   const UNDERWATER = new THREE.Color(0x2c7a96);
   let lastUnderwater = 0x2c7a96;
 
@@ -265,6 +270,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     addDamSites(sites) {
       damSiteGroup?.removeFromParent();
       damSiteGroup = createDamSiteView(scene, sites);
+    },
+    setDamSpots(spots) {
+      spotRings = createSpotRings(scene, spots);
     },
     setDamSitesVisible(on) {
       if (damSiteGroup) damSiteGroup.visible = on;
@@ -410,6 +418,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         (scene.fog as THREE.Fog).far = under ? 45 : FOG_FAR;
       }
       terrain?.update(b.x, b.z);
+      spotRings?.update(b.x, b.z);
       lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
       if (source) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);

@@ -14,6 +14,9 @@ export interface DamSite {
   left_m: number;
   right_m: number;
   pond_m2: number;
+  max_depth_m: number;
+  /** The play location the scan put it in. */
+  near: string;
 }
 
 /** Pole colours by pond size: small, medium, large. */

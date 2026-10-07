@@ -37,8 +37,10 @@ export interface Renderer {
   setShadows(on: boolean): void;
   /** Show or hide the ring where a lodge would start (see `LodgeView.preview`). */
   setLodgePreview(at: { x: number; y: number; z: number; ok: boolean } | null): void;
-  /** Debug: mark the scanned dam sites (`?damsites=1`). */
-  showDamSites(sites: DamSite[]): void;
+  /** Debug: put the marks of the scanned dam sites in the scene, once. Shown at first. */
+  addDamSites(sites: DamSite[]): void;
+  /** Show or hide those marks. */
+  setDamSitesVisible(on: boolean): void;
   /** The element that takes drag and zoom input. */
   canvas: HTMLCanvasElement;
 }
@@ -250,6 +252,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   let lastTime = 0;
   let reach = 6.5;
   let lastFrame = 0;
+  let damSiteGroup: THREE.Group | null = null;
   const UNDERWATER = new THREE.Color(0x2c7a96);
   let lastUnderwater = 0x2c7a96;
 
@@ -259,8 +262,12 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     setLodgePreview(at) {
       lodgeView.preview(at);
     },
-    showDamSites(sites) {
-      createDamSiteView(scene, sites);
+    addDamSites(sites) {
+      damSiteGroup?.removeFromParent();
+      damSiteGroup = createDamSiteView(scene, sites);
+    },
+    setDamSitesVisible(on) {
+      if (damSiteGroup) damSiteGroup.visible = on;
     },
     setShadows(on) {
       shadowsOn = on && shadows;

@@ -18,7 +18,7 @@ For every stream point (every STEP metres along the OSM lines, not in a lake):
 
 Sites within SPACING metres of a better one are dropped. Writes JSON and prints a summary by
 play location. Run: python3 tools/dam-sites/scan_dam_sites.py [--out public/tiles/dam_sites.json]
-The game shows the sites with ?damsites=1 (src/render/damSites.ts).
+The test menu has a Dam sites toggle (?damsites=1 starts with it on), see src/render/damSites.ts.
 """
 import argparse
 import json

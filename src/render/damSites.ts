@@ -1,5 +1,5 @@
 // Debug view of the dam site scan (tools/dam-sites/scan_dam_sites.py): a tall pole at each candidate site, coloured by
-// pond size, and a bar across the stream where the dam would stand. Shown with ?damsites=1. Reads data only.
+// pond size, and a bar across the stream where the dam would stand. Toggled in the test menu. Reads data only.
 import * as THREE from 'three';
 
 /** One site as the scan writes it to dam_sites.json. */

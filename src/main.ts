@@ -58,8 +58,18 @@ async function start(): Promise<void> {
     cascades: Number(query.get('cascades')) || undefined,
   });
 
-  // ?damsites=1 marks the candidate dam sites from tools/dam-sites (a debug view for the dam placement talk).
-  if (store && query.get('damsites') === '1') void loadDamSites(base).then((sites) => renderer.showDamSites(sites));
+  // Marks for the candidate dam sites from tools/dam-sites, a debug view for the dam placement talk. Off at first, the
+  // test menu toggles them, and ?damsites=1 starts with them on. They load the first time they are shown.
+  const damSitesFile = store ? await loadDamSites(base) : [];
+  const setDamSites = (on: boolean): void => {
+    if (on && !damSitesAdded) {
+      renderer.addDamSites(damSitesFile);
+      damSitesAdded = true;
+    }
+    renderer.setDamSitesVisible(on);
+  };
+  let damSitesAdded = false;
+  if (query.get('damsites') === '1') setDamSites(true);
 
   const rig = createCameraRig(renderer.canvas);
   let world = createWorld(terrain, startX, startZ);
@@ -106,6 +116,7 @@ async function start(): Promise<void> {
     onShadows(on) {
       renderer.setShadows(on);
     },
+    damSites: damSitesFile.length > 0 ? { initiallyOn: query.get('damsites') === '1', onToggle: setDamSites } : undefined,
     onSleep() {
       world = sleep(world);
     },

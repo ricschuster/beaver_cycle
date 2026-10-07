@@ -29,8 +29,13 @@ describe('camera clearance', () => {
     expect(clearSurface(5.1, null)).toBe(5.1);
   });
 
-  it('shortens at once and lengthens slowly', () => {
-    expect(easeReach(8, 3, 0.016)).toBe(3);
+  it('shortens over a few frames and lengthens slowly', () => {
+    const first = easeReach(8, 3, 0.016);
+    expect(first).toBeLessThan(8);
+    expect(first).toBeGreaterThan(3);
+    let r = 8;
+    for (let i = 0; i < 30; i++) r = easeReach(r, 3, 0.016);
+    expect(r).toBeCloseTo(3, 1);
     expect(easeReach(3, 8, 0.1)).toBeCloseTo(3.8);
     expect(easeReach(3, 3.2, 1)).toBe(3.2);
   });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
 import { DAY_SECONDS, DAYS_PER_SEASON } from './clock';
-import { STORE_CAPACITY, storeCapacity, storeCondition, stored, emptyStock } from './food';
+import { STORE_CAPACITY, storeCapacity, storeCondition, emptyStock, stockOf, tapped } from './food';
 import { LODGE_WOOD, lodgeCondition, type Lodge } from './lodge';
 import type { Log } from './logs';
 import { createWorld, type WorldState } from './state';
@@ -97,6 +97,8 @@ describe('repair by placing a log', () => {
     const after = step(at, { ...noActions(), build: true }, 0, flat);
     expect(storeCondition(after.storeWear, at.clock)).toBeGreaterThan(before);
     expect(after.logs).toHaveLength(0);
+    // mending with a log does not also open the stash
+    expect(after.stashOpen).toBe(false);
   });
 
   it('a new lodge starts to wear from the moment it is whole', () => {
@@ -114,13 +116,23 @@ describe('effects', () => {
     expect(storeCapacity(0.3)).toBeLessThan(STORE_CAPACITY);
     expect(storeCapacity(0.3)).toBeGreaterThan(0);
     expect(storeCapacity(0.05)).toBe(0);
-    expect(stored(emptyStock(), 'branch', 0)).toEqual(emptyStock());
+    expect(tapped(emptyStock(), 'branch', 0, storeCapacity(0.05)).carry).toBe('branch');
+    expect(tapped(emptyStock(), 'branch', 30, storeCapacity(0.3)).carry).toBe('branch');
   });
 
   it('a broken store loses what it held', () => {
-    const w = { ...world(day(STORE_WORN_DAYS * 2)), drag: null, store: { ...emptyStock(), branch: 5 } };
+    const w = { ...world(day(STORE_WORN_DAYS * 2)), drag: null, store: emptyStock().map((_, i) => (i < 5 ? ('branch' as const) : null)) };
     expect(step(w, noActions(), 0, flat).store).toEqual(emptyStock());
     const fresh = { ...w, clock: 0 };
-    expect(step(fresh, noActions(), 0, flat).store.branch).toBe(5);
+    expect(stockOf(step(fresh, noActions(), 0, flat).store, 'branch')).toBe(5);
+  });
+
+  it('a worn store loses the pieces in the places it can no longer hold', () => {
+    const full = emptyStock().map(() => 'lily' as const);
+    const w = { ...world(day(30)), drag: null, store: full };
+    const after = step(w, noActions(), 0, flat).store;
+    expect(after.filter((f) => f !== null)).toHaveLength(storeCapacity(0.25));
+    expect(after[storeCapacity(0.25) - 1]).toBe('lily');
+    expect(after[storeCapacity(0.25)]).toBeNull();
   });
 });

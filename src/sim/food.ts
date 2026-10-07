@@ -7,16 +7,19 @@ import { STORE_WORN_DAYS, condition, stageOf, type Wear } from './wear';
 
 export type Food = 'branch' | 'lily';
 
-/** Pieces in the store, by kind. */
-export type Stock = Record<Food, number>;
+/** The store's fixed places, `STORE_CAPACITY` of them: each holds one piece or is empty (null). The stash screen shows them in this order. */
+export type Stock = readonly (Food | null)[];
 
-export const emptyStock = (): Stock => ({ branch: 0, lily: 0 });
+/** Meals a piece gives when eaten: a branch is worth two lily pads (#155, 16_food_store.md). */
+export const MEALS: Record<Food, number> = { branch: 2, lily: 1 };
 
 /**
  * Pieces the store holds: enough for a family of 7 through a winter and some more. A tuning number, not set by the
  * author. A worn store will hold less (15_build_and_repair.md).
  */
 export const STORE_CAPACITY = 40;
+
+export const emptyStock = (): Stock => Array.from({ length: STORE_CAPACITY }, () => null);
 /** A worn store holds this share of the capacity, a broken one nothing until it is rebuilt (15_build_and_repair.md). */
 export const WORN_CAPACITY_SHARE = 0.6;
 /** How far from the lodge's centre the store lies: past the door, on the way out along the deep run. */
@@ -28,8 +31,19 @@ export const STORE_REACH = 3.5;
 /** How far the beaver reaches to strip a branch off a log, in metres from the nearest point on the log. */
 export const STRIP_REACH = 2;
 
+/** Pieces in the store. */
 export function stockTotal(stock: Stock): number {
-  return stock.branch + stock.lily;
+  return stock.filter((f) => f !== null).length;
+}
+
+/** Pieces of one kind in the store. */
+export function stockOf(stock: Stock, food: Food): number {
+  return stock.filter((f) => f === food).length;
+}
+
+/** Meals in the store: a branch is worth two, a lily pad one. */
+export function stockMeals(stock: Stock): number {
+  return stock.reduce((sum, f) => sum + (f ? MEALS[f] : 0), 0);
 }
 
 /** Where the store lies, or null before the lodge is whole. */
@@ -49,6 +63,29 @@ export function storeCapacity(level: number): number {
 /** How full the store is, 0 to 1. */
 export function storeFill(stock: Stock): number {
   return Math.min(1, stockTotal(stock) / STORE_CAPACITY);
+}
+
+/** The store with the places from `capacity` on emptied: what a worn store loses, and a broken one (capacity 0) loses all of. Same store when nothing is lost. */
+export function trimmed(stock: Stock, capacity: number): Stock {
+  return stock.some((f, i) => f !== null && i >= capacity) ? stock.map((f, i) => (i < capacity ? f : null)) : stock;
+}
+
+/**
+ * One tap on a place of the stash screen. A filled place with an empty mouth gives its piece to the mouth, an empty
+ * place takes the piece from a full mouth, and a filled place with a full mouth swaps the two. A place the store has
+ * lost to wear (from `capacity` on) and an empty place with an empty mouth do nothing.
+ */
+export function tapped(stock: Stock, carry: Food | null, slot: number, capacity: number): { stock: Stock; carry: Food | null } {
+  if (!Number.isInteger(slot) || slot < 0 || slot >= Math.min(capacity, stock.length)) return { stock, carry };
+  const here = stock[slot] ?? null;
+  if (here === null && carry === null) return { stock, carry };
+  return { stock: stock.map((f, i) => (i === slot ? carry : f)), carry: here };
+}
+
+/** Pieces in the store of one kind as a share of the pieces, 0 to 1 (0 for an empty store): how much of the heap is lily pads. */
+export function lilyShare(stock: Stock): number {
+  const total = stockTotal(stock);
+  return total === 0 ? 0 : stockOf(stock, 'lily') / total;
 }
 
 /** True when a point is within reach of the store. */
@@ -75,19 +112,4 @@ export function strippable(logs: readonly Log[], taken: Readonly<Record<string, 
     }
   }
   return best;
-}
-
-/** The piece taken out of a store: branches first, lily pads after. Null when it is empty. */
-export function pieceFrom(stock: Stock): Food | null {
-  return stock.branch > 0 ? 'branch' : stock.lily > 0 ? 'lily' : null;
-}
-
-/** The store with a piece added, or the same store when it is full (`capacity` is less when the store is worn). */
-export function stored(stock: Stock, food: Food, capacity = STORE_CAPACITY): Stock {
-  return stockTotal(stock) >= capacity ? stock : { ...stock, [food]: stock[food] + 1 };
-}
-
-/** The store with a piece taken out. */
-export function taken(stock: Stock, food: Food): Stock {
-  return { ...stock, [food]: Math.max(0, stock[food] - 1) };
 }

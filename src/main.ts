@@ -13,6 +13,8 @@ import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
 import { createCarryHud, foodInfoOf } from './ui/carryHud';
 import { createClockHud } from './ui/clockHud';
+import { createStashPanel } from './ui/stashPanel';
+import { storeCapacity, storeCondition } from './sim/food';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
@@ -115,6 +117,17 @@ async function start(): Promise<void> {
   const breathMeter = createBreathMeter(document.body);
   const clockHud = createClockHud(document.body);
   const carryHud = createCarryHud(document.body);
+  // Taps on the stash screen wait here until the next step takes them.
+  let stashTap: number | undefined;
+  let stashClose = false;
+  const stashPanel = createStashPanel(document.body, {
+    onTap(slot) {
+      stashTap = slot;
+    },
+    onClose() {
+      stashClose = true;
+    },
+  });
   const trees: TreeSource = renderer.terrain ? { nearest: (x, z, reach, felled) => renderer.terrain!.nearestTree(x, z, reach, felled), trunksNear: (x, z, reach, felled) => renderer.terrain!.trunksNear(x, z, reach, felled) } : noTrees;
   const sleepPrompt = createSleepPrompt(document.body, {
     onWake() {
@@ -137,9 +150,11 @@ async function start(): Promise<void> {
         menu.setStatus('');
       }
     } else {
-      const actions = mergeActions(readKeyboard(), touch.read());
+      const actions = { ...mergeActions(readKeyboard(), touch.read()), stashTap, stashClose };
+      stashTap = undefined;
+      stashClose = false;
       const move = relativeToView(actions.move, rig.view.yaw);
-      world = step(world, { move, dive: actions.dive, slap: actions.slap, chop: actions.chop, grab: actions.grab, build: actions.build }, dt, terrain, trees);
+      world = step(world, { move, dive: actions.dive, slap: actions.slap, chop: actions.chop, grab: actions.grab, build: actions.build, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
       streamer?.update(world.beaver.x, world.beaver.z);
       rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
     }
@@ -151,6 +166,7 @@ async function start(): Promise<void> {
     const l = world.inLodge ? world.lodge : null;
     const spot = l ? (atHole(l, world.beaver.x, world.beaver.z) ? 'hole' : atNest(l, world.beaver.x, world.beaver.z) ? 'nest' : 'room') : null;
     carryHud.set(world.felled.length, world.drag !== null, world.chop ? world.chop.progress / CHOP_TIME : null, world.lodge ? lodgeProgress(world.lodge) : null, site?.problem ?? (site ? 'ok' : null), spot, foodInfoOf(world, terrain));
+    stashPanel.set(world.stashOpen, world.store, world.carry, storeCapacity(storeCondition(world.storeWear, world.clock)));
     sleepPrompt.setAvailable(canSleep(world));
     renderer.draw(world, rig.view);
     if (now - lastReadout > 500) {

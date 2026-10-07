@@ -1,7 +1,8 @@
-// Draws the food store of the sim: a heap of branches on the lake bed beside the lodge door, which grows as it fills.
+// Draws the food store of the sim: a heap of branches on the lake bed beside the lodge door, which grows as it fills, with
+// the lily pads in it lying green on top.
 // It lies under water, so it shows from above through the water and up close when diving. Reads state only.
 import * as THREE from 'three';
-import { STORE_RADIUS, stockTotal, storeFill, storeSpot, type Stock } from '../sim/food';
+import { STORE_CAPACITY, STORE_RADIUS, stockOf, storeFill, storeSpot, type Stock } from '../sim/food';
 import type { Lodge } from '../sim/lodge';
 import { BROKEN_BELOW, needsRepair } from '../sim/wear';
 import { createRepairGlow } from './repairGlow';
@@ -38,6 +39,19 @@ export function createStoreView(scene: THREE.Scene, shadows: boolean, prepare: (
     group.add(mesh);
     sticks.push(mesh);
   }
+  // Lily pads in the store lie on top of the branches as flat green discs, one for each pad, at the same scatter every time.
+  const padGeometry = new THREE.CircleGeometry(0.3, 8).rotateX(-Math.PI / 2);
+  const padMaterial = new THREE.MeshLambertMaterial({ color: 0x4f9d4b, flatShading: true, side: THREE.DoubleSide });
+  prepare(padMaterial);
+  const pads: THREE.Mesh[] = [];
+  for (let i = 0; i < STORE_CAPACITY; i++) {
+    const mesh = new THREE.Mesh(padGeometry, padMaterial);
+    const r = Math.sqrt(random()) * STORE_RADIUS * 0.85;
+    const a = random() * Math.PI * 2;
+    mesh.userData = { x: Math.sin(a) * r, z: Math.cos(a) * r, layer: 1 - r / (STORE_RADIUS * 0.85), tilt: (random() - 0.5) * 0.3 };
+    group.add(mesh);
+    pads.push(mesh);
+  }
   const glow = createRepairGlow(scene, STORE_RADIUS + 0.4);
   return {
     update(lodge, stock, bed, level = 1) {
@@ -53,13 +67,22 @@ export function createStoreView(scene: THREE.Scene, shadows: boolean, prepare: (
       const fill = storeFill(stock);
       const height = EMPTY_HEIGHT + (FULL_HEIGHT - EMPTY_HEIGHT) * fill;
       // The heap's sticks appear one after another as it fills; an empty store keeps a few.
-      const shown = stockTotal(stock) === 0 ? 4 : Math.max(4, Math.ceil(fill * STICKS));
+      const branches = stockOf(stock, 'branch');
+      const shown = Math.max(4, Math.ceil((branches / STORE_CAPACITY) * STICKS));
       sticks.forEach((mesh, i) => {
         const u = mesh.userData as { x: number; z: number; layer: number; turn: number; tilt: number; length: number };
         mesh.visible = i < shown;
         mesh.position.set(u.x, 0.08 + height * u.layer * 0.9, u.z);
         mesh.rotation.set(0, u.turn, u.tilt);
         mesh.scale.set(u.length, 1, 1);
+      });
+      // The pads sit on the heap: a little above the sticks at their spot.
+      const lilies = stockOf(stock, 'lily');
+      pads.forEach((mesh, i) => {
+        const u = mesh.userData as { x: number; z: number; layer: number; tilt: number };
+        mesh.visible = i < lilies;
+        mesh.position.set(u.x, 0.16 + height * u.layer * 0.9, u.z);
+        mesh.rotation.set(u.tilt, 0, u.tilt);
       });
     },
   };

@@ -1,7 +1,7 @@
 import { LODGE_CLOCK_RATE } from './clock';
-import type { Actions } from '../actions/actions';
+import { noActions, type Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
-import { atStore, emptyStock, pieceFrom, storeCapacity, storeCondition, stored, strippable, taken } from './food';
+import { atStore, storeCapacity, storeCondition, strippable, tapped, trimmed } from './food';
 import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
@@ -12,8 +12,20 @@ import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPE
 /** The longest stretch of a move, in metres, checked for bumps in one go. */
 const SWEEP_STEP = 0.4;
 
-/** Advance the world by dt seconds. Pure: returns a new state. */
+/**
+ * Advance the world by dt seconds. Pure: returns a new state. While the stash screen is open the player's taps move
+ * pieces between the mouth and the store's places and nothing else is done: the beaver stands still, though time goes on.
+ */
 export function step(world: WorldState, actions: Actions, dt: number, terrain: Terrain, trees: TreeSource = noTrees): WorldState {
+  if (!world.stashOpen) return advance(world, actions, dt, terrain, trees);
+  let { store, carry } = world;
+  let stashOpen: boolean = world.stashOpen;
+  if (actions.stashTap !== undefined) ({ stock: store, carry } = tapped(store, carry, actions.stashTap, storeCapacity(storeCondition(world.storeWear, world.clock))));
+  if (actions.stashClose) stashOpen = false;
+  return advance({ ...world, store, carry, stashOpen }, noActions(), dt, terrain, trees);
+}
+
+function advance(world: WorldState, actions: Actions, dt: number, terrain: Terrain, trees: TreeSource): WorldState {
   let { x, z } = actions.move;
   const len = Math.hypot(x, z);
   if (len > 1) {
@@ -62,8 +74,8 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   return {
     ...world,
     ...food,
-    // A broken store holds nothing: whatever was in it is gone, and food has to be stored again (15_build_and_repair.md).
-    store: storeCapacity(storeCondition(built.storeWear, world.clock)) === 0 ? emptyStock() : food.store,
+    // A worn store loses the places it can no longer hold, and a broken one all of them: what was in them is gone (15_build_and_repair.md).
+    store: trimmed(food.store, storeCapacity(storeCondition(built.storeWear, world.clock))),
     time,
     chop,
     felled,
@@ -133,27 +145,15 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
 
 /**
  * The food. Gnawing next to a floating lily pad picks it into the mouth, and gnawing a log with no tree to gnaw
- * strips a branch into it. At the store the build button drops
- * the piece in, and the drag button takes one out when the mouth is empty (it does not, if it just let go of a log or
- * took hold of one). Inside the lodge the gnaw button eats the piece.
+ * strips a branch into it. At the store the build button opens the stash screen (not on the frame it mends the store with
+ * a log), where the player chooses what to put in or take out. Inside the lodge the gnaw button eats the piece.
  */
-function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain): Pick<WorldState, 'carry' | 'store' | 'stripped' | 'picked' | 'eaten'> {
-  let { carry, store, stripped, picked, eaten } = world;
-  if (eating) return { carry: null, store, stripped, picked, eaten: eaten + 1 };
-  if (world.inLodge) return { carry, store, stripped, picked, eaten };
-  const capacity = storeCapacity(storeCondition(world.storeWear, world.clock));
-  if (carry && actions.build && atStore(world.lodge, b.x, b.z)) {
-    const after = stored(store, carry, capacity);
-    if (after !== store) {
-      store = after;
-      carry = null;
-    }
-  } else if (!carry && actions.grab && wasFree && world.drag === null && atStore(world.lodge, b.x, b.z) && capacity > 0) {
-    const piece = pieceFrom(store);
-    if (piece) {
-      store = taken(store, piece);
-      carry = piece;
-    }
+function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain): Pick<WorldState, 'carry' | 'store' | 'stashOpen' | 'stripped' | 'picked' | 'eaten'> {
+  let { carry, store, stashOpen, stripped, picked, eaten } = world;
+  if (eating) return { carry: null, store, stashOpen, stripped, picked, eaten: eaten + 1 };
+  if (world.inLodge) return { carry, store, stashOpen, stripped, picked, eaten };
+  if (actions.build && wasFree && atStore(world.lodge, b.x, b.z)) {
+    stashOpen = true;
   } else if (!carry && actions.chop && !world.chop && !world.drag && b.mode !== 'dive') {
     const pad = reachablePad(terrain, b.x, b.z, world.clock, picked);
     const log = pad ? null : strippable(world.logs, stripped, b.x, b.z);
@@ -165,7 +165,7 @@ function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boole
       carry = 'branch';
     }
   }
-  return { carry, store, stripped, picked, eaten };
+  return { carry, store, stashOpen, stripped, picked, eaten };
 }
 
 /**

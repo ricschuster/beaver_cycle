@@ -76,7 +76,8 @@ First guesses, to tune on the tablet:
 
 - Capacity: 40 pieces (`STORE_CAPACITY`) for 7 beavers over a winter. No winter
   need is simulated yet, so it is a guess.
-- Portions: a branch gives more than a lily pad.
+- Portions: a branch is worth 2 meals and a lily pad 1 (session 34, #155). The note below
+  has the stash that makes the difference matter.
 - Lily pads stay in the store until eaten, since they would die outside.
 
 ## Not decided
@@ -85,4 +86,56 @@ First guesses, to tune on the tablet:
   a bay for them.
 - The wear of the store (doc 15) is not built.
 - How the store looks as it fills and as it wears.
-- Whether the store has its own repair glow, or shares the lodge's.
+
+## The stash (session 34, the author's decisions)
+
+Answers #155 (should branches and lily pads differ). They do, and the player picks
+which one to take, so the store becomes a place you open, like a chest in
+Stardew Valley.
+
+Decided by the author:
+
+- A branch and a lily pad have **different effects**, and a branch is worth 2 meals
+  against 1 for a pad.
+- The store has **fixed places** (`STORE_CAPACITY`, 40), each holding one piece or
+  empty. A piece goes in a place and comes out of it.
+- **Every visit opens the stash.** At the store, pressing Build or Drag opens it
+  whether the mouth is full or empty, and the beaver chooses what to do. Nothing is
+  put in or taken out without opening it.
+- The heap on the lake bed **shows pads and branches differently**, for example
+  green on top of brown, in the share the store holds.
+- The repair glow shows **just outside the lodge, not inside**, and the **store keeps
+  its own glow** as it has now. The wear rates stay as they are.
+- A broken store holds nothing: what was in it is gone and food is stored again
+  after the rebuild (`15_build_and_repair.md`).
+
+### How it works
+
+- A DOM overlay in `src/ui/`, in the form of a chest screen. The top is the store as
+  a grid of 40 places, five a row. Under it is the mouth, one place for the piece the
+  beaver carries. Branches are drawn as small sticks and pads as green discs.
+- Tap a filled place with an empty mouth: the piece goes to the mouth. Tap an empty
+  place with a piece in the mouth: it goes in that place. Tap a filled place with a
+  full mouth: the two swap. The panel stays open until the player closes it, so
+  several pieces can be moved in one visit.
+- Places lost to wear show greyed and cannot be used. A broken store opens grey and
+  empty.
+- The panel shows the pieces and the meals, for example "12 of 40, 18 meals".
+- The sim stays free of the DOM. The store becomes a list of 40 places (a food or
+  empty), and the player's choice arrives as plain data in `src/actions/`, for example
+  "put the mouth piece in place N" and "take place N". The renderer draws the heap from
+  the share of branches and pads.
+- The world is paused to the extent that the beaver does not move while the panel is
+  open, but time is not stopped, since the world keeps its clock (Q17).
+
+### Not decided
+
+- **The two effects.** Nothing eats from the store yet, so there is nothing to
+  attach them to. A starting idea, to confirm: a branch is a full meal, and a pad
+  is a light one with a small extra, such as a short burst of swim speed. Needs the
+  author's call when eating gets an effect.
+- When a worn store loses places, what happens to the pieces in them. Consistency
+  with a broken store says they are lost. A gentler choice keeps them locked until
+  the store is mended.
+- Which input opens the stash on a tablet, since Build and Drag are both on the
+  screen: either one at the store, as written above, is the starting point.

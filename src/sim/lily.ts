@@ -16,7 +16,7 @@ export const LILY_CELL = 3;
 /** The share of grid cells at a patch centre that hold a pad. A tuning number. */
 export const LILY_DENSITY = 0.8;
 /** Pads grow in water between these depths in metres: shallow enough to root, not so shallow it is a puddle. */
-export const LILY_MIN_DEPTH = 0.3;
+export const LILY_MIN_DEPTH = 0.25;
 export const LILY_MAX_DEPTH = 2.5;
 /** The beaver reaches a pad within this many metres of its centre. */
 export const LILY_REACH = 1.8;

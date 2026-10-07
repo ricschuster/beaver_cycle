@@ -21,6 +21,11 @@ export const TREE_SHAPE = [
   { radius: 1.8, height: 9, base: -0.5 },
   { radius: 2.4, height: 10, base: -0.5 },
 ];
+/**
+ * Height above the ground, at scale 1, below which a conifer does not block the camera. Like the trunk of a
+ * broadleaf tree, the wide foot of the cone would snap the camera in on every tree it passes.
+ */
+export const CONIFER_CLEAR_BELOW = 2.5;
 /** Kinds of tree. Conifers stay green all year; broadleaf trees turn and drop their leaves in autumn. */
 export const KIND_CONIFER = 0;
 export const KIND_BROADLEAF = 1;
@@ -146,7 +151,7 @@ export class TreeGrid {
     return i * 100003 + j;
   }
 
-  /** True when the point is inside a tree's cone, grown by `margin` metres. */
+  /** True when the point is inside a tree's cone or crown, grown by `margin` metres. A conifer's low part and a trunk do not count. */
   hit(x: number, y: number, z: number, margin: number): boolean {
     const bi = Math.floor(x / BUCKET);
     const bj = Math.floor(z / BUCKET);
@@ -161,6 +166,7 @@ export class TreeGrid {
             if (Math.hypot(x - this.trees[o]!, dy, z - this.trees[o + 2]!) < c.radius * s + margin) return true;
             continue;
           }
+          if ((y - this.trees[o + 1]!) / s < CONIFER_CLEAR_BELOW) continue;
           const up = (y - this.trees[o + 1]!) / s - base;
           if (up < -margin / s || up > height + margin / s) continue;
           const r = (radius * (1 - Math.max(0, up) / height) + margin / s) * s;

@@ -41,13 +41,18 @@ describe('tree grid', () => {
   const grid = new TreeGrid(Float32Array.from([20, 100, 20, 1, 0]), 0);
 
   it('hits inside the cone and misses outside it', () => {
-    expect(grid.hit(20.5, 101, 20, 0)).toBe(true);
-    expect(grid.hit(23, 101, 20, 0)).toBe(false);
-    expect(grid.hit(23, 101, 20, 2)).toBe(true);
+    expect(grid.hit(20.5, 103, 20, 0)).toBe(true);
+    expect(grid.hit(23, 103, 20, 0)).toBe(false);
+    expect(grid.hit(23, 103, 20, 2)).toBe(true);
+  });
+
+  it('lets the camera pass the low part of a conifer', () => {
+    expect(grid.hit(20.5, 101, 20, 0)).toBe(false);
+    expect(grid.hit(20, 100.2, 20, 0.5)).toBe(false);
   });
 
   it('narrows toward the top and ends above it', () => {
-    expect(grid.hit(21.5, 100.2, 20, 0)).toBe(true);
+    expect(grid.hit(21, 102.6, 20, 0)).toBe(true);
     expect(grid.hit(21.5, 107, 20, 0)).toBe(false);
     expect(grid.hit(20, 120, 20, 0.5)).toBe(false);
   });
@@ -69,6 +74,6 @@ describe('tree grid', () => {
   it('finds a tree in a neighbouring bucket', () => {
     // the tree is in bucket 2 (x 32 to 48), the point in bucket 1
     const edge = new TreeGrid(Float32Array.from([33, 100, 20, 1, 0]), 0);
-    expect(edge.hit(31.5, 100.5, 20, 0)).toBe(true);
+    expect(edge.hit(31.9, 102.6, 20, 0)).toBe(true);
   });
 });

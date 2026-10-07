@@ -29,8 +29,13 @@ describe('camera clearance', () => {
     expect(clearSurface(5.1, null)).toBe(5.1);
   });
 
-  it('shortens at once and lengthens slowly', () => {
-    expect(easeReach(8, 3, 0.016)).toBe(3);
+  it('shortens over a few frames and lengthens slowly', () => {
+    const first = easeReach(8, 3, 0.016);
+    expect(first).toBeLessThan(8);
+    expect(first).toBeGreaterThan(3);
+    let r = 8;
+    for (let i = 0; i < 30; i++) r = easeReach(r, 3, 0.016);
+    expect(r).toBeCloseTo(3, 1);
     expect(easeReach(3, 8, 0.1)).toBeCloseTo(3.8);
     expect(easeReach(3, 3.2, 1)).toBe(3.2);
   });
@@ -41,13 +46,18 @@ describe('tree grid', () => {
   const grid = new TreeGrid(Float32Array.from([20, 100, 20, 1, 0]), 0);
 
   it('hits inside the cone and misses outside it', () => {
-    expect(grid.hit(20.5, 101, 20, 0)).toBe(true);
-    expect(grid.hit(23, 101, 20, 0)).toBe(false);
-    expect(grid.hit(23, 101, 20, 2)).toBe(true);
+    expect(grid.hit(20.5, 103, 20, 0)).toBe(true);
+    expect(grid.hit(23, 103, 20, 0)).toBe(false);
+    expect(grid.hit(23, 103, 20, 2)).toBe(true);
+  });
+
+  it('lets the camera pass the low part of a conifer', () => {
+    expect(grid.hit(20.5, 101, 20, 0)).toBe(false);
+    expect(grid.hit(20, 100.2, 20, 0.5)).toBe(false);
   });
 
   it('narrows toward the top and ends above it', () => {
-    expect(grid.hit(21.5, 100.2, 20, 0)).toBe(true);
+    expect(grid.hit(21, 102.6, 20, 0)).toBe(true);
     expect(grid.hit(21.5, 107, 20, 0)).toBe(false);
     expect(grid.hit(20, 120, 20, 0.5)).toBe(false);
   });
@@ -69,6 +79,6 @@ describe('tree grid', () => {
   it('finds a tree in a neighbouring bucket', () => {
     // the tree is in bucket 2 (x 32 to 48), the point in bucket 1
     const edge = new TreeGrid(Float32Array.from([33, 100, 20, 1, 0]), 0);
-    expect(edge.hit(31.5, 100.5, 20, 0)).toBe(true);
+    expect(edge.hit(31.9, 102.6, 20, 0)).toBe(true);
   });
 });

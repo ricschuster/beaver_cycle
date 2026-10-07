@@ -1,5 +1,5 @@
 // Trees felled, the log being dragged, and how far a gnaw has got, top left under the clock. DOM only.
-import { atStore, storeCapacity, storeCondition, pieceFrom, stockTotal, strippable } from '../sim/food';
+import { atStore, storeCapacity, storeCondition, stockMeals, stockTotal, strippable } from '../sim/food';
 import { reachablePad } from '../sim/lily';
 import type { Terrain } from '../sim/terrain';
 import { LODGE_WOOD, lodgeComplete, lodgeCondition, nearLodge, type SiteProblem } from '../sim/lodge';
@@ -28,17 +28,16 @@ const SPOT_TEXT: Record<'hole' | 'nest' | 'room', string> = {
 /** The food in play: the piece in the mouth, the store once the lodge is whole (null before), and what a press would do here. */
 export interface FoodInfo {
   carry: 'branch' | 'lily' | null;
-  store: { total: number; capacity: number } | null;
+  store: { total: number; capacity: number; meals: number } | null;
   /** The lodge or store within reach that needs repair: its condition in percent and the wood units still needed. */
   repair: { what: 'lodge' | 'store'; percent: number; wood: number; broken: boolean } | null;
-  hint: 'pick' | 'strip' | 'store' | 'take' | 'eat' | null;
+  hint: 'pick' | 'strip' | 'store' | 'eat' | null;
 }
 
 const HINT_TEXT: Record<NonNullable<FoodInfo['hint']>, string> = {
   pick: 'press Gnaw to pick a lily pad',
   strip: 'press Gnaw to strip a branch',
-  store: 'press Build to put it in the store',
-  take: 'press Drag to take a piece from the store',
+  store: 'press Build to open the store',
   eat: 'press Gnaw to eat it',
 };
 
@@ -53,7 +52,7 @@ export function formatFood(food: FoodInfo | null): string {
   if (!food) return '';
   const parts: string[] = [];
   if (food.carry) parts.push(food.carry === 'branch' ? 'carrying a branch' : 'carrying a lily pad');
-  if (food.store) parts.push(`store ${food.store.total} of ${food.store.capacity}`);
+  if (food.store) parts.push(`store ${food.store.total} of ${food.store.capacity}, ${food.store.meals} ${food.store.meals === 1 ? 'meal' : 'meals'}`);
   if (food.repair) parts.push(formatRepair(food.repair));
   if (food.hint) parts.push(HINT_TEXT[food.hint]);
   return parts.length ? `, ${parts.join(', ')}` : '';
@@ -80,8 +79,8 @@ export function foodInfoOf(world: WorldState, terrain: Terrain): FoodInfo | null
   let hint: FoodInfo['hint'] = null;
   if (world.inLodge) {
     if (carry) hint = 'eat';
-  } else if (whole && atStore(lodge, b.x, b.z) && (carry || pieceFrom(store)) && !world.drag) {
-    hint = carry ? 'store' : 'take';
+  } else if (whole && atStore(lodge, b.x, b.z) && !world.drag) {
+    hint = 'store';
   } else if (!carry && !world.drag && !world.chop && b.mode !== 'dive' && reachablePad(terrain, b.x, b.z, world.clock, world.picked)) {
     hint = 'pick';
   } else if (!carry && !world.drag && !world.chop && b.mode !== 'dive' && strippable(world.logs, world.stripped, b.x, b.z)) {
@@ -90,7 +89,7 @@ export function foodInfoOf(world: WorldState, terrain: Terrain): FoodInfo | null
   const repair = whole && !world.inLodge ? repairInfoOf(world) : null;
   if (!carry && !whole && !hint) return null;
   const capacity = storeCapacity(storeCondition(world.storeWear, world.clock));
-  return { carry, store: whole ? { total: stockTotal(store), capacity } : null, repair, hint };
+  return { carry, store: whole ? { total: stockTotal(store), capacity, meals: stockMeals(store) } : null, repair, hint };
 }
 
 export interface CarryHud {

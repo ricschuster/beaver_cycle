@@ -47,13 +47,13 @@ Built in session 28. The sim is in `src/sim/food.ts`, the heap is drawn by
 - **Branches come from felled logs.** Pressing Gnaw next to a log, with no tree
   to gnaw and nothing in the mouth, strips one branch into the mouth. A log
   gives one branch a metre of its length (4 or 6), then it is bare.
-- **Drop in:** Build at the store (within 3.5 m, at the surface or diving) puts
-  the piece in. A full store keeps the piece in the mouth.
-- **Take out:** Drag at the store with an empty mouth takes a piece, branches
-  first. A beaver with a piece in its mouth cannot take hold of a log.
+- **Open the stash:** Build at the store (within 3.5 m, at the surface or diving) opens
+  the stash screen, with a piece in the mouth or without (see "The stash" below).
+  Drag no longer takes a piece out. The old drop in and take out are done by
+  tapping places there.
 - **Eat:** inside the lodge, Gnaw eats the piece in the mouth. Eating only
   counts (`eaten`), as not eating has no effect (Q17).
-- The HUD shows the piece in the mouth, the store as "12 of 40", and what a
+- The HUD shows the piece in the mouth, the store as "12 of 40, 18 meals", and what a
   press would do here.
 
 - **Lily pads** (`src/sim/lily.ts`, `src/render/lilyView.ts`; the clusters are
@@ -109,10 +109,10 @@ Decided by the author:
 - A broken store holds nothing: what was in it is gone and food is stored again
   after the rebuild (`15_build_and_repair.md`).
 
-### How it works
+### How it works (built in session 34)
 
 - A DOM overlay in `src/ui/`, in the form of a chest screen. The top is the store as
-  a grid of 40 places, five a row. Under it is the mouth, one place for the piece the
+  a grid of 40 places, eight a row (five rows fit a tablet held sideways). Under it is the mouth, one place for the piece the
   beaver carries. Branches are drawn as small sticks and pads as green discs.
 - Tap a filled place with an empty mouth: the piece goes to the mouth. Tap an empty
   place with a piece in the mouth: it goes in that place. Tap a filled place with a
@@ -125,6 +125,11 @@ Decided by the author:
   empty), and the player's choice arrives as plain data in `src/actions/`, for example
   "put the mouth piece in place N" and "take place N". The renderer draws the heap from
   the share of branches and pads.
+- The screen is `src/ui/stashPanel.ts`, the rules are `tapped` and `trimmed` in `src/sim/food.ts`,
+  and the heap (`src/render/storeView.ts`) draws one green disc on top for each pad
+  and sticks for the branches. A tap that cannot do anything (an empty place with an
+  empty mouth, a lost place) does nothing. The store line in the HUD now says "12 of
+  40, 18 meals". Not tried on a tablet yet.
 - The world is paused to the extent that the beaver does not move while the panel is
   open, but time is not stopped, since the world keeps its clock (Q17).
 

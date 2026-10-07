@@ -15,6 +15,10 @@ export interface Actions {
   grab?: boolean;
   /** True on the frame the player presses the build button: places the dragged log at the lodge, or leaves the lodge from inside. False when missing. */
   build?: boolean;
+  /** The place of the stash screen the player tapped this frame (0 to 39), or missing. Only used while the stash is open. */
+  stashTap?: number;
+  /** True on the frame the player closes the stash screen. False when missing. */
+  stashClose?: boolean;
 }
 
 export const noActions = (): Actions => ({ move: { x: 0, z: 0 }, dive: false, slap: false, chop: false, grab: false, build: false });
@@ -37,5 +41,5 @@ export function mergeActions(a: Actions, b: Actions): Actions {
   const z = a.move.z + b.move.z;
   const len = Math.hypot(x, z);
   const k = len > 1 ? 1 / len : 1;
-  return { move: { x: x * k, z: z * k }, dive: !!(a.dive || b.dive), slap: !!(a.slap || b.slap), chop: !!(a.chop || b.chop), grab: !!(a.grab || b.grab), build: !!(a.build || b.build) };
+  return { move: { x: x * k, z: z * k }, dive: !!(a.dive || b.dive), slap: !!(a.slap || b.slap), chop: !!(a.chop || b.chop), grab: !!(a.grab || b.grab), build: !!(a.build || b.build), stashTap: a.stashTap ?? b.stashTap, stashClose: !!(a.stashClose || b.stashClose) };
 }

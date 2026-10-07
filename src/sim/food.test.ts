@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { noActions, type Actions } from '../actions/actions';
-import { STORE_CAPACITY, STORE_DISTANCE, branchesOf, emptyStock, pieceFrom, stockTotal, storeFill, storeSpot, stored } from './food';
+import { STORE_CAPACITY, STORE_DISTANCE, branchesOf, emptyStock, lilyShare, stockMeals, stockOf, stockTotal, storeFill, storeSpot, tapped, trimmed, type Food, type Stock } from './food';
 import { LODGE_WOOD } from './lodge';
 import type { Log } from './logs';
 import { createWorld, type WorldState } from './state';
@@ -35,14 +35,46 @@ describe('the store', () => {
     expect(storeSpot(null)).toBeNull();
   });
 
-  it('holds at most its capacity and says how full it is', () => {
-    let s = emptyStock();
-    for (let i = 0; i < STORE_CAPACITY + 5; i++) s = stored(s, i % 2 ? 'lily' : 'branch');
-    expect(stockTotal(s)).toBe(STORE_CAPACITY);
-    expect(storeFill(s)).toBe(1);
-    expect(pieceFrom(emptyStock())).toBeNull();
-    expect(pieceFrom({ branch: 0, lily: 2 })).toBe('lily');
-    expect(pieceFrom({ branch: 1, lily: 2 })).toBe('branch');
+  it('has fixed places, and says how full it is and how many meals it holds', () => {
+    expect(emptyStock()).toHaveLength(STORE_CAPACITY);
+    const s: Stock = emptyStock().map((_, i) => (i < 3 ? 'branch' : i < 5 ? 'lily' : null));
+    expect(stockTotal(s)).toBe(5);
+    expect(stockOf(s, 'lily')).toBe(2);
+    expect(stockMeals(s)).toBe(8);
+    expect(storeFill(s)).toBeCloseTo(5 / STORE_CAPACITY);
+    expect(lilyShare(s)).toBeCloseTo(0.4);
+    expect(lilyShare(emptyStock())).toBe(0);
+  });
+
+  it('is trimmed to the places a worn store keeps, and not otherwise', () => {
+    const s: Stock = emptyStock().map(() => 'branch' as Food);
+    expect(stockTotal(trimmed(s, 10))).toBe(10);
+    expect(trimmed(s, STORE_CAPACITY)).toBe(s);
+    expect(stockTotal(trimmed(s, 0))).toBe(0);
+  });
+});
+
+describe('tapping a place', () => {
+  const some: Stock = emptyStock().map((_, i) => (i === 2 ? 'branch' : i === 3 ? 'lily' : null));
+
+  it('takes a piece with an empty mouth, puts one in an empty place, and swaps two', () => {
+    const take = tapped(some, null, 2, STORE_CAPACITY);
+    expect(take.carry).toBe('branch');
+    expect(take.stock[2]).toBeNull();
+    const put = tapped(some, 'lily', 5, STORE_CAPACITY);
+    expect(put.carry).toBeNull();
+    expect(put.stock[5]).toBe('lily');
+    const swap = tapped(some, 'lily', 2, STORE_CAPACITY);
+    expect(swap.carry).toBe('branch');
+    expect(swap.stock[2]).toBe('lily');
+  });
+
+  it('does nothing for an empty place with an empty mouth, a lost place, or a place that is not there', () => {
+    expect(tapped(some, null, 7, STORE_CAPACITY)).toEqual({ stock: some, carry: null });
+    expect(tapped(some, 'branch', 30, 24)).toEqual({ stock: some, carry: 'branch' });
+    expect(tapped(some, 'branch', -1, STORE_CAPACITY)).toEqual({ stock: some, carry: 'branch' });
+    expect(tapped(some, 'branch', STORE_CAPACITY, STORE_CAPACITY)).toEqual({ stock: some, carry: 'branch' });
+    expect(tapped(some, 'branch', 1.5, STORE_CAPACITY)).toEqual({ stock: some, carry: 'branch' });
   });
 });
 
@@ -73,35 +105,42 @@ describe('stripping branches', () => {
   });
 });
 
-describe('storing and eating', () => {
-  it('drops the piece in at the store, and only at the store', () => {
+describe('the stash', () => {
+  it('opens with Build at the store, with a piece in the mouth or without, and only at the store', () => {
     const w = { ...world(), carry: 'branch' as const };
-    const away = step(w, press({ build: true }), 0.1, shore);
-    expect(away.carry).toBe('branch');
-    expect(away.store.branch).toBe(0);
+    expect(step(w, press({ build: true }), 0.1, shore).stashOpen).toBe(false);
     const at = step(atTheStore(w), press({ build: true }), 0.1, shore);
-    expect(at.carry).toBeNull();
-    expect(at.store.branch).toBe(1);
+    expect(at.stashOpen).toBe(true);
+    expect(at.carry).toBe('branch');
+    expect(step(atTheStore(world()), press({ build: true }), 0.1, shore).stashOpen).toBe(true);
+    expect(step(atTheStore(world()), press({ grab: true }), 0.1, shore).stashOpen).toBe(false);
   });
 
-  it('keeps the piece in the mouth when the store is full', () => {
-    const w = atTheStore({ ...world(), carry: 'branch', store: { branch: STORE_CAPACITY, lily: 0 } });
-    const after = step(w, press({ build: true }), 0.1, shore);
-    expect(after.carry).toBe('branch');
-    expect(after.store.branch).toBe(STORE_CAPACITY);
+  it('moves pieces by taps, and keeps the beaver still while it is open', () => {
+    let w = step(atTheStore({ ...world(), carry: 'branch' as const }), press({ build: true }), 0.1, shore);
+    const at = { x: w.beaver.x, z: w.beaver.z };
+    w = step(w, press({ stashTap: 4, move: { x: 1, z: 0 } }), 0.1, shore);
+    expect(w.store[4]).toBe('branch');
+    expect(w.carry).toBeNull();
+    expect({ x: w.beaver.x, z: w.beaver.z }).toEqual(at);
+    w = step(w, press({ stashTap: 4 }), 0.1, shore);
+    expect(w.carry).toBe('branch');
+    expect(w.store[4]).toBeNull();
+    expect(step(w, press({ stashClose: true }), 0.1, shore).stashOpen).toBe(false);
   });
 
-  it('takes a piece out at the store when the mouth is empty', () => {
-    const w = atTheStore({ ...world(), store: { branch: 2, lily: 1 } });
-    const after = step(w, press({ grab: true }), 0.1, shore);
-    expect(after.carry).toBe('branch');
-    expect(after.store.branch).toBe(1);
-    // a full mouth takes nothing more
-    expect(step(after, press({ grab: true }), 0.1, shore).store.branch).toBe(1);
-    // an empty store gives nothing
-    expect(step(atTheStore(world()), press({ grab: true }), 0.1, shore).carry).toBeNull();
+  it('ignores a tap while it is shut', () => {
+    const closed = atTheStore(world());
+    expect(step(closed, press({ stashTap: 0 }), 0.1, shore).store).toEqual(closed.store);
   });
 
+  it('shows a lost place as unusable: a tap on it does nothing', () => {
+    const w = { ...atTheStore({ ...world(), carry: 'lily' as const }), stashOpen: true, storeWear: { level: 0.3, since: 0, mend: 0 } };
+    expect(step(w, press({ stashTap: 39 }), 0.1, shore).carry).toBe('lily');
+  });
+});
+
+describe('eating', () => {
   it('eats the piece inside the lodge, and not outside it', () => {
     const w = { ...world(), carry: 'branch' as const };
     const outside = step(w, press({ chop: true }), 0.1, shore);

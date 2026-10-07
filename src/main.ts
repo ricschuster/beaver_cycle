@@ -19,7 +19,7 @@ import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { loadDamSites } from './render/damSites';
-import { firstSpots } from './sim/damSpots';
+import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
 
@@ -70,8 +70,11 @@ async function start(): Promise<void> {
     renderer.setDamSitesVisible(on);
   };
   let damSitesAdded = false;
-  // The first dam spots of the core location, marked by rings that show when the beaver is near (design note 20).
-  renderer.setDamSpots(firstSpots(damSitesFile, 'core', { x: startX, z: startZ }));
+  // The first dam spots of every location (six each, design note 20), marked by rings that show when the beaver is near.
+  // The core counts from the start spot, the others from their anchor, which a jump then moves within 200 m of the first.
+  renderer.setDamSpots(
+    (store?.index.anchors ?? []).filter((l) => l.kind === 'location').flatMap((l) => firstSpots(damSitesFile, l.id, l.id === 'core' ? { x: startX, z: startZ } : l)),
+  );
   if (query.get('damsites') === '1') setDamSites(true);
 
   const rig = createCameraRig(renderer.canvas);
@@ -126,10 +129,18 @@ async function start(): Promise<void> {
     onJump(id) {
       const a = anchors.find((l) => l.id === id);
       if (!a || !a.inTiles || !streamer) return;
-      // The core's anchor is the tile origin; jumping to the core means the start spot.
-      const at = id === 'core' ? { x: startX, z: startZ } : a;
-      jump = { x: at.x, z: at.z, deadline: performance.now() + 8000 };
       menu.setStatus('Loading...');
+      void (async () => {
+        // The core's anchor is the tile origin; jumping to the core means the start spot. Other locations start on dry
+        // ground within 200 m of a dam spot (design note 20), so load the ground around that spot first.
+        let at: { x: number; z: number } = id === 'core' ? { x: startX, z: startZ } : a;
+        if (id !== 'core') {
+          const site = nearestQualifying(a, damSitesFile);
+          if (site) await streamer.ready(site.x, site.z, 8000);
+          at = spawnNear(a, damSitesFile, terrain);
+        }
+        jump = { x: at.x, z: at.z, deadline: performance.now() + 8000 };
+      })();
     },
   });
   const breathMeter = createBreathMeter(document.body);

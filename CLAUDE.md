@@ -66,6 +66,8 @@ Everyday (gate means CI blocks a merge on it):
   `public/tiles/` (untracked, about 29 MB, 4 min; the first run also caches about
   80 MB of the BEV 1 m terrain in `data/raw/` for the fine tiles, ADR 0008); `python3 -m pytest tools/tiles`
   checks them (needs `data/raw/`)
+- `python3 tools/dam-sites/scan_dam_sites.py` - draft scan of the streams in `public/tiles/` for dam
+  sites (writes `public/tiles/dam_sites.json`, 10 s; `?damsites=1` shows them); `python3 -m pytest tools/dam-sites` checks it
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene
 - `python3 scripts/build_question_docx.py QUESTIONS.md OUT.docx TEMPLATE.docx` -
   build a printable handout

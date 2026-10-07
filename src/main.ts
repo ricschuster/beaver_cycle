@@ -18,6 +18,7 @@ import { storeCapacity, storeCondition } from './sim/food';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
+import { loadDamSites } from './render/damSites';
 import { treeTuning } from './terrain/trees';
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
 
@@ -56,6 +57,9 @@ async function start(): Promise<void> {
     shadowMap: Number(query.get('shadowmap')) || undefined,
     cascades: Number(query.get('cascades')) || undefined,
   });
+
+  // ?damsites=1 marks the candidate dam sites from tools/dam-sites (a debug view for the dam placement talk).
+  if (store && query.get('damsites') === '1') void loadDamSites(base).then((sites) => renderer.showDamSites(sites));
 
   const rig = createCameraRig(renderer.canvas);
   let world = createWorld(terrain, startX, startZ);

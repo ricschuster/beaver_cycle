@@ -20,6 +20,8 @@ import { createLodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
 import { createLogView } from './logView';
 import { createStoreView } from './storeView';
+import type { DamSite } from './damSites';
+import { createDamSiteView } from './damSites';
 import { createTerrainView, type TerrainView } from './terrainView';
 
 /** Tiles to draw, when they exist. Without them the game shows a flat plane. */
@@ -35,6 +37,8 @@ export interface Renderer {
   setShadows(on: boolean): void;
   /** Show or hide the ring where a lodge would start (see `LodgeView.preview`). */
   setLodgePreview(at: { x: number; y: number; z: number; ok: boolean } | null): void;
+  /** Debug: mark the scanned dam sites (`?damsites=1`). */
+  showDamSites(sites: DamSite[]): void;
   /** The element that takes drag and zoom input. */
   canvas: HTMLCanvasElement;
 }
@@ -254,6 +258,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     canvas: gl.domElement,
     setLodgePreview(at) {
       lodgeView.preview(at);
+    },
+    showDamSites(sites) {
+      createDamSiteView(scene, sites);
     },
     setShadows(on) {
       shadowsOn = on && shadows;

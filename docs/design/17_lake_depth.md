@@ -2,8 +2,8 @@
 
 Design note, session 30. The author found the lake too shallow on the tablet.
 This note records what was measured, the five sets of numbers that were tried
-against the current one, and the set chosen (set E). The tiles are not rebuilt
-yet. The work is tracked in the issue linked at the end (it is not built yet).
+against the current one, and the set chosen (set E). Set E is built into the tiles
+(session 31, #157). The work is tracked in the issue linked at the end.
 
 ## What was wrong
 
@@ -100,12 +100,14 @@ needed. The lodge rules (`SITE_MIN_DEPTH`, `SITE_MAX_DEPTH`, `DOOR_MIN_DEPTH`,
 - The real lake is 2.5 m deep on average and set E is 3.6 m. A shallower lake
   than that has not been tried.
 - The other lakes in the game were not measured. The bog zone is set by z, not by
-  lake, so it acts on every lake south of z 1750. In the measurement run the
-  lake data showed lakes in the north (z -4600 to -1400, no bog today) and far
-  south (z 7800 to 8800, all flat 0.3 m bog today). Set E would make everything
-  south of z 1950 flat bog. They need checking (#157).
-- The 2 m fine tiles and the camera demo scene use the same bed code and will
-  change with a rebuild. ADR 0008 and the camera demo were not checked.
+  lake, so it acts on every lake south of z 1750. Lakes in the north (z -4600 to
+  -1400) had no bog before and have none now. Lakes far south (z 7800 to 8800)
+  were flat 0.3 m bog already, since the old ramp was full from z 1700, and they
+  still are. Set E only moves the start of the bog from z 1100 to 1750. The far
+  lakes were not looked at one by one.
+- The tiles were rebuilt with set E in session 31 and the tile checks pass. The
+  2 m fine tiles use the same bed code and changed with it. The camera demo scene
+  was not re-cut and ADR 0008 has no depth numbers, so it needs no change.
 
 Issue: [#157](https://github.com/ricschuster/beaver_cycle/issues/157)
 

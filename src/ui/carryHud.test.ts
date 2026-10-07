@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LODGE_WOOD } from '../sim/lodge';
+import { DAY_SECONDS } from '../sim/clock';
+import { newWear } from '../sim/wear';
 import { createWorld } from '../sim/state';
 import { flatTerrain } from '../sim/terrain';
 import { formatCarry, foodInfoOf } from './carryHud';
@@ -40,9 +42,9 @@ describe('food line', () => {
   const lodge = { x: 0, z: 0, base: 0, door: 0, wood: LODGE_WOOD };
 
   it('says what is in the mouth, the store, and what a press does', () => {
-    const info = { carry: 'branch' as const, store: { total: 12, capacity: 40 }, hint: 'store' as const };
+    const info = { carry: 'branch' as const, store: { total: 12, capacity: 40 }, repair: null, hint: 'store' as const };
     expect(formatCarry(2, false, null, 1, null, null, info)).toBe('2 trees felled, lodge done, carrying a branch, store 12 of 40, press Build to put it in the store');
-    expect(formatCarry(2, false, null, null, null, 'nest', { carry: null, store: null, hint: null })).toBe('in the lodge, on the nest');
+    expect(formatCarry(2, false, null, null, null, 'nest', { carry: null, store: null, repair: null, hint: null })).toBe('in the lodge, on the nest');
   });
 
   it('has nothing to say before there is food or a lodge', () => {
@@ -51,7 +53,16 @@ describe('food line', () => {
 
   it('shows the store once the lodge is whole, and eating inside', () => {
     const w = { ...createWorld(flatTerrain(0)), lodge };
-    expect(foodInfoOf(w, flatTerrain(0))).toEqual({ carry: null, store: { total: 0, capacity: 40 }, hint: null });
+    expect(foodInfoOf(w, flatTerrain(0))).toEqual({ carry: null, store: { total: 0, capacity: 40 }, repair: null, hint: null });
     expect(foodInfoOf({ ...w, carry: 'branch', inLodge: true }, flatTerrain(0))!.hint).toBe('eat');
+  });
+
+  it('shows the worn store, its real capacity, and the wood still needed', () => {
+    const clock = 30 * DAY_SECONDS; // 30 days: the store is at 0.25
+    const w = { ...createWorld(flatTerrain(0)), lodge, clock, storeWear: newWear(0), beaver: { ...createWorld(flatTerrain(0)).beaver, x: 0, z: 7.9 } };
+    const info = foodInfoOf(w, flatTerrain(0))!;
+    expect(info.store!.capacity).toBe(24);
+    expect(info.repair).toEqual({ what: 'store', percent: 25, wood: 8, broken: false });
+    expect(formatCarry(0, true, null, 1, null, null, info)).toBe('0 trees felled, lodge done, dragging a log, store worn 25%, needs 8 wood (a long log is 2), press Build to add it');
   });
 });

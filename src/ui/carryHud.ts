@@ -1,8 +1,9 @@
 // Trees felled, the log being dragged, and how far a gnaw has got, top left under the clock. DOM only.
-import { STORE_CAPACITY, atStore, pieceFrom, stockTotal, strippable } from '../sim/food';
+import { atStore, storeCapacity, storeCondition, pieceFrom, stockTotal, strippable } from '../sim/food';
 import { reachablePad } from '../sim/lily';
 import type { Terrain } from '../sim/terrain';
-import { lodgeComplete, type SiteProblem } from '../sim/lodge';
+import { LODGE_WOOD, lodgeComplete, lodgeCondition, nearLodge, type SiteProblem } from '../sim/lodge';
+import { LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, needsRepair, stageOf, woodToMend } from '../sim/wear';
 import type { WorldState } from '../sim/state';
 
 /** What the spot ahead is for a new lodge while dragging a log with no lodge yet: fine, a problem, or null when it does not apply. */
@@ -28,6 +29,8 @@ const SPOT_TEXT: Record<'hole' | 'nest' | 'room', string> = {
 export interface FoodInfo {
   carry: 'branch' | 'lily' | null;
   store: { total: number; capacity: number } | null;
+  /** The lodge or store within reach that needs repair: its condition in percent and the wood units still needed. */
+  repair: { what: 'lodge' | 'store'; percent: number; wood: number; broken: boolean } | null;
   hint: 'pick' | 'strip' | 'store' | 'take' | 'eat' | null;
 }
 
@@ -39,14 +42,35 @@ const HINT_TEXT: Record<NonNullable<FoodInfo['hint']>, string> = {
   eat: 'press Gnaw to eat it',
 };
 
+/** "store worn 25%, needs 6 wood (a long log is 2)", or "broken" for a piece that has to be rebuilt. */
+export function formatRepair(r: NonNullable<FoodInfo['repair']>): string {
+  const state = r.broken ? `${r.what} broken` : `${r.what} worn ${r.percent}%`;
+  return `${state}, needs ${r.wood} wood (a long log is 2)`;
+}
+
 /** ", carrying a branch", ", store 12 of 40", and the hint, to add to the line. Empty when there is nothing to say. */
 export function formatFood(food: FoodInfo | null): string {
   if (!food) return '';
   const parts: string[] = [];
   if (food.carry) parts.push(food.carry === 'branch' ? 'carrying a branch' : 'carrying a lily pad');
   if (food.store) parts.push(`store ${food.store.total} of ${food.store.capacity}`);
+  if (food.repair) parts.push(formatRepair(food.repair));
   if (food.hint) parts.push(HINT_TEXT[food.hint]);
   return parts.length ? `, ${parts.join(', ')}` : '';
+}
+
+/** The worse of the lodge and the store that is in reach and needs repair, or null. */
+function repairInfoOf(world: WorldState): FoodInfo['repair'] {
+  const { lodge, beaver: b } = world;
+  if (!lodgeComplete(lodge)) return null;
+  const lodgeLevel = lodgeCondition(lodge, world.clock);
+  const storeLevel = storeCondition(world.storeWear, world.clock);
+  const lodgeNeeds = nearLodge(lodge, b.x, b.z) && needsRepair(lodgeLevel);
+  const storeNeeds = atStore(lodge, b.x, b.z) && needsRepair(storeLevel);
+  const info = (what: 'lodge' | 'store', level: number, wood: number): NonNullable<FoodInfo['repair']> => ({ what, percent: Math.round(level * 100), wood, broken: stageOf(level) === 'broken' });
+  if (lodgeNeeds && (!storeNeeds || lodgeLevel <= storeLevel)) return info('lodge', lodgeLevel, woodToMend(lodge.wear, world.clock, LODGE_WORN_DAYS, LODGE_WOOD));
+  if (storeNeeds) return info('store', storeLevel, woodToMend(world.storeWear, world.clock, STORE_WORN_DAYS, STORE_REBUILD_WOOD));
+  return null;
 }
 
 /** The food line for a world: the store once the lodge is whole, the piece in the mouth, and what a press would do here. */
@@ -63,8 +87,10 @@ export function foodInfoOf(world: WorldState, terrain: Terrain): FoodInfo | null
   } else if (!carry && !world.drag && !world.chop && b.mode !== 'dive' && strippable(world.logs, world.stripped, b.x, b.z)) {
     hint = 'strip';
   }
+  const repair = whole && !world.inLodge ? repairInfoOf(world) : null;
   if (!carry && !whole && !hint) return null;
-  return { carry, store: whole ? { total: stockTotal(store), capacity: STORE_CAPACITY } : null, hint };
+  const capacity = storeCapacity(storeCondition(world.storeWear, world.clock));
+  return { carry, store: whole ? { total: stockTotal(store), capacity } : null, repair, hint };
 }
 
 export interface CarryHud {
@@ -77,7 +103,7 @@ export function formatCarry(felled: number, dragging: boolean, gnaw: number | nu
   if (spot) return SPOT_TEXT[spot] + formatFood(food);
   const lodgeText = lodge === null ? '' : lodge >= 1 ? ', lodge done' : `, lodge ${Math.floor(lodge * 100)}%`;
   const base = `${felled} ${felled === 1 ? 'tree' : 'trees'} felled${lodgeText}`;
-  if (dragging) return site ? `${base}, dragging a log, ${SITE_TEXT[site]}` : `${base}, dragging a log`;
+  if (dragging) return (site ? `${base}, dragging a log, ${SITE_TEXT[site]}` : `${base}, dragging a log`) + (food?.repair ? `, ${formatRepair(food.repair)}, press Build to add it` : '');
   return (gnaw === null ? base : `${base}, gnawing ${Math.floor(Math.min(1, gnaw) * 100)}%`) + formatFood(food);
 }
 

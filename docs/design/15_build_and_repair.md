@@ -140,10 +140,12 @@ Wood only, since mud and rock come with the dam. Code in `src/sim/wear.ts`.
   lodge cannot be entered. Someone already inside is not thrown out.
 - The glow is a gold ring on the water at the lodge and at the store, drawn over
   everything, slow pulse, brighter when broken. A worn lodge goes grey and slumps.
+- The HUD line near a worn piece says how worn it is and how many wood units it
+  still needs (a long log is 2), and the store line shows its real capacity.
 - The lodge clock runs at half speed inside, so buildings wear slower while the
   beaver is in the lodge. That is a small difference from the text above.
 - Not built: the dam, the worn look of the store, teenagers who repair, Papa's
-  guided repair, a HUD hint for the mend press, a worn lodge's effect on rest.
+  guided repair, a worn lodge's effect on rest.
 
 ## Open questions
 

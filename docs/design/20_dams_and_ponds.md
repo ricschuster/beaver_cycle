@@ -189,6 +189,19 @@ interface Dam {
 
 Each step is playable on a tablet and small enough for one pull request.
 
+## Built so far (step 1, dam spots)
+
+- `src/sim/damSpots.ts`: the `DamSpot` data, `firstSpots` and `spotsNear`. The first
+  spots of a location are the three nearest the start that hold a pond of at least
+  600 m2 and 1 m deep (a swimmable pond, Q67), at least 150 m apart.
+- `src/render/spotRing.ts`: a calm white ring on each first spot, shown within
+  120 m of the beaver.
+- The core location gets three side stream spots (at x -846, -733 and -834, z 1232, 1064 and 894), 1.0 to 1.2 km from the
+  start, since the scan finds nothing on the valley floor. The note's wish for a
+  first spot close to the start does not hold with the scan data. Tune on the
+  tablet.
+- Not built yet: the level 1 dam, the materials, the pond.
+
 ## Decided
 
 - The lodge can go in the lake or in a pond (the author, 2026-10-07).

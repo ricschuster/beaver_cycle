@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { damBar, pondColour, type DamSite } from './damSites';
 
-const site = (over: Partial<DamSite>): DamSite => ({ stream: '', x: 10, z: 20, bed_m: 600, flow: [0, 1], crest_m: 1.5, left_m: 6, right_m: 2, pond_m2: 800, ...over });
+const site = (over: Partial<DamSite>): DamSite => ({ stream: '', x: 10, z: 20, bed_m: 600, flow: [0, 1], crest_m: 1.5, left_m: 6, right_m: 2, pond_m2: 800, max_depth_m: 1.2, near: 'core', ...over });
 
 describe('damBar', () => {
   it('spans both banks and sits between them', () => {

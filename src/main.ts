@@ -19,6 +19,7 @@ import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { loadDamSites } from './render/damSites';
+import { firstSpots } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
 
@@ -69,6 +70,8 @@ async function start(): Promise<void> {
     renderer.setDamSitesVisible(on);
   };
   let damSitesAdded = false;
+  // The first dam spots of the core location, marked by rings that show when the beaver is near (design note 20).
+  renderer.setDamSpots(firstSpots(damSitesFile, 'core', { x: startX, z: startZ }));
   if (query.get('damsites') === '1') setDamSites(true);
 
   const rig = createCameraRig(renderer.canvas);

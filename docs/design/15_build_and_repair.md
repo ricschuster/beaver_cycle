@@ -135,8 +135,9 @@ Wood only, since mud and rock come with the dam. Code in `src/sim/wear.ts`.
   it: 0.1 a wood unit (a long log is 2). Next to both, the worse one gets it. A
   good one keeps the log. A broken one needs 10 wood units (lodge) or 4 (store),
   then it is new again.
-- A worn store holds 60 percent of its capacity, a broken one nothing: nothing can
-  be put in or taken out until it is rebuilt, but what is in it stays. A broken
+- A worn store holds 60 percent of its capacity, a broken one nothing: what was in it
+  is gone the moment it breaks (the author's call, session 34), and food has to be
+  stored again once it is rebuilt. A broken
   lodge cannot be entered. Someone already inside is not thrown out.
 - The glow is a gold ring on the water at the lodge and at the store, drawn over
   everything, slow pulse, brighter when broken. A worn lodge goes grey and slumps.

@@ -62,14 +62,14 @@ MARGIN = 640.0  # metres of tiles kept around the core shape
 # valley are there to see. They have a level 2 file only, with FAR_STEP times the 5 m cell.
 BACKDROP = 5000.0
 FAR_STEP = 8  # 40 m cells, 8 per tile side
-LAKE_BED_SLOPE = 0.12  # metres of depth per metre from the shore
-LAKE_BED_MAX = 14.0
-LAKE_BED_OFFSET = 0.5  # metres the bed sits below the lake level at the shore
+LAKE_BED_SLOPE = 0.06  # metres of depth per metre from the shore
+LAKE_BED_MAX = 5.0
+LAKE_BED_OFFSET = 0.6  # metres the bed sits below the lake level at the shore
 # The south end is a shallow bog (03_location.md): water under 50 cm. The bed is
 # made shallow by two weights, the larger wins. One ramps up along the lake
 # toward the south (z grows southward), the other follows OSM wetland cells.
-BOG_RAMP_Z = (1100.0, 1700.0)  # z in metres where the south ramp starts and is full
-BOG_WETLAND_REACH = 60.0  # metres from a wetland cell over which the shallows fade out
+BOG_RAMP_Z = (1750.0, 1950.0)  # z in metres where the south ramp starts and is full
+BOG_WETLAND_REACH = 30.0  # metres from a wetland cell over which the shallows fade out
 BOG_BED_OFFSET = 0.3  # metres below the lake level in full shallows
 LOCATION_IDS = {"core", "north", "south", "east-oedseen", "vorderer-springbach", "hinterer-springbach"}
 CLASSES = {"ground": 0, "meadow": 1, "forest": 2, "scrub": 3, "rock": 4, "wetland": 5, "lake": 9}

@@ -53,3 +53,10 @@ export function mended(wear: Wear | undefined, clock: number, wornDays: number, 
 
 /** True when a piece shows the glowing circle: worn or broken. */
 export const needsRepair = (level: number): boolean => level < WORN_BELOW;
+
+/** Wood units still needed to make a piece new: the top up for a worn one, the rest of the full set for a broken one. */
+export function woodToMend(wear: Wear | undefined, clock: number, wornDays: number, rebuildWood: number): number {
+  const level = condition(wear, clock, wornDays);
+  if (stageOf(level) === 'broken') return Math.max(0, rebuildWood - (wear?.mend ?? 0));
+  return Math.ceil((1 - level) / MEND_PER_WOOD - 1e-9);
+}

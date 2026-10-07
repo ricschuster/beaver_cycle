@@ -189,12 +189,12 @@ interface Dam {
 
 Each step is playable on a tablet and small enough for one pull request.
 
+## Decided
+
+- The lodge can go in the lake or in a pond (the author, 2026-10-07).
+- Three dam levels is enough (the author, 2026-10-07).
+
 ## Open questions
 
-- Must the lodge be built in a pond, or can it still go in the lake (doc 16)? The
-  author said the lodge sits in the middle of the pond. Proposal: both are
-  allowed, since the lake already exists.
 - Which three spots are the first ones for each location? A tuning step, with the
   author on the tablet.
-- Is three levels a good range? A real dam can be far bigger. Three is what the
-  side streams can hold in the scan.

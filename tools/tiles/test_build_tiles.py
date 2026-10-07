@@ -86,6 +86,18 @@ def test_south_bog_is_shallow_and_open_water_stays_deep(tiles):
     assert depth[z < bt.BOG_RAMP_Z[0]].max() > 5.0  # open water keeps its depth
 
 
+def test_south_ramp_acts_on_the_almsee_only():
+    # Two identical square lakes far south (z 4000 to 4400), one named Almsee.
+    g = bt.Grid.window(0.0, 4000.0, 100, 80, 5.0)
+    h = np.full((g.ncz + 1, g.ncx + 1), 500.0)
+    ring = lambda x0: [[(x0, 4000.0), (x0 + 200.0, 4000.0), (x0 + 200.0, 4400.0), (x0, 4400.0)]]
+    lakes = [(ring(20.0), "Almsee"), (ring(280.0), "Elmsee")]
+    h2, _, _, level, _, _ = bt.make_lake_bed(g, h, lakes, np.zeros((g.ncz, g.ncx), bool))
+    depth = level - h2
+    assert np.nanmax(depth[:, 4:36]) < 0.5  # the Almsee is bog this far south
+    assert np.nanmax(depth[:, 56:]) > 3.0  # the other lake keeps open water depth
+
+
 @pytest.mark.skipif(not list(bt.ROOT.glob("data/raw/dtm1_*_31287.tif")), reason="BEV 1 m terrain not cached (run build_tiles.py once)")
 def test_fine_tiles_join_and_sit_on_the_5m_ground(tmp_path):
     index = bt.build(tmp_path, fine=2)

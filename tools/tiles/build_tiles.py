@@ -67,8 +67,11 @@ LAKE_BED_MAX = 5.0
 LAKE_BED_OFFSET = 0.6  # metres the bed sits below the lake level at the shore
 # The south end is a shallow bog (03_location.md): water under 50 cm. The bed is
 # made shallow by two weights, the larger wins. One ramps up along the lake
-# toward the south (z grows southward), the other follows OSM wetland cells.
+# toward the south (z grows southward) and only in the lakes of `BOG_RAMP_LAKES`, the other
+# follows OSM wetland cells. The ramp is by lake because the far alpine lakes lie at large z
+# and are not bogs.
 BOG_RAMP_Z = (1750.0, 1950.0)  # z in metres where the south ramp starts and is full
+BOG_RAMP_LAKES = ("Almsee",)  # lakes the south ramp acts on
 BOG_WETLAND_REACH = 30.0  # metres from a wetland cell over which the shallows fade out
 BOG_BED_OFFSET = 0.3  # metres below the lake level in full shallows
 LOCATION_IDS = {"core", "north", "south", "east-oedseen", "vorderer-springbach", "hinterer-springbach"}
@@ -327,14 +330,17 @@ def shore_distance(mask):
     return dst.GetRasterBand(1).ReadAsArray().astype(np.float64)
 
 
-def shallow_weight(g, wetland):
+def shallow_weight(g, wetland, ramp_vert=None):
     """0 in open water, 1 in the bog. Combines the south ramp and nearness to wetland.
 
-    `wetland` is the class mask per cell. Returns a weight per vertex.
+    `wetland` is the class mask per cell. `ramp_vert` is the vertex mask the south
+    ramp acts on (None for all). Returns a weight per vertex.
     """
     z = g.z0 + np.arange(g.ncz + 1) * g.cell
     z0, z1 = BOG_RAMP_Z
     south = np.clip((z - z0) / (z1 - z0), 0.0, 1.0)[:, None] * np.ones(g.ncx + 1)
+    if ramp_vert is not None:
+        south = south * ramp_vert
     if not wetland.any():
         return south
     vert = np.pad(wetland, ((0, 1), (0, 1)))
@@ -347,13 +353,14 @@ def shallow_weight(g, wetland):
 def make_lake_bed(g, h, lakes, wetland, levels=None):
     """Lower the lake floor below a flat level. BEV has a flat lake, the game's is deeper.
 
-    The bed is deep in open water and shallow in the south bog (see `shallow_weight`).
+    The bed is deep in open water and shallow in the south bog of the Almsee (see `shallow_weight`).
     `levels` gives a lake level per lake (None for unknown), so a fine window can
     use the levels of the 5 m build. Returns the new heights, the class 9 cell
     mask, the vertex mask, the level per vertex, the lake list, and the level
     per lake (None where the lake is not in the window).
     """
     vert = np.zeros(h.shape, dtype=bool)
+    ramp_vert = np.zeros(h.shape, dtype=bool)
     level = np.full(h.shape, np.nan)
     found = []
     used = []
@@ -366,9 +373,11 @@ def make_lake_bed(g, h, lakes, wetland, levels=None):
         used.append(lv)
         level[m] = lv
         vert |= m
+        if name in BOG_RAMP_LAKES:
+            ramp_vert |= m
         found.append({"name": name, "level_m": round(lv, 2)})
     dist = shore_distance(vert)
-    w = shallow_weight(g, wetland)
+    w = shallow_weight(g, wetland, ramp_vert)
     depth = np.minimum(dist * g.cell * LAKE_BED_SLOPE, LAKE_BED_MAX) * (1.0 - w)
     offset = LAKE_BED_OFFSET + (BOG_BED_OFFSET - LAKE_BED_OFFSET) * w
     h = np.where(vert, level - offset - depth, h)

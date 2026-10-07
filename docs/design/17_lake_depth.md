@@ -99,15 +99,44 @@ needed. The lodge rules (`SITE_MIN_DEPTH`, `SITE_MAX_DEPTH`, `DOOR_MIN_DEPTH`,
   the store feel right there is unseen on the tablet.
 - The real lake is 2.5 m deep on average and set E is 3.6 m. A shallower lake
   than that has not been tried.
-- The other lakes in the game were not measured. The bog zone is set by z, not by
-  lake, so it acts on every lake south of z 1750. Lakes in the north (z -4600 to
-  -1400) had no bog before and have none now. Lakes far south (z 7800 to 8800)
-  were flat 0.3 m bog already, since the old ramp was full from z 1700, and they
-  still are. Set E only moves the start of the bog from z 1100 to 1750. The far
-  lakes were not looked at one by one.
+- The other lakes were measured in session 32, see the next section.
 - The tiles were rebuilt with set E in session 31 and the tile checks pass. The
   2 m fine tiles use the same bed code and changed with it. The camera demo scene
   was not re-cut and ADR 0008 has no depth numbers, so it needs no change.
+
+## The other lakes (session 32)
+
+The bog ramp was set by z, not by lake. Every lake south of z 1950 was therefore a
+flat 0.3 m bog, in the old numbers and in set E as first built. That is 6 named
+lakes in the Totes Gebirge backdrop (Toplitzsee 33 ha, Vorderer and Hinterer
+Lahngangsee, Kammersee, Elmsee, Dreibrüdersee) and about 8 small ones. None of them
+is a bog. The ramp now acts on the Almsee only (`BOG_RAMP_LAKES` in
+`tools/tiles/build_tiles.py`). The wetland rule still acts on every lake.
+
+| Lake | Size (ha) | Mean depth before (m) | Mean depth now (m) | Maximum now (m) |
+| --- | --- | --- | --- | --- |
+| Almsee | 88 | 4.5 | 3.5 | 5.6 |
+| Toplitzsee | 33 | 0.3 | 4.2 | 5.6 |
+| Vorderer Lahngangsee | 18 | 0.3 | 3.5 | 5.6 |
+| Großer Ödsee | 8.3 | 3.9 | 2.3 | 5.5 |
+| Hinterer Lahngangsee | 3.6 | 0.3 | 2.2 | 4.8 |
+| Kleiner Ödsee | 3.1 | 3.0 | 1.8 | 4.0 |
+| Kammersee | 2.5 | 0.3 | 2.1 | 4.2 |
+| Elmsee | 2.4 | 0.3 | 2.0 | 4.8 |
+| Kasbergalm See | 1.4 | 3.0 | 1.9 | 4.0 |
+| Dreibrüdersee | 1.1 | 0.3 | 1.8 | 3.8 |
+
+The unnamed lakes of the north (z -7400 to -700) are 1 to 8 ha with a mean depth
+of 1.0 to 1.3 m (before: 1.2 to 1.8 m) and none has bog. Toplitzsee reaches past
+the edge of the tile grid, so its figures are for the part inside.
+
+Maps with three panels each (before set E, set E as built, and the fix) are in
+`img/17_lakes/`, one file for each lake of 1 ha or more: `almsee.png`,
+`toplitzsee.png`, `vorderer_lahngangsee.png`, `grosser_oedsee.png`,
+`hinterer_lahngangsee.png`, `kleiner_oedsee.png`, `kammersee.png`, `elmsee.png`,
+`kasbergalm_see.png`, `dreibruedersee.png`, and six `unnamed_*` files. They are
+made from the same code as the tiles, at 5 m cells. There are no lodge site dots,
+since the lodge rules are not run on them.
 
 Issue: [#157](https://github.com/ricschuster/beaver_cycle/issues/157)
 

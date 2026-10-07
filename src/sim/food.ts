@@ -3,6 +3,7 @@
 // winter it takes a piece out and eats it inside the lodge. Plain data and pure functions, no three.js (ADR 0007).
 import { DOOR_DISTANCE, DOOR_RUN, doorPoint, lodgeComplete, type Lodge } from './lodge';
 import { distanceToLog, type Log } from './logs';
+import { STORE_WORN_DAYS, condition, stageOf, type Wear } from './wear';
 
 export type Food = 'branch' | 'lily';
 
@@ -16,6 +17,8 @@ export const emptyStock = (): Stock => ({ branch: 0, lily: 0 });
  * author. A worn store will hold less (15_build_and_repair.md).
  */
 export const STORE_CAPACITY = 40;
+/** A worn store holds this share of the capacity, a broken one nothing until it is rebuilt (15_build_and_repair.md). */
+export const WORN_CAPACITY_SHARE = 0.6;
 /** How far from the lodge's centre the store lies: past the door, on the way out along the deep run. */
 export const STORE_DISTANCE = DOOR_DISTANCE + DOOR_RUN * 0.5;
 /** The store is a pile of this radius in metres. */
@@ -32,6 +35,15 @@ export function stockTotal(stock: Stock): number {
 /** Where the store lies, or null before the lodge is whole. */
 export function storeSpot(lodge: Lodge | null): { x: number; z: number } | null {
   return lodgeComplete(lodge) ? doorPoint(lodge, STORE_DISTANCE) : null;
+}
+
+/** Condition of the store at a game clock time, 0 broken to 1 new. */
+export const storeCondition = (wear: Wear | undefined, clock: number): number => condition(wear, clock, STORE_WORN_DAYS);
+
+/** Pieces the store holds at a condition: all of them when good, fewer when worn, none when broken. */
+export function storeCapacity(level: number): number {
+  const stage = stageOf(level);
+  return stage === 'broken' ? 0 : stage === 'worn' ? Math.floor(STORE_CAPACITY * WORN_CAPACITY_SHARE) : STORE_CAPACITY;
 }
 
 /** How full the store is, 0 to 1. */
@@ -70,9 +82,9 @@ export function pieceFrom(stock: Stock): Food | null {
   return stock.branch > 0 ? 'branch' : stock.lily > 0 ? 'lily' : null;
 }
 
-/** The store with a piece added, or the same store when it is full. */
-export function stored(stock: Stock, food: Food): Stock {
-  return stockTotal(stock) >= STORE_CAPACITY ? stock : { ...stock, [food]: stock[food] + 1 };
+/** The store with a piece added, or the same store when it is full (`capacity` is less when the store is worn). */
+export function stored(stock: Stock, food: Food, capacity = STORE_CAPACITY): Stock {
+  return stockTotal(stock) >= capacity ? stock : { ...stock, [food]: stock[food] + 1 };
 }
 
 /** The store with a piece taken out. */

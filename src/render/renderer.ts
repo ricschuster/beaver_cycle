@@ -14,7 +14,8 @@ import { createBeaverModel } from './beaverModel';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
 import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
-import { INTERIOR_RADIUS } from '../sim/lodge';
+import { INTERIOR_RADIUS, lodgeCondition } from '../sim/lodge';
+import { storeCondition } from '../sim/food';
 import { createLodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
 import { createLogView } from './logView';
@@ -395,8 +396,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         (scene.fog as THREE.Fog).far = under ? 45 : FOG_FAR;
       }
       terrain?.update(b.x, b.z);
-      lodgeView.update(inside ? null : world.lodge);
-      storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0));
+      lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
+      storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
       if (source) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
       csm?.update();
       gl.render(drawn, camera);

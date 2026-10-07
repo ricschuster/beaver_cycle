@@ -1,9 +1,12 @@
 // Draws the lodge of the sim: a dome of sticks that grows as logs are placed. Reads state only.
 import * as THREE from 'three';
 import { LODGE_RADIUS, doorPoint, lodgeProgress, type Lodge } from '../sim/lodge';
+import { BROKEN_BELOW, WORN_BELOW, needsRepair } from '../sim/wear';
+import { createRepairGlow } from './repairGlow';
 
 export interface LodgeView {
-  update(lodge: Lodge | null): void;
+  /** Draw the lodge at a condition (0 broken to 1 new): a worn one is paler and slumps, and glows where it needs repair. */
+  update(lodge: Lodge | null, level?: number): void;
   /** A ring where a lodge would start: green if it can start there, red if not. Null hides it. */
   preview(at: { x: number; y: number; z: number; ok: boolean } | null): void;
 }
@@ -33,6 +36,9 @@ export function createLodgeView(scene: THREE.Scene, shadows: boolean, prepare: (
   ring.renderOrder = 10;
   ring.visible = false;
   scene.add(ring);
+  const glow = createRepairGlow(scene, LODGE_RADIUS + 0.5);
+  const newColor = new THREE.Color(0x7a5a38);
+  const wornColor = new THREE.Color(0x5b5148);
   return {
     preview(at) {
       ring.visible = at !== null;
@@ -40,16 +46,24 @@ export function createLodgeView(scene: THREE.Scene, shadows: boolean, prepare: (
       ring.position.set(at.x, at.y + 0.05, at.z);
       ringMaterial.color.set(at.ok ? 0x4cd964 : 0xff5a4d);
     },
-    update(lodge) {
+    update(lodge, level = 1) {
       mesh.visible = lodge !== null;
       doorMesh.visible = lodge !== null;
-      if (!lodge) return;
+      if (!lodge) {
+        glow.set(null);
+        return;
+      }
       const mouth = doorPoint(lodge, LODGE_RADIUS * 0.85);
       doorMesh.position.set(mouth.x, lodge.base - 0.2, mouth.z);
       doorMesh.rotation.y = lodge.door;
       const p = lodgeProgress(lodge);
       mesh.position.set(lodge.x, lodge.base - SINK, lodge.z);
-      mesh.scale.set(LODGE_RADIUS, DOME_HEIGHT * (0.25 + 0.75 * p), LODGE_RADIUS);
+      // Wear greys the sticks and lets the dome slump, down to three quarters of its height when broken.
+      const wear = 1 - Math.min(1, level / WORN_BELOW);
+      const slump = lodgeProgress(lodge) < 1 ? 1 : 1 - 0.25 * wear;
+      material.color.copy(newColor).lerp(wornColor, wear);
+      mesh.scale.set(LODGE_RADIUS, DOME_HEIGHT * (0.25 + 0.75 * p) * slump, LODGE_RADIUS);
+      glow.set(p >= 1 && needsRepair(level) ? { x: lodge.x, y: lodge.base, z: lodge.z, broken: level < BROKEN_BELOW } : null);
     },
   };
 }

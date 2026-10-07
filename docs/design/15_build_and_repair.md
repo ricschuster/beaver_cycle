@@ -122,6 +122,29 @@ interface Piece {
 - Tests: wear over days, stage thresholds, place until mended, a broken piece
   needs the full set, and saves keep condition.
 
+## Built so far (wear of the lodge and the store)
+
+Wood only, since mud and rock come with the dam. Code in `src/sim/wear.ts`.
+
+- Condition is not stepped. A structure keeps its condition at a game clock time
+  (`Wear`), and the condition at any later time falls by a fixed rate per day. A
+  sleep, a season jump, or a generation away ages it the same way, with no tick.
+- The lodge falls to worn (0.5) in 40 days (a year), the store in 20 (two seasons).
+  A whole lodge and its store are new from the moment the last log goes on.
+- Placing a dragged log with the build button next to a worn lodge or store mends
+  it: 0.1 a wood unit (a long log is 2). Next to both, the worse one gets it. A
+  good one keeps the log. A broken one needs 10 wood units (lodge) or 4 (store),
+  then it is new again.
+- A worn store holds 60 percent of its capacity, a broken one nothing: nothing can
+  be put in or taken out until it is rebuilt, but what is in it stays. A broken
+  lodge cannot be entered. Someone already inside is not thrown out.
+- The glow is a gold ring on the water at the lodge and at the store, drawn over
+  everything, slow pulse, brighter when broken. A worn lodge goes grey and slumps.
+- The lodge clock runs at half speed inside, so buildings wear slower while the
+  beaver is in the lodge. That is a small difference from the text above.
+- Not built: the dam, the worn look of the store, teenagers who repair, Papa's
+  guided repair, a HUD hint for the mend press, a worn lodge's effect on rest.
+
 ## Open questions
 
 - Is the dam placed freely along the stream, or on set spots? Free is more fun

@@ -3,6 +3,7 @@
 // come with the dam (15_build_and_repair.md). Plain data and pure functions, no three.js (ADR 0007).
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
+import { LODGE_WORN_DAYS, condition, type Wear } from './wear';
 import type { Trunk } from './trees';
 
 export interface Lodge {
@@ -14,6 +15,8 @@ export interface Lodge {
   door: number;
   /** Wood placed so far, in units: a long log is 2, a short one 1 (Q16: bigger trees give more). */
   wood: number;
+  /** Wear, set when the lodge is whole. Missing means it never wears (a test lodge). */
+  wear?: Wear;
 }
 
 /** Wood units a whole lodge takes. About five big trees; a tuning number, not set by the author. */
@@ -73,6 +76,9 @@ export function logWood(log: Pick<Log, 'length'>): number {
 export function lodgeProgress(lodge: Lodge): number {
   return Math.min(1, lodge.wood / LODGE_WOOD);
 }
+
+/** Condition of the lodge at a game clock time, 0 broken to 1 new. */
+export const lodgeCondition = (lodge: Lodge, clock: number): number => condition(lodge.wear, clock, LODGE_WORN_DAYS);
 
 export function lodgeComplete(lodge: Lodge | null): lodge is Lodge {
   return lodge !== null && lodge.wood >= LODGE_WOOD;

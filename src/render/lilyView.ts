@@ -19,9 +19,13 @@ const MAX_PADS = 1500;
 const DRAW_SCALE = 2.2;
 /** The share of pads that carry a flower. */
 const FLOWER_SHARE = 0.4;
+/** A pad is a thin slab this high in metres, standing a little out of the water, and a flower a smaller one on top of it. */
+const PAD_HEIGHT = 0.14;
+const PAD_LIFT = 0.04;
+const FLOWER_HEIGHT = 0.1;
 
 export function createLilyView(scene: THREE.Scene, prepare: (m: THREE.Material) => void): LilyView {
-  const geometry = new THREE.CircleGeometry(LILY_RADIUS * DRAW_SCALE, 14).rotateX(-Math.PI / 2);
+  const geometry = new THREE.CylinderGeometry(LILY_RADIUS * DRAW_SCALE * 0.92, LILY_RADIUS * DRAW_SCALE, PAD_HEIGHT, 14);
   // A little emissive light keeps the pads bright against dark water and in shade.
   const material = new THREE.MeshLambertMaterial({ color: 0x86d65c, emissive: 0x2c5a1c });
   prepare(material);
@@ -29,7 +33,7 @@ export function createLilyView(scene: THREE.Scene, prepare: (m: THREE.Material) 
   mesh.count = 0;
   mesh.frustumCulled = false;
   scene.add(mesh);
-  const flowerGeometry = new THREE.CircleGeometry(LILY_RADIUS * 0.9, 8).rotateX(-Math.PI / 2);
+  const flowerGeometry = new THREE.CylinderGeometry(LILY_RADIUS * 0.45, LILY_RADIUS * 0.9, FLOWER_HEIGHT, 8);
   const flowerMaterial = new THREE.MeshLambertMaterial({ color: 0xffe2ec, emissive: 0x80586a });
   prepare(flowerMaterial);
   const flowers = new THREE.InstancedMesh(flowerGeometry, flowerMaterial, MAX_PADS);
@@ -52,15 +56,15 @@ export function createLilyView(scene: THREE.Scene, prepare: (m: THREE.Material) 
       const pads = all.slice(0, MAX_PADS);
       let flowerCount = 0;
       pads.forEach((pad, i) => {
-        // Sit on the water surface, a hair above it, and vary the size a little by position.
-        const surface = terrain.heightAt(pad.x, pad.z) + terrain.waterDepth(pad.x, pad.z) + 0.03;
+        // Stand a little out of the water, and vary the size a little by position.
+        const surface = terrain.heightAt(pad.x, pad.z) + terrain.waterDepth(pad.x, pad.z);
         const size = 0.8 + 0.4 * ((Math.abs(pad.x * 7 + pad.z * 13) % 1));
-        matrix.makeScale(size, 1, size).setPosition(pad.x, surface, pad.z);
+        matrix.makeScale(size, 1, size).setPosition(pad.x, surface + PAD_LIFT, pad.z);
         mesh.setMatrixAt(i, matrix);
         if (Math.abs(pad.x * 3 + pad.z * 5) % 1 < FLOWER_SHARE) {
           const dx = ((Math.abs(pad.x * 11) % 1) - 0.5) * 0.5;
           const dz = ((Math.abs(pad.z * 17) % 1) - 0.5) * 0.5;
-          matrix.makeScale(size, 1, size).setPosition(pad.x + dx, surface + 0.03, pad.z + dz);
+          matrix.makeScale(size, 1, size).setPosition(pad.x + dx, surface + PAD_LIFT + (PAD_HEIGHT + FLOWER_HEIGHT) / 2 - 0.02, pad.z + dz);
           flowers.setMatrixAt(flowerCount++, matrix);
         }
       });

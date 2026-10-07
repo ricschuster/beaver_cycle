@@ -1,7 +1,7 @@
 import { LODGE_CLOCK_RATE } from './clock';
 import type { Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
-import { atStore, pieceFrom, storeCapacity, storeCondition, stored, strippable, taken } from './food';
+import { atStore, emptyStock, pieceFrom, storeCapacity, storeCondition, stored, strippable, taken } from './food';
 import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
@@ -62,6 +62,8 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   return {
     ...world,
     ...food,
+    // A broken store holds nothing: whatever was in it is gone, and food has to be stored again (15_build_and_repair.md).
+    store: storeCapacity(storeCondition(built.storeWear, world.clock)) === 0 ? emptyStock() : food.store,
     time,
     chop,
     felled,

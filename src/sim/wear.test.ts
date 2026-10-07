@@ -7,7 +7,7 @@ import type { Log } from './logs';
 import { createWorld, type WorldState } from './state';
 import { step } from './step';
 import { flatTerrain } from './terrain';
-import { BROKEN_BELOW, LODGE_WORN_DAYS, MEND_PER_WOOD, STORE_REBUILD_WOOD, WORN_BELOW, mended, newWear, stageOf } from './wear';
+import { BROKEN_BELOW, LODGE_WORN_DAYS, MEND_PER_WOOD, STORE_REBUILD_WOOD, STORE_WORN_DAYS, WORN_BELOW, mended, newWear, stageOf } from './wear';
 
 const flat = flatTerrain(0);
 const day = (n: number): number => n * DAY_SECONDS;
@@ -115,5 +115,12 @@ describe('effects', () => {
     expect(storeCapacity(0.3)).toBeGreaterThan(0);
     expect(storeCapacity(0.05)).toBe(0);
     expect(stored(emptyStock(), 'branch', 0)).toEqual(emptyStock());
+  });
+
+  it('a broken store loses what it held', () => {
+    const w = { ...world(day(STORE_WORN_DAYS * 2)), drag: null, store: { ...emptyStock(), branch: 5 } };
+    expect(step(w, noActions(), 0, flat).store).toEqual(emptyStock());
+    const fresh = { ...w, clock: 0 };
+    expect(step(fresh, noActions(), 0, flat).store.branch).toBe(5);
   });
 });

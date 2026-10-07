@@ -66,7 +66,12 @@ async function start(): Promise<void> {
   // A whole lodge near the start, so the lodge can be tried without building one first. ?lodge=0 leaves it out.
   if (query.get('lodge') !== '0') {
     const site = findSite(terrain, startX, startZ, 300);
-    if (site) world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear: newWear(world.clock) }, storeWear: newWear(world.clock) };
+    if (site) {
+      // ?age=N makes them N game days old, to try wear and repair: the lodge is worn at 40 and broken at 68, the store at 20 and 34.
+      const age = Math.max(0, Number(query.get('age') ?? 0) || 0);
+      const wear = newWear(world.clock - age * DAY_SECONDS);
+      world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear }, storeWear: wear };
+    }
   }
   let last = performance.now();
 

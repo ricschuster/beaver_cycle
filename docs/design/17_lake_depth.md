@@ -138,6 +138,39 @@ Maps with three panels each (before set E, set E as built, and the fix) are in
 made from the same code as the tiles, at 5 m cells. There are no lodge site dots,
 since the lodge rules are not run on them.
 
+### Lily pads on each lake
+
+Maps of the pad zones are in `img/17_lakes_lily/`, one file for each lake of 1 ha
+or more, with the same three panels. The zone is 0.3 to 2.5 m of water, and the
+dots are the pads of `src/sim/lily.ts` (patches, grid, density and hash ported
+to Python) for one season, so they are the same pads the game places, as far as
+the 5 m bed allows.
+
+One thing differs from the table above. The flat bog is built 0.3 m deep, and
+the tiles hold it as 0.29999 m, just under `LILY_MIN_DEPTH` (0.3). So the bog
+grows no pads in the game, and the "lily water" figures in the set table, which
+counted the bog, are too high. Counted by the game rule the Almsee has 23 ha of
+lily zone and 1031 pads under set E (before set E: 18 ha and 811 pads), and the
+pads sit in the shallows around the bog and along the shore, not in the bog. This
+is luck of the rounding, not a rule. If pads should grow in the bog, lower
+`LILY_MIN_DEPTH` a little, for example to 0.25.
+
+| Lake | Lily zone before (ha) | Lily zone now (ha) | Pads now |
+| --- | --- | --- | --- |
+| Almsee | 18.3 | 23.0 | 1031 |
+| Toplitzsee | 0 | 7.1 | 298 |
+| Vorderer Lahngangsee | 0 | 6.3 | 229 |
+| Großer Ödsee | 2.9 | 5.3 | 221 |
+| Hinterer Lahngangsee | 0 | 2.3 | 147 |
+| Kleiner Ödsee | 1.4 | 2.5 | 83 |
+| Kammersee | 0 | 1.7 | 78 |
+| Elmsee | 0 | 1.5 | 48 |
+| Kasbergalm See | 0.6 | 1.1 | 57 |
+| Dreibrüdersee | 0 | 0.9 | 39 |
+
+The unnamed lakes of the north are nearly all lily zone (1.4 to 7.9 ha, 67 to 307
+pads each), since they are only 1 to 2 m deep.
+
 Issue: [#157](https://github.com/ricschuster/beaver_cycle/issues/157)
 
 Related: [03_location.md](03_location.md) (the game lake is deeper than the real

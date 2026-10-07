@@ -151,7 +151,13 @@ Wood only, since mud and rock come with the dam. Code in `src/sim/wear.ts`.
 ## Open questions
 
 - Is the dam placed freely along the stream, or on set spots? Free is more fun
-  and harder to build. Set spots are the safer first version.
+  and harder to build. Set spots are the safer first version. The author leans
+  to set spots for now, with free placement kept open (session 35). A scan of
+  the streams (`tools/dam-sites/`, the test menu toggle "Dam sites") found 295
+  candidates, each stored as a bed point, a flow direction, and a crest height,
+  which is also what free placement would need. The valley floor has none (the
+  rivers are too wide), so the sites are on the side streams. Which sites to
+  keep, how many, and the longest dam are still open.
 - How does a dam change the water the terrain streamer draws? The pond level
   is a tile concern (ADR 0006) and needs a small design of its own.
 - Do rocks exist everywhere in the valley, or only near some banks?

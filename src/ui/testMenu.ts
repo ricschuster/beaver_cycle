@@ -37,6 +37,8 @@ export interface TestMenuOptions {
   /** False when the game started without shadows (?shadows=0); the toggle is greyed out. */
   shadowsAvailable: boolean;
   onShadows(on: boolean): void;
+  /** Debug marks for the scanned dam sites. Leave out when there is no scan file; the row is then not shown. */
+  damSites?: { initiallyOn: boolean; onToggle(on: boolean): void };
 }
 
 export interface TestMenu {
@@ -140,6 +142,23 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     opts.onShadows(shadowsOn);
   };
   shadowRow.appendChild(shadowButton);
+  if (opts.damSites) {
+    const damSites = opts.damSites;
+    const damButton = document.createElement('button');
+    damButton.dataset.action = 'damsites';
+    style(damButton);
+    let damOn = damSites.initiallyOn;
+    const showDam = (): void => {
+      damButton.textContent = damOn ? 'On' : 'Off';
+    };
+    showDam();
+    damButton.onclick = () => {
+      damOn = !damOn;
+      showDam();
+      damSites.onToggle(damOn);
+    };
+    row('Dam sites').appendChild(damButton);
+  }
   const lodgeButton = document.createElement('button');
   lodgeButton.dataset.action = 'lodge';
   style(lodgeButton);

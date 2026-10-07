@@ -20,7 +20,7 @@ flattened to `BOG_BED_OFFSET`, with a weight from 0 (open water) to 1 (full bog)
   left the start as it was.
 - The open lake was already deep: mean 5.3 m for the Almsee, against 2.5 m for
   the real lake (maximum 5 m), and 54% of it is deeper than 2.5 m.
-- Lily pads need 0.3 to 2.5 m of water, a lodge site needs 0.1 to 1.2 m with a
+- Lily pads need 0.25 to 2.5 m of water (0.3 when this note was written), a lodge site needs 0.1 to 1.2 m with a
   door of 1.2 m or more 2.9 m and 5.9 m out, and diving needs 1 m or more. The
   bog is too flat and shallow for the door and the dive.
 
@@ -60,7 +60,7 @@ are estimates. All figures are for the Almsee (89 ha).
 | Bog under 0.6 m, whole lake | about 26 ha | | | 2.2 ha | 3.1 ha | 11.0 ha |
 | Mean depth | 5.3 m | 7.4 m | 10.2 m | 3.9 m | 3.8 m | 3.6 m |
 
-Lily water is 0.3 to 2.5 m deep, diveable water is 1 m or more. Empty cells were
+Lily water is 0.3 to 2.5 m deep here (the game now uses 0.25), diveable water is 1 m or more. Empty cells were
 not measured.
 
 ## Decision: set E
@@ -100,6 +100,7 @@ needed. The lodge rules (`SITE_MIN_DEPTH`, `SITE_MAX_DEPTH`, `DOOR_MIN_DEPTH`,
 - The real lake is 2.5 m deep on average and set E is 3.6 m. A shallower lake
   than that has not been tried.
 - The other lakes were measured in session 32, see the next section.
+- Lily pads: the game minimum is now 0.25 m, see "Lily pads on each lake".
 - The tiles were rebuilt with set E in session 31 and the tile checks pass. The
   2 m fine tiles use the same bed code and changed with it. The camera demo scene
   was not re-cut and ADR 0008 has no depth numbers, so it needs no change.
@@ -141,32 +142,34 @@ since the lodge rules are not run on them.
 ### Lily pads on each lake
 
 Maps of the pad zones are in `img/17_lakes_lily/`, one file for each lake of 1 ha
-or more, with the same three panels. The zone is 0.3 to 2.5 m of water, and the
+or more, with the same three panels. The zone is 0.25 to 2.5 m of water, and the
 dots are the pads of `src/sim/lily.ts` (patches, grid, density and hash ported
 to Python) for one season, so they are the same pads the game places, as far as
 the 5 m bed allows.
 
-One thing differs from the table above. The flat bog is built 0.3 m deep, and
-the tiles hold it as 0.29999 m, just under `LILY_MIN_DEPTH` (0.3). So the bog
-grows no pads in the game, and the "lily water" figures in the set table, which
-counted the bog, are too high. Counted by the game rule the Almsee has 23 ha of
-lily zone and 1031 pads under set E (before set E: 18 ha and 811 pads), and the
-pads sit in the shallows around the bog and along the shore, not in the bog. This
-is luck of the rounding, not a rule. If pads should grow in the bog, lower
-`LILY_MIN_DEPTH` a little, for example to 0.25.
+The flat bog is built 0.3 m deep, and the tiles hold it as 0.29999 m. With
+`LILY_MIN_DEPTH` at 0.3 that was just under the rule, so the bog grew no pads,
+by luck of the rounding. `LILY_MIN_DEPTH` is now 0.25, so pads grow in the bog
+too, and the "lily water" figures in the set table, which counted the bog, hold
+again. Under set E the Almsee has 32 ha of lily zone and 1449 pads (before set
+E: 41 ha and 1906 pads, most of it flat bog). The bog is the zone of the thickest
+lily water, and a pad there is reached on foot in 0.3 m of water.
 
 | Lake | Lily zone before (ha) | Lily zone now (ha) | Pads now |
 | --- | --- | --- | --- |
-| Almsee | 18.3 | 23.0 | 1031 |
-| Toplitzsee | 0 | 7.1 | 298 |
-| Vorderer Lahngangsee | 0 | 6.3 | 229 |
+| Almsee | 41.3 | 32.1 | 1449 |
+| Toplitzsee | 32.7 | 7.1 | 299 |
+| Vorderer Lahngangsee | 18.2 | 6.3 | 229 |
 | Großer Ödsee | 2.9 | 5.3 | 221 |
-| Hinterer Lahngangsee | 0 | 2.3 | 147 |
+| Hinterer Lahngangsee | 3.6 | 2.3 | 147 |
 | Kleiner Ödsee | 1.4 | 2.5 | 83 |
-| Kammersee | 0 | 1.7 | 78 |
-| Elmsee | 0 | 1.5 | 48 |
+| Kammersee | 2.5 | 1.7 | 78 |
+| Elmsee | 2.4 | 1.6 | 61 |
 | Kasbergalm See | 0.6 | 1.1 | 57 |
-| Dreibrüdersee | 0 | 0.9 | 39 |
+| Dreibrüdersee | 1.1 | 0.9 | 40 |
+
+The alpine lakes were flat 0.3 m ponds before, so all of their water counted as
+lily zone. Now they have real depth and a lily rim.
 
 The unnamed lakes of the north are nearly all lily zone (1.4 to 7.9 ha, 67 to 307
 pads each), since they are only 1 to 2 m deep.

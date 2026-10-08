@@ -58,6 +58,8 @@ export interface RenderOptions {
   shadows?: boolean;
   /** The sun disc in the sky. On by default (the light stays either way). */
   sunDisc?: boolean;
+  /** Draw the land and water only, without the beaver, lodge, store, logs, lily pads, rocks and leaves (the free fly view). Off by default. */
+  bare?: boolean;
   /** Shadow map size in pixels, a side, for each cascade. */
   shadowMap?: number;
   /** Shadow cascades: 1 is the near box only, 2 adds a coarser one that reaches out over the valley. */
@@ -116,6 +118,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const shadows = options.shadows ?? true;
   const shadowMap = options.shadowMap ?? 2048;
   const sunDisc = options.sunDisc ?? true;
+  const bare = options.bare ?? false;
   const gl = new THREE.WebGLRenderer({ antialias: true });
   gl.shadowMap.enabled = shadows;
   gl.shadowMap.type = THREE.PCFShadowMap;
@@ -321,6 +324,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const inside = world.inLodge && world.lodge !== null;
       const drawn = inside ? interior.scene : scene;
       if (beaver.parent !== drawn) drawn.add(beaver);
+      beaver.visible = !bare;
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
       // The fly view orbits a free point on the ground, or on the water over it, not the beaver.
@@ -380,8 +384,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const season = seasonLook(date.dayOfYear + date.timeOfDay);
       terrain?.setSeason(season);
       terrain?.setFelled(world.felled);
-      logView.update(world.logs, world.stripped);
-      if (terrain && season.leafFall > 0 && now - leafTreesAt > 1) {
+      logView.update(bare ? [] : world.logs, world.stripped);
+      if (terrain && !bare && season.leafFall > 0 && now - leafTreesAt > 1) {
         leafTreesAt = now;
         leafTrees.length = 0;
         terrain.broadleafNear(b.x, b.z, 45, leafTrees);
@@ -439,10 +443,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       spotRings?.update(look.x, look.z, world.dams, world.clock);
       pondView.update(world.ponds);
       if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z), world.clock, world.ponds);
-      lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
-      storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
-      if (source) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
-      if (source) rockView.update(source.store, b.x, b.z, world.rocksTaken, world.dropped);
+      lodgeView.update(inside || bare ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
+      storeView.update(inside || bare ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
+      if (source && !bare) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
+      if (source && !bare) rockView.update(source.store, b.x, b.z, world.rocksTaken, world.dropped);
       csm?.update();
       gl.render(drawn, camera);
     },

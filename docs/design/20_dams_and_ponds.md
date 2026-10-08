@@ -302,7 +302,7 @@ Code in `src/sim/pond.ts` (`lodgeGround`, `pondAt`), `src/sim/lodge.ts` (`Lodge.
   drag a log into the pond. `?fly=1` frees the view from the beaver, which stands still: a top down view with north up, starting 250 m over the
   start. W, A, S, D (or the stick) pan it north, west, south, east, a one finger drag slides the map, and the wheel
   zooms (also pinch, up to 600 m). The land and the spot rings follow the view. For looking at ponds and spots from above.
-  `?fly=free` is a drone instead, with the sun disc and the shadows off: the stick or W, A, S, D flies it level over the ground (W and S go forward and back whatever the pitch), Space or E
+  `?fly=free` is a drone instead, with the sun disc, the shadows, the beaver's screens, and the beaver, lodge, logs, lily pads and rocks left out (land, water, trees, dams and ponds stay): the stick or W, A, S, D flies it level over the ground (W and S go forward and back whatever the pitch), Space or E
   (the Up button on a tablet) climbs, Shift or Q (Down) descends, the wheel flies in and out along the look, a drag turns it (inverted: dragging right looks right, down looks down), and a tap on the land glides it there and
   faces it. It keeps 3 m over the ground and the water, speeds up with its height, and the land streams in around it.
 - Not built yet: the door depth when a pond sags below 1.2 m, new spots

@@ -76,6 +76,7 @@ async function start(): Promise<void> {
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
     shadows: query.get('shadows') !== '0' && !free,
     sunDisc: !free,
+    bare: free,
     shadowMap: Number(query.get('shadowmap')) || undefined,
     cascades: Number(query.get('cascades')) || undefined,
   });
@@ -236,13 +237,15 @@ async function start(): Promise<void> {
       }
     },
   });
-  const breathMeter = createBreathMeter(document.body);
-  const clockHud = createClockHud(document.body);
-  const carryHud = createCarryHud(document.body);
+  // The free fly view shows none of the beaver's screens: they get a detached element, which is never on the page.
+  const hud = free ? document.createElement('div') : document.body;
+  const breathMeter = createBreathMeter(hud);
+  const clockHud = createClockHud(hud);
+  const carryHud = createCarryHud(hud);
   // Taps on the stash screen wait here until the next step takes them.
   let stashTap: number | undefined;
   let stashClose = false;
-  const stashPanel = createStashPanel(document.body, {
+  const stashPanel = createStashPanel(hud, {
     onTap(slot) {
       stashTap = slot;
     },
@@ -251,7 +254,7 @@ async function start(): Promise<void> {
     },
   });
   const trees: TreeSource = renderer.terrain ? { nearest: (x, z, reach, felled) => renderer.terrain!.nearestTree(x, z, reach, felled), trunksNear: (x, z, reach, felled) => renderer.terrain!.trunksNear(x, z, reach, felled) } : noTrees;
-  const sleepPrompt = createSleepPrompt(document.body, {
+  const sleepPrompt = createSleepPrompt(hud, {
     onWake() {
       world = sleep(world);
     },

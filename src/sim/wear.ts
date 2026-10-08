@@ -18,6 +18,7 @@ export const WORN_BELOW = 0.5;
 export const BROKEN_BELOW = 0.15;
 
 /** Days to fall from new to worn (0.5): the dam is about a season, the store two, the lodge a year. Tuning numbers. */
+export const DAM_WORN_DAYS = DAYS_PER_SEASON;
 export const LODGE_WORN_DAYS = DAYS_PER_YEAR;
 export const STORE_WORN_DAYS = 2 * DAYS_PER_SEASON;
 /** Condition a wood unit mends on a worn piece (a long log is 2 units). */

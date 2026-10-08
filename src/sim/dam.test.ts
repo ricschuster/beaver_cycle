@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
-import { LEVEL1_COST, damAt, damProgress, damWhole, needs, placed, spotAt } from './dam';
+import { LEVEL1_COST, damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, needs, placed, settled, spotAt } from './dam';
+import { DAY_SECONDS } from './clock';
+import { newWear } from './wear';
 import type { DamSpot } from './damSpots';
 import { fallenLog } from './logs';
 import { createWorld } from './state';
@@ -62,5 +64,82 @@ describe('placing at a spot', () => {
     const away = { ...createWorld(dry, 80, 0), spots: [spot], haul: { kind: 'mud' as const } };
     expect(step(away, build, 0.1, dry).dams).toEqual([]);
     expect(step(away, build, 0.1, dry).haul).toEqual({ kind: 'mud' });
+  });
+});
+
+describe('dam wear', () => {
+  const day = DAY_SECONDS;
+  const wholeAt = (clock: number) => placed([], spot, LEVEL1_COST, undefined, clock);
+
+  it('starts when the last piece goes on and falls with the days', () => {
+    const part = placed([], spot, { wood: 8, mud: 4 }, undefined, 100);
+    expect(damAt(part, spot)!.wear).toBeUndefined();
+    const dams = placed(part, spot, { rock: 2 }, undefined, 100);
+    expect(damAt(dams, spot)!.wear).toEqual(newWear(100));
+    expect(damCondition(damAt(dams, spot), 100)).toBe(1);
+    expect(damCondition(damAt(dams, spot), 100 + 10 * day)).toBeCloseTo(0.5);
+    expect(damCondition(undefined, 1e9)).toBe(1);
+  });
+
+  it('is mended by wood, mud, and rocks, a rock being worth two', () => {
+    const dams = wholeAt(0);
+    const clock = 12 * day; // condition 0.4
+    expect(damMendUnits(damAt(dams, spot), clock)).toBe(6);
+    const wood = placed(dams, spot, { wood: 2 }, undefined, clock);
+    expect(damCondition(damAt(wood, spot), clock)).toBeCloseTo(0.6);
+    const rock = placed(dams, spot, { rock: 1 }, undefined, clock);
+    expect(damCondition(damAt(rock, spot), clock)).toBeCloseTo(0.6);
+    const mud = placed(dams, spot, { mud: 1 }, undefined, clock);
+    expect(damCondition(damAt(mud, spot), clock)).toBeCloseTo(0.5);
+    expect(damCondition(damAt(placed(dams, spot, { wood: 20 }, undefined, clock), spot), clock)).toBe(1);
+  });
+
+  it('stays marked for repair from worn all the way back up to new', () => {
+    const dams = wholeAt(0);
+    expect(damNeedsRepair(damAt(dams, spot), 9 * day)).toBe(false); // good
+    const clock = 12 * day; // worn, 0.4
+    expect(damNeedsRepair(damAt(dams, spot), clock)).toBe(true);
+    const rock = placed(dams, spot, { rock: 1 }, undefined, clock); // 0.6: good again, but not new
+    expect(damNeedsRepair(damAt(rock, spot), clock)).toBe(true);
+    expect(damMendUnits(damAt(rock, spot), clock)).toBe(4);
+    const more = placed(rock, spot, { wood: 2 }, undefined, clock); // 0.8
+    expect(damNeedsRepair(damAt(more, spot), clock)).toBe(true);
+    const done = placed(more, spot, { wood: 2 }, undefined, clock); // 1
+    expect(damCondition(damAt(done, spot), clock)).toBe(1);
+    expect(damNeedsRepair(damAt(done, spot), clock)).toBe(false);
+    expect(damAt(done, spot)!.repairing).toBeUndefined();
+  });
+
+  it('is not marked when a good dam is mended a little', () => {
+    const dams = placed(wholeAt(0), spot, { wood: 1 }, undefined, 5 * day); // condition 0.75, takes the wood
+    expect(damNeedsRepair(damAt(dams, spot), 5 * day)).toBe(false);
+  });
+
+  it('takes nothing when it is new', () => {
+    const dams = wholeAt(0);
+    expect(placed(dams, spot, { wood: 2 }, undefined, 0)).toBe(dams);
+  });
+
+  it('has to be built again, with the full set, once broken', () => {
+    const dams = wholeAt(0);
+    const clock = 18 * day; // condition 0.1
+    expect(damAt(dams, spot)!.wood).toBe(8);
+    expect(settled(damAt(dams, spot), clock)).toEqual({ spot: spot.id, wood: 0, mud: 0, rock: 0 });
+    const again = placed(dams, spot, { wood: 2 }, undefined, clock);
+    expect(damAt(again, spot)).toEqual({ spot: spot.id, wood: 2, mud: 0, rock: 0 });
+    const done = placed(again, spot, LEVEL1_COST, undefined, clock);
+    expect(damAt(done, spot)!.wear).toEqual(newWear(clock));
+    expect(damWhole(damAt(done, spot))).toBe(true);
+  });
+
+  it('is mended in the world by a dragged log at the build button', () => {
+    const t = dry;
+    const dams = wholeAt(0);
+    const log = fallenLog(dry, 'l1', 52, 1, 0, 6);
+    const world = { ...createWorld(t, 50, 0), spots: [spot], dams, logs: [log], drag: log.id, clock: 12 * day };
+    const next = step(world, build, 0.1, t);
+    expect(damCondition(damAt(next.dams, spot), next.clock)).toBeGreaterThan(damCondition(damAt(dams, spot), next.clock));
+    expect(next.logs).toHaveLength(0);
+    expect(next.drag).toBeNull();
   });
 });

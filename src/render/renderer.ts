@@ -426,7 +426,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       terrain?.update(b.x, b.z);
       spotRings?.update(b.x, b.z, world.dams);
       pondView.update(world.ponds);
-      if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z));
+      if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z), world.clock);
       lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
       if (source) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);

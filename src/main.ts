@@ -115,6 +115,9 @@ async function start(): Promise<void> {
     onLodge(inLodge) {
       world = setInLodge(world, inLodge);
     },
+    onRemoveLodge() {
+      world = { ...setInLodge(world, false), lodge: null };
+    },
     onTimeOfDay(t) {
       world = setClock(world, withTimeOfDay(world.clock, t));
     },

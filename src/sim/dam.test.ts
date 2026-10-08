@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
-import { LEVEL1_COST, damAt, damCondition, damMendUnits, damProgress, damWhole, needs, placed, settled, spotAt } from './dam';
+import { LEVEL1_COST, damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, needs, placed, settled, spotAt } from './dam';
 import { DAY_SECONDS } from './clock';
 import { newWear } from './wear';
 import type { DamSpot } from './damSpots';
@@ -92,6 +92,27 @@ describe('dam wear', () => {
     const mud = placed(dams, spot, { mud: 1 }, undefined, clock);
     expect(damCondition(damAt(mud, spot), clock)).toBeCloseTo(0.5);
     expect(damCondition(damAt(placed(dams, spot, { wood: 20 }, undefined, clock), spot), clock)).toBe(1);
+  });
+
+  it('stays marked for repair from worn all the way back up to new', () => {
+    const dams = wholeAt(0);
+    expect(damNeedsRepair(damAt(dams, spot), 9 * day)).toBe(false); // good
+    const clock = 12 * day; // worn, 0.4
+    expect(damNeedsRepair(damAt(dams, spot), clock)).toBe(true);
+    const rock = placed(dams, spot, { rock: 1 }, undefined, clock); // 0.6: good again, but not new
+    expect(damNeedsRepair(damAt(rock, spot), clock)).toBe(true);
+    expect(damMendUnits(damAt(rock, spot), clock)).toBe(4);
+    const more = placed(rock, spot, { wood: 2 }, undefined, clock); // 0.8
+    expect(damNeedsRepair(damAt(more, spot), clock)).toBe(true);
+    const done = placed(more, spot, { wood: 2 }, undefined, clock); // 1
+    expect(damCondition(damAt(done, spot), clock)).toBe(1);
+    expect(damNeedsRepair(damAt(done, spot), clock)).toBe(false);
+    expect(damAt(done, spot)!.repairing).toBeUndefined();
+  });
+
+  it('is not marked when a good dam is mended a little', () => {
+    const dams = placed(wholeAt(0), spot, { wood: 1 }, undefined, 5 * day); // condition 0.75, takes the wood
+    expect(damNeedsRepair(damAt(dams, spot), 5 * day)).toBe(false);
   });
 
   it('takes nothing when it is new', () => {

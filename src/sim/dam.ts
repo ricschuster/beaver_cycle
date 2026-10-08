@@ -2,7 +2,7 @@
 // is whole. A whole dam wears (15_build_and_repair.md): it is mended by placing wood, mud, and rocks, and a broken one
 // is rebuilt with the full set. Plain data and pure functions, no three.js (ADR 0007).
 import type { DamSpot } from './damSpots';
-import { DAM_WORN_DAYS, MEND_PER_WOOD, condition, newWear, stageOf, type Wear } from './wear';
+import { DAM_WORN_DAYS, MEND_PER_WOOD, WORN_BELOW, condition, newWear, stageOf, type Wear } from './wear';
 
 export interface Dam {
   /** The `DamSpot.id` it stands at. */
@@ -13,6 +13,8 @@ export interface Dam {
   rock: number;
   /** Set when the dam is whole. Missing means it is not whole yet, or never wears (a test dam). */
   wear?: Wear;
+  /** True from the mend that began while the dam was worn until it is new again, so the repair stays marked all the way up to 1. */
+  repairing?: boolean;
 }
 
 export interface Cost {
@@ -57,6 +59,10 @@ export function damProgress(dam: Dam | undefined, cost: Cost = LEVEL1_COST): num
 /** Condition of a dam at a time, 0 to 1. A dam that is not whole or has no wear record counts as 1. */
 export const damCondition = (dam: Dam | undefined, clock: number): number => condition(dam?.wear, clock, DAM_WORN_DAYS);
 
+/** True while the dam is marked for repair: worn or broken, or mended part way from there and not yet new (the gold glow and the repair line). */
+export const damNeedsRepair = (dam: Dam | undefined, clock: number): boolean =>
+  !!dam?.wear && damWhole(dam) && (!!dam.repairing || damCondition(dam, clock) < WORN_BELOW);
+
 /** A broken dam is gone to its footings: it has to be built again with the full set, so it counts as one not started. */
 export function settled(dam: Dam | undefined, clock: number): Dam | undefined {
   if (!dam?.wear || stageOf(damCondition(dam, clock)) !== 'broken') return dam;
@@ -99,7 +105,10 @@ export function placed(dams: readonly Dam[], spot: DamSpot, add: Partial<Cost>, 
     const level = clock === undefined ? 1 : damCondition(dam, clock);
     const gain = (add.wood ?? 0) * MEND_PER_WOOD + (add.mud ?? 0) * MEND_PER_MUD + (add.rock ?? 0) * MEND_PER_ROCK;
     if (clock === undefined || !dam.wear || level >= 1 || gain === 0) return dams as Dam[];
-    return [...rest, { ...dam, wear: { level: Math.min(1, level + gain), since: clock, mend: 0 } }];
+    const next = Math.min(1, level + gain);
+    const { repairing: _was, ...plain } = dam;
+    // A dam mended from worn stays marked until it is new; a good one mended a little never was.
+    return [...rest, { ...plain, ...(next < 1 && damNeedsRepair(dam, clock) ? { repairing: true } : {}), wear: { level: next, since: clock, mend: 0 } }];
   }
   const next: Dam = {
     spot: dam.spot,

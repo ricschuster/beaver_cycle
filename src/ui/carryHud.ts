@@ -1,11 +1,11 @@
 // Trees felled, the log being dragged, and how far a gnaw has got, top left under the clock. DOM only.
 import { atStore, storeCapacity, storeCondition, stockMeals, stockTotal, strippable } from '../sim/food';
-import { damAt, damCondition, damMendUnits, damProgress, damWhole, needs, settled, spotAt } from '../sim/dam';
+import { damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, needs, settled, spotAt } from '../sim/dam';
 import { canScoopMud, reachableDropped, reachableRock } from '../sim/haul';
 import { reachablePad } from '../sim/lily';
 import type { Terrain } from '../sim/terrain';
 import { LODGE_WOOD, lodgeComplete, lodgeCondition, nearLodge, type SiteProblem } from '../sim/lodge';
-import { LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, WORN_BELOW, needsRepair, stageOf, woodToMend } from '../sim/wear';
+import { LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, needsRepair, stageOf, woodToMend } from '../sim/wear';
 import type { WorldState } from '../sim/state';
 
 /** What the spot ahead is for a new lodge while dragging a log with no lodge yet: fine, a problem, or null when it does not apply. */
@@ -120,7 +120,7 @@ export function foodInfoOf(world: WorldState, terrain: Terrain, ground: Terrain 
   const mendable = damMendUnits(dam, world.clock) > 0;
   const canAdd = mendable ? !!haul || !!log : (haul?.kind === 'mud' && need.mud > 0) || (haul?.kind === 'rock' && need.rock > 0) || (!!log && need.wood > 0);
   const level = damCondition(stored, world.clock);
-  const damRepair: FoodInfo['repair'] = stored?.wear && level < WORN_BELOW ? { what: 'dam', percent: Math.round(level * 100), wood: damMendUnits(dam, world.clock), broken: stageOf(level) === 'broken' } : null;
+  const damRepair: FoodInfo['repair'] = damNeedsRepair(stored, world.clock) ? { what: 'dam', percent: Math.round(level * 100), wood: damMendUnits(dam, world.clock), broken: stageOf(level) === 'broken' } : null;
   const damInfo: FoodInfo['dam'] = spot ? { percent: Math.round(damProgress(dam) * 100), ...need, whole: damWhole(dam), canAdd } : null;
   if (!carry && !haul && !whole && !hint && !damInfo) return null;
   const capacity = storeCapacity(storeCondition(world.storeWear, world.clock));

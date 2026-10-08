@@ -2,7 +2,7 @@
 // many of each as have been placed. A worn dam loses sticks and mounds and shows the gold repair glow (Q55), a broken one
 // is mostly gone. The pond is drawn by pondView. Reads state only.
 import * as THREE from 'three';
-import { LEVEL1_COST, damCondition, type Dam } from '../sim/dam';
+import { LEVEL1_COST, damCondition, damNeedsRepair, type Dam } from '../sim/dam';
 import type { DamSpot } from '../sim/damSpots';
 import { WORN_BELOW, stageOf } from '../sim/wear';
 import { createRepairGlow, type RepairGlow } from './repairGlow';
@@ -54,7 +54,7 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
         const at = { x: spot.bed.x, y: heightAt(spot.bed.x, spot.bed.z), z: spot.bed.z };
         const glow = entry?.glow ?? createRepairGlow(scene, GLOW_RADIUS);
         if (!entry) glows.set(dam.spot, { glow, at });
-        glow.set(dam.wear && level < WORN_BELOW ? { ...at, broken: stageOf(level) === 'broken' } : null);
+        glow.set(damNeedsRepair(dam, clock) ? { ...at, broken: stageOf(level) === 'broken' } : null);
       }
       const key = dams.map((d) => `${d.spot}:${d.wood}:${d.mud}:${d.rock}:${Math.round(shownShare(damCondition(d, clock)) * 20)}`).join('|');
       if (key === shown) return;

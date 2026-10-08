@@ -252,7 +252,9 @@ Code in `src/sim/dam.ts` (wear and mend) and `src/sim/pond.ts` (the level that f
   0.2 (a long log is 2 units). A good dam takes nothing. A broken dam is built again with the full set (8 wood,
   4 mud, 2 rocks), starting from nothing, and the pond grows back as it goes up. It is a chore, never a loss.
 - A worn dam loses sticks and mounds in the view, down to a third when gone, and shows the gold repair glow
-  (brighter when broken). The HUD line at the spot says how worn it is and how many units it needs.
+  (brighter when broken). The HUD line at the spot says how worn it is and how many units it needs. The mark
+  comes on when the condition falls below 0.5 and stays until the dam is back at 1.0, so the units shown are
+  always what is left (`Dam.repairing`). A good dam that is mended a little is never marked.
 - To try it: `?age=N` makes a dam N days old when the test menu fills it in (worn at 10, broken at 17).
 - Not built: teenagers who repair the dam, a worn dam's effect on fish and lily pads (there are none in ponds
   yet), the cost of a wear step on the shore (a lodge door left in shallows).

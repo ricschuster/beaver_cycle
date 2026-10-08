@@ -89,6 +89,9 @@ describe('dam line', () => {
     const text = formatCarry(0, false, null, null, null, null, worn);
     expect(text).toContain('dam worn 40%, needs 6 units (a long log is 2, mud 1, a rock 2)');
     expect(text).not.toContain('dam done');
+    const mended = [{ ...dams[0]!, repairing: true, wear: { level: 0.6, since: 12 * DAY_SECONDS, mend: 0 } }];
+    const part = foodInfoOf({ ...base, dams: mended, clock: 12 * DAY_SECONDS }, flatTerrain(0))!; // good again, not new
+    expect(part.repair).toEqual({ what: 'dam', percent: 60, wood: 4, broken: false });
     const broken = foodInfoOf({ ...base, clock: 18 * DAY_SECONDS }, flatTerrain(0))!;
     expect(broken.repair).toMatchObject({ what: 'dam', broken: true });
     expect(broken.dam).toMatchObject({ whole: false, percent: 0 });

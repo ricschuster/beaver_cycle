@@ -3,14 +3,42 @@
 // is mostly gone. The pond is drawn by pondView. Reads state only.
 import * as THREE from 'three';
 import { costOf, damCondition, damNeedsRepair, type Dam } from '../sim/dam';
-import { crestOf } from '../sim/pond';
+import { POND_CELL, crestOf, type Pond } from '../sim/pond';
 import type { DamSpot } from '../sim/damSpots';
 import { WORN_BELOW, stageOf } from '../sim/wear';
 import { createRepairGlow, type RepairGlow } from './repairGlow';
 
 export interface DamView {
   /** Draw the dams at their spots at game time `clock`. Rebuilds only when what has been placed or the wear shown changes. */
-  update(dams: readonly Dam[], spots: readonly DamSpot[], heightAt: (x: number, z: number) => number, clock?: number): void;
+  update(dams: readonly Dam[], spots: readonly DamSpot[], heightAt: (x: number, z: number) => number, clock?: number, ponds?: readonly Pond[]): void;
+}
+
+/** The flooded cells within this many metres of the dam line (either side) decide how wide the wall is. */
+const NEAR_LINE = 3 * POND_CELL;
+
+/**
+ * How far the pond's front reaches along the dam line each way from the bed point (metres), for the part of it under `bedY + top`,
+ * or null when the pond has no such cell near the line. Read off the flood fill, so a bump on the line or a bank that lies off the
+ * drawn stream line cannot cut the wall short; a cell's half width is added so the wall ends in the bank.
+ */
+export function wallSpan(pond: Pond, spot: DamSpot, top: number): { left: number; right: number } | null {
+  const lateral = { x: -spot.flow.z, z: spot.flow.x };
+  let min = Infinity;
+  let max = -Infinity;
+  for (let j = 0; j < pond.n; j++) {
+    for (let i = 0; i < pond.n; i++) {
+      if (!pond.flooded[j * pond.n + i] || pond.heights[j * pond.n + i]! >= spot.bedY + top) continue;
+      const dx = pond.x0 + i * POND_CELL - spot.bed.x;
+      const dz = pond.z0 + j * POND_CELL - spot.bed.z;
+      const up = -(dx * spot.flow.x + dz * spot.flow.z);
+      if (up > NEAR_LINE) continue;
+      const t = dx * lateral.x + dz * lateral.z;
+      min = Math.min(min, t);
+      max = Math.max(max, t);
+    }
+  }
+  if (min > max) return null;
+  return { left: Math.max(0, -min) + POND_CELL, right: Math.max(0, max) + POND_CELL };
 }
 
 /** Share of its pieces a dam of this condition still shows: all while good, down to a third when it is gone. */
@@ -50,7 +78,7 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
     return o;
   };
   return {
-    update(dams, spots, heightAt, clock = 0) {
+    update(dams, spots, heightAt, clock = 0, ponds = []) {
       // The glow pulses every frame, the piles are rebuilt only when what they show changes.
       for (const dam of dams) {
         const level = damCondition(dam, clock);
@@ -66,7 +94,7 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
         const { wear: _wear, ...fresh } = d;
         return crestOf(fresh);
       });
-      const key = dams.map((d, i) => `${d.spot}:${d.wood}:${d.mud}:${d.rock}:${d.level ?? 1}:${crests[i]}:${Math.round(shownShare(damCondition(d, clock)) * 20)}`).join('|');
+      const key = dams.map((d, i) => `${d.spot}:${d.wood}:${d.mud}:${d.rock}:${d.level ?? 1}:${crests[i]}:${Math.round(shownShare(damCondition(d, clock)) * 20)}:${ponds.find((p) => p.spot === d.spot)?.area ?? 0}`).join('|');
       if (key === shown) return;
       shown = key;
       root.clear();
@@ -79,8 +107,11 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
         // The dam line runs across the stream; `lateral` points along it.
         const lateral = { x: -spot.flow.z, z: spot.flow.x };
         const base = heightAt(spot.bed.x, spot.bed.z);
-        // How far the water at `top` metres above the bed reaches along the dam line each way from the bed point, so the wall spans the whole pond front.
+        // How far the water at `top` metres above the bed reaches along the dam line each way from the bed point, so the wall spans the whole pond front: from the pond fill when there is one, else by walking the ground.
+        const pond = ponds.find((p) => p.spot === dam.spot);
         const reach = (sign: number, top: number): number => {
+          const span = pond ? wallSpan(pond, spot, top) : null;
+          if (span) return sign < 0 ? span.left : span.right;
           let t = 0;
           while (t < MAX_REACH && heightAt(spot.bed.x + lateral.x * sign * (t + 1), spot.bed.z + lateral.z * sign * (t + 1)) < spot.bedY + top) t++;
           return t + 1;

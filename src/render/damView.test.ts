@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { shownShare } from './damView';
+import { shownShare, wallSpan } from './damView';
+import { POND_CELL, floodPond } from '../sim/pond';
+import type { DamSpot } from '../sim/damSpots';
 
 describe('shownShare', () => {
   it('shows every piece while the dam is good and a third when it is gone', () => {
@@ -7,5 +9,25 @@ describe('shownShare', () => {
     expect(shownShare(0.5)).toBe(1);
     expect(shownShare(0)).toBeCloseTo(1 / 3);
     expect(shownShare(0.25)).toBeCloseTo(2 / 3);
+  });
+});
+
+describe('wallSpan', () => {
+  // A valley along z, flowing to +z, a stream bed at 0 and banks that rise 0.2 m per metre from x = +-6, closed upstream at z = -30, with a 3 m wide bump on the dam line at x = 4.
+  const ground = { heightAt: (x: number, z: number): number => (Math.abs(x) > 6 ? (Math.abs(x) - 6) * 0.2 : 0) + (z < -30 ? (-30 - z) * 0.3 : 0) + (Math.abs(x - 4) < 1.5 && Math.abs(z) < 1 ? 3 : 0) };
+  const spot: DamSpot = { id: 's', bed: { x: 0, z: 0 }, bedY: 0, flow: { x: 0, z: 1 }, maxCrest: 2, pondM2: 0 };
+
+  it('spans the pond front even where a bump on the dam line would stop a walk along it', () => {
+    const pond = floodPond(ground as never, spot, 1.0)!;
+    const span = wallSpan(pond, spot, 1.0)!;
+    // Water at 1.0 m reaches x = +-11.
+    expect(span.left).toBeGreaterThanOrEqual(11);
+    expect(span.right).toBeGreaterThanOrEqual(11);
+    expect(span.left).toBeLessThan(11 + 2 * POND_CELL);
+  });
+
+  it('is narrower for a lower row', () => {
+    const pond = floodPond(ground as never, spot, 1.0)!;
+    expect(wallSpan(pond, spot, 0.3)!.left).toBeLessThan(wallSpan(pond, spot, 1.0)!.left);
   });
 });

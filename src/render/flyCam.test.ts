@@ -41,7 +41,9 @@ describe('fly camera', () => {
     const v = view();
     look(v, 100, 0);
     expect(v.yaw).toBeGreaterThan(0);
-    look(v, 0, -100000);
+    look(v, 0, 50);
+    expect(v.pitch).toBeGreaterThan(0);
+    look(v, 0, 100000);
     expect(v.pitch).toBeLessThanOrEqual(1.5);
   });
 

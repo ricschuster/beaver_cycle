@@ -3,6 +3,7 @@
 import { START_CLOCK, nextDawn, isNight } from './clock';
 import { emptyStock, type Food, type Stock } from './food';
 import { atNest, type Lodge } from './lodge';
+import type { AchievementId } from './achievements';
 import type { Dam } from './dam';
 import type { DamSpot } from './damSpots';
 import type { Dropped, Haul } from './haul';
@@ -80,6 +81,8 @@ export interface WorldState {
   picked: Record<string, number>;
   /** Pieces eaten so far inside the lodge. Eating has no effect on the beaver yet (Q17), this only counts. */
   eaten: number;
+  /** Ids of the achievements won so far (`achievements.ts`). They stay won. Each baby will start its own list later (Q40). */
+  achievements: AchievementId[];
   /** Test setting that scales movement speed (x1, x5, x20, x100). Not a game rule. */
   speedMultiplier: number;
 }
@@ -136,7 +139,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

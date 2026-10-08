@@ -7,6 +7,10 @@ import { flatTerrain } from '../sim/terrain';
 import { formatCarry, foodInfoOf } from './carryHud';
 
 describe('carry hud', () => {
+  it('says when the wood achievement is won', () => {
+    expect(formatCarry(30, false, null, null, null, null, null, true)).toBe('30 trees felled, wood achievement');
+  });
+
   it('shows the trees felled', () => {
     expect(formatCarry(5, false, null)).toBe('5 trees felled');
     expect(formatCarry(1, false, null)).toBe('1 tree felled');

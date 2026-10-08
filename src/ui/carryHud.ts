@@ -134,14 +134,14 @@ export function foodInfoOf(world: WorldState, terrain: Terrain, ground: Terrain 
 
 export interface CarryHud {
   /** `gnaw` is 0 to 1 while a tree is being gnawed, null otherwise. */
-  set(felled: number, dragging: boolean, gnaw: number | null, lodge?: number | null, site?: LodgeSite, spot?: LodgeSpot, food?: FoodInfo | null): void;
+  set(felled: number, dragging: boolean, gnaw: number | null, lodge?: number | null, site?: LodgeSite, spot?: LodgeSpot, food?: FoodInfo | null, wood?: boolean): void;
 }
 
 /** "5 trees felled", then the lodge's progress once it is started, with ", dragging a log" or the gnaw progress in percent while either is going on. */
-export function formatCarry(felled: number, dragging: boolean, gnaw: number | null, lodge: number | null = null, site: LodgeSite = null, spot: LodgeSpot = null, food: FoodInfo | null = null): string {
+export function formatCarry(felled: number, dragging: boolean, gnaw: number | null, lodge: number | null = null, site: LodgeSite = null, spot: LodgeSpot = null, food: FoodInfo | null = null, wood = false): string {
   if (spot) return SPOT_TEXT[spot] + formatFood(food);
   const lodgeText = lodge === null ? '' : lodge >= 1 ? ', lodge done' : `, lodge ${Math.floor(lodge * 100)}%`;
-  const base = `${felled} ${felled === 1 ? 'tree' : 'trees'} felled${lodgeText}`;
+  const base = `${felled} ${felled === 1 ? 'tree' : 'trees'} felled${wood ? ', wood achievement' : ''}${lodgeText}`;
   if (dragging) return (site ? `${base}, dragging a log, ${SITE_TEXT[site]}` : `${base}, dragging a log`) + (food?.repair ? `, ${formatRepair(food.repair)}, press Build to add it` : '') + (food?.dam && !(food.repair?.what === 'dam' && !food.repair.broken) ? `, ${formatDam(food.dam)}` : '');
   return (gnaw === null ? base : `${base}, gnawing ${Math.floor(Math.min(1, gnaw) * 100)}%`) + formatFood(food);
 }
@@ -156,8 +156,8 @@ export function createCarryHud(parent: HTMLElement): CarryHud {
   parent.appendChild(root);
   let shown = '';
   return {
-    set(felled, dragging, gnaw, lodge = null, site = null, spot = null, food = null) {
-      const text = formatCarry(felled, dragging, gnaw, lodge, site, spot, food);
+    set(felled, dragging, gnaw, lodge = null, site = null, spot = null, food = null, wood = false) {
+      const text = formatCarry(felled, dragging, gnaw, lodge, site, spot, food, wood);
       if (text !== shown) {
         shown = text;
         root.textContent = text;

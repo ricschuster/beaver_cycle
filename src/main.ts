@@ -23,6 +23,7 @@ import { createFlyButtons } from './ui/flyButtons';
 import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
 import { lodgeGround, pondsOf, withPonds } from './sim/pond';
+import { withNewSpots } from './sim/newSpots';
 import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
 
@@ -225,7 +226,8 @@ async function start(): Promise<void> {
               if (spot) {
                 const dams = placed(world.dams, spot, LEVEL_COST[2]!, undefined, world.clock).map((d) => (d.spot === spot.id && d.wear ? { ...d, wear: newWear(world.clock - ageDays * DAY_SECONDS) } : d));
                 const set = pondsOf(dams, world.spots, terrain, world.clock);
-                world = { ...world, dams, ponds: set.ponds, pondCrests: set.crests };
+                // This tool floods the ponds itself, so `step` sees no change: look for the new spots here.
+                world = { ...world, dams, ponds: set.ponds, pondCrests: set.crests, spots: withNewSpots(world.spots, set.ponds.filter((p) => p.spot === spot.id), terrain) };
               }
             },
           }

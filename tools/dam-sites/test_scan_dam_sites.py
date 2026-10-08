@@ -99,3 +99,9 @@ def test_the_level_one_pond_must_pass_the_gate():
     H, x0, z0 = valley(0.1)
     levels = [sd.evaluate(H, x0, z0, (0.0, 0.0), (0.0, 1.0), c, stream_at(0.0)) for c in sd.CRESTS]
     assert levels[sd.CRESTS.index(sd.LEVEL1_CREST)] is not None
+
+
+def test_a_site_records_the_dam_length_at_each_crest():
+    site = sd.scan_point(FakeHeights(0.1), 0.0, 0.0, 0.0, 1.0, (), None)
+    assert len(site["dam_widths"]) == len(sd.CRESTS)
+    assert site["dam_widths"][0] and site["dam_widths"][0] > 0

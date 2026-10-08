@@ -1,7 +1,7 @@
 // The dam (docs/design/20_dams_and_ponds.md): at a dam spot the beaver places wood, mud, and rocks until the level 1 dam
 // is whole. A whole dam wears (15_build_and_repair.md): it is mended by placing wood, mud, and rocks, and a broken one
 // is rebuilt with the full set. Plain data and pure functions, no three.js (ADR 0007).
-import { maxLevel, type DamSpot } from './damSpots';
+import { maxLevel, widthFactor, type DamSpot } from './damSpots';
 import { DAM_WORN_DAYS, MEND_PER_WOOD, WORN_BELOW, condition, newWear, stageOf, type Wear } from './wear';
 
 export interface Dam {
@@ -13,6 +13,8 @@ export interface Dam {
   rock: number;
   /** The level it is built to or held at, 1 to 3. Missing means level 1. Wood, mud, and rock count toward the cost of this level. */
   level?: 1 | 2 | 3;
+  /** Share of the table price this dam costs, from the length of the wall at its spot (`widthFactor`). Missing means 1. */
+  scale?: number;
   /** Set when the dam is whole. Missing means it is not whole yet, or never wears (a test dam). */
   wear?: Wear;
   /** True from the mend that began while the dam was worn until it is new again, so the repair stays marked all the way up to 1. */
@@ -34,9 +36,14 @@ export const LEVEL_COST: readonly Cost[] = [
 export const LEVEL1_COST: Cost = LEVEL_COST[0]!;
 
 export const levelOf = (dam: Dam | undefined): 1 | 2 | 3 => dam?.level ?? 1;
-/** The cost of the level a dam is built to, and of the level below it (nothing for level 1). */
-export const costOf = (dam: Dam | undefined): Cost => LEVEL_COST[levelOf(dam) - 1]!;
-const costBelow = (dam: Dam | undefined): Cost => LEVEL_COST[levelOf(dam) - 2] ?? { wood: 0, mud: 0, rock: 0 };
+/** A table cost at a scale: each material rounded, at least 1. */
+const scaled = (c: Cost, scale: number): Cost => ({ wood: Math.max(1, Math.round(c.wood * scale)), mud: Math.max(1, Math.round(c.mud * scale)), rock: Math.max(1, Math.round(c.rock * scale)) });
+/** The cost of the level a dam is built to, and of the level below it (nothing for level 1), at the dam's scale. */
+export const costOf = (dam: Dam | undefined): Cost => scaled(LEVEL_COST[levelOf(dam) - 1]!, dam?.scale ?? 1);
+const costBelow = (dam: Dam | undefined): Cost => (levelOf(dam) > 1 ? scaled(LEVEL_COST[levelOf(dam) - 2]!, dam?.scale ?? 1) : { wood: 0, mud: 0, rock: 0 });
+
+/** Condition one wood unit mends on this dam: a long wall takes more to mend, a short one less. */
+export const mendPerWood = (dam: Dam | undefined): number => MEND_PER_WOOD / (dam?.scale ?? 1);
 
 /** The beaver can place at a spot within this many metres of its bed point: the radius of the ring. */
 export const SPOT_REACH = 5;
@@ -45,7 +52,7 @@ export const SPOT_REACH = 5;
 export const MEND_PER_MUD = MEND_PER_WOOD;
 export const MEND_PER_ROCK = 2 * MEND_PER_WOOD;
 
-export const newDam = (spot: string): Dam => ({ spot, wood: 0, mud: 0, rock: 0 });
+export const newDam = (spot: string, scale = 1): Dam => ({ spot, wood: 0, mud: 0, rock: 0, ...(scale !== 1 ? { scale } : {}) });
 
 /** What a dam still needs. */
 export function needs(dam: Dam | undefined, cost: Cost = costOf(dam)): Cost {
@@ -85,19 +92,23 @@ export const damNeedsRepair = (dam: Dam | undefined, clock: number): boolean =>
 export function raised(dam: Dam | undefined, spot: DamSpot, clock: number): Dam | undefined {
   if (!dam || !damWhole(dam) || levelOf(dam) >= maxLevel(spot) || damNeedsRepair(dam, clock) || damCondition(dam, clock) < WORN_BELOW) return undefined;
   const { wear: _wear, repairing: _repairing, ...rest } = dam;
-  return { ...rest, level: (levelOf(dam) + 1) as 2 | 3 };
+  const level = (levelOf(dam) + 1) as 2 | 3;
+  // The price never falls with the level, so what is placed already is never more than the bigger level asks for.
+  const scale = Math.max(dam.scale ?? 1, widthFactor(spot, level));
+  const { scale: _scale, ...plain } = rest;
+  return { ...plain, level, ...(scale !== 1 ? { scale } : {}) };
 }
 
 /** A broken dam is gone to its footings: it has to be built again with the full set, so it counts as one not started. */
-export function settled(dam: Dam | undefined, clock: number): Dam | undefined {
+export function settled(dam: Dam | undefined, clock: number, spot: DamSpot): Dam | undefined {
   if (!dam?.wear || stageOf(damCondition(dam, clock)) !== 'broken') return dam;
-  return newDam(dam.spot);
+  return newDam(dam.spot, widthFactor(spot, 1));
 }
 
 /** Wood units (a long log is 2, mud 1, a rock 2) still needed to make a worn dam new, 0 for a dam that is not whole. */
 export function damMendUnits(dam: Dam | undefined, clock: number): number {
   if (!dam?.wear || !damWhole(dam)) return 0;
-  return Math.ceil((1 - damCondition(dam, clock)) / MEND_PER_WOOD - 1e-9);
+  return Math.ceil((1 - damCondition(dam, clock)) / mendPerWood(dam) - 1e-9);
 }
 
 /** The dam spot within reach of a point, nearest first, or null. */
@@ -125,13 +136,13 @@ export const damAt = (dams: readonly Dam[], spot: DamSpot): Dam | undefined => d
  */
 export function placed(dams: readonly Dam[], spot: DamSpot, add: Partial<Cost>, override?: Cost, clock?: number): Dam[] {
   const stored = damAt(dams, spot);
-  let dam = (clock === undefined ? stored : settled(stored, clock)) ?? newDam(spot.id);
+  let dam = (clock === undefined ? stored : settled(stored, clock, spot)) ?? newDam(spot.id, widthFactor(spot, 1));
   if (clock !== undefined && !override && (add.wood ?? 0) + (add.mud ?? 0) + (add.rock ?? 0) > 0) dam = raised(dam, spot, clock) ?? dam;
   const cost = override ?? costOf(dam);
   const rest = dams.filter((d) => d.spot !== spot.id);
   if (damWhole(dam, cost)) {
     const level = clock === undefined ? 1 : damCondition(dam, clock);
-    const gain = (add.wood ?? 0) * MEND_PER_WOOD + (add.mud ?? 0) * MEND_PER_MUD + (add.rock ?? 0) * MEND_PER_ROCK;
+    const gain = ((add.wood ?? 0) * MEND_PER_WOOD + (add.mud ?? 0) * MEND_PER_MUD + (add.rock ?? 0) * MEND_PER_ROCK) / (dam.scale ?? 1);
     if (clock === undefined || !dam.wear || level >= 1 || gain === 0) return dams as Dam[];
     const next = Math.min(1, level + gain);
     const { repairing: _was, ...plain } = dam;
@@ -141,6 +152,7 @@ export function placed(dams: readonly Dam[], spot: DamSpot, add: Partial<Cost>, 
   const next: Dam = {
     spot: dam.spot,
     ...(dam.level ? { level: dam.level } : {}),
+    ...(dam.scale ? { scale: dam.scale } : {}),
     wood: Math.min(cost.wood, dam.wood + (add.wood ?? 0)),
     mud: Math.min(cost.mud, dam.mud + (add.mud ?? 0)),
     rock: Math.min(cost.rock, dam.rock + (add.rock ?? 0)),

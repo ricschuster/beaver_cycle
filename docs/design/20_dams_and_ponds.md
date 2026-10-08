@@ -273,6 +273,14 @@ Code in `src/sim/dam.ts` (`Dam.level`, `LEVEL_COST`, `raised`) and `src/sim/pond
 - While a dam is raised it does not wear, and it is new when the bigger level is whole (the wear record is made
   again). So raising also renews it.
 - A broken dam is built again from nothing at level 1 (14 units, not 43), so a bad run never costs a big dam twice. To tune.
+- **Cost follows the wall.** The table price is for a typical wall (`REF_WIDTH`, the scan's median: 16, 20, and 22 m
+  at the three crests). A dam costs the table price times its wall length at that crest over the typical one,
+  clamped to 0.6 to 2 (`widthFactor`), each material rounded, at least 1. The scan writes the length at each crest
+  (`dam_widths` in `dam_sites.json`, rerun `scan_dam_sites.py`); a file without it prices every spot at 1. The
+  factor is kept on the dam (`Dam.scale`), so the price is fixed once the dam is started. Raising never lowers it
+  (it takes the bigger of the old and the new level's factor), so what is placed is never more than the next level
+  asks. Mending is scaled the same way: one wood unit mends 0.1 divided by the factor, so a long wall takes more
+  units to mend and a short one fewer. Rocks scale like the rest for now; more with height than length is open.
 - To try it: the test menu "Finish dam here" fills a dam to level 1, and each press after raises it and fills the
   next level, up to what the spot holds.
 - Not built: the view of a bigger dam is the same piles, more of them and higher. A shaped wall comes with the

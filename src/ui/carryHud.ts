@@ -116,7 +116,7 @@ export function foodInfoOf(world: WorldState, terrain: Terrain, ground: Terrain 
   const lodgeRepair = whole && !world.inLodge ? repairInfoOf(world) : null;
   const spot = world.inLodge ? null : spotAt(world.spots, b.x, b.z);
   const stored = spot ? damAt(world.dams, spot) : undefined;
-  const dam = settled(stored, world.clock);
+  const dam = spot ? settled(stored, world.clock, spot) : stored;
   // A good whole dam that the spot can hold bigger shows what raising it needs.
   const up = spot ? raised(dam, spot, world.clock) : undefined;
   const need = needs(up ?? dam);

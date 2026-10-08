@@ -14,6 +14,8 @@ export interface ScannedSite {
   crest_m: number;
   pond_m2: number;
   max_depth_m: number;
+  /** The dam length in metres at each level's crest, null where that level holds no pond. Missing in an older file. */
+  dam_widths?: (number | null)[];
   /** The play location the scan put it in. */
   near: string;
 }
@@ -28,10 +30,24 @@ export interface DamSpot {
   /** Tallest crest above the bed that holds water here. Level 1 to 3 are crests of 1.0, 1.5 and 2.0 m. */
   maxCrest: number;
   pondM2: number;
+  /** The dam length in metres at each level's crest, null or missing where unknown. It sets what the dam costs (`widthFactor`). */
+  widths?: (number | null)[];
 }
 
 /** Crest above the bed for each dam level, metres (design note 20). */
 export const LEVEL_CREST: readonly number[] = [1.0, 1.5, 2.0];
+
+/** The dam length of a typical spot at each level's crest, metres: the median of the scan. A dam of this length costs the table price. */
+export const REF_WIDTH: readonly number[] = [16, 20, 22];
+/** A dam costs between these shares of the table price, however narrow or wide the valley is there. */
+export const MIN_COST_FACTOR = 0.6;
+export const MAX_COST_FACTOR = 2;
+
+/** The share of the table price a dam of a level costs at a spot: its length against a typical one, clamped. 1 where the length is not known. */
+export function widthFactor(spot: DamSpot, level: 1 | 2 | 3): number {
+  const w = spot.widths?.[level - 1];
+  return w ? Math.min(MAX_COST_FACTOR, Math.max(MIN_COST_FACTOR, w / REF_WIDTH[level - 1]!)) : 1;
+}
 
 /** The biggest level a spot offers: the highest whose crest the scan found holding water. */
 export function maxLevel(spot: DamSpot): 1 | 2 | 3 {
@@ -47,6 +63,7 @@ export function spotFromSite(s: ScannedSite): DamSpot {
     flow: { x: s.flow[0], z: s.flow[1] },
     maxCrest: s.crest_m,
     pondM2: s.pond_m2,
+    ...(s.dam_widths ? { widths: s.dam_widths } : {}),
   };
 }
 

@@ -20,6 +20,7 @@ import { createLodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
 import { createLogView } from './logView';
 import { createDamView } from './damView';
+import { createPondView } from './pondView';
 import { createRockView } from './rockView';
 import { createStoreView } from './storeView';
 import type { DamSite } from './damSites';
@@ -177,6 +178,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const lilyView = createLilyView(scene, prepare);
   const rockView = createRockView(scene, prepare);
   const damView = createDamView(scene, shadows, prepare);
+  const pondView = createPondView(scene, prepare);
   const interior = createLodgeInterior();
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
@@ -423,6 +425,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       }
       terrain?.update(b.x, b.z);
       spotRings?.update(b.x, b.z, world.dams);
+      pondView.update(world.ponds);
       if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z));
       lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));

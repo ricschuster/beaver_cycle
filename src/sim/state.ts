@@ -6,6 +6,7 @@ import { atNest, type Lodge } from './lodge';
 import type { Dam } from './dam';
 import type { DamSpot } from './damSpots';
 import type { Dropped, Haul } from './haul';
+import type { Pond } from './pond';
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
 import type { Wear } from './wear';
@@ -63,6 +64,8 @@ export interface WorldState {
   spots: DamSpot[];
   /** Dams started or whole, one per spot. */
   dams: Dam[];
+  /** The ponds the dams hold, worked out from `dams` and the ground when a dam changes (`pondsOf`). */
+  ponds: Pond[];
   /** The food store beside the lodge door: what is in it. Usable once the lodge is whole. */
   store: Stock;
   /** True while the stash screen is open: the beaver stands still and the player moves pieces in and out of the store's places. */
@@ -131,7 +134,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

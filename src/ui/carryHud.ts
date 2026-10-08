@@ -90,7 +90,7 @@ function repairInfoOf(world: WorldState): FoodInfo['repair'] {
 }
 
 /** The food line for a world: the store once the lodge is whole, the piece in the mouth, and what a press would do here. */
-export function foodInfoOf(world: WorldState, terrain: Terrain): FoodInfo | null {
+export function foodInfoOf(world: WorldState, terrain: Terrain, ground: Terrain = terrain): FoodInfo | null {
   const { lodge, beaver: b, carry, haul, store } = world;
   const whole = lodgeComplete(lodge);
   let hint: FoodInfo['hint'] = null;
@@ -98,7 +98,7 @@ export function foodInfoOf(world: WorldState, terrain: Terrain): FoodInfo | null
     if (carry) hint = 'eat';
   } else if (whole && atStore(lodge, b.x, b.z) && !world.drag && !haul) {
     hint = 'store';
-  } else if (!carry && !haul && !world.drag && !world.chop && b.mode !== 'dive' && reachablePad(terrain, b.x, b.z, world.clock, world.picked)) {
+  } else if (!carry && !haul && !world.drag && !world.chop && b.mode !== 'dive' && reachablePad(ground, b.x, b.z, world.clock, world.picked)) {
     hint = 'pick';
   } else if (!carry && !haul && !world.drag && !world.chop && b.mode !== 'dive' && strippable(world.logs, world.stripped, b.x, b.z)) {
     hint = 'strip';

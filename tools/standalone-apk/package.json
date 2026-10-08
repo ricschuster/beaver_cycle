@@ -1,0 +1,11 @@
+{
+  "name": "standalone-apk",
+  "private": true,
+  "description": "Capacitor shell that bundles the built game (dist/) into a standalone debug APK, so a tablet plays with no computer or cable.",
+  "type": "module",
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  }
+}

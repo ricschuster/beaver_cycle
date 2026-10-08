@@ -1,0 +1,5 @@
+{
+  "appId": "com.beavercycle.game",
+  "appName": "Beaver Cycle",
+  "webDir": "../../dist"
+}

@@ -10,3 +10,8 @@ export const WOOD_TREES = 30;
 export function newlyWon(world: Pick<WorldState, 'felled' | 'achievements'>): AchievementId[] {
   return !world.achievements.includes('wood') && world.felled.length >= WOOD_TREES ? ['wood'] : [];
 }
+
+/** The words shown when an achievement is won. */
+export const ACHIEVEMENT_TEXT: Record<AchievementId, string> = {
+  wood: `Wood achievement: ${WOOD_TREES} trees felled`,
+};

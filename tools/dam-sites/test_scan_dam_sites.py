@@ -2,6 +2,7 @@
 
 Run with: python3 -m pytest tools/dam-sites
 """
+import math
 import sys
 from pathlib import Path
 
@@ -105,3 +106,9 @@ def test_a_site_records_the_dam_length_at_each_crest():
     site = sd.scan_point(FakeHeights(0.1), 0.0, 0.0, 0.0, 1.0, (), None)
     assert len(site["dam_widths"]) == len(sd.CRESTS)
     assert site["dam_widths"][0] and site["dam_widths"][0] > 0
+
+
+def test_a_site_records_the_channel_bed_point_the_pond_was_worked_out_from():
+    site = sd.scan_point(FakeHeights(0.1), 0.0, 0.0, 0.0, 1.0, (), None)
+    bx, bz = site["channel"]
+    assert math.hypot(bx - site["x"], bz - site["z"]) <= sd.SNAP * math.sqrt(2) + 1e-6

@@ -234,7 +234,12 @@ Each step is playable on a tablet and small enough for one pull request.
   edge across the dam line is stepped at the 2 m grid.
 - A spot lies on the drawn stream line (the scan reports the OSM line point, not the channel bed it
   found a few metres off), so the ring, the dam, and the pond sit on the stream the player sees. The fill
-  seeds from the lowest upstream ground within 8 m of the spot, since the real channel is a little off the line.
+  seeds from the lowest upstream ground within 8 m of the channel point, since the real channel is a little off the line.
+  The scan also writes that channel point (`channel`), and the fill puts the dam line and the seed there, as the scan does.
+  Before that the game flooded a median 14 percent less than the scan promised; on the 74 sites it is now within 1.3 percent
+  for 9 in 10 (the rest is the seed cell). A file from an older scan has no `channel` and falls back to the line point.
+- Rocks do not lie on a dry meadow (the land cover class of the tile), whether a bank or steep ground. The wet stream bed
+  may cross a meadow and keeps its rocks.
 - Not built yet: new spots from a new pond, lily pads, the lodge in a pond.
 
 ## Built so far (step 3, wear of the dam)

@@ -3,7 +3,7 @@ import { noActions } from '../actions/actions';
 import { ROCK_REACH, canScoopMud, reachableRock, rockGround, rocksNear } from './haul';
 import { createWorld } from './state';
 import { step } from './step';
-import type { Terrain } from './terrain';
+import { COVER_MEADOW, type Terrain } from './terrain';
 
 const dry: Terrain = { heightAt: () => 0, isWater: () => false, waterDepth: () => 0 };
 /** A stream: water 0.2 m deep for x > 0, dry land for x <= 0. */
@@ -37,6 +37,22 @@ describe('rocks', () => {
     const all = rocksNear(steep, 0, 0, 100);
     const rest = rocksNear(steep, 0, 0, 100, [all[0]!.id]);
     expect(rest.length).toBe(all.length - 1);
+  });
+});
+
+describe('rocks and land cover', () => {
+  // A bank at x > 0 with meadow on the dry side (x <= 0) and the stream bed (x > 0) crossing the same meadow class.
+  const meadowBank: Terrain = { ...bank, coverAt: () => COVER_MEADOW };
+  const woodBank: Terrain = { ...bank, coverAt: () => 2 };
+  it('keeps rocks off a dry meadow bank but not off the wet bed', () => {
+    expect(rockGround(bank, -2, 0)).toBe(true);
+    expect(rockGround(woodBank, -2, 0)).toBe(true);
+    expect(rockGround(meadowBank, -2, 0)).toBe(false);
+    expect(rockGround(meadowBank, 2, 0)).toBe(true);
+  });
+  it('keeps rocks off steep meadow too', () => {
+    expect(rockGround({ ...steep, coverAt: () => COVER_MEADOW }, 0, 0)).toBe(false);
+    expect(rockGround({ ...steep, coverAt: () => 4 }, 0, 0)).toBe(true);
   });
 });
 

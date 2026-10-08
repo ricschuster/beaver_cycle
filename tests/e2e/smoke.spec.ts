@@ -164,3 +164,31 @@ test.describe('touch controls', () => {
     await ctx.close();
   });
 });
+
+test('the free fly view flies with the keys, turns with a drag, and glides to a tap', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?fly=free');
+  await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+  const view = (): Promise<{ yaw: number; free: { x: number; y: number; z: number } }> => page.evaluate(() => JSON.parse(JSON.stringify((window as any).__game.view())));
+  const before = await view();
+  expect(before.free).toBeTruthy();
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(600);
+  await page.keyboard.up('KeyW');
+  const moved = await view();
+  expect(Math.hypot(moved.free.x - before.free.x, moved.free.z - before.free.z)).toBeGreaterThan(1);
+  const box = (await page.locator('canvas').boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  expect((await view()).yaw).not.toBeCloseTo(moved.yaw, 2);
+  // A tap on the ground below the horizon glides the camera there (the flat fallback in CI is ground too).
+  const at = await view();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.9);
+  await page.waitForTimeout(800);
+  const after = await view();
+  expect(Math.hypot(after.free.x - at.free.x, after.free.y - at.free.y, after.free.z - at.free.z)).toBeGreaterThan(1);
+  expect(errors).toEqual([]);
+});

@@ -11,6 +11,8 @@ export interface TouchControls {
   read(): Actions;
   /** Show or hide the controls. */
   setVisible(visible: boolean): void;
+  /** Show or hide the beaver's buttons, keeping the stick (the free fly view has no use for them). */
+  setActionsVisible(visible: boolean): void;
 }
 
 /** True on devices that report touch, or when the page asks for it with ?touch=1. */
@@ -145,6 +147,9 @@ export function createTouchControls(parent: HTMLElement, visible: boolean): Touc
     },
     setVisible(v) {
       root.style.display = v ? 'block' : 'none';
+    },
+    setActionsVisible(v) {
+      for (const b of [dive, slap, chop, grab, build]) b.style.display = v ? '' : 'none';
     },
   };
 }

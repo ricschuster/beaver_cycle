@@ -1,6 +1,7 @@
 import { mergeActions, noActions, relativeToView } from './actions/actions';
-import { createKeyboardInput } from './actions/keyboard';
+import { createHeldKeys, createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
+import { fly as flyStep, flyTarget, glide, look as lookAround, pickGround, zoomFree, type FlyTarget } from './render/flyCam';
 import { createRenderer } from './render/renderer';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
@@ -18,6 +19,7 @@ import { storeCapacity, storeCondition } from './sim/food';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
+import { createFlyButtons } from './ui/flyButtons';
 import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
 import { lodgeGround, pondsOf, withPonds } from './sim/pond';
@@ -26,8 +28,17 @@ import { treeTuning } from './terrain/trees';
 
 /** The fly view (?fly=1): the farthest zoom (metres), and the pan speed, a base plus a share of the zoom distance (metres per second). */
 const FLY_MAX_DIST = 600;
+/** The fly view starts high above the start, looking straight down with north up (yaw 0 puts the camera south of the point). */
+const FLY_START_DIST = 250;
+const FLY_PITCH = 1.5;
 const FLY_BASE_SPEED = 8;
 const FLY_SPEED_PER_M = 0.6;
+/** The free fly view (?fly=free) starts this high over the start spot and a little south of it, looking north over the lake. */
+const FREE_START_HEIGHT = 80;
+const FREE_START_BACK = 120;
+const FREE_START_PITCH = 0.3;
+/** The camera's vertical field of view, degrees (renderer.ts), which the tap needs to find the ground under a finger. */
+const CAMERA_FOV = 60;
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
 
 async function start(): Promise<void> {
@@ -58,10 +69,14 @@ async function start(): Promise<void> {
   const startZ = store ? 1750 : 0;
   if (streamer) await streamer.ready(startX, startZ, 8000);
 
+  // The free fly view needs neither the sun's shadows nor its disc: shadows are the costliest part of a frame.
+  const free = query.get('fly') === 'free';
   const readKeyboard = createKeyboardInput(window);
   const touch = createTouchControls(document.body, wantsTouchControls(navigator, query));
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
-    shadows: query.get('shadows') !== '0',
+    shadows: query.get('shadows') !== '0' && !free,
+    sunDisc: !free,
+    bare: free,
     shadowMap: Number(query.get('shadowmap')) || undefined,
     cascades: Number(query.get('cascades')) || undefined,
   });
@@ -83,10 +98,57 @@ async function start(): Promise<void> {
   renderer.setDamSpots(damSpots);
   if (query.get('damsites') === '1') setDamSites(true);
 
-  // ?fly=1: the stick or WASD pans the view over the land, faster the further out it is zoomed (up to 600 m), through trees and
-  // water alike. Nothing is built or gathered, but the clock and the ponds run on.
+  // ?fly=1: the view comes loose from the beaver, which stands still. The stick or WASD pans it over the land, faster the further
+  // out it is zoomed, and the wheel zooms (up to 600 m). The clock and the ponds run on.
   const fly = query.get('fly') === '1';
-  const rig = createCameraRig(renderer.canvas, fly ? FLY_MAX_DIST : undefined);
+  // ?fly=free: a drone. The stick or WASD flies it level over the ground (W forward, A and D sideways), Space or E climbs, Shift or
+  // Q descends, a drag turns it, and a tap on the land glides it there. It keeps 3 m over the ground and the water. The beaver stands still.
+  // The ground, or the water over it, for the drone to stay above.
+  const surface = (x: number, z: number): number => terrain.heightAt(x, z) + (terrain.isWater(x, z) ? terrain.waterDepth(x, z) : 0);
+  let glideTo: FlyTarget | null = null;
+  const rig = createCameraRig(
+    renderer.canvas,
+    fly
+      ? { maxDist: FLY_MAX_DIST, pan: (dx, dy) => panFly(dx, dy) }
+      : free
+        ? {
+            pan: (dx, dy) => {
+              glideTo = null;
+              lookAround(rig.view, dx, dy);
+            },
+            onWheel: (delta) => {
+              glideTo = null;
+              zoomFree(rig.view, delta, surface);
+            },
+            onTap: (x, y) => {
+              const hit = pickGround(rig.view, (x / window.innerWidth) * 2 - 1, 1 - (y / window.innerHeight) * 2, window.innerWidth / window.innerHeight, (CAMERA_FOV * Math.PI) / 180, surface);
+              if (hit && rig.view.free) glideTo = flyTarget(rig.view.free, hit, surface);
+            },
+          }
+        : {},
+  );
+  if (free) {
+    touch.setActionsVisible(false);
+    rig.view.yaw = 0;
+    rig.view.pitch = FREE_START_PITCH;
+    rig.view.free = { x: startX, y: surface(startX, startZ + FREE_START_BACK) + FREE_START_HEIGHT, z: startZ + FREE_START_BACK };
+  }
+  const flyButtons = createFlyButtons(document.body, free && wantsTouchControls(navigator, query));
+  // North is -z and east is +x. The view looks straight down with north up, so the map slides with the finger: a drag right
+  // shows more to the west. A pixel is about this many metres across at the view's distance.
+  const panFly = (dx: number, dy: number): void => {
+    const f = rig.view.focus;
+    if (!f) return;
+    const metresPerPixel = (2 * rig.view.dist * Math.tan(Math.PI / 6)) / window.innerHeight;
+    rig.view.focus = { x: f.x - dx * metresPerPixel, z: f.z - dy * metresPerPixel };
+  };
+  const held = createHeldKeys(window);
+  if (fly) {
+    rig.view.dist = FLY_START_DIST;
+    rig.view.pitch = FLY_PITCH;
+    rig.view.yaw = 0;
+    rig.view.focus = { x: startX, z: startZ };
+  }
   let world = { ...createWorld(terrain, startX, startZ), spots: damSpots };
   // ?day=12&time=0.3 starts on that game day at that part of the day (0 dawn, 0.625 dusk), to look at the light.
   const startDay = Number(query.get('day') ?? 0);
@@ -132,7 +194,7 @@ async function start(): Promise<void> {
     onSeason(season) {
       world = setClock(world, withSeason(world.clock, season));
     },
-    shadowsAvailable: query.get('shadows') !== '0',
+    shadowsAvailable: query.get('shadows') !== '0' && !free,
     onShadows(on) {
       renderer.setShadows(on);
     },
@@ -175,13 +237,15 @@ async function start(): Promise<void> {
       }
     },
   });
-  const breathMeter = createBreathMeter(document.body);
-  const clockHud = createClockHud(document.body);
-  const carryHud = createCarryHud(document.body);
+  // The free fly view shows none of the beaver's screens: they get a detached element, which is never on the page.
+  const hud = free ? document.createElement('div') : document.body;
+  const breathMeter = createBreathMeter(hud);
+  const clockHud = createClockHud(hud);
+  const carryHud = createCarryHud(hud);
   // Taps on the stash screen wait here until the next step takes them.
   let stashTap: number | undefined;
   let stashClose = false;
-  const stashPanel = createStashPanel(document.body, {
+  const stashPanel = createStashPanel(hud, {
     onTap(slot) {
       stashTap = slot;
     },
@@ -190,7 +254,7 @@ async function start(): Promise<void> {
     },
   });
   const trees: TreeSource = renderer.terrain ? { nearest: (x, z, reach, felled) => renderer.terrain!.nearestTree(x, z, reach, felled), trunksNear: (x, z, reach, felled) => renderer.terrain!.trunksNear(x, z, reach, felled) } : noTrees;
-  const sleepPrompt = createSleepPrompt(document.body, {
+  const sleepPrompt = createSleepPrompt(hud, {
     onWake() {
       world = sleep(world);
     },
@@ -210,6 +274,7 @@ async function start(): Promise<void> {
         jump = { x: at.x, z: at.z, deadline: now + 8000, spawn: null };
       } else if (!jump.spawn && (streamer.settled(jump.x, jump.z) || now > jump.deadline)) {
         world = teleport(world, terrain, jump.x, jump.z);
+        if (fly) rig.view.focus = { x: world.beaver.x, z: world.beaver.z };
         jump = null;
         menu.setStatus('');
       }
@@ -218,14 +283,27 @@ async function start(): Promise<void> {
       stashTap = undefined;
       stashClose = false;
       const move = relativeToView(actions.move, rig.view.yaw);
-      if (fly) {
+      if (free && rig.view.free) {
+        // The drone leaves the beaver, which stands still. Any move or climb cancels a tap's glide; the streamer follows the drone.
+        const climb = (held('Space') || held('KeyE') ? 1 : 0) - (held('ShiftLeft') || held('ShiftRight') || held('KeyQ') ? 1 : 0) + flyButtons.read();
+        if (actions.move.x !== 0 || actions.move.z !== 0 || climb !== 0) glideTo = null;
+        if (glideTo) {
+          if (glide(rig.view, glideTo, dt)) glideTo = null;
+        } else flyStep(rig.view, actions.move, climb, dt, surface);
+        world = step(world, noActions(), dt, terrain, trees);
+        streamer?.update(rig.view.free.x, rig.view.free.z);
+      } else if (fly) {
+        // The view leaves the beaver, which stands still; the stick or WASD moves the view's own point, Q and E zoom.
         const speed = FLY_BASE_SPEED + rig.view.dist * FLY_SPEED_PER_M;
-        const to = { x: world.beaver.x + move.x * speed * dt, z: world.beaver.z + move.z * speed * dt };
-        world = teleport(step(world, noActions(), dt, terrain, trees), terrain, to.x, to.z);
-        if (move.x !== 0 || move.z !== 0) world = { ...world, beaver: { ...world.beaver, heading: Math.atan2(move.x, move.z) } };
-      } else world = step(world, { move, dive: actions.dive, slap: actions.slap, chop: actions.chop, grab: actions.grab, build: actions.build, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
-      streamer?.update(world.beaver.x, world.beaver.z);
-      rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
+        const at = rig.view.focus ?? { x: world.beaver.x, z: world.beaver.z };
+        rig.view.focus = { x: at.x + move.x * speed * dt, z: at.z + move.z * speed * dt };
+        world = step(world, noActions(), dt, terrain, trees);
+        streamer?.update(rig.view.focus.x, rig.view.focus.z);
+      } else {
+        world = step(world, { move, dive: actions.dive, slap: actions.slap, chop: actions.chop, grab: actions.grab, build: actions.build, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
+        streamer?.update(world.beaver.x, world.beaver.z);
+        rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
+      }
     }
     breathMeter.set(world.beaver.breath);
     clockHud.set(world.clock);

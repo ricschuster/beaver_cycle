@@ -27,3 +27,11 @@ export function createKeyboardInput(target: Window): () => Actions {
     return a;
   };
 }
+
+/** Whether a key is held now, by its `KeyboardEvent.code`. For keys that are not game actions, such as the fly view's zoom. */
+export function createHeldKeys(target: Window): (code: string) => boolean {
+  const down = new Set<string>();
+  target.addEventListener('keydown', (e) => down.add(e.code));
+  target.addEventListener('keyup', (e) => down.delete(e.code));
+  return (code) => down.has(code);
+}

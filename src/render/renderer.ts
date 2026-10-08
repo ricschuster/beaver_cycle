@@ -13,6 +13,7 @@ import type { TileStore } from '../terrain/store';
 import { createBeaverModel } from './beaverModel';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
+import { lookDir } from './flyCam';
 import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
 import { INTERIOR_RADIUS, lodgeCondition } from '../sim/lodge';
 import { storeCondition } from '../sim/food';
@@ -55,6 +56,10 @@ export interface Renderer {
 export interface RenderOptions {
   /** Sun shadows around the beaver. On by default. */
   shadows?: boolean;
+  /** The sun disc in the sky. On by default (the light stays either way). */
+  sunDisc?: boolean;
+  /** Draw the land and water only, without the beaver, lodge, store, logs, lily pads, rocks and leaves (the free fly view). Off by default. */
+  bare?: boolean;
   /** Shadow map size in pixels, a side, for each cascade. */
   shadowMap?: number;
   /** Shadow cascades: 1 is the near box only, 2 adds a coarser one that reaches out over the valley. */
@@ -112,6 +117,8 @@ function createSunTexture(): THREE.CanvasTexture {
 export function createRenderer(parent: HTMLElement, source: TerrainSource | null, options: RenderOptions = {}): Renderer {
   const shadows = options.shadows ?? true;
   const shadowMap = options.shadowMap ?? 2048;
+  const sunDisc = options.sunDisc ?? true;
+  const bare = options.bare ?? false;
   const gl = new THREE.WebGLRenderer({ antialias: true });
   gl.shadowMap.enabled = shadows;
   gl.shadowMap.type = THREE.PCFShadowMap;
@@ -317,9 +324,14 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const inside = world.inLodge && world.lodge !== null;
       const drawn = inside ? interior.scene : scene;
       if (beaver.parent !== drawn) drawn.add(beaver);
+      beaver.visible = !bare;
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
-      const look = { x: b.x, y: b.y + 1.0, z: b.z };
+      // The fly view orbits a free point on the ground, or on the water over it, not the beaver.
+      const free = view.free && !inside ? view.free : null;
+      const fx = view.focus && !inside && !free ? view.focus : null;
+      const flyY = fx && source ? source.store.heightAt(fx.x, fx.z) + (source.store.isWater(fx.x, fx.z) ? source.store.waterDepth(fx.x, fx.z) : 0) : 0;
+      const look = free ? { x: free.x, y: free.y, z: free.z } : fx ? { x: fx.x, y: flyY + 1.0, z: fx.z } : { x: b.x, y: b.y + 1.0, z: b.z };
       const flat = Math.cos(view.pitch);
       const want = {
         x: b.x + Math.sin(view.yaw) * view.dist * flat,
@@ -327,17 +339,17 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         z: b.z + Math.cos(view.yaw) * view.dist * flat,
       };
       // Pull in before a tree, easing in over a quarter second and back out over a second.
-      const clear = terrain && !inside ? clearDistance(look, want, view.dist, terrain) : view.dist;
+      const clear = terrain && !inside && !fx && !free ? clearDistance(look, want, view.dist, terrain) : view.dist;
       const dt = Math.min(0.1, Math.max(0, now - lastFrame));
       lastFrame = now;
       reach = easeReach(reach, clear, dt);
       const f = reach / view.dist;
-      const camX = look.x + (want.x - look.x) * f;
-      const camZ = look.z + (want.z - look.z) * f;
+      const camX = free ? free.x : look.x + (want.x - look.x) * f;
+      const camZ = free ? free.z : look.z + (want.z - look.z) * f;
       // Keep the camera above the ground it swings over, and out of the water surface band.
       const ground = source && !inside ? source.store.heightAt(camX, camZ) : 0;
       const level = source && !inside && source.store.isWater(camX, camZ) ? ground + source.store.waterDepth(camX, camZ) : null;
-      let camY = clearSurface(Math.max(look.y + (want.y - look.y) * f, ground + 1), level);
+      let camY = free ? free.y : clearSurface(Math.max(look.y + (want.y - look.y) * f, ground + 1), level);
       let cx = camX;
       let cz = camZ;
       if (inside && world.lodge) {
@@ -355,7 +367,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         }
       }
       camera.position.set(cx, camY, cz);
-      camera.lookAt(look.x, look.y, look.z);
+      if (free) {
+        const d = lookDir(view.yaw, view.pitch);
+        camera.lookAt(cx + d.x, camY + d.y, cz + d.z);
+      } else camera.lookAt(look.x, look.y, look.z);
       // Under the surface the view turns blue and short.
       const under = level !== null && camY < level;
       interior.update(inside ? world.lodge : null);
@@ -369,8 +384,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const season = seasonLook(date.dayOfYear + date.timeOfDay);
       terrain?.setSeason(season);
       terrain?.setFelled(world.felled);
-      logView.update(world.logs, world.stripped);
-      if (terrain && season.leafFall > 0 && now - leafTreesAt > 1) {
+      logView.update(bare ? [] : world.logs, world.stripped);
+      if (terrain && !bare && season.leafFall > 0 && now - leafTreesAt > 1) {
         leafTreesAt = now;
         leafTrees.length = 0;
         terrain.broadleafNear(b.x, b.z, 45, leafTrees);
@@ -399,7 +414,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       // Placed from the camera, not the beaver, so it hangs at the same spot in the sky. Redder and bigger near the horizon.
       const sunAt = camera.far * 0.95;
       const low = 1 - Math.min(1, toSun.y / 0.4);
-      sunSprite.visible = sky.sun > 0.01 && !under && !inside;
+      sunSprite.visible = sunDisc && sky.sun > 0.01 && !under && !inside;
       sunSprite.position.set(camera.position.x + toSun.x * sunAt, camera.position.y + toSun.y * sunAt, camera.position.z + toSun.z * sunAt);
       sunSprite.scale.setScalar(sunAt * (0.3 + 0.1 * low));
       sunSprite.material.color.setRGB(1, 1 - 0.35 * low, 1 - 0.65 * low);
@@ -423,14 +438,15 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         (scene.fog as THREE.Fog).near = under ? 2 : FOG_NEAR;
         (scene.fog as THREE.Fog).far = under ? 45 : FOG_FAR;
       }
-      terrain?.update(b.x, b.z);
-      spotRings?.update(b.x, b.z, world.dams, world.clock);
+      // The land and the spot rings are drawn around the view's point: the beaver, or the free point of the fly view.
+      terrain?.update(look.x, look.z);
+      spotRings?.update(look.x, look.z, world.dams, world.clock);
       pondView.update(world.ponds);
       if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z), world.clock, world.ponds);
-      lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
-      storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
-      if (source) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
-      if (source) rockView.update(source.store, b.x, b.z, world.rocksTaken, world.dropped);
+      lodgeView.update(inside || bare ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
+      storeView.update(inside || bare ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
+      if (source && !bare) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
+      if (source && !bare) rockView.update(source.store, b.x, b.z, world.rocksTaken, world.dropped);
       csm?.update();
       gl.render(drawn, camera);
     },

@@ -36,9 +36,11 @@ has to guess.
   side streams (the author said three in Q74 and changed it to six in session 38).
   They are the swimmable ponds nearest the start, at least 150 m apart. Which six
   is a tuning step on a tablet, not a design question.
-  The scan drops a site whose level 1 pond does not lie on the drawn stream (at least half of
+  The scan drops a site whose level 1 pond does not lie on the drawn stream (at least 30 percent of
   its cells within 5 m of the line, and half of the upstream line points inside it), because the 5 m
-  terrain can fill a basin beside the line. The tile build snaps the stream lines to the
+  terrain can fill a basin beside the line. The cell share is low on purpose: a wide basin that holds the whole
+  upstream line still has most of its cells more than 5 m off it, while a pond beside the line misses the line
+  points. Swept on the 174 ungated sites (0.5 to 0.3 gives 74 to 97 sites, east-oedseen 1 to 3 first spot candidates). The tile build snaps the stream lines to the
   channel first ([ADR 0010](../decisions/0010-snap-streams-to-the-channel.md)), so most sites pass.
 - **Spots that come later.** A built dam makes a pond. The pond's edge, and the
   streams that run into it, are scanned again for new spots (Q74). So spots are

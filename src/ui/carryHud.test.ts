@@ -42,9 +42,9 @@ describe('food line', () => {
   const lodge = { x: 0, z: 0, base: 0, door: 0, wood: LODGE_WOOD };
 
   it('says what is in the mouth, the store, and what a press does', () => {
-    const info = { carry: 'branch' as const, store: { total: 12, capacity: 40, meals: 18 }, repair: null, hint: 'store' as const };
+    const info = { carry: 'branch' as const, haul: null, store: { total: 12, capacity: 40, meals: 18 }, repair: null, hint: 'store' as const };
     expect(formatCarry(2, false, null, 1, null, null, info)).toBe('2 trees felled, lodge done, carrying a branch, store 12 of 40, 18 meals, press Build to open the store');
-    expect(formatCarry(2, false, null, null, null, 'nest', { carry: null, store: null, repair: null, hint: null })).toBe('in the lodge, on the nest');
+    expect(formatCarry(2, false, null, null, null, 'nest', { carry: null, haul: null, store: null, repair: null, hint: null })).toBe('in the lodge, on the nest');
   });
 
   it('has nothing to say before there is food or a lodge', () => {
@@ -53,7 +53,7 @@ describe('food line', () => {
 
   it('shows the store once the lodge is whole, and eating inside', () => {
     const w = { ...createWorld(flatTerrain(0)), lodge };
-    expect(foodInfoOf(w, flatTerrain(0))).toEqual({ carry: null, store: { total: 0, capacity: 40, meals: 0 }, repair: null, hint: null });
+    expect(foodInfoOf(w, flatTerrain(0))).toEqual({ carry: null, haul: null, store: { total: 0, capacity: 40, meals: 0 }, repair: null, hint: null });
     expect(foodInfoOf({ ...w, carry: 'branch', inLodge: true }, flatTerrain(0))!.hint).toBe('eat');
   });
 

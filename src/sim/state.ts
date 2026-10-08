@@ -3,6 +3,7 @@
 import { START_CLOCK, nextDawn, isNight } from './clock';
 import { emptyStock, type Food, type Stock } from './food';
 import { atNest, type Lodge } from './lodge';
+import type { Haul } from './haul';
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
 import type { Wear } from './wear';
@@ -50,6 +51,10 @@ export interface WorldState {
   chop: { id: string; x: number; z: number; wood: number; progress: number } | null;
   /** The piece of food in the beaver's mouth, or null. A log being dragged and a piece in the mouth exclude each other. */
   carry: Food | null;
+  /** Mud or a rock in the mouth, or null. Excludes food, and dragging a log (one thing at a time). */
+  haul: Haul | null;
+  /** Ids of the rocks picked up so far (`rocksNear`). Putting a rock down removes its id, so it lies where it was. */
+  rocksTaken: string[];
   /** The food store beside the lodge door: what is in it. Usable once the lodge is whole. */
   store: Stock;
   /** True while the stash screen is open: the beaver stands still and the player moves pieces in and out of the store's places. */
@@ -118,7 +123,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

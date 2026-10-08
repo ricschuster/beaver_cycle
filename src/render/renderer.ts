@@ -19,6 +19,7 @@ import { storeCondition } from '../sim/food';
 import { createLodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
 import { createLogView } from './logView';
+import { createRockView } from './rockView';
 import { createStoreView } from './storeView';
 import type { DamSite } from './damSites';
 import { createDamSiteView } from './damSites';
@@ -173,6 +174,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const lodgeView = createLodgeView(scene, shadows, prepare);
   const storeView = createStoreView(scene, shadows, prepare);
   const lilyView = createLilyView(scene, prepare);
+  const rockView = createRockView(scene, prepare);
   const interior = createLodgeInterior();
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
@@ -422,6 +424,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
       if (source) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
+      if (source) rockView.update(source.store, b.x, b.z, world.rocksTaken);
       csm?.update();
       gl.render(drawn, camera);
     },

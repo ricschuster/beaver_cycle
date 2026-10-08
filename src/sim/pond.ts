@@ -11,9 +11,9 @@ export const POND_CELL = 2;
 export const POND_HALF = 80;
 /** A pond over this many square metres, or one that reaches the window edge, spills into the valley and is no pond. */
 export const MAX_POND_M2 = 12000;
-/** The seed of the fill is the lowest ground this far upstream of the bed point, metres. */
-const SEED_FROM = 2;
-const SEED_TO = 8;
+/** The seed of the fill is the lowest ground upstream of the dam line within this many metres of the spot: the real channel lies a few metres off the drawn stream line. */
+const SEED_RADIUS = 8;
+const SEED_MIN_UP = 1;
 /** A pond shows only from this crest height up, metres: a few centimetres is a wet patch. */
 export const MIN_CREST = 0.15;
 
@@ -53,12 +53,12 @@ export function floodPond(terrain: Terrain, spot: DamSpot, crest: number): Pond 
   // Upstream of the dam line, which runs across the stream through the bed point.
   const up = (i: number, j: number): number => -((x0 + i * POND_CELL - spot.bed.x) * fx + (z0 + j * POND_CELL - spot.bed.z) * fz);
   const low = (i: number, j: number): boolean => heights[j * n + i]! < level && up(i, j) > 0;
-  const at = (s: number): [number, number] => [Math.round((spot.bed.x - fx * s - x0) / POND_CELL), Math.round((spot.bed.z - fz * s - z0) / POND_CELL)];
   let seed: [number, number] | null = null;
-  for (let s = SEED_FROM; s <= SEED_TO; s += POND_CELL / 2) {
-    const [i, j] = at(s);
-    if (i < 0 || j < 0 || i >= n || j >= n || !low(i, j)) continue;
-    if (!seed || heights[j * n + i]! < heights[seed[1] * n + seed[0]]!) seed = [i, j];
+  for (let j = k - SEED_RADIUS / POND_CELL; j <= k + SEED_RADIUS / POND_CELL; j++) {
+    for (let i = k - SEED_RADIUS / POND_CELL; i <= k + SEED_RADIUS / POND_CELL; i++) {
+      if (Math.hypot((i - k) * POND_CELL, (j - k) * POND_CELL) > SEED_RADIUS || up(i, j) < SEED_MIN_UP || !low(i, j)) continue;
+      if (!seed || heights[j * n + i]! < heights[seed[1] * n + seed[0]]!) seed = [i, j];
+    }
   }
   if (!seed) return null;
   const flooded = new Uint8Array(n * n);

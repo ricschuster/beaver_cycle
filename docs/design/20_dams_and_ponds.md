@@ -228,6 +228,9 @@ Each step is playable on a tablet and small enough for one pull request.
   look. `withPonds` adds the pond water to the ground, so the beaver swims, dives, and floats logs in it. Lily
   pads do not grow in ponds yet. On the real core data the nearest first spot holds 1100 m2 at full height. The
   edge across the dam line is stepped at the 2 m grid.
+- A spot lies on the drawn stream line (the scan reports the OSM line point, not the channel bed it
+  found a few metres off), so the ring, the dam, and the pond sit on the stream the player sees. The fill
+  seeds from the lowest upstream ground within 8 m of the spot, since the real channel is a little off the line.
 - Not built yet: wear and repair of the dam and the pond level that follows it, levels 2 and 3, new spots from
   a new pond, lily pads, the lodge in a pond.
 

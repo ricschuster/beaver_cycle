@@ -202,7 +202,9 @@ def scan_point(heights, x, z, ux, uz, lake_levels=()):
             best = r
     if best is None:
         return None
-    return {"x": round(bx, 1), "z": round(bz, 1), "bed_m": round(bed, 2),
+    # The site is where the drawn stream runs (the OSM line point), so the ring, the dam, and the pond sit on the
+    # stream the player sees. The channel bed found next to it sets the bed height and the pond.
+    return {"x": round(x, 1), "z": round(z, 1), "bed_m": round(bed, 2),
             "flow": [round(flow[0], 3), round(flow[1], 3)], **best}
 
 

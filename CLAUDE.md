@@ -64,7 +64,7 @@ Everyday (gate means CI blocks a merge on it):
   play shape changes
 - `python3 tools/tiles/build_tiles.py` - cut the play area into streamable tiles in
   `public/tiles/` (untracked, about 29 MB, 4 min; the first run also caches about
-  80 MB of the BEV 1 m terrain in `data/raw/` for the fine tiles, ADR 0008); `python3 -m pytest tools/tiles`
+  80 MB of the BEV 1 m terrain in `data/raw/` for the fine tiles, ADR 0008); it also snaps the stream lines to the terrain channel, ADR 0010, `--no-snap` skips that; `python3 -m pytest tools/tiles`
   checks them (needs `data/raw/`)
 - `python3 tools/dam-sites/scan_dam_sites.py` - draft scan of the streams in `public/tiles/` for dam
   sites (writes `public/tiles/dam_sites.json`, 10 s; the test menu toggles them, `?damsites=1` starts with them on); `python3 -m pytest tools/dam-sites` checks it

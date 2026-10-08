@@ -60,9 +60,11 @@ export interface RigOptions {
   pan?: (dx: number, dy: number) => void;
   /** Called with the screen point of a short tap with one finger that did not drag. */
   onTap?: (x: number, y: number) => void;
+  /** When given, the wheel calls this with its delta instead of zooming the orbit (the free fly view moves along its look). */
+  onWheel?: (delta: number) => void;
 }
 
-export function createCameraRig(el: HTMLElement, { maxDist = MAX_DIST, pan, onTap }: RigOptions = {}): CameraRig {
+export function createCameraRig(el: HTMLElement, { maxDist = MAX_DIST, pan, onTap, onWheel }: RigOptions = {}): CameraRig {
   const view = defaultView();
   let idle = FOLLOW_DELAY;
   const pointers = new Map<number, { x: number; y: number }>();
@@ -114,7 +116,8 @@ export function createCameraRig(el: HTMLElement, { maxDist = MAX_DIST, pan, onTa
     'wheel',
     (e) => {
       e.preventDefault();
-      zoom(view, Math.exp(e.deltaY * 0.001), maxDist);
+      if (onWheel) onWheel(e.deltaY);
+      else zoom(view, Math.exp(e.deltaY * 0.001), maxDist);
       idle = 0;
     },
     { passive: false },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ViewState } from './cameraRig';
-import { FLY_MIN_HEIGHT, fly, flyTarget, glide, look, lookDir, pickGround } from './flyCam';
+import { FLY_MIN_HEIGHT, fly, flyTarget, glide, look, lookDir, pickGround, zoomFree } from './flyCam';
 
 const flat = (h: number) => () => h;
 const view = (over: Partial<ViewState> = {}): ViewState => ({ yaw: 0, pitch: 0, dist: 0, free: { x: 0, y: 100, z: 0 }, ...over });
@@ -35,6 +35,14 @@ describe('fly camera', () => {
     const v = view();
     fly(v, { x: 0, z: 0 }, 1, 1, flat(0));
     expect(v.free!.y).toBeGreaterThan(100);
+  });
+
+  it('zooms in along the look with a forward wheel roll and out with a back roll', () => {
+    const v = view();
+    zoomFree(v, -100, flat(0));
+    expect(v.free!.z).toBeLessThan(0);
+    zoomFree(v, 200, flat(0));
+    expect(v.free!.z).toBeGreaterThan(0);
   });
 
   it('turns with a drag and clamps the pitch', () => {

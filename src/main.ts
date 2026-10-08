@@ -1,7 +1,7 @@
 import { mergeActions, noActions, relativeToView } from './actions/actions';
 import { createHeldKeys, createKeyboardInput } from './actions/keyboard';
-import { createCameraRig, zoom } from './render/cameraRig';
-import { fly as flyStep, flyTarget, glide, look as lookAround, pickGround, type FlyTarget } from './render/flyCam';
+import { createCameraRig } from './render/cameraRig';
+import { fly as flyStep, flyTarget, glide, look as lookAround, pickGround, zoomFree, type FlyTarget } from './render/flyCam';
 import { createRenderer } from './render/renderer';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
@@ -33,8 +33,6 @@ const FLY_START_DIST = 250;
 const FLY_PITCH = 1.5;
 const FLY_BASE_SPEED = 8;
 const FLY_SPEED_PER_M = 0.6;
-/** Q zooms in and E zooms out at this rate (e-folds per second). */
-const FLY_ZOOM_RATE = 1.2;
 /** The free fly view (?fly=free) starts this high over the start spot and a little south of it, looking north over the lake. */
 const FREE_START_HEIGHT = 80;
 const FREE_START_BACK = 120;
@@ -97,7 +95,7 @@ async function start(): Promise<void> {
   if (query.get('damsites') === '1') setDamSites(true);
 
   // ?fly=1: the view comes loose from the beaver, which stands still. The stick or WASD pans it over the land, faster the further
-  // out it is zoomed, and Q and E zoom (up to 600 m). The clock and the ponds run on.
+  // out it is zoomed, and the wheel zooms (up to 600 m). The clock and the ponds run on.
   const fly = query.get('fly') === '1';
   // ?fly=free: a drone. The stick or WASD flies it along where it looks (W forward, A and D sideways), Space or E climbs, Shift or
   // Q descends, a drag turns it, and a tap on the land glides it there. It keeps 3 m over the ground and the water. The beaver stands still.
@@ -114,6 +112,10 @@ async function start(): Promise<void> {
             pan: (dx, dy) => {
               glideTo = null;
               lookAround(rig.view, dx, dy);
+            },
+            onWheel: (delta) => {
+              glideTo = null;
+              zoomFree(rig.view, delta, surface);
             },
             onTap: (x, y) => {
               const hit = pickGround(rig.view, (x / window.innerWidth) * 2 - 1, 1 - (y / window.innerHeight) * 2, window.innerWidth / window.innerHeight, (CAMERA_FOV * Math.PI) / 180, surface);
@@ -290,7 +292,6 @@ async function start(): Promise<void> {
         const speed = FLY_BASE_SPEED + rig.view.dist * FLY_SPEED_PER_M;
         const at = rig.view.focus ?? { x: world.beaver.x, z: world.beaver.z };
         rig.view.focus = { x: at.x + move.x * speed * dt, z: at.z + move.z * speed * dt };
-        zoom(rig.view, Math.exp(((held('KeyE') ? 1 : 0) - (held('KeyQ') ? 1 : 0)) * FLY_ZOOM_RATE * dt), FLY_MAX_DIST);
         world = step(world, noActions(), dt, terrain, trees);
         streamer?.update(rig.view.focus.x, rig.view.focus.z);
       } else {

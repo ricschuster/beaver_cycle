@@ -19,6 +19,9 @@ const LOOK_PITCH = 0.004;
 const GLIDE_RATE = 2.2;
 const STAND_MIN = 40;
 const STAND_SHARE = 0.3;
+/** A wheel notch (100 units) moves this share of the height over the ground plus a base (metres). */
+const WHEEL_SHARE = 0.002;
+const WHEEL_BASE = 10;
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
@@ -60,6 +63,17 @@ export function fly(v: ViewState, move: { x: number; z: number }, climb: number,
   const z = p.z + (side.z + ahead.z * move.z) * speed;
   const y = p.y + (ahead.y * move.z + climb * CLIMB_SHARE) * speed;
   v.free = { x, y: keepAbove(y, surface(x, z)), z };
+}
+
+/** Zoom with the wheel: move along the look, in on a roll forward (negative delta), out on a roll back, by a share of the height over the ground. */
+export function zoomFree(v: ViewState, delta: number, surface: Surface): void {
+  const p = v.free;
+  if (!p) return;
+  const reach = -delta * WHEEL_SHARE * (WHEEL_BASE + Math.max(0, p.y - surface(p.x, p.z)));
+  const ahead = lookDir(v.yaw, v.pitch);
+  const x = p.x + ahead.x * reach;
+  const z = p.z + ahead.z * reach;
+  v.free = { x, y: keepAbove(p.y + ahead.y * reach, surface(x, z)), z };
 }
 
 /** Where a screen point (-1..1 each way, up and right positive) hits the ground, or null if it looks at the sky. */

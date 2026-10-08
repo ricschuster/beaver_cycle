@@ -300,10 +300,10 @@ Code in `src/sim/pond.ts` (`lodgeGround`, `pondAt`), `src/sim/lodge.ts` (`Lodge.
 - To try it: the game starts with a whole test lodge near the start, and the lodge preview shows only when there is no
   lodge. Start with `?lodge=0` or press "Remove lodge" in the test menu (Lodge row), finish a dam to level 2 or 3, and
   drag a log into the pond. `?fly=1` frees the view from the beaver, which stands still: a top down view with north up, starting 250 m over the
-  start. W, A, S, D (or the stick) pan it north, west, south, east, a one finger drag slides the map, and Q zooms in and E
-  out (also pinch, up to 600 m). The land and the spot rings follow the view. For looking at ponds and spots from above.
+  start. W, A, S, D (or the stick) pan it north, west, south, east, a one finger drag slides the map, and the wheel
+  zooms (also pinch, up to 600 m). The land and the spot rings follow the view. For looking at ponds and spots from above.
   `?fly=free` is a drone instead: the stick or W, A, S, D flies it along where it looks (forward dips with the pitch), Space or E
-  (the Up button on a tablet) climbs, Shift or Q (Down) descends, a drag turns it (inverted: dragging right looks right, down looks down), and a tap on the land glides it there and
+  (the Up button on a tablet) climbs, Shift or Q (Down) descends, the wheel flies in and out along the look, a drag turns it (inverted: dragging right looks right, down looks down), and a tap on the land glides it there and
   faces it. It keeps 3 m over the ground and the water, speeds up with its height, and the land streams in around it.
 - Not built yet: the door depth when a pond sags below 1.2 m, new spots
   from a new pond, and lily pads in a new pond.

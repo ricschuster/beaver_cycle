@@ -99,7 +99,7 @@ async function start(): Promise<void> {
 
   // A jump holds the beaver while the streamer loads the target, then moves it.
   // The frame loop is the only caller of streamer.update, so two focus points never fight.
-  let jump: { x: number; z: number; deadline: number } | null = null;
+  let jump: { x: number; z: number; deadline: number; spawn: { x: number; z: number } | null } | null = null;
   // Locations first, then the named markers (the lake, the bog, the inflows) as test jump points.
   const anchors = store?.index.anchors ?? [];
   const menu = createTestMenu(document.body, {
@@ -130,17 +130,15 @@ async function start(): Promise<void> {
       const a = anchors.find((l) => l.id === id);
       if (!a || !a.inTiles || !streamer) return;
       menu.setStatus('Loading...');
-      void (async () => {
-        // The core's anchor is the tile origin; jumping to the core means the start spot. Other locations start on dry
-        // ground within 200 m of a dam spot (design note 20), so load the ground around that spot first.
-        let at: { x: number; z: number } = id === 'core' ? { x: startX, z: startZ } : a;
-        if (id !== 'core') {
-          const site = nearestQualifying(a, damSitesFile);
-          if (site) await streamer.ready(site.x, site.z, 8000);
-          at = spawnNear(a, damSitesFile, terrain);
-        }
-        jump = { x: at.x, z: at.z, deadline: performance.now() + 8000 };
-      })();
+      // The core's anchor is the tile origin; jumping to the core means the start spot. Other locations start on dry
+      // ground within 200 m of a dam spot (design note 20), so the frame loop first loads the ground around that spot,
+      // then picks the place (`spawn`), then loads the ground there.
+      if (id === 'core') {
+        jump = { x: startX, z: startZ, deadline: performance.now() + 8000, spawn: null };
+      } else {
+        const site = nearestQualifying(a, damSitesFile);
+        jump = { x: site?.x ?? a.x, z: site?.z ?? a.z, deadline: performance.now() + 8000, spawn: a };
+      }
     },
   });
   const breathMeter = createBreathMeter(document.body);
@@ -173,7 +171,10 @@ async function start(): Promise<void> {
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
     if (jump && streamer) {
       streamer.update(jump.x, jump.z);
-      if (streamer.settled(jump.x, jump.z) || now > jump.deadline) {
+      if (jump.spawn && (streamer.settled(jump.x, jump.z) || now > jump.deadline)) {
+        const at = spawnNear(jump.spawn, damSitesFile, terrain);
+        jump = { x: at.x, z: at.z, deadline: now + 8000, spawn: null };
+      } else if (!jump.spawn && (streamer.settled(jump.x, jump.z) || now > jump.deadline)) {
         world = teleport(world, terrain, jump.x, jump.z);
         jump = null;
         menu.setStatus('');

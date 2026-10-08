@@ -15,6 +15,11 @@ For every stream point (every STEP metres along the OSM lines, not in a lake):
   3. Flood the ground below the crest upstream of the dam line. That is the pond. A pond over
      MAX_POND or one that touches the edge of the window spills, and the site is dropped.
   4. Keep the sites whose pond is at least MIN_POND.
+  5. Line gate: the pond must lie on the drawn stream. At least MIN_NEAR_SHARE of its cells are within
+     LINE_NEAR metres of an OSM stream line, and at least MIN_LINE_IN_POND of the line points upstream
+     of the dam (within LINE_REACH metres) are inside it. The pond at the level 1 crest (LEVEL1_CREST,
+     what the game builds first) must pass, or the site is dropped. Until the tiles snap the lines to the
+     channel, the 5 m terrain often fills a basin beside the line, and the game would show that.
 
 Sites within SPACING metres of a better one are dropped. Writes JSON and prints a summary by
 play location. Run: python3 tools/dam-sites/scan_dam_sites.py [--out public/tiles/dam_sites.json]
@@ -42,6 +47,11 @@ MAX_DAM = 40.0  # longest dam, metres
 MIN_POND = 200.0  # smallest pond worth a lodge, square metres
 MAX_POND = 12000.0  # a pond over this spills into the valley, square metres
 SPACING = 45.0  # metres between kept sites
+LEVEL1_CREST = 1.0  # the crest of the first dam, as in src/sim/damSpots.ts LEVEL_CREST[0]
+LINE_NEAR = 5.0  # a pond cell this close to an OSM stream line counts as on the stream, metres
+MIN_NEAR_SHARE = 0.5  # share of pond cells that must be on the stream
+MIN_LINE_IN_POND = 0.5  # share of the upstream line points that must lie in the pond
+LINE_REACH = 60.0  # how far upstream of the dam the line points are counted, metres
 LAKE_MARGIN = 1.0  # bed this close to a lake level or below is the lake, not a stream
 
 
@@ -120,11 +130,53 @@ def window(heights, cx, cz):
     return heights.sample(gx, gz), xs[0], zs[0]
 
 
-def evaluate(H, x0, z0, bed_xy, flow_dir, crest_h):
+class StreamLines:
+    """The OSM stream lines as points every metre, in buckets, for distance and nearby-point queries."""
+
+    BUCKET = 20.0
+
+    def __init__(self, polylines):
+        self.pts = np.array([(x, z) for pts in polylines for x, z, _, _ in along(pts, 1.0)], float).reshape(-1, 2)
+        self.buckets = {}
+        for i, (x, z) in enumerate(self.pts):
+            self.buckets.setdefault((int(x // self.BUCKET), int(z // self.BUCKET)), []).append(i)
+
+    def _near(self, x, z, r):
+        a, b, m = int(x // self.BUCKET), int(z // self.BUCKET), int(r // self.BUCKET) + 1
+        idx = [i for u in range(a - m, a + m + 1) for v in range(b - m, b + m + 1) for i in self.buckets.get((u, v), ())]
+        return self.pts[idx] if idx else self.pts[:0]
+
+    def distance(self, x, z, cap):
+        """Metres to the nearest line point, `cap` when none is closer."""
+        p = self._near(x, z, cap)
+        return min(cap, float(np.hypot(p[:, 0] - x, p[:, 1] - z).min())) if len(p) else cap
+
+    def within(self, x, z, r):
+        """The line points within r metres, as an (n, 2) array."""
+        p = self._near(x, z, r)
+        return p[np.hypot(p[:, 0] - x, p[:, 1] - z) <= r] if len(p) else p
+
+
+def on_the_line(lines, cells, seen, x0, z0, bed_xy, flow_dir):
+    """(share of pond cells near a stream line, share of upstream line points inside the pond)."""
+    bx, bz = bed_xy
+    near = sum(lines.distance(x0 + j * CELL, z0 + i * CELL, LINE_NEAR) < LINE_NEAR for i, j in cells) / len(cells)
+    p = lines.within(bx, bz, LINE_REACH)
+    p = p[-((p[:, 0] - bx) * flow_dir[0] + (p[:, 1] - bz) * flow_dir[1]) > 2.0] if len(p) else p
+    if len(p) == 0:
+        return near, 1.0  # the line starts at the dam: nothing upstream to cover
+    n = seen.shape[0]
+    ii = np.rint((p[:, 1] - z0) / CELL).astype(int)
+    jj = np.rint((p[:, 0] - x0) / CELL).astype(int)
+    ok = (ii >= 0) & (ii < n) & (jj >= 0) & (jj < n)
+    return near, float(seen[ii[ok], jj[ok]].sum()) / len(p)
+
+
+def evaluate(H, x0, z0, bed_xy, flow_dir, crest_h, lines=None):
     """Dam and pond for one crest. `flow_dir` is the unit vector pointing downstream.
 
-    Returns a dict (width, area, depth) or None when the valley is too wide, the pond spills, or
-    it is too small.
+    Returns a dict (width, area, depth) or None when the valley is too wide, the pond spills, it is
+    too small, or, given the stream `lines`, it does not lie on the drawn stream (the line gate).
     """
     bx, bz = bed_xy
     n = H.shape[0]
@@ -155,28 +207,34 @@ def evaluate(H, x0, z0, bed_xy, flow_dir, crest_h):
         return None
     seen = np.zeros(H.shape, bool)
     seen[si, sj] = True
-    queue, cells, depth = deque([(si, sj)]), 0, 0.0
+    queue, cells, depth = deque([(si, sj)]), [], 0.0
     limit = int(MAX_POND / CELL**2)
     while queue:
         i, j = queue.popleft()
-        cells += 1
+        cells.append((i, j))
         depth = max(depth, level - H[i, j])
-        if cells > limit or i in (0, n - 1) or j in (0, n - 1):
+        if len(cells) > limit or i in (0, n - 1) or j in (0, n - 1):
             return None  # spills
         for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             a, b = i + di, j + dj
             if low[a, b] and not seen[a, b]:
                 seen[a, b] = True
                 queue.append((a, b))
-    area = cells * CELL**2
+    area = len(cells) * CELL**2
     if area < MIN_POND:
         return None
-    return {"crest_m": crest_h, "dam_m": round(left + right, 1),
+    gate = {}
+    if lines is not None:
+        near, covered = on_the_line(lines, cells, seen, x0, z0, bed_xy, flow_dir)
+        if near < MIN_NEAR_SHARE or covered < MIN_LINE_IN_POND:
+            return None
+        gate = {"on_line": round(near, 2), "line_in_pond": round(covered, 2)}
+    return {**gate, "crest_m": crest_h, "dam_m": round(left + right, 1),
             "left_m": round(left, 1), "right_m": round(right, 1), "pond_m2": round(area),
             "max_depth_m": round(depth, 2)}
 
 
-def scan_point(heights, x, z, ux, uz, lake_levels=()):
+def scan_point(heights, x, z, ux, uz, lake_levels=(), lines=None):
     """Best dam candidate at one stream point, or None."""
     H, x0, z0 = window(heights, x, z)
     if np.isnan(H).any():
@@ -195,13 +253,15 @@ def scan_point(heights, x, z, ux, uz, lake_levels=()):
     if math.isnan(ahead) or math.isnan(behind) or abs(ahead - behind) < 0.2:
         return None  # flat, a lake margin or a bog: no stream to dam
     flow = (ux, uz) if ahead < behind else (-ux, -uz)
-    best = None
+    best, first = None, False
     for crest in CRESTS:
-        r = evaluate(H, x0, z0, (bx, bz), flow, crest)
+        r = evaluate(H, x0, z0, (bx, bz), flow, crest, lines)
+        if r and crest == LEVEL1_CREST:
+            first = True
         if r and (best is None or r["pond_m2"] > best["pond_m2"]):
             best = r
-    if best is None:
-        return None
+    if best is None or (lines is not None and not first):
+        return None  # the first dam must hold a pond on the stream too
     # The site is where the drawn stream runs (the OSM line point), so the ring, the dam, and the pond sit on the
     # stream the player sees. The channel bed found next to it sets the bed height and the pond.
     return {"x": round(x, 1), "z": round(z, 1), "bed_m": round(bed, 2),
@@ -229,9 +289,10 @@ def read_streams(root=TILES):
     return segs, lakes
 
 
-def scan(root=TILES):
+def scan(root=TILES, gate=True):
     heights = Heights(root)
     segs, lakes = read_streams(root)
+    lines = StreamLines([pts for _, _, _, pts in segs]) if gate else None
     sites = []
     for name, tx, tz, pts in segs:
         # Lake levels of this tile and its neighbours bound the "this is a lake" test.
@@ -239,7 +300,7 @@ def scan(root=TILES):
         for x, z, ux, uz in along(pts, STEP):
             if int(math.floor(x / TILE)) != tx or int(math.floor(z / TILE)) != tz:
                 continue
-            s = scan_point(heights, x, z, ux, uz, lv)
+            s = scan_point(heights, x, z, ux, uz, lv, lines)
             if s:
                 sites.append({"stream": name, **s})
     return thin(sites)
@@ -259,8 +320,9 @@ def by_location(sites, root=TILES):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", default=str(TILES / "dam_sites.json"))
+    ap.add_argument("--no-line-gate", action="store_true", help="skip the line gate (step 5)")
     args = ap.parse_args()
-    sites = scan()
+    sites = scan(gate=not args.no_line_gate)
     groups = by_location(sites)
     Path(args.out).write_text(json.dumps({"sites": sites}, indent=1))
     print(f"{len(sites)} candidate dam sites, written to {args.out}")

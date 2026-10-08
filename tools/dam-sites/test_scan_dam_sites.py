@@ -38,3 +38,64 @@ def test_thin_keeps_the_biggest_in_reach():
              {"x": 200, "z": 0, "pond_m2": 250}]
     kept = sd.thin(sites)
     assert [s["pond_m2"] for s in kept] == [900, 250]
+
+
+def stream_at(x):
+    """A stream line along z at `x`, through the whole window."""
+    return sd.StreamLines([[(x, -100.0), (x, 100.0)]])
+
+
+class FakeHeights:
+    """The made-up valley as a ground, for scan_point."""
+
+    def __init__(self, width_slope):
+        self.slope = width_slope
+
+    def sample(self, x, z):
+        x, z = np.asarray(x, float), np.asarray(z, float)
+        return 100.0 - z / 40.0 + np.abs(x) * self.slope
+
+
+def test_stream_lines_distance_and_nearby_points():
+    lines = stream_at(10.0)
+    assert abs(lines.distance(13.0, 0.0, 50.0) - 3.0) < 1e-6
+    assert lines.distance(100.0, 0.0, 50.0) == 50.0  # capped when nothing is closer
+    p = lines.within(10.0, 0.0, 5.0)
+    assert len(p) == 11 and np.allclose(p[:, 0], 10.0)
+
+
+def test_pond_on_the_stream_passes_the_line_gate():
+    H, x0, z0 = valley(0.1)
+    r = sd.evaluate(H, x0, z0, (0.0, 0.0), (0.0, 1.0), 1.0, stream_at(0.0))
+    assert r is not None
+    assert r["on_line"] >= sd.MIN_NEAR_SHARE
+    assert r["line_in_pond"] >= sd.MIN_LINE_IN_POND
+
+
+def test_pond_beside_the_stream_fails_the_line_gate():
+    H, x0, z0 = valley(0.1)
+    assert sd.evaluate(H, x0, z0, (0.0, 0.0), (0.0, 1.0), 1.0) is not None  # holds a pond without the gate
+    assert sd.evaluate(H, x0, z0, (0.0, 0.0), (0.0, 1.0), 1.0, stream_at(30.0)) is None
+
+
+def test_without_lines_evaluate_adds_no_gate_fields():
+    H, x0, z0 = valley(0.1)
+    r = sd.evaluate(H, x0, z0, (0.0, 0.0), (0.0, 1.0), 1.0)
+    assert "on_line" not in r and "line_in_pond" not in r
+
+
+def test_scan_point_keeps_a_site_on_the_stream_and_drops_one_beside_it():
+    ground = FakeHeights(0.1)
+    on = sd.scan_point(ground, 0.0, 0.0, 0.0, 1.0, (), stream_at(0.0))
+    assert on is not None and on["on_line"] >= sd.MIN_NEAR_SHARE
+    assert sd.scan_point(ground, 0.0, 0.0, 0.0, 1.0, (), stream_at(30.0)) is None
+    assert sd.scan_point(ground, 0.0, 0.0, 0.0, 1.0, (), None) is not None  # no lines, no gate
+
+
+def test_the_level_one_pond_must_pass_the_gate():
+    # Steep banks hold a level 1 pond; the line gate is judged at LEVEL1_CREST, so a site whose only
+    # passing pond is a higher crest is dropped.
+    assert sd.LEVEL1_CREST in sd.CRESTS
+    H, x0, z0 = valley(0.1)
+    levels = [sd.evaluate(H, x0, z0, (0.0, 0.0), (0.0, 1.0), c, stream_at(0.0)) for c in sd.CRESTS]
+    assert levels[sd.CRESTS.index(sd.LEVEL1_CREST)] is not None

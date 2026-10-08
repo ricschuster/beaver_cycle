@@ -107,3 +107,14 @@ describe('streamDistance', () => {
     expect(s.streamDistance(150, 1000)).toBeGreaterThan(800);
   });
 });
+
+describe('streamPoints', () => {
+  it('lists points every step along the lines near a point, with the direction of the line', () => {
+    const s = new TileStore({ tileSize_m: 320, tileRange: { tx: [0, 1], tz: [0, 0] }, tiles: [] } as never);
+    expect(s.streamPoints(10, 10, 50, 10)).toEqual([]);
+    s.putWater(0, 0, { lakeLevel_m: null, streams: [{ name: 'a', pts: [[0, 100], [100, 100]] }] });
+    const p = s.streamPoints(50, 100, 25, 10);
+    expect(p.map((q) => q.x)).toEqual([30, 40, 50, 60, 70]);
+    expect(p[0]).toMatchObject({ z: 100, ux: 1, uz: 0 });
+  });
+});

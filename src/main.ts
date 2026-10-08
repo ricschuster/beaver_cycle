@@ -23,6 +23,7 @@ import { createFlyButtons } from './ui/flyButtons';
 import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
 import { lodgeGround, pondsOf, withPonds } from './sim/pond';
+import { withNewSpots } from './sim/newSpots';
 import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
 
@@ -216,16 +217,17 @@ async function start(): Promise<void> {
             onGo() {
               if (!streamer) return;
               const b = world.beaver;
-              const near = damSpots.reduce((best, s) => (Math.hypot(s.bed.x - b.x, s.bed.z - b.z) < Math.hypot(best.bed.x - b.x, best.bed.z - b.z) ? s : best));
+              const near = world.spots.reduce((best, s) => (Math.hypot(s.bed.x - b.x, s.bed.z - b.z) < Math.hypot(best.bed.x - b.x, best.bed.z - b.z) ? s : best));
               menu.setStatus('Loading...');
               jump = { x: near.bed.x, z: near.bed.z, deadline: performance.now() + 8000, spawn: null };
             },
             onFill() {
-              const spot = spotAt(damSpots, world.beaver.x, world.beaver.z);
+              const spot = spotAt(world.spots, world.beaver.x, world.beaver.z);
               if (spot) {
                 const dams = placed(world.dams, spot, LEVEL_COST[2]!, undefined, world.clock).map((d) => (d.spot === spot.id && d.wear ? { ...d, wear: newWear(world.clock - ageDays * DAY_SECONDS) } : d));
-                const set = pondsOf(dams, damSpots, terrain, world.clock);
-                world = { ...world, dams, ponds: set.ponds, pondCrests: set.crests };
+                const set = pondsOf(dams, world.spots, terrain, world.clock);
+                // This tool floods the ponds itself, so `step` sees no change: look for the new spots here.
+                world = { ...world, dams, ponds: set.ponds, pondCrests: set.crests, spots: withNewSpots(world.spots, set.ponds.filter((p) => p.spot === spot.id), terrain) };
               }
             },
           }

@@ -69,10 +69,13 @@ async function start(): Promise<void> {
   const startZ = store ? 1750 : 0;
   if (streamer) await streamer.ready(startX, startZ, 8000);
 
+  // The free fly view needs neither the sun's shadows nor its disc: shadows are the costliest part of a frame.
+  const free = query.get('fly') === 'free';
   const readKeyboard = createKeyboardInput(window);
   const touch = createTouchControls(document.body, wantsTouchControls(navigator, query));
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
-    shadows: query.get('shadows') !== '0',
+    shadows: query.get('shadows') !== '0' && !free,
+    sunDisc: !free,
     shadowMap: Number(query.get('shadowmap')) || undefined,
     cascades: Number(query.get('cascades')) || undefined,
   });
@@ -99,7 +102,6 @@ async function start(): Promise<void> {
   const fly = query.get('fly') === '1';
   // ?fly=free: a drone. The stick or WASD flies it level over the ground (W forward, A and D sideways), Space or E climbs, Shift or
   // Q descends, a drag turns it, and a tap on the land glides it there. It keeps 3 m over the ground and the water. The beaver stands still.
-  const free = query.get('fly') === 'free';
   // The ground, or the water over it, for the drone to stay above.
   const surface = (x: number, z: number): number => terrain.heightAt(x, z) + (terrain.isWater(x, z) ? terrain.waterDepth(x, z) : 0);
   let glideTo: FlyTarget | null = null;
@@ -191,7 +193,7 @@ async function start(): Promise<void> {
     onSeason(season) {
       world = setClock(world, withSeason(world.clock, season));
     },
-    shadowsAvailable: query.get('shadows') !== '0',
+    shadowsAvailable: query.get('shadows') !== '0' && !free,
     onShadows(on) {
       renderer.setShadows(on);
     },

@@ -168,7 +168,7 @@ test.describe('touch controls', () => {
 test('the free fly view flies with the keys, turns with a drag, and glides to a tap', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/?shadows=0&fly=free');
+  await page.goto('/?fly=free');
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
   const view = (): Promise<{ yaw: number; free: { x: number; y: number; z: number } }> => page.evaluate(() => JSON.parse(JSON.stringify((window as any).__game.view())));
   const before = await view();

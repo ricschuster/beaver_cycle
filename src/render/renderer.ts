@@ -56,6 +56,8 @@ export interface Renderer {
 export interface RenderOptions {
   /** Sun shadows around the beaver. On by default. */
   shadows?: boolean;
+  /** The sun disc in the sky. On by default (the light stays either way). */
+  sunDisc?: boolean;
   /** Shadow map size in pixels, a side, for each cascade. */
   shadowMap?: number;
   /** Shadow cascades: 1 is the near box only, 2 adds a coarser one that reaches out over the valley. */
@@ -113,6 +115,7 @@ function createSunTexture(): THREE.CanvasTexture {
 export function createRenderer(parent: HTMLElement, source: TerrainSource | null, options: RenderOptions = {}): Renderer {
   const shadows = options.shadows ?? true;
   const shadowMap = options.shadowMap ?? 2048;
+  const sunDisc = options.sunDisc ?? true;
   const gl = new THREE.WebGLRenderer({ antialias: true });
   gl.shadowMap.enabled = shadows;
   gl.shadowMap.type = THREE.PCFShadowMap;
@@ -407,7 +410,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       // Placed from the camera, not the beaver, so it hangs at the same spot in the sky. Redder and bigger near the horizon.
       const sunAt = camera.far * 0.95;
       const low = 1 - Math.min(1, toSun.y / 0.4);
-      sunSprite.visible = sky.sun > 0.01 && !under && !inside;
+      sunSprite.visible = sunDisc && sky.sun > 0.01 && !under && !inside;
       sunSprite.position.set(camera.position.x + toSun.x * sunAt, camera.position.y + toSun.y * sunAt, camera.position.z + toSun.z * sunAt);
       sunSprite.scale.setScalar(sunAt * (0.3 + 0.1 * low));
       sunSprite.material.color.setRGB(1, 1 - 0.35 * low, 1 - 0.65 * low);

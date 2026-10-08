@@ -96,20 +96,48 @@ function spotAtPoint(terrain: Terrain, p: StreamPoint, near: string): DamSpot | 
     flow,
     maxCrest: LEVEL_CREST[LEVEL_CREST.length - 1]!,
     pondM2: 0,
+    rough: true,
   };
+  return holdOf(terrain, draft);
+}
+
+/** The spot with the crests it holds worked out on the ground as it is now: null when not even level 1 holds a pond on the stream. */
+function holdOf(terrain: Terrain, draft: DamSpot): DamSpot | null {
+  const bed = draft.channel ?? draft.bed;
   const widths: (number | null)[] = [];
   let best: { crest: number; area: number } | null = null;
   let first = false;
   for (const [i, crest] of LEVEL_CREST.entries()) {
-    const w = damWidth(terrain, bed, flow, bedY + crest);
-    const pond = w === null ? null : floodPond(terrain, draft, crest);
-    const ok = pond !== null && pond.area >= MIN_POND && onTheLine(terrain, pond, bed, flow);
+    const w = damWidth(terrain, bed, draft.flow, draft.bedY + crest);
+    const pond = w === null ? null : floodPond(terrain, { ...draft, maxCrest: LEVEL_CREST[LEVEL_CREST.length - 1]! }, crest);
+    const ok = pond !== null && pond.area >= MIN_POND && onTheLine(terrain, pond, bed, draft.flow);
     widths.push(ok ? Math.round(w! * 10) / 10 : null);
     if (ok && i === 0) first = true;
     if (ok && (best === null || pond!.area > best.area)) best = { crest, area: pond!.area };
   }
   if (!best || !first) return null; // the first dam must hold a pond on the stream too
   return { ...draft, maxCrest: best.crest, pondM2: Math.round(best.area), widths };
+}
+
+/** A rough spot is worked out again when the beaver is this close, metres: the ground there is the fine detail by then. */
+export const REFINE_RANGE_M = 100;
+
+/**
+ * The spots of a list with the rough ones near a point worked out again. A new spot is found while the beaver may be far
+ * away, on the coarse ground, which can promise a bigger dam than the fine ground holds. A spot with a dam started keeps what
+ * it has (its price is fixed), and one that no longer holds a pond keeps its old figures. Either way it is no longer rough.
+ * The list itself when nothing changed.
+ */
+export function refineNear(spots: DamSpot[], x: number, z: number, terrain: Terrain, dams: readonly { spot: string }[]): DamSpot[] {
+  if (!spots.some((s) => s.rough && Math.hypot(s.bed.x - x, s.bed.z - z) <= REFINE_RANGE_M)) return spots;
+  const settled = (s: DamSpot): DamSpot => {
+    const { rough: _rough, ...rest } = s;
+    return rest;
+  };
+  return spots.map((s) => {
+    if (!s.rough || Math.hypot(s.bed.x - x, s.bed.z - z) > REFINE_RANGE_M) return s;
+    return dams.some((d) => d.spot === s.id) ? settled(s) : settled(holdOf(terrain, s) ?? s);
+  });
 }
 
 /**

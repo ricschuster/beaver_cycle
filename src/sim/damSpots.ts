@@ -36,6 +36,8 @@ export interface DamSpot {
   pondM2: number;
   /** The dam length in metres at each level's crest, null or missing where unknown. It sets what the dam costs (`widthFactor`). */
   widths?: (number | null)[];
+  /** A spot found by a pond (`newSpots.ts`) and not yet worked out on the ground near it: its biggest level may be too generous until the beaver comes close. */
+  rough?: true;
 }
 
 /** Crest above the bed for each dam level, metres (design note 20). */

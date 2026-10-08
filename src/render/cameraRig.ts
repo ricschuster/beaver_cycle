@@ -48,8 +48,14 @@ export interface CameraRig {
   update(dt: number, heading: number, moving: boolean): void;
 }
 
-/** `maxDist` is how far out the view may zoom (the fly mode of the test URL lifts it). */
-export function createCameraRig(el: HTMLElement, maxDist = MAX_DIST): CameraRig {
+export interface RigOptions {
+  /** How far out the view may zoom (the fly view of the test URL lifts it). */
+  maxDist?: number;
+  /** When given, a one-finger drag calls this with the pixels dragged instead of turning the view (the fly view slides the map). */
+  pan?: (dx: number, dy: number) => void;
+}
+
+export function createCameraRig(el: HTMLElement, { maxDist = MAX_DIST, pan }: RigOptions = {}): CameraRig {
   const view = defaultView();
   let idle = FOLLOW_DELAY;
   const pointers = new Map<number, { x: number; y: number }>();
@@ -70,7 +76,8 @@ export function createCameraRig(el: HTMLElement, maxDist = MAX_DIST): CameraRig 
     p.y = e.clientY;
     idle = 0;
     if (pointers.size === 1) {
-      drag(view, dx, dy);
+      if (pan) pan(dx, dy);
+      else drag(view, dx, dy);
     } else if (pointers.size === 2) {
       const [a, b] = [...pointers.values()] as [{ x: number; y: number }, { x: number; y: number }];
       const d = Math.hypot(a.x - b.x, a.y - b.y);

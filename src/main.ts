@@ -26,9 +26,9 @@ import { treeTuning } from './terrain/trees';
 
 /** The fly view (?fly=1): the farthest zoom (metres), and the pan speed, a base plus a share of the zoom distance (metres per second). */
 const FLY_MAX_DIST = 600;
-/** The fly view starts high above the start, looking down steeply. */
+/** The fly view starts high above the start, looking straight down with north up (yaw 0 puts the camera south of the point). */
 const FLY_START_DIST = 250;
-const FLY_START_PITCH = 1.0;
+const FLY_PITCH = 1.5;
 const FLY_BASE_SPEED = 8;
 const FLY_SPEED_PER_M = 0.6;
 /** Q zooms in and E zooms out at this rate (e-folds per second). */
@@ -91,11 +91,20 @@ async function start(): Promise<void> {
   // ?fly=1: the view comes loose from the beaver, which stands still. The stick or WASD pans it over the land, faster the further
   // out it is zoomed, and Q and E zoom (up to 600 m). The clock and the ponds run on.
   const fly = query.get('fly') === '1';
-  const rig = createCameraRig(renderer.canvas, fly ? FLY_MAX_DIST : undefined);
+  const rig = createCameraRig(renderer.canvas, fly ? { maxDist: FLY_MAX_DIST, pan: (dx, dy) => panFly(dx, dy) } : {});
+  // North is -z and east is +x. The view looks straight down with north up, so the map slides with the finger: a drag right
+  // shows more to the west. A pixel is about this many metres across at the view's distance.
+  const panFly = (dx: number, dy: number): void => {
+    const f = rig.view.focus;
+    if (!f) return;
+    const metresPerPixel = (2 * rig.view.dist * Math.tan(Math.PI / 6)) / window.innerHeight;
+    rig.view.focus = { x: f.x - dx * metresPerPixel, z: f.z - dy * metresPerPixel };
+  };
   const held = createHeldKeys(window);
   if (fly) {
     rig.view.dist = FLY_START_DIST;
-    rig.view.pitch = FLY_START_PITCH;
+    rig.view.pitch = FLY_PITCH;
+    rig.view.yaw = 0;
     rig.view.focus = { x: startX, z: startZ };
   }
   let world = { ...createWorld(terrain, startX, startZ), spots: damSpots };

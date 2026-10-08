@@ -83,16 +83,25 @@ describe('hauling', () => {
     expect(reachableRock(steep, rock.x, rock.z, w.rocksTaken)).toBeNull();
   });
 
-  it('putting a rock down returns it where it was found, and mud just goes', () => {
+  it('puts a rock or mud down where the beaver stands, and it can be picked up again there', () => {
     const rock = rocksNear(steep, 0, 0, 100)[0]!;
     let w = createWorld(steep, rock.x, rock.z);
     w = step(w, gnaw, 0.1, steep);
+    const taken = w.rocksTaken;
+    w = { ...w, beaver: { ...w.beaver, x: rock.x + 30, z: rock.z, heading: 0 } };
     w = step(w, drag, 0.1, steep);
     expect(w.haul).toBeNull();
-    expect(w.rocksTaken).toEqual([]);
+    expect(w.rocksTaken).toEqual(taken);
+    expect(w.dropped).toHaveLength(1);
+    expect(w.dropped[0]).toMatchObject({ kind: 'rock', x: rock.x + 30 });
+    expect(Math.hypot(w.dropped[0]!.z - rock.z, w.dropped[0]!.x - (rock.x + 30))).toBeCloseTo(0.8);
+    w = step(w, gnaw, 0.1, steep);
+    expect(w.haul?.kind).toBe('rock');
+    expect(w.dropped).toEqual([]);
     let m = step(createWorld(bank, 5, 0), gnaw, 0.1, bank);
     m = step(m, drag, 0.1, bank);
     expect(m.haul).toBeNull();
+    expect(m.dropped).toMatchObject([{ kind: 'mud', x: 5 }]);
   });
 
   it('does not take a second thing, and a full mouth cannot gnaw food or a tree', () => {

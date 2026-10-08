@@ -4,7 +4,7 @@ import type { Terrain } from './terrain';
 import { atStore, storeCapacity, storeCondition, strippable, tapped, trimmed } from './food';
 import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
-import { canScoopMud, reachableRock, type Haul } from './haul';
+import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
@@ -151,13 +151,13 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
  * strips a branch into it. At the store the build button opens the stash screen (not on the frame it mends the store with
  * a log), where the player chooses what to put in or take out. Inside the lodge the gnaw button eats the piece.
  */
-function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain): Pick<WorldState, 'carry' | 'haul' | 'rocksTaken' | 'store' | 'stashOpen' | 'stripped' | 'picked' | 'eaten'> {
-  let { carry, haul, rocksTaken, store, stashOpen, stripped, picked, eaten } = world;
-  if (eating) return { carry: null, haul, rocksTaken, store, stashOpen, stripped, picked, eaten: eaten + 1 };
-  if (world.inLodge) return { carry, haul, rocksTaken, store, stashOpen, stripped, picked, eaten };
+function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain): Pick<WorldState, 'carry' | 'haul' | 'rocksTaken' | 'dropped' | 'store' | 'stashOpen' | 'stripped' | 'picked' | 'eaten'> {
+  let { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten } = world;
+  if (eating) return { carry: null, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten: eaten + 1 };
+  if (world.inLodge) return { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten };
   if (haul && actions.grab) {
-    // Put it down: mud goes back to the mud, a rock lies where it was found.
-    if (haul.kind === 'rock') rocksTaken = rocksTaken.filter((id) => id !== (haul as Extract<Haul, { kind: 'rock' }>).id);
+    // Put it down in front of the beaver. It lies there and can be picked up again.
+    dropped = [...dropped, putDown(haul, b.x, b.z, b.heading, world.time)];
     haul = null;
   } else if (actions.build && wasFree && atStore(world.lodge, b.x, b.z) && !haul) {
     stashOpen = true;
@@ -171,17 +171,21 @@ function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boole
       stripped = { ...stripped, [log.id]: (stripped[log.id] ?? 0) + 1 };
       carry = 'branch';
     } else if (b.mode === 'walk') {
-      // Nothing to pick or strip: a rock in reach, or else mud from the wet ground at hand.
-      const rock = reachableRock(terrain, b.x, b.z, rocksTaken);
-      if (rock) {
+      // Nothing to pick or strip: a piece put down, a rock in reach, or else mud from the wet ground at hand.
+      const piece = reachableDropped(dropped, b.x, b.z);
+      const rock = piece ? null : reachableRock(terrain, b.x, b.z, rocksTaken);
+      if (piece) {
+        dropped = dropped.filter((d) => d !== piece);
+        haul = { kind: piece.kind };
+      } else if (rock) {
         rocksTaken = [...rocksTaken, rock.id];
-        haul = { kind: 'rock', id: rock.id };
+        haul = { kind: 'rock' };
       } else if (canScoopMud(terrain, b.x, b.z, b.heading)) {
         haul = { kind: 'mud' };
       }
     }
   }
-  return { carry, haul, rocksTaken, store, stashOpen, stripped, picked, eaten };
+  return { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten };
 }
 
 /**

@@ -424,7 +424,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
       if (source) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
-      if (source) rockView.update(source.store, b.x, b.z, world.rocksTaken);
+      if (source) rockView.update(source.store, b.x, b.z, world.rocksTaken, world.dropped);
       csm?.update();
       gl.render(drawn, camera);
     },

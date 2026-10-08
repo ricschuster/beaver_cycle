@@ -1,6 +1,6 @@
 // Trees felled, the log being dragged, and how far a gnaw has got, top left under the clock. DOM only.
 import { atStore, storeCapacity, storeCondition, stockMeals, stockTotal, strippable } from '../sim/food';
-import { canScoopMud, reachableRock } from '../sim/haul';
+import { canScoopMud, reachableDropped, reachableRock } from '../sim/haul';
 import { reachablePad } from '../sim/lily';
 import type { Terrain } from '../sim/terrain';
 import { LODGE_WOOD, lodgeComplete, lodgeCondition, nearLodge, type SiteProblem } from '../sim/lodge';
@@ -92,7 +92,9 @@ export function foodInfoOf(world: WorldState, terrain: Terrain): FoodInfo | null
   } else if (!carry && !haul && !world.drag && !world.chop && b.mode !== 'dive' && strippable(world.logs, world.stripped, b.x, b.z)) {
     hint = 'strip';
   } else if (!carry && !haul && !world.drag && !world.chop && b.mode === 'walk') {
-    if (reachableRock(terrain, b.x, b.z, world.rocksTaken)) hint = 'rock';
+    const piece = reachableDropped(world.dropped, b.x, b.z);
+    if (piece) hint = piece.kind;
+    else if (reachableRock(terrain, b.x, b.z, world.rocksTaken)) hint = 'rock';
     else if (canScoopMud(terrain, b.x, b.z, b.heading)) hint = 'mud';
   }
   const repair = whole && !world.inLodge ? repairInfoOf(world) : null;

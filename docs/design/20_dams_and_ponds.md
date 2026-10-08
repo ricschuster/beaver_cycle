@@ -211,7 +211,7 @@ Each step is playable on a tablet and small enough for one pull request.
   give six spots at 150 m spacing.
 - Mud and rocks (`src/sim/haul.ts`, `src/render/rockView.ts`; the beaver shows the lump in its mouth; streams count as wet ground through `Terrain.streamDistance`, 1.5 m each side of the line): one thing in the mouth at a time, like food.
   Gnaw at the water's edge scoops mud. Gnaw next to a rock picks it up. The Drag button puts it down
-  (mud goes back, a rock lies where it was found). Rocks are worked out from the ground like lily pads
+  in front of the beaver, where it lies and can be picked up again (the author, session 39). Rocks are worked out from the ground like lily pads
   (10 m cells, 40 percent of them), on stream beds, banks, and steep ground, none on a lake floor or flat
   dry land. The land cover class is not used yet, so a rock can lie in a meadow bank. Tune on the tablet.
 - Not built yet: placing them at a spot, the level 1 dam, the pond.

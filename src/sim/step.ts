@@ -4,7 +4,8 @@ import type { Terrain } from './terrain';
 import { atStore, storeCapacity, storeCondition, strippable, tapped, trimmed } from './food';
 import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
-import { canScoopMud, reachableRock, type Haul } from './haul';
+import { damAt, needs, placed, spotAt } from './dam';
+import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
@@ -85,6 +86,7 @@ function advance(world: WorldState, actions: Actions, dt: number, terrain: Terra
     logs,
     drag,
     lodge: built.lodge,
+    dams: built.dams,
     storeWear: built.storeWear,
     inLodge: built.inLodge,
     clock: world.clock + dt * (world.inLodge ? LODGE_CLOCK_RATE : 1),
@@ -101,7 +103,7 @@ function advance(world: WorldState, actions: Actions, dt: number, terrain: Terra
  * beaver's mouth.
  */
 function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: number; z: number }, terrain: Terrain): { world: WorldState; beaver: BeaverState } {
-  let { lodge, logs, drag, inLodge, storeWear } = world;
+  let { lodge, logs, drag, inLodge, storeWear, dams, haul } = world;
   let beaver = b;
   if (inLodge && lodge) {
     if (actions.build && atHole(lodge, b.x, b.z)) {
@@ -115,6 +117,26 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
     beaver = { ...b, ...doorPoint(lodge, ENTER_DISTANCE), y: lodge.base, mode: 'walk' };
   } else if (actions.build && b.mode !== 'dive') {
     const log = drag ? logs.find((l) => l.id === drag) : undefined;
+    const spot = spotAt(world.spots, b.x, b.z);
+    const need = spot ? needs(damAt(dams, spot)) : null;
+    if (spot && need && (haul || (log && need.wood > 0))) {
+      // At a dam spot the build button puts a log, mud, or a rock onto the dam, as far as it still needs it.
+      if (log) {
+        const next = placed(dams, spot, { wood: logWood(log) });
+        if (next !== dams) {
+          dams = next;
+          logs = logs.filter((l) => l.id !== log.id);
+          drag = null;
+        }
+      } else if (haul) {
+        const next = placed(dams, spot, haul.kind === 'mud' ? { mud: 1 } : { rock: 1 });
+        if (next !== dams) {
+          dams = next;
+          haul = null;
+        }
+      }
+      return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul }, beaver };
+    }
     const target = log ? lodge ?? lodgeSite(terrain, b.x, b.z, b.heading) : null;
     if (log && target && !lodgeComplete(target) && nearLodge(target, b.x, b.z)) {
       lodge = addWood(target, log);
@@ -143,7 +165,7 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
       }
     }
   }
-  return { world: { ...world, lodge, logs, drag, inLodge, storeWear }, beaver };
+  return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul }, beaver };
 }
 
 /**
@@ -151,13 +173,13 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
  * strips a branch into it. At the store the build button opens the stash screen (not on the frame it mends the store with
  * a log), where the player chooses what to put in or take out. Inside the lodge the gnaw button eats the piece.
  */
-function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain): Pick<WorldState, 'carry' | 'haul' | 'rocksTaken' | 'store' | 'stashOpen' | 'stripped' | 'picked' | 'eaten'> {
-  let { carry, haul, rocksTaken, store, stashOpen, stripped, picked, eaten } = world;
-  if (eating) return { carry: null, haul, rocksTaken, store, stashOpen, stripped, picked, eaten: eaten + 1 };
-  if (world.inLodge) return { carry, haul, rocksTaken, store, stashOpen, stripped, picked, eaten };
+function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain): Pick<WorldState, 'carry' | 'haul' | 'rocksTaken' | 'dropped' | 'store' | 'stashOpen' | 'stripped' | 'picked' | 'eaten'> {
+  let { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten } = world;
+  if (eating) return { carry: null, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten: eaten + 1 };
+  if (world.inLodge) return { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten };
   if (haul && actions.grab) {
-    // Put it down: mud goes back to the mud, a rock lies where it was found.
-    if (haul.kind === 'rock') rocksTaken = rocksTaken.filter((id) => id !== (haul as Extract<Haul, { kind: 'rock' }>).id);
+    // Put it down in front of the beaver. It lies there and can be picked up again.
+    dropped = [...dropped, putDown(haul, b.x, b.z, b.heading, world.time)];
     haul = null;
   } else if (actions.build && wasFree && atStore(world.lodge, b.x, b.z) && !haul) {
     stashOpen = true;
@@ -171,17 +193,21 @@ function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boole
       stripped = { ...stripped, [log.id]: (stripped[log.id] ?? 0) + 1 };
       carry = 'branch';
     } else if (b.mode === 'walk') {
-      // Nothing to pick or strip: a rock in reach, or else mud from the wet ground at hand.
-      const rock = reachableRock(terrain, b.x, b.z, rocksTaken);
-      if (rock) {
+      // Nothing to pick or strip: a piece put down, a rock in reach, or else mud from the wet ground at hand.
+      const piece = reachableDropped(dropped, b.x, b.z);
+      const rock = piece ? null : reachableRock(terrain, b.x, b.z, rocksTaken);
+      if (piece) {
+        dropped = dropped.filter((d) => d !== piece);
+        haul = { kind: piece.kind };
+      } else if (rock) {
         rocksTaken = [...rocksTaken, rock.id];
-        haul = { kind: 'rock', id: rock.id };
+        haul = { kind: 'rock' };
       } else if (canScoopMud(terrain, b.x, b.z, b.heading)) {
         haul = { kind: 'mud' };
       }
     }
   }
-  return { carry, haul, rocksTaken, store, stashOpen, stripped, picked, eaten };
+  return { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten };
 }
 
 /**

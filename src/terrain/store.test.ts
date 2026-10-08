@@ -86,3 +86,14 @@ describe('TileStore', () => {
     expect(s.countByLevel()).toEqual([1, undefined, 2]);
   });
 });
+
+describe('streamDistance', () => {
+  it('is the distance to the nearest stream line, also from a neighbour tile, and Infinity without streams', () => {
+    const s = new TileStore({ tileSize_m: 320, tileRange: { tx: [0, 1], tz: [0, 0] }, tiles: [] } as never);
+    expect(s.streamDistance(10, 10)).toBe(Infinity);
+    s.putWater(0, 0, { lakeLevel_m: null, streams: [{ name: 'a', pts: [[0, 100], [300, 100]] }] });
+    expect(s.streamDistance(150, 103)).toBeCloseTo(3);
+    expect(s.streamDistance(330, 100)).toBeCloseTo(30);
+    expect(s.streamDistance(150, 1000)).toBeGreaterThan(800);
+  });
+});

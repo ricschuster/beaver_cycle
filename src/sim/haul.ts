@@ -4,8 +4,40 @@
 // rock taken is noted by id. Plain data and pure functions, no three.js (ADR 0007).
 import type { Terrain } from './terrain';
 
-/** What the beaver holds in its mouth besides food: mud, or the rock with this id (so putting it down returns it). */
-export type Haul = { kind: 'mud' } | { kind: 'rock'; id: string };
+/** What the beaver holds in its mouth besides food: mud, or a rock. */
+export interface Haul {
+  kind: 'mud' | 'rock';
+}
+
+/** Mud or a rock the beaver put down: it lies where it was dropped, and can be picked up again. */
+export interface Dropped {
+  id: string;
+  kind: 'mud' | 'rock';
+  x: number;
+  z: number;
+}
+
+/** How far ahead of the beaver, in metres, a piece is put down: in front of its mouth. */
+export const DROP_AHEAD = 0.8;
+
+/** The piece put down by a beaver at (x, z) facing `heading`, with an id made from the game time. */
+export function putDown(haul: Haul, x: number, z: number, heading: number, time: number): Dropped {
+  return { id: `drop:${time.toFixed(3)}`, kind: haul.kind, x: x + Math.sin(heading) * DROP_AHEAD, z: z + Math.cos(heading) * DROP_AHEAD };
+}
+
+/** The nearest put down piece within reach of a point, or null. */
+export function reachableDropped(dropped: readonly Dropped[], x: number, z: number): Dropped | null {
+  let best: Dropped | null = null;
+  let bestDist = ROCK_REACH;
+  for (const d of dropped) {
+    const dist = Math.hypot(d.x - x, d.z - z);
+    if (dist <= bestDist) {
+      best = d;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
 
 /** A rock is looked for in cells of this many metres a side, at most one a cell. */
 export const ROCK_CELL = 10;
@@ -26,6 +58,8 @@ const LOOK = 3;
 export const MUD_REACH = 1.2;
 /** Water this deep (metres) counts as wet. */
 const WET = 0.02;
+/** A stream is wet this far (metres) from its centre line: the channel is 1 to 3 m wide. */
+export const STREAM_HALF_WIDTH = 1.5;
 
 export interface Rock {
   id: string;
@@ -40,13 +74,14 @@ function hash(cx: number, cz: number, salt: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-const wet = (terrain: Terrain, x: number, z: number): boolean => terrain.waterDepth(x, z) > WET;
+/** Wet ground: shallow lake water, or in a stream. */
+const wet = (terrain: Terrain, x: number, z: number): boolean => terrain.waterDepth(x, z) > WET || (terrain.streamDistance?.(x, z) ?? Infinity) <= STREAM_HALF_WIDTH;
 
 /** True where a rock makes sense (Q76): on a stream bed or a bank, or on steep stony ground. Not on a lake floor, and not on flat open ground. */
 export function rockGround(terrain: Terrain, x: number, z: number): boolean {
   const depth = terrain.waterDepth(x, z);
   if (depth > ROCK_MAX_DEPTH) return false;
-  if (depth > WET) return true;
+  if (wet(terrain, x, z)) return true;
   const h = terrain.heightAt(x, z);
   for (const [dx, dz] of [[LOOK, 0], [-LOOK, 0], [0, LOOK], [0, -LOOK]] as const) {
     if (wet(terrain, x + dx, z + dz)) return true;

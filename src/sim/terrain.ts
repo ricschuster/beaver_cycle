@@ -9,6 +9,8 @@ export interface Terrain {
   isWater(x: number, z: number): boolean;
   /** Metres of water above the ground, 0 on dry land. */
   waterDepth(x: number, z: number): number;
+  /** Metres from a point to the nearest stream centre line, or Infinity with no stream near. Missing where the ground has no streams (a test stand-in). */
+  streamDistance?(x: number, z: number): number;
 }
 
 export function flatTerrain(height = 0): Terrain {

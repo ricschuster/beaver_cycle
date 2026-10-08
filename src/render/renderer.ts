@@ -19,6 +19,7 @@ import { storeCondition } from '../sim/food';
 import { createLodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
 import { createLogView } from './logView';
+import { createDamView } from './damView';
 import { createRockView } from './rockView';
 import { createStoreView } from './storeView';
 import type { DamSite } from './damSites';
@@ -175,6 +176,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const storeView = createStoreView(scene, shadows, prepare);
   const lilyView = createLilyView(scene, prepare);
   const rockView = createRockView(scene, prepare);
+  const damView = createDamView(scene, shadows, prepare);
   const interior = createLodgeInterior();
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
@@ -296,7 +298,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       // Only a diver pitches: -1 rising and 1 sinking at the dive rate.
       const tilt = b.mode === 'dive' ? Math.max(-1, Math.min(1, -rate / DIVE_RATE)) : 0;
       const slapAge = world.lastSlap ? world.time - world.lastSlap.time : null;
-      beaverModel.update(now, pace, b.mode, tilt, slapAge, world.carry);
+      beaverModel.update(now, pace, b.mode, tilt, slapAge, world.carry ?? world.haul?.kind ?? null);
       if (world.lastSlap !== seenSlap) {
         seenSlap = world.lastSlap;
         splashAt = seenSlap && b.mode === 'swim' ? { slap: seenSlap, y: b.y + SWIM_SINK + 0.03 } : null;
@@ -420,11 +422,12 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         (scene.fog as THREE.Fog).far = under ? 45 : FOG_FAR;
       }
       terrain?.update(b.x, b.z);
-      spotRings?.update(b.x, b.z);
+      spotRings?.update(b.x, b.z, world.dams);
+      if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z));
       lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
       if (source) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
-      if (source) rockView.update(source.store, b.x, b.z, world.rocksTaken);
+      if (source) rockView.update(source.store, b.x, b.z, world.rocksTaken, world.dropped);
       csm?.update();
       gl.render(drawn, camera);
     },

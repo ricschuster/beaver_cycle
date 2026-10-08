@@ -10,6 +10,8 @@ const dry: Terrain = { heightAt: () => 0, isWater: () => false, waterDepth: () =
 const bank: Terrain = { heightAt: () => 0, isWater: (x) => x > 0, waterDepth: (x) => (x > 0 ? 0.2 : 0) };
 const lake: Terrain = { heightAt: () => 0, isWater: () => true, waterDepth: () => 1.5 };
 /** A steep slope rising 1 m per metre to the east. */
+/** Dry land with a stream along x = 0 (a centre line, 1.5 m to each side). */
+const creek: Terrain = { heightAt: () => 0, isWater: () => false, waterDepth: () => 0, streamDistance: (x) => Math.abs(x) };
 const steep: Terrain = { heightAt: (x) => x, isWater: () => false, waterDepth: () => 0 };
 
 describe('rocks', () => {
@@ -50,6 +52,20 @@ describe('mud', () => {
 const gnaw = { ...noActions(), chop: true };
 const drag = { ...noActions(), grab: true };
 
+describe('streams', () => {
+  it('give mud on the stream and at its edge, and rocks on its bed and banks', () => {
+    expect(canScoopMud(creek, 0.5, 0, 0)).toBe(true);
+    expect(canScoopMud(creek, 2.5, 0, -Math.PI / 2)).toBe(true);
+    expect(canScoopMud(creek, 10, 0, 0)).toBe(false);
+    expect(rockGround(creek, 1, 0)).toBe(true);
+    expect(rockGround(creek, 10, 0)).toBe(false);
+    const rocks = rocksNear(creek, 0, 0, 200);
+    expect(rocks.length).toBeGreaterThan(0);
+    for (const r of rocks) expect(Math.abs(r.x)).toBeLessThanOrEqual(4.5);
+    expect(step(createWorld(creek, 0.5, 0), { ...noActions(), chop: true }, 0.1, creek).haul).not.toBeNull();
+  });
+});
+
 describe('hauling', () => {
   it('gnawing at the water edge scoops mud into the mouth, once', () => {
     let w = createWorld(bank, 5, 0);
@@ -67,16 +83,25 @@ describe('hauling', () => {
     expect(reachableRock(steep, rock.x, rock.z, w.rocksTaken)).toBeNull();
   });
 
-  it('putting a rock down returns it where it was found, and mud just goes', () => {
+  it('puts a rock or mud down where the beaver stands, and it can be picked up again there', () => {
     const rock = rocksNear(steep, 0, 0, 100)[0]!;
     let w = createWorld(steep, rock.x, rock.z);
     w = step(w, gnaw, 0.1, steep);
+    const taken = w.rocksTaken;
+    w = { ...w, beaver: { ...w.beaver, x: rock.x + 30, z: rock.z, heading: 0 } };
     w = step(w, drag, 0.1, steep);
     expect(w.haul).toBeNull();
-    expect(w.rocksTaken).toEqual([]);
+    expect(w.rocksTaken).toEqual(taken);
+    expect(w.dropped).toHaveLength(1);
+    expect(w.dropped[0]).toMatchObject({ kind: 'rock', x: rock.x + 30 });
+    expect(Math.hypot(w.dropped[0]!.z - rock.z, w.dropped[0]!.x - (rock.x + 30))).toBeCloseTo(0.8);
+    w = step(w, gnaw, 0.1, steep);
+    expect(w.haul?.kind).toBe('rock');
+    expect(w.dropped).toEqual([]);
     let m = step(createWorld(bank, 5, 0), gnaw, 0.1, bank);
     m = step(m, drag, 0.1, bank);
     expect(m.haul).toBeNull();
+    expect(m.dropped).toMatchObject([{ kind: 'mud', x: 5 }]);
   });
 
   it('does not take a second thing, and a full mouth cannot gnaw food or a tree', () => {

@@ -39,6 +39,8 @@ export interface TestMenuOptions {
   onShadows(on: boolean): void;
   /** Debug marks for the scanned dam sites. Leave out when there is no scan file; the row is then not shown. */
   damSites?: { initiallyOn: boolean; onToggle(on: boolean): void };
+  /** Dam test tools: jump to the nearest dam spot, and complete the dam at the spot the beaver stands at. Leave out when there are no spots. */
+  damTools?: { onGo(): void; onFill(): void };
 }
 
 export interface TestMenu {
@@ -158,6 +160,20 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
       damSites.onToggle(damOn);
     };
     row('Dam sites').appendChild(damButton);
+  }
+  if (opts.damTools) {
+    const tools = opts.damTools;
+    const go = document.createElement('button');
+    go.textContent = 'To nearest spot';
+    go.dataset.action = 'dam-go';
+    style(go);
+    go.onclick = () => tools.onGo();
+    const fill = document.createElement('button');
+    fill.textContent = 'Finish dam here';
+    fill.dataset.action = 'dam-fill';
+    style(fill);
+    fill.onclick = () => tools.onFill();
+    row('Dam').append(go, fill);
   }
   const lodgeButton = document.createElement('button');
   lodgeButton.dataset.action = 'lodge';

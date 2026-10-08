@@ -42,9 +42,9 @@ describe('food line', () => {
   const lodge = { x: 0, z: 0, base: 0, door: 0, wood: LODGE_WOOD };
 
   it('says what is in the mouth, the store, and what a press does', () => {
-    const info = { carry: 'branch' as const, haul: null, store: { total: 12, capacity: 40, meals: 18 }, repair: null, hint: 'store' as const };
+    const info = { carry: 'branch' as const, haul: null, dam: null, store: { total: 12, capacity: 40, meals: 18 }, repair: null, hint: 'store' as const };
     expect(formatCarry(2, false, null, 1, null, null, info)).toBe('2 trees felled, lodge done, carrying a branch, store 12 of 40, 18 meals, press Build to open the store');
-    expect(formatCarry(2, false, null, null, null, 'nest', { carry: null, haul: null, store: null, repair: null, hint: null })).toBe('in the lodge, on the nest');
+    expect(formatCarry(2, false, null, null, null, 'nest', { carry: null, haul: null, dam: null, store: null, repair: null, hint: null })).toBe('in the lodge, on the nest');
   });
 
   it('has nothing to say before there is food or a lodge', () => {
@@ -53,7 +53,7 @@ describe('food line', () => {
 
   it('shows the store once the lodge is whole, and eating inside', () => {
     const w = { ...createWorld(flatTerrain(0)), lodge };
-    expect(foodInfoOf(w, flatTerrain(0))).toEqual({ carry: null, haul: null, store: { total: 0, capacity: 40, meals: 0 }, repair: null, hint: null });
+    expect(foodInfoOf(w, flatTerrain(0))).toEqual({ carry: null, haul: null, dam: null, store: { total: 0, capacity: 40, meals: 0 }, repair: null, hint: null });
     expect(foodInfoOf({ ...w, carry: 'branch', inLodge: true }, flatTerrain(0))!.hint).toBe('eat');
   });
 
@@ -64,5 +64,20 @@ describe('food line', () => {
     expect(info.store!.capacity).toBe(24);
     expect(info.repair).toEqual({ what: 'store', percent: 25, wood: 8, broken: false });
     expect(formatCarry(0, true, null, 1, null, null, info)).toBe('0 trees felled, lodge done, dragging a log, store worn 25%, needs 8 wood (a long log is 2), press Build to add it');
+  });
+});
+
+describe('dam line', () => {
+  const spot = { id: 's', bed: { x: 0, z: 0 }, bedY: 0, flow: { x: 1, z: 0 }, maxCrest: 2, pondM2: 900 };
+  it('shows what the dam at a spot needs, and offers Build for a piece it needs', () => {
+    const w = { ...createWorld(flatTerrain(0)), spots: [spot], dams: [{ spot: 's', wood: 8, mud: 1, rock: 0 }], haul: { kind: 'mud' as const } };
+    const info = foodInfoOf(w, flatTerrain(0))!;
+    expect(info.dam).toMatchObject({ percent: 64, wood: 0, mud: 3, rock: 2, canAdd: true });
+    expect(formatCarry(0, false, null, null, null, null, info)).toContain('dam 64%, needs 3 mud, 2 rocks, press Build to add it');
+  });
+  it('says done for a whole dam and shows nothing away from a spot', () => {
+    const w = { ...createWorld(flatTerrain(0)), spots: [spot], dams: [{ spot: 's', wood: 8, mud: 4, rock: 2 }] };
+    expect(formatCarry(0, false, null, null, null, null, foodInfoOf(w, flatTerrain(0)))).toContain('dam done');
+    expect(foodInfoOf({ ...w, beaver: { ...w.beaver, x: 50 } }, flatTerrain(0))).toBeNull();
   });
 });

@@ -214,7 +214,13 @@ Each step is playable on a tablet and small enough for one pull request.
   in front of the beaver, where it lies and can be picked up again (the author, session 39). Rocks are worked out from the ground like lily pads
   (10 m cells, 40 percent of them), on stream beds, banks, and steep ground, none on a lake floor or flat
   dry land. The land cover class is not used yet, so a rock can lie in a meadow bank. Tune on the tablet.
-- Not built yet: placing them at a spot, the level 1 dam, the pond.
+- The level 1 dam (`src/sim/dam.ts`, `src/render/damView.ts`): within 5 m of a spot (the ring) the Build
+  button puts a dragged log (wood, a long one is 2), the mud, or the rock in the mouth onto the dam, up to
+  8 wood, 4 mud, and 2 rocks. The HUD shows the percent and what is still needed. The dam is drawn as sticks,
+  mud mounds, and rocks across the stream. The ring turns green once started and goes when the dam is whole.
+  No pond yet. The test menu has "To nearest spot" and "Finish dam here". The mouth holds one piece, so a
+  stack of materials in the test menu was not possible; "Finish dam here" stands in for it.
+- Not built yet: the pond.
 
 ## Decided
 

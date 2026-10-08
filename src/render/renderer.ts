@@ -19,6 +19,7 @@ import { storeCondition } from '../sim/food';
 import { createLodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
 import { createLogView } from './logView';
+import { createDamView } from './damView';
 import { createRockView } from './rockView';
 import { createStoreView } from './storeView';
 import type { DamSite } from './damSites';
@@ -175,6 +176,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const storeView = createStoreView(scene, shadows, prepare);
   const lilyView = createLilyView(scene, prepare);
   const rockView = createRockView(scene, prepare);
+  const damView = createDamView(scene, shadows, prepare);
   const interior = createLodgeInterior();
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
@@ -420,7 +422,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         (scene.fog as THREE.Fog).far = under ? 45 : FOG_FAR;
       }
       terrain?.update(b.x, b.z);
-      spotRings?.update(b.x, b.z);
+      spotRings?.update(b.x, b.z, world.dams);
+      if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z));
       lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
       if (source) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);

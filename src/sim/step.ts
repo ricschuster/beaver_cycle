@@ -4,6 +4,7 @@ import type { Terrain } from './terrain';
 import { atStore, storeCapacity, storeCondition, strippable, tapped, trimmed } from './food';
 import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
+import { damAt, needs, placed, spotAt } from './dam';
 import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
@@ -85,6 +86,7 @@ function advance(world: WorldState, actions: Actions, dt: number, terrain: Terra
     logs,
     drag,
     lodge: built.lodge,
+    dams: built.dams,
     storeWear: built.storeWear,
     inLodge: built.inLodge,
     clock: world.clock + dt * (world.inLodge ? LODGE_CLOCK_RATE : 1),
@@ -101,7 +103,7 @@ function advance(world: WorldState, actions: Actions, dt: number, terrain: Terra
  * beaver's mouth.
  */
 function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: number; z: number }, terrain: Terrain): { world: WorldState; beaver: BeaverState } {
-  let { lodge, logs, drag, inLodge, storeWear } = world;
+  let { lodge, logs, drag, inLodge, storeWear, dams, haul } = world;
   let beaver = b;
   if (inLodge && lodge) {
     if (actions.build && atHole(lodge, b.x, b.z)) {
@@ -115,6 +117,26 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
     beaver = { ...b, ...doorPoint(lodge, ENTER_DISTANCE), y: lodge.base, mode: 'walk' };
   } else if (actions.build && b.mode !== 'dive') {
     const log = drag ? logs.find((l) => l.id === drag) : undefined;
+    const spot = spotAt(world.spots, b.x, b.z);
+    const need = spot ? needs(damAt(dams, spot)) : null;
+    if (spot && need && (haul || (log && need.wood > 0))) {
+      // At a dam spot the build button puts a log, mud, or a rock onto the dam, as far as it still needs it.
+      if (log) {
+        const next = placed(dams, spot, { wood: logWood(log) });
+        if (next !== dams) {
+          dams = next;
+          logs = logs.filter((l) => l.id !== log.id);
+          drag = null;
+        }
+      } else if (haul) {
+        const next = placed(dams, spot, haul.kind === 'mud' ? { mud: 1 } : { rock: 1 });
+        if (next !== dams) {
+          dams = next;
+          haul = null;
+        }
+      }
+      return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul }, beaver };
+    }
     const target = log ? lodge ?? lodgeSite(terrain, b.x, b.z, b.heading) : null;
     if (log && target && !lodgeComplete(target) && nearLodge(target, b.x, b.z)) {
       lodge = addWood(target, log);
@@ -143,7 +165,7 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
       }
     }
   }
-  return { world: { ...world, lodge, logs, drag, inLodge, storeWear }, beaver };
+  return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul }, beaver };
 }
 
 /**

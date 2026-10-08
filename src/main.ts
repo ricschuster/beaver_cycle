@@ -19,6 +19,7 @@ import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { loadDamSites } from './render/damSites';
+import { LEVEL1_COST, placed, spotAt } from './sim/dam';
 import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
@@ -72,13 +73,12 @@ async function start(): Promise<void> {
   let damSitesAdded = false;
   // The first dam spots of every location (six each, design note 20), marked by rings that show when the beaver is near.
   // The core counts from the start spot, the others from their anchor, which a jump then moves within 200 m of the first.
-  renderer.setDamSpots(
-    (store?.index.anchors ?? []).filter((l) => l.kind === 'location').flatMap((l) => firstSpots(damSitesFile, l.id, l.id === 'core' ? { x: startX, z: startZ } : l)),
-  );
+  const damSpots = (store?.index.anchors ?? []).filter((l) => l.kind === 'location').flatMap((l) => firstSpots(damSitesFile, l.id, l.id === 'core' ? { x: startX, z: startZ } : l));
+  renderer.setDamSpots(damSpots);
   if (query.get('damsites') === '1') setDamSites(true);
 
   const rig = createCameraRig(renderer.canvas);
-  let world = createWorld(terrain, startX, startZ);
+  let world = { ...createWorld(terrain, startX, startZ), spots: damSpots };
   // ?day=12&time=0.3 starts on that game day at that part of the day (0 dawn, 0.625 dusk), to look at the light.
   const startDay = Number(query.get('day') ?? 0);
   const startTime = Number(query.get('time') ?? NaN);
@@ -123,6 +123,22 @@ async function start(): Promise<void> {
       renderer.setShadows(on);
     },
     damSites: damSitesFile.length > 0 ? { initiallyOn: query.get('damsites') === '1', onToggle: setDamSites } : undefined,
+    damTools:
+      damSpots.length > 0
+        ? {
+            onGo() {
+              if (!streamer) return;
+              const b = world.beaver;
+              const near = damSpots.reduce((best, s) => (Math.hypot(s.bed.x - b.x, s.bed.z - b.z) < Math.hypot(best.bed.x - b.x, best.bed.z - b.z) ? s : best));
+              menu.setStatus('Loading...');
+              jump = { x: near.bed.x, z: near.bed.z, deadline: performance.now() + 8000, spawn: null };
+            },
+            onFill() {
+              const spot = spotAt(damSpots, world.beaver.x, world.beaver.z);
+              if (spot) world = { ...world, dams: placed(world.dams, spot, LEVEL1_COST) };
+            },
+          }
+        : undefined,
     onSleep() {
       world = sleep(world);
     },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
 import { LEVEL_COST, LEVEL1_COST, costOf, damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, levelOf, needs, placed, raised, settled, spotAt } from './dam';
+import { widthFactor } from './damSpots';
 import { DAY_SECONDS } from './clock';
 import { newWear } from './wear';
 import type { DamSpot } from './damSpots';
@@ -125,7 +126,7 @@ describe('dam wear', () => {
     const dams = wholeAt(0);
     const clock = 18 * day; // condition 0.1
     expect(damAt(dams, spot)!.wood).toBe(8);
-    expect(settled(damAt(dams, spot), clock)).toEqual({ spot: spot.id, wood: 0, mud: 0, rock: 0 });
+    expect(settled(damAt(dams, spot), clock, spot)).toEqual({ spot: spot.id, wood: 0, mud: 0, rock: 0 });
     const again = placed(dams, spot, { wood: 2 }, undefined, clock);
     expect(damAt(again, spot)).toEqual({ spot: spot.id, wood: 2, mud: 0, rock: 0 });
     const done = placed(again, spot, LEVEL1_COST, undefined, clock);
@@ -193,11 +194,64 @@ describe('dam levels', () => {
   it('starts again at level 1 when it breaks', () => {
     const dams = placed(level1(), spot, LEVEL_COST[2]!, undefined, 0);
     expect(levelOf(damAt(dams, spot))).toBe(2);
-    expect(settled(damAt(dams, spot), 40 * day)).toEqual({ spot: spot.id, wood: 0, mud: 0, rock: 0 });
+    expect(settled(damAt(dams, spot), 40 * day, spot)).toEqual({ spot: spot.id, wood: 0, mud: 0, rock: 0 });
   });
 
   it('never raises a dam without a clock (a test dam)', () => {
     const dams = placed([], spot, LEVEL_COST[2]!);
     expect(placed(dams, spot, { wood: 5 })).toBe(dams);
+  });
+});
+
+describe('dam cost follows the length of the wall', () => {
+  const day = DAY_SECONDS;
+  const narrow: DamSpot = { ...spot, widths: [8, 10, 11] }; // half a typical wall, clamped up to 0.6
+  const wide: DamSpot = { ...spot, widths: [40, 50, 55] }; // two and a half times a typical wall, clamped to 2
+  const typical: DamSpot = { ...spot, widths: [16, 20, 22] };
+
+  it('scales the table price by the length, clamped between 0.6 and 2', () => {
+    expect(widthFactor(typical, 1)).toBe(1);
+    expect(widthFactor(narrow, 1)).toBe(0.6);
+    expect(widthFactor(wide, 2)).toBe(2);
+    expect(widthFactor(spot, 3)).toBe(1); // length not known
+    expect(widthFactor({ ...spot, widths: [20, null, 22] }, 2)).toBe(1);
+  });
+
+  it('asks a wide spot for more and a narrow one for less at level 1', () => {
+    const cost = (s: DamSpot) => costOf(damAt(placed([], s, { wood: 1 }, undefined, 0), s));
+    expect(cost(typical)).toEqual(LEVEL_COST[0]);
+    expect(cost(wide)).toEqual({ wood: 16, mud: 8, rock: 4 });
+    expect(cost(narrow)).toEqual({ wood: 5, mud: 2, rock: 1 });
+    const done = placed([], narrow, LEVEL_COST[2]!, undefined, 0);
+    expect(damWhole(damAt(done, narrow))).toBe(true);
+    expect(damAt(done, narrow)).toMatchObject({ wood: 5, mud: 2, rock: 1, scale: 0.6 });
+  });
+
+  it('keeps the price from falling when raised, so nothing placed is lost', () => {
+    const odd: DamSpot = { ...spot, widths: [40, 10, 22] };
+    let dams = placed([], odd, LEVEL_COST[2]!, undefined, 0);
+    expect(damAt(dams, odd)!.scale).toBe(2);
+    dams = placed(dams, odd, { wood: 1 }, undefined, day);
+    const up = damAt(dams, odd)!;
+    expect(up).toMatchObject({ level: 2, scale: 2 });
+    expect(damWhole(up)).toBe(false);
+    expect(damProgress(up)).toBeGreaterThan(0);
+    expect(damProgress(up)).toBeLessThan(0.2);
+  });
+
+  it('mends a long wall with more and a short one with less', () => {
+    const mendUnits = (s: DamSpot) => damMendUnits(damAt(placed([], s, LEVEL_COST[2]!, undefined, 0), s), 5 * day);
+    expect(mendUnits(typical)).toBe(3); // 0.75 to 1 at 0.1 a unit, rounded up
+    expect(mendUnits(wide)).toBe(5);
+    expect(mendUnits(narrow)).toBe(2);
+    const worn = placed([], wide, LEVEL_COST[2]!, undefined, 0);
+    const next = placed(worn, wide, { wood: 2 }, undefined, 15 * day); // condition 0.25 + 2 * 0.1 / 2
+    expect(damCondition(damAt(next, wide), 15 * day)).toBeCloseTo(0.35);
+  });
+
+  it('builds a broken dam again at the price of level 1 at that spot', () => {
+    const dams = placed(placed([], wide, LEVEL_COST[2]!, undefined, 0), wide, LEVEL_COST[2]!, undefined, 0);
+    expect(levelOf(damAt(dams, wide))).toBe(2);
+    expect(settled(damAt(dams, wide), 40 * day, wide)).toEqual({ spot: wide.id, wood: 0, mud: 0, rock: 0, scale: 2 });
   });
 });

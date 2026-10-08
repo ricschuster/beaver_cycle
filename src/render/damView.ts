@@ -1,8 +1,9 @@
-// Draws the dams of the sim as plain piles at their spots: sticks laid across the stream, mud mounds and rocks on top, as
-// many of each as have been placed. A worn dam loses sticks and mounds and shows the gold repair glow (Q55), a broken one
+// Draws the dams of the sim at their spots: sticks laid across the whole width the water reaches at the dam line, in rows up to
+// the crest, with mud mounds along the foot and rocks on top, as many of each as have been placed. A worn dam loses sticks and mounds and shows the gold repair glow (Q55), a broken one
 // is mostly gone. The pond is drawn by pondView. Reads state only.
 import * as THREE from 'three';
 import { costOf, damCondition, damNeedsRepair, type Dam } from '../sim/dam';
+import { crestOf } from '../sim/pond';
 import type { DamSpot } from '../sim/damSpots';
 import { WORN_BELOW, stageOf } from '../sim/wear';
 import { createRepairGlow, type RepairGlow } from './repairGlow';
@@ -22,8 +23,13 @@ const GLOW_RADIUS = 5.5;
 
 /** A stick is this long (metres) and lies along the dam line. */
 const STICK = 2.6;
-const ROW = 4;
-const SPACING = 1.8;
+/** Sticks are laid every SPACING metres along the wall, in rows ROW_HEIGHT apart up to the crest. */
+const SPACING = 2;
+const ROW_HEIGHT = 0.3;
+const MOUND_SPACING = 2.4;
+const ROCK_SPACING = 3.2;
+/** The wall reaches the bank, at most this far each way from the bed point (metres). */
+const MAX_REACH = 40;
 
 export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m: THREE.Material) => void): DamView {
   const wood = new THREE.MeshLambertMaterial({ color: 0x7a5230, flatShading: true });
@@ -56,42 +62,71 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
         if (!entry) glows.set(dam.spot, { glow, at });
         glow.set(damNeedsRepair(dam, clock) ? { ...at, broken: stageOf(level) === 'broken' } : null);
       }
-      const key = dams.map((d) => `${d.spot}:${d.wood}:${d.mud}:${d.rock}:${d.level ?? 1}:${Math.round(shownShare(damCondition(d, clock)) * 20)}`).join('|');
+      const crests = dams.map((d) => {
+        const { wear: _wear, ...fresh } = d;
+        return crestOf(fresh);
+      });
+      const key = dams.map((d, i) => `${d.spot}:${d.wood}:${d.mud}:${d.rock}:${d.level ?? 1}:${crests[i]}:${Math.round(shownShare(damCondition(d, clock)) * 20)}`).join('|');
       if (key === shown) return;
       shown = key;
       root.clear();
-      for (const dam of dams) {
+      dams.forEach((dam, di) => {
         const spot = spots.find((s) => s.id === dam.spot);
-        if (!spot) continue;
+        if (!spot) return;
         const share = shownShare(damCondition(dam, clock));
-        const count = (n: number): number => Math.ceil(n * share - 1e-9);
+        // Pieces are thinned evenly as the dam wears: piece i of a row shows when its fixed pseudo-random draw is under the share.
+        const shows = (i: number): boolean => ((i * 37 + 11) % 100) / 100 < share;
         // The dam line runs across the stream; `lateral` points along it.
         const lateral = { x: -spot.flow.z, z: spot.flow.x };
         const base = heightAt(spot.bed.x, spot.bed.z);
+        // How far the water at `top` metres above the bed reaches along the dam line each way from the bed point, so the wall spans the whole pond front.
+        const reach = (sign: number, top: number): number => {
+          let t = 0;
+          while (t < MAX_REACH && heightAt(spot.bed.x + lateral.x * sign * (t + 1), spot.bed.z + lateral.z * sign * (t + 1)) < spot.bedY + top) t++;
+          return t + 1;
+        };
         const group = new THREE.Group();
         group.position.set(spot.bed.x, base, spot.bed.z);
         group.rotation.y = Math.atan2(-lateral.z, lateral.x);
-        const sticks = count(Math.min(dam.wood, costOf(dam).wood));
-        for (let i = 0; i < sticks; i++) {
-          const o = mesh(stickGeometry, wood);
-          o.position.set(((i % ROW) - (ROW - 1) / 2) * SPACING + (Math.floor(i / ROW) % 2) * 0.6, 0.17 + Math.floor(i / ROW) * 0.3, ((i * 7) % 3) * 0.08);
-          o.rotation.y = ((i * 5) % 7) * 0.03 - 0.1;
-          group.add(o);
+        const crest = crests[di]!;
+        const rows = dam.wood > 0 ? Math.max(1, Math.ceil(crest / ROW_HEIGHT - 1e-9)) : 0;
+        let first = { left: 0, right: 0 };
+        let last = { left: 0, right: 0 };
+        for (let r = 0; r < rows; r++) {
+          const h = 0.17 + r * ROW_HEIGHT;
+          const top = r === rows - 1 ? Math.max(crest, h + 0.15) : h + 0.15;
+          const span = { left: reach(-1, top), right: reach(1, top) };
+          if (r === 0) first = span;
+          last = span;
+          const n = Math.max(1, Math.ceil((span.left + span.right) / SPACING));
+          for (let i = 0; i < n; i++) {
+            if (!shows(i + r * 13)) continue;
+            const o = mesh(stickGeometry, wood);
+            o.position.set(-span.left + (i + 0.5) * ((span.left + span.right) / n) + (r % 2) * 0.5, spot.bedY + h - base, ((i * 7) % 3) * 0.08);
+            o.rotation.y = ((i * 5) % 7) * 0.03 - 0.1;
+            group.add(o);
+          }
         }
-        for (let i = 0; i < count(dam.mud); i++) {
+        const mounds = Math.max(1, Math.ceil((first.left + first.right) / MOUND_SPACING));
+        const mudShare = Math.min(1, dam.mud / costOf(dam).mud);
+        for (let i = 0; i < Math.ceil(mounds * mudShare - 1e-9); i++) {
+          if (!shows(i + 5)) continue;
           const o = mesh(moundGeometry, mud);
-          o.position.set(((i % ROW) - (ROW - 1) / 2) * SPACING, 0.4 + Math.floor(i / ROW) * 0.5, 0.35);
+          o.position.set(-first.left + (i + 0.5) * ((first.left + first.right) / mounds), spot.bedY + 0.4 - base, 0.35);
           o.scale.set(1.2, 0.5, 1.1);
           group.add(o);
         }
-        for (let i = 0; i < count(dam.rock); i++) {
+        const rocks = Math.max(1, Math.ceil((last.left + last.right) / ROCK_SPACING));
+        const rockShare = Math.min(1, dam.rock / costOf(dam).rock);
+        for (let i = 0; i < Math.ceil(rocks * rockShare - 1e-9); i++) {
+          if (!shows(i + 9)) continue;
           const o = mesh(rockGeometry, stone);
-          o.position.set(((i % 3) - 1) * 3.2, 0.75 + Math.floor(i / 3) * 0.7, -0.3 - Math.floor(i / 3) * 0.2);
+          o.position.set(-last.left + (i + 0.5) * ((last.left + last.right) / rocks), spot.bedY + Math.max(rows, 1) * ROW_HEIGHT + 0.3 - base, -0.3);
           o.rotation.set(i, i * 2, 0);
           group.add(o);
         }
         root.add(group);
-      }
+      });
     },
   };
 }

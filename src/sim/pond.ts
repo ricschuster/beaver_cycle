@@ -1,0 +1,120 @@
+// The pond a dam holds (docs/design/20_dams_and_ponds.md): the ground below the water level, upstream of the dam line,
+// connected to the stream. A flood fill over a window of the ground, the same walk the dam site scan does
+// (tools/dam-sites/scan_dam_sites.py). Water is not simulated: the level is a number and the extent a fill. The fill is
+// kept as a grid of ground heights and flooded points, so it never asks the ground again. No three.js (ADR 0007).
+import { LEVEL1_COST, damProgress, type Dam } from './dam';
+import { LEVEL_CREST, type DamSpot } from './damSpots';
+import type { Terrain } from './terrain';
+
+/** Grid cell and half side of the window, metres: the same as the scan. */
+export const POND_CELL = 2;
+export const POND_HALF = 80;
+/** A pond over this many square metres, or one that reaches the window edge, spills into the valley and is no pond. */
+export const MAX_POND_M2 = 12000;
+/** The seed of the fill is the lowest ground this far upstream of the bed point, metres. */
+const SEED_FROM = 2;
+const SEED_TO = 8;
+/** A pond shows only from this crest height up, metres: a few centimetres is a wet patch. */
+export const MIN_CREST = 0.15;
+
+export interface Pond {
+  /** The `DamSpot.id` of the dam holding it. */
+  spot: string;
+  /** Height of the water surface, metres. */
+  level: number;
+  /** Grid points on a side, and the position of point (0, 0), metres. */
+  n: number;
+  x0: number;
+  z0: number;
+  /** Ground height at each grid point, row j (z) then column i (x). */
+  heights: Float32Array;
+  /** 1 where the point is flooded. */
+  flooded: Uint8Array;
+  /** Square metres flooded. */
+  area: number;
+}
+
+/** Height of the water above the stream bed for a dam, rising as it is built: the full level 1 crest when whole. */
+export function crestOf(dam: Dam | undefined): number {
+  return LEVEL_CREST[0]! * damProgress(dam, LEVEL1_COST);
+}
+
+/** The pond a crest of this height holds at a spot, or null when the ground does not hold it (too low, too wide, spills). */
+export function floodPond(terrain: Terrain, spot: DamSpot, crest: number): Pond | null {
+  if (crest < MIN_CREST) return null;
+  const k = Math.floor(POND_HALF / POND_CELL);
+  const n = 2 * k + 1;
+  const x0 = spot.bed.x - k * POND_CELL;
+  const z0 = spot.bed.z - k * POND_CELL;
+  const heights = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) heights[j * n + i] = terrain.heightAt(x0 + i * POND_CELL, z0 + j * POND_CELL);
+  const level = spot.bedY + crest;
+  const { x: fx, z: fz } = spot.flow;
+  // Upstream of the dam line, which runs across the stream through the bed point.
+  const up = (i: number, j: number): number => -((x0 + i * POND_CELL - spot.bed.x) * fx + (z0 + j * POND_CELL - spot.bed.z) * fz);
+  const low = (i: number, j: number): boolean => heights[j * n + i]! < level && up(i, j) > 0;
+  const at = (s: number): [number, number] => [Math.round((spot.bed.x - fx * s - x0) / POND_CELL), Math.round((spot.bed.z - fz * s - z0) / POND_CELL)];
+  let seed: [number, number] | null = null;
+  for (let s = SEED_FROM; s <= SEED_TO; s += POND_CELL / 2) {
+    const [i, j] = at(s);
+    if (i < 0 || j < 0 || i >= n || j >= n || !low(i, j)) continue;
+    if (!seed || heights[j * n + i]! < heights[seed[1] * n + seed[0]]!) seed = [i, j];
+  }
+  if (!seed) return null;
+  const flooded = new Uint8Array(n * n);
+  flooded[seed[1] * n + seed[0]] = 1;
+  const queue: [number, number][] = [seed];
+  const limit = Math.floor(MAX_POND_M2 / POND_CELL ** 2);
+  let cells = 0;
+  for (let head = 0; head < queue.length; head++) {
+    const [i, j] = queue[head]!;
+    cells++;
+    if (cells > limit || i === 0 || j === 0 || i === n - 1 || j === n - 1) return null;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const a = i + di;
+      const b = j + dj;
+      if (flooded[b * n + a] || !low(a, b)) continue;
+      flooded[b * n + a] = 1;
+      queue.push([a, b]);
+    }
+  }
+  return { spot: spot.id, level, n, x0, z0, heights, flooded, area: cells * POND_CELL ** 2 };
+}
+
+/** The ponds of a list of dams: one per dam that holds water, at the crest the dam has been built to. */
+export function pondsOf(dams: readonly Dam[], spots: readonly DamSpot[], terrain: Terrain): Pond[] {
+  const ponds: Pond[] = [];
+  for (const dam of dams) {
+    const spot = spots.find((s) => s.id === dam.spot);
+    const pond = spot ? floodPond(terrain, spot, crestOf(dam)) : null;
+    if (pond) ponds.push(pond);
+  }
+  return ponds;
+}
+
+/** Metres of pond water above the ground at a point, 0 outside every pond. */
+export function pondDepthAt(ponds: readonly Pond[], ground: (x: number, z: number) => number, x: number, z: number): number {
+  let depth = 0;
+  for (const p of ponds) {
+    const u = (x - p.x0) / POND_CELL;
+    const v = (z - p.z0) / POND_CELL;
+    const i = Math.floor(u);
+    const j = Math.floor(v);
+    if (i < 0 || j < 0 || i >= p.n - 1 || j >= p.n - 1) continue;
+    if (!(p.flooded[j * p.n + i] || p.flooded[j * p.n + i + 1] || p.flooded[(j + 1) * p.n + i] || p.flooded[(j + 1) * p.n + i + 1])) continue;
+    depth = Math.max(depth, p.level - ground(x, z));
+  }
+  return depth;
+}
+
+/** The ground with the ponds' water added to its lake water. With no ponds it is the ground itself. */
+export function withPonds(terrain: Terrain, ponds: readonly Pond[]): Terrain {
+  if (ponds.length === 0) return terrain;
+  const waterDepth = (x: number, z: number): number => Math.max(terrain.waterDepth(x, z), pondDepthAt(ponds, (px, pz) => terrain.heightAt(px, pz), x, z));
+  return {
+    heightAt: (x, z) => terrain.heightAt(x, z),
+    waterDepth,
+    isWater: (x, z) => waterDepth(x, z) > 0,
+    streamDistance: terrain.streamDistance ? (x, z) => terrain.streamDistance!(x, z) : undefined,
+  };
+}

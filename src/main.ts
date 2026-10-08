@@ -20,6 +20,7 @@ import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { loadDamSites } from './render/damSites';
 import { LEVEL1_COST, placed, spotAt } from './sim/dam';
+import { pondsOf, withPonds } from './sim/pond';
 import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
@@ -135,7 +136,10 @@ async function start(): Promise<void> {
             },
             onFill() {
               const spot = spotAt(damSpots, world.beaver.x, world.beaver.z);
-              if (spot) world = { ...world, dams: placed(world.dams, spot, LEVEL1_COST) };
+              if (spot) {
+                const dams = placed(world.dams, spot, LEVEL1_COST);
+                world = { ...world, dams, ponds: pondsOf(dams, damSpots, terrain) };
+              }
             },
           }
         : undefined,
@@ -211,7 +215,7 @@ async function start(): Promise<void> {
     renderer.setLodgePreview(site ? { x: site.x, y: terrain.heightAt(site.x, site.z) + terrain.waterDepth(site.x, site.z), z: site.z, ok: site.problem === null } : null);
     const l = world.inLodge ? world.lodge : null;
     const spot = l ? (atHole(l, world.beaver.x, world.beaver.z) ? 'hole' : atNest(l, world.beaver.x, world.beaver.z) ? 'nest' : 'room') : null;
-    carryHud.set(world.felled.length, world.drag !== null, world.chop ? world.chop.progress / CHOP_TIME : null, world.lodge ? lodgeProgress(world.lodge) : null, site?.problem ?? (site ? 'ok' : null), spot, foodInfoOf(world, terrain));
+    carryHud.set(world.felled.length, world.drag !== null, world.chop ? world.chop.progress / CHOP_TIME : null, world.lodge ? lodgeProgress(world.lodge) : null, site?.problem ?? (site ? 'ok' : null), spot, foodInfoOf(world, withPonds(terrain, world.ponds), terrain));
     stashPanel.set(world.stashOpen, world.store, world.carry, storeCapacity(storeCondition(world.storeWear, world.clock)));
     sleepPrompt.setAvailable(canSleep(world));
     renderer.draw(world, rig.view);

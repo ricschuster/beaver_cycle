@@ -5,6 +5,7 @@ import { atStore, storeCapacity, storeCondition, strippable, tapped, trimmed } f
 import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
 import { damAt, needs, placed, spotAt } from './dam';
+import { pondsOf, withPonds } from './pond';
 import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
@@ -27,7 +28,9 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   return advance({ ...world, store, carry, stashOpen }, noActions(), dt, terrain, trees);
 }
 
-function advance(world: WorldState, actions: Actions, dt: number, terrain: Terrain, trees: TreeSource): WorldState {
+function advance(world: WorldState, actions: Actions, dt: number, ground: Terrain, trees: TreeSource): WorldState {
+  // The ponds of the dams add water to the ground. Lily pads keep to the ground's own water (they come to ponds later).
+  const terrain = withPonds(ground, world.ponds);
   let { x, z } = actions.move;
   const len = Math.hypot(x, z);
   if (len > 1) {
@@ -74,7 +77,7 @@ function advance(world: WorldState, actions: Actions, dt: number, terrain: Terra
   const full = (world.carry !== null || world.haul !== null) && !world.drag;
   const workActions = { ...actions, chop: actions.chop && !eating && world.haul === null, grab: actions.grab && !full };
   const { chop, felled, logs, drag } = work(built, beaver, workActions, dt, len > 0, trees, terrain);
-  const food = feed({ ...built, logs, drag, chop }, beaver, actions, eating, world.drag === null, terrain);
+  const food = feed({ ...built, logs, drag, chop }, beaver, actions, eating, world.drag === null, terrain, ground);
   return {
     ...world,
     ...food,
@@ -87,6 +90,7 @@ function advance(world: WorldState, actions: Actions, dt: number, terrain: Terra
     drag,
     lodge: built.lodge,
     dams: built.dams,
+    ponds: built.dams === world.dams ? world.ponds : pondsOf(built.dams, world.spots, ground),
     storeWear: built.storeWear,
     inLodge: built.inLodge,
     clock: world.clock + dt * (world.inLodge ? LODGE_CLOCK_RATE : 1),
@@ -173,7 +177,7 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
  * strips a branch into it. At the store the build button opens the stash screen (not on the frame it mends the store with
  * a log), where the player chooses what to put in or take out. Inside the lodge the gnaw button eats the piece.
  */
-function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain): Pick<WorldState, 'carry' | 'haul' | 'rocksTaken' | 'dropped' | 'store' | 'stashOpen' | 'stripped' | 'picked' | 'eaten'> {
+function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain, ground: Terrain): Pick<WorldState, 'carry' | 'haul' | 'rocksTaken' | 'dropped' | 'store' | 'stashOpen' | 'stripped' | 'picked' | 'eaten'> {
   let { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten } = world;
   if (eating) return { carry: null, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten: eaten + 1 };
   if (world.inLodge) return { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten };
@@ -184,7 +188,7 @@ function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boole
   } else if (actions.build && wasFree && atStore(world.lodge, b.x, b.z) && !haul) {
     stashOpen = true;
   } else if (!carry && !haul && actions.chop && !world.chop && !world.drag && b.mode !== 'dive') {
-    const pad = reachablePad(terrain, b.x, b.z, world.clock, picked);
+    const pad = reachablePad(ground, b.x, b.z, world.clock, picked);
     const log = pad ? null : strippable(world.logs, stripped, b.x, b.z);
     if (pad) {
       picked = pickedPad(picked, pad, world.clock);

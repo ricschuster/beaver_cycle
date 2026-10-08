@@ -220,7 +220,16 @@ Each step is playable on a tablet and small enough for one pull request.
   mud mounds, and rocks across the stream. The ring turns green once started and goes when the dam is whole.
   No pond yet. The test menu has "To nearest spot" and "Finish dam here". The mouth holds one piece, so a
   stack of materials in the test menu was not possible; "Finish dam here" stands in for it.
-- Not built yet: the pond.
+- The pond (`src/sim/pond.ts`, `src/render/pondView.ts`): the flood fill of the scan, run in the sim on the
+  ground around a spot (2 m cells, an 80 m half window). The water level is the crest above the bed, and the
+  crest rises with the dam's progress up to 1.0 m when the dam is whole, so the pond grows as you build. Only
+  upstream ground connected to the stream floods, and a fill that reaches the window edge or 12000 m2 is no
+  pond. The fill is kept as a grid in `world.ponds` and drawn as flat water clipped to the ground, in the lake's
+  look. `withPonds` adds the pond water to the ground, so the beaver swims, dives, and floats logs in it. Lily
+  pads do not grow in ponds yet. On the real core data the nearest first spot holds 1100 m2 at full height. The
+  edge across the dam line is stepped at the 2 m grid.
+- Not built yet: wear and repair of the dam and the pond level that follows it, levels 2 and 3, new spots from
+  a new pond, lily pads, the lodge in a pond.
 
 ## Decided
 

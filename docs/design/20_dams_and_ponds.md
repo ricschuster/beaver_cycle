@@ -237,23 +237,6 @@ Each step is playable on a tablet and small enough for one pull request.
   seeds from the lowest upstream ground within 8 m of the spot, since the real channel is a little off the line.
 - Not built yet: wear and repair of the dam and the pond level that follows it, levels 2 and 3, new spots from
   a new pond, lily pads, the lodge in a pond.
-- Stream lines snap to the terrain channel in the tile build, and the scan drops a site whose pond is not on
-  the drawn stream (ADR 0010, session 40). The author checked it on the tablet and it looks right.
-
-### Placement: not finished
-
-- The 5 m terrain resolves a channel only to about a cell, so lines can sit 2 to 3 m off. If ponds run beside
-  the line again, ADR 0010 lists two follow ups: snap on the 2 m data where a tile has it, and burn the channel
-  into the heights.
-- The line gate thresholds (half the pond cells within 5 m of the line, half the upstream line points inside
-  the pond) are a first guess. east-oedseen is left with 1 first spot candidate.
-- The scan's fill is a Python copy of `pond.ts` and may differ by a cell.
-- The snap moved about 12000 points over 8 m, mostly remote backdrop streams hitting the 15 m limit in steep
-  gorges. Not looked at on screen; add anything odd to #174.
-- Rocks do not use the land cover class, so one can lie on a meadow bank.
-- New spots from a new pond (step 4 and 5) must read the snapped lines in the TS port.
-- Not yet seen on the tablet: mud and rock pickup, the dam piles, rock density, and the stepped pond edge across
-  the dam line.
 
 ## Decided
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { noActions, type Actions } from '../actions/actions';
-import { DOOR_DISTANCE, HOLE, INTERIOR_RADIUS, NEST, LODGE_REACH, LODGE_WOOD, SOLID_RADIUS, addWood, atHole, atNest, doorPoint, findSite, checkSite, lodgeComplete, lodgeProgress, lodgeSite, logWood } from './lodge';
+import { DOOR_DISTANCE, HOLE, INTERIOR_RADIUS, NEST, LODGE_REACH, LODGE_WOOD, SOLID_RADIUS, addWood, atHole, atNest, doorPoint, findSite, checkSite, lodgeComplete, lodgeProgress, lodgeSite, logWood, followPond } from './lodge';
 import type { Log } from './logs';
 import { isNight } from './clock';
 import { canSleep, createWorld, type WorldState } from './state';
@@ -190,5 +190,21 @@ describe('solid lodge', () => {
     const onNest = { ...inside, beaver: { ...inside.beaver, x: l.x + NEST.x, z: l.z + NEST.z } };
     expect(atNest(l, onNest.beaver.x, onNest.beaver.z)).toBe(true);
     expect(canSleep(onNest)).toBe(true);
+  });
+});
+
+describe('followPond', () => {
+  const lodge = { x: 5, z: 5, base: 1.5, door: 0, wood: 10, pond: 'a' };
+  const ground = flatTerrain(0);
+
+  it('puts the floor at the water of its pond as the pond rises and falls', () => {
+    expect(followPond(lodge, [{ spot: 'a', level: 2 }], ground).base).toBe(2);
+    expect(followPond(lodge, [{ spot: 'a', level: 1.2 }], ground).base).toBe(1.2);
+  });
+
+  it('rests on the ground when the pond has drained, and leaves a lake lodge alone', () => {
+    expect(followPond(lodge, [], ground).base).toBe(0);
+    const lake = { ...lodge, pond: undefined };
+    expect(followPond(lake, [{ spot: 'a', level: 2 }], ground)).toBe(lake);
   });
 });

@@ -286,10 +286,25 @@ Code in `src/sim/dam.ts` (`Dam.level`, `LEVEL_COST`, `raised`) and `src/sim/pond
 - Not built: the view of a bigger dam is the same piles, more of them and higher. A shaped wall comes with the
   art.
 
+## Built so far (step 5, the lodge in a pond)
+
+Code in `src/sim/pond.ts` (`lodgeGround`, `pondAt`), `src/sim/lodge.ts` (`Lodge.pond`, `followPond`), `src/sim/step.ts`
+(`newLodge`).
+
+- A new lodge can start in the water of a pond, with the same checks as in the lake (0.1 to 1.2 m at the site,
+  1.2 m at the door and 3 m beyond). The lodge sees only ponds of a level 2 dam or higher (`lodgeGround`, crest 1.5 m),
+  as a level 1 pond is too shallow for the door (the author, 2026-10-08). The lake is unchanged.
+- A lodge started in a pond is tagged with its dam spot (`Lodge.pond`). Its floor follows the pond: it rises with the
+  water when the dam is raised and falls when the dam wears, so the room stays dry and the door under water. When the
+  pond has drained it rests on the ground. A lodge in the lake is not touched.
+- Not built yet: the door depth when a pond sags below 1.2 m, a test menu way to place a lodge in a pond, new spots
+  from a new pond, and lily pads in a new pond.
+
 ## Decided
 
 - The lodge can go in the lake or in a pond (the author, 2026-10-07).
 - Three dam levels is enough (the author, 2026-10-07).
+- A lodge in a pond needs a level 2 or 3 dam, and its floor follows the pond (the author, 2026-10-08).
 
 ## Open questions
 

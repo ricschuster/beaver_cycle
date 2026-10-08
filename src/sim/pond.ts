@@ -123,6 +123,19 @@ export function pondsAt(prev: PondSet, dams: readonly Dam[], spots: readonly Dam
   return same && Object.keys(prev.crests).length === dams.filter((d) => spots.some((s) => s.id === d.spot)).length ? prev : pondsOf(dams, spots, terrain, clock);
 }
 
+/** The flooded pond that covers a point, the deepest one if several do, or undefined. */
+export function pondAt(ponds: readonly Pond[], x: number, z: number): Pond | undefined {
+  let found: Pond | undefined;
+  for (const p of ponds) {
+    const i = Math.floor((x - p.x0) / POND_CELL);
+    const j = Math.floor((z - p.z0) / POND_CELL);
+    if (i < 0 || j < 0 || i >= p.n - 1 || j >= p.n - 1) continue;
+    if (!(p.flooded[j * p.n + i] || p.flooded[j * p.n + i + 1] || p.flooded[(j + 1) * p.n + i] || p.flooded[(j + 1) * p.n + i + 1])) continue;
+    if (!found || p.level > found.level) found = p;
+  }
+  return found;
+}
+
 /** Metres of pond water above the ground at a point, 0 outside every pond. */
 export function pondDepthAt(ponds: readonly Pond[], ground: (x: number, z: number) => number, x: number, z: number): number {
   let depth = 0;
@@ -136,6 +149,14 @@ export function pondDepthAt(ponds: readonly Pond[], ground: (x: number, z: numbe
     depth = Math.max(depth, p.level - ground(x, z));
   }
   return depth;
+}
+
+/** A pond holds a lodge only from a level 2 dam up (docs/design/20_dams_and_ponds.md): a level 1 pond is too shallow for the door. */
+export const LODGE_POND_CREST = LEVEL_CREST[1]!;
+
+/** The ground as a lodge sees it: the lake and the ponds deep enough for a lodge. */
+export function lodgeGround(terrain: Terrain, ponds: readonly Pond[]): Terrain {
+  return withPonds(terrain, ponds.filter((p) => p.crest >= LODGE_POND_CREST - 1e-6));
 }
 
 /** The ground with the ponds' water added to its lake water. With no ponds it is the ground itself. */

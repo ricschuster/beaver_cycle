@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
 import { LEVEL1_COST } from './dam';
 import type { DamSpot } from './damSpots';
-import { MIN_CREST, crestOf, floodPond, pondDepthAt, pondsAt, pondsOf, withPonds } from './pond';
+import { MIN_CREST, crestOf, floodPond, lodgeGround, pondAt, pondDepthAt, pondsAt, pondsOf, withPonds } from './pond';
 import { DAY_SECONDS } from './clock';
 import { newWear } from './wear';
 import { createWorld } from './state';
@@ -113,5 +113,21 @@ describe('a pond follows the wear of its dam', () => {
     expect(later.ponds[0]!.level).toBeLessThan(first.ponds[0]!.level);
     const drained = pondsOf([whole(30)], [spot], t, 0);
     expect(pondsAt(drained, [whole(30)], [spot], t, 0)).toBe(drained);
+  });
+});
+
+describe('lodge in a pond', () => {
+  it('sees the water of a level 2 pond but not of a level 1 pond', () => {
+    const t = valley();
+    const one = floodPond(t, spot, 1.0)!;
+    const two = floodPond(t, spot, 1.5)!;
+    expect(lodgeGround(t, [one]).waterDepth(-20, 0)).toBe(0);
+    expect(lodgeGround(t, [two]).waterDepth(-20, 0)).toBeCloseTo(1.5 - 0.4);
+  });
+
+  it('finds the pond that covers a point, and none outside', () => {
+    const p = floodPond(valley(), spot, 1.0)!;
+    expect(pondAt([p], -20, 0)).toBe(p);
+    expect(pondAt([p], 20, 0)).toBeUndefined();
   });
 });

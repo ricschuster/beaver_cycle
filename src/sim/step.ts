@@ -3,9 +3,9 @@ import { noActions, type Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
 import { atStore, storeCapacity, storeCondition, strippable, tapped, trimmed } from './food';
 import { pickedPad, reachablePad } from './lily';
-import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, lodgeSite, lodgeSolid, nearLodge, towardDoor } from './lodge';
+import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, checkSite, followPond, lodgeSolid, type Lodge, nearLodge, towardDoor } from './lodge';
 import { damAt, placed, spotAt } from './dam';
-import { pondsAt, withPonds } from './pond';
+import { lodgeGround, pondAt, pondsAt, withPonds, type Pond } from './pond';
 import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
@@ -26,6 +26,14 @@ export function step(world: WorldState, actions: Actions, dt: number, terrain: T
   if (actions.stashTap !== undefined) ({ stock: store, carry } = tapped(store, carry, actions.stashTap, storeCapacity(storeCondition(world.storeWear, world.clock))));
   if (actions.stashClose) stashOpen = false;
   return advance({ ...world, store, carry, stashOpen }, noActions(), dt, terrain, trees);
+}
+
+/** A lodge that could start ahead of the beaver, in the lake or in a pond that a level 2 dam holds; one in a pond is tagged with it. */
+function newLodge(ground: Terrain, ponds: readonly Pond[], x: number, z: number, heading: number): Lodge | null {
+  const site = checkSite(lodgeGround(ground, ponds), x, z, heading).lodge;
+  if (!site || ground.waterDepth(site.x, site.z) > 0) return site;
+  const pond = pondAt(ponds, site.x, site.z);
+  return pond ? { ...site, pond: pond.spot } : site;
 }
 
 function advance(world: WorldState, actions: Actions, dt: number, ground: Terrain, trees: TreeSource): WorldState {
@@ -70,7 +78,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   // On land the beaver climbs over a log that lies in its way; in water it pushes floating ones aside.
   const lift = settled.mode === 'walk' ? climbLift(world.logs, nx, nz, world.drag) : 0;
   const after = { ...b, x: nx, z: nz, ...settled, y: settled.y + lift, breath, heading };
-  const { world: built, beaver } = build({ ...world, logs: pushed }, after, actions, { x, z }, terrain);
+  const { world: built, beaver } = build({ ...world, logs: pushed }, after, actions, { x, z }, terrain, ground);
   // With a piece in the mouth the beaver cannot grab a log, and in the lodge the gnaw button eats it instead.
   const eating = built.inLodge && world.carry !== null && !!actions.chop;
   // The same goes for mud or a rock in the mouth: it cannot gnaw a tree, and the grab button puts it down instead.
@@ -89,7 +97,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     felled,
     logs,
     drag,
-    lodge: built.lodge,
+    lodge: built.lodge ? followPond(built.lodge, pondSet.ponds, ground) : null,
     dams: built.dams,
     ponds: pondSet.ponds,
     pondCrests: pondSet.crests,
@@ -108,7 +116,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
  * build button at the water hole dives out through the entrance. A log that cannot be placed stays in the
  * beaver's mouth.
  */
-function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: number; z: number }, terrain: Terrain): { world: WorldState; beaver: BeaverState } {
+function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: number; z: number }, terrain: Terrain, ground: Terrain): { world: WorldState; beaver: BeaverState } {
   let { lodge, logs, drag, inLodge, storeWear, dams, haul } = world;
   let beaver = b;
   if (inLodge && lodge) {
@@ -141,7 +149,7 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
       }
       if (haul) return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul }, beaver };
     }
-    const target = log ? lodge ?? lodgeSite(terrain, b.x, b.z, b.heading) : null;
+    const target = log ? lodge ?? newLodge(ground, world.ponds, b.x, b.z, b.heading) : null;
     if (log && target && !lodgeComplete(target) && nearLodge(target, b.x, b.z)) {
       lodge = addWood(target, log);
       // A whole lodge and its store are new from this moment.

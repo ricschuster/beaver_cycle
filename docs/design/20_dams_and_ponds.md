@@ -333,6 +333,11 @@ Code in `src/sim/newSpots.ts`, `Terrain.streamPoints` (`src/terrain/store.ts`), 
   dam started keeps its figures, since the price is fixed.
 - The HUD line of a whole dam at the biggest level its spot holds ends with "as high as a dam can go here".
 - A ground without stream lines (a test stand-in) finds none. Nothing saves the spots yet, so they are found again from the dams.
+- Saving (open, for when saves exist): the found spots are derived data. Each one comes from a pond, so a game loaded from dams and
+  their levels finds them again by the same search. Two choices then: keep them derived (no save format cost, but the result can
+  differ if other tiles are loaded when the search runs, and costs the search again), or store them in the save as doc 20 says
+  above (exact, and a spot stays even if its pond is gone). When saving is built, check that the search gives the same spots
+  after a reload, and store them if it does not.
 - Not yet tried on the real tiles on screen. The cost per pond change is a few dozen fills of an 81 by 81 window; measure it on the tablet.
 
 ## Decided

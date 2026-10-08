@@ -22,6 +22,8 @@ export interface MenuReadout {
   memoryMb: number | null;
 }
 
+export type FlyMode = 'off' | 'map' | 'free';
+
 export interface TestMenuOptions {
   speeds: number[];
   locations: MenuLocation[];
@@ -39,6 +41,8 @@ export interface TestMenuOptions {
   /** False when the game started without shadows (?shadows=0); the toggle is greyed out. */
   shadowsAvailable: boolean;
   onShadows(on: boolean): void;
+  /** The view: the beaver's own, the map view (?fly=1) or the free drone (?fly=free). Picking another one restarts the game in it. */
+  flyMode: { current: FlyMode; onSelect(mode: FlyMode): void };
   /** Debug marks for the scanned dam sites. Leave out when there is no scan file; the row is then not shown. */
   damSites?: { initiallyOn: boolean; onToggle(on: boolean): void };
   /** Dam test tools: jump to the nearest dam spot, and complete the dam at the spot the beaver stands at. Leave out when there are no spots. */
@@ -127,6 +131,23 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     style(b);
     b.onclick = () => opts.onSeason(season);
     seasonRow.appendChild(b);
+  }
+  const viewRow = row('View');
+  const views: [FlyMode, string][] = [
+    ['off', 'Beaver'],
+    ['map', 'Map'],
+    ['free', 'Drone'],
+  ];
+  for (const [mode, name] of views) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.dataset.fly = mode;
+    style(b);
+    if (mode === opts.flyMode.current) b.style.background = '#4f8a4f';
+    b.onclick = () => {
+      if (mode !== opts.flyMode.current) opts.flyMode.onSelect(mode);
+    };
+    viewRow.appendChild(b);
   }
   const lodgeRow = row('Lodge');
   const shadowRow = row('Shadows');

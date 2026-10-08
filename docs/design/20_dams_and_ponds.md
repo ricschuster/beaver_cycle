@@ -305,6 +305,8 @@ Code in `src/sim/pond.ts` (`lodgeGround`, `pondAt`), `src/sim/lodge.ts` (`Lodge.
   `?fly=free` is a drone instead, with the sun disc, the shadows, the beaver's screens, and the beaver, lodge, logs, lily pads and rocks left out (land, water, trees, dams and ponds stay): the stick or W, A, S, D flies it level over the ground (W and S go forward and back whatever the pitch), Space or E
   (the Up button on a tablet) climbs, Shift or Q (Down) descends, the wheel flies in and out along the look, a drag turns it (inverted: dragging right looks right, down looks down), and a tap on the land glides it there and
   faces it. It keeps 3 m over the ground and the water, speeds up with its height, and the land streams in around it.
+  The test menu has a View row (Beaver, Map, Drone) that picks between them without a URL flag, for the tablet shell: it
+  reloads the page with `fly` set and the other settings kept.
 - Not built yet: the door depth when a pond sags below 1.2 m, new spots
   from a new pond, and lily pads in a new pond.
 

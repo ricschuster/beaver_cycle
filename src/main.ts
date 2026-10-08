@@ -194,6 +194,17 @@ async function start(): Promise<void> {
     onSeason(season) {
       world = setClock(world, withSeason(world.clock, season));
     },
+    flyMode: {
+      current: free ? 'free' : fly ? 'map' : 'off',
+      onSelect(mode) {
+        // The views are set up at the start, so a new one restarts the game with the other settings kept.
+        const next = new URLSearchParams(location.search);
+        if (mode === 'off') next.delete('fly');
+        else next.set('fly', mode === 'map' ? '1' : 'free');
+        const qs = next.toString();
+        location.assign(location.pathname + (qs ? `?${qs}` : ''));
+      },
+    },
     shadowsAvailable: query.get('shadows') !== '0' && !free,
     onShadows(on) {
       renderer.setShadows(on);

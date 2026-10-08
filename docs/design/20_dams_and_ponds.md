@@ -299,8 +299,8 @@ Code in `src/sim/pond.ts` (`lodgeGround`, `pondAt`), `src/sim/lodge.ts` (`Lodge.
   pond has drained it rests on the ground. A lodge in the lake is not touched.
 - To try it: the game starts with a whole test lodge near the start, and the lodge preview shows only when there is no
   lodge. Start with `?lodge=0` or press "Remove lodge" in the test menu (Lodge row), finish a dam to level 2 or 3, and
-  drag a log into the pond. `?fly=1` pans the view over the land with the stick or WASD, faster the further out you zoom
-  (up to 600 m), for looking at ponds and spots from above.
+  drag a log into the pond. `?fly=1` frees the view from the beaver, which stands still: the stick or WASD pans the view over the land,
+  faster the further out it is, and Q zooms in and E out (up to 600 m), for looking at ponds and spots from above.
 - Not built yet: the door depth when a pond sags below 1.2 m, new spots
   from a new pond, and lily pads in a new pond.
 

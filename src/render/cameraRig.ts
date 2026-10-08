@@ -9,6 +9,8 @@ export interface ViewState {
   pitch: number;
   /** Distance from the beaver in metres. */
   dist: number;
+  /** A point the view orbits instead of the beaver (the fly view of the test URL), ground metres. Missing: the beaver. */
+  focus?: { x: number; z: number };
 }
 
 export const MIN_PITCH = 0.04;

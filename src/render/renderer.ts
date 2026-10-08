@@ -319,7 +319,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       if (beaver.parent !== drawn) drawn.add(beaver);
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
-      const look = { x: b.x, y: b.y + 1.0, z: b.z };
+      // The fly view orbits a free point on the ground, or on the water over it, not the beaver.
+      const fx = view.focus && !inside ? view.focus : null;
+      const flyY = fx && source ? source.store.heightAt(fx.x, fx.z) + (source.store.isWater(fx.x, fx.z) ? source.store.waterDepth(fx.x, fx.z) : 0) : 0;
+      const look = fx ? { x: fx.x, y: flyY + 1.0, z: fx.z } : { x: b.x, y: b.y + 1.0, z: b.z };
       const flat = Math.cos(view.pitch);
       const want = {
         x: b.x + Math.sin(view.yaw) * view.dist * flat,

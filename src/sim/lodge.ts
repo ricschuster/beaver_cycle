@@ -15,6 +15,8 @@ export interface Lodge {
   door: number;
   /** Wood placed so far, in units: a long log is 2, a short one 1 (Q16: bigger trees give more). */
   wood: number;
+  /** The dam spot of the pond the lodge stands in, if it does: its floor then follows the pond's water (docs/design/20_dams_and_ponds.md). */
+  pond?: string;
   /** Wear, set when the lodge is whole. Missing means it never wears (a test lodge). */
   wear?: Wear;
 }
@@ -135,6 +137,17 @@ export function checkSpot(terrain: Terrain, sx: number, sz: number): SiteCheck {
 /** The lodge that could start for a beaver at (x, z) facing `heading`, or null. */
 export function lodgeSite(terrain: Terrain, x: number, z: number, heading: number): Lodge | null {
   return checkSite(terrain, x, z, heading).lodge;
+}
+
+/**
+ * The lodge with its floor at the water of the pond it stands in: it rises and falls with the pond, so the room stays dry and the
+ * door stays under water. With no pond (a drained one) it rests on the ground. A lodge in the lake is itself.
+ */
+export function followPond(lodge: Lodge, ponds: readonly { spot: string; level: number }[], ground: Terrain): Lodge {
+  if (!lodge.pond) return lodge;
+  const pond = ponds.find((p) => p.spot === lodge.pond);
+  const base = pond ? pond.level : ground.heightAt(lodge.x, lodge.z);
+  return base === lodge.base ? lodge : { ...lodge, base };
 }
 
 /** The lodge with one more log's wood added, never past a whole lodge. */

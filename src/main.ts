@@ -20,7 +20,7 @@ import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
-import { pondsOf, withPonds } from './sim/pond';
+import { lodgeGround, pondsOf, withPonds } from './sim/pond';
 import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
@@ -214,8 +214,9 @@ async function start(): Promise<void> {
     breathMeter.set(world.beaver.breath);
     clockHud.set(world.clock);
     // While dragging a log with no lodge yet, show where one would start and whether it can.
-    const site = world.drag && !world.lodge && world.beaver.mode !== 'dive' ? checkSite(terrain, world.beaver.x, world.beaver.z, world.beaver.heading) : null;
-    renderer.setLodgePreview(site ? { x: site.x, y: terrain.heightAt(site.x, site.z) + terrain.waterDepth(site.x, site.z), z: site.z, ok: site.problem === null } : null);
+    const siteGround = lodgeGround(terrain, world.ponds);
+    const site = world.drag && !world.lodge && world.beaver.mode !== 'dive' ? checkSite(siteGround, world.beaver.x, world.beaver.z, world.beaver.heading) : null;
+    renderer.setLodgePreview(site ? { x: site.x, y: siteGround.heightAt(site.x, site.z) + siteGround.waterDepth(site.x, site.z), z: site.z, ok: site.problem === null } : null);
     const l = world.inLodge ? world.lodge : null;
     const spot = l ? (atHole(l, world.beaver.x, world.beaver.z) ? 'hole' : atNest(l, world.beaver.x, world.beaver.z) ? 'nest' : 'room') : null;
     carryHud.set(world.felled.length, world.drag !== null, world.chop ? world.chop.progress / CHOP_TIME : null, world.lodge ? lodgeProgress(world.lodge) : null, site?.problem ?? (site ? 'ok' : null), spot, foodInfoOf(world, withPonds(terrain, world.ponds), terrain));

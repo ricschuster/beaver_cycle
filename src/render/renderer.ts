@@ -296,7 +296,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       // Only a diver pitches: -1 rising and 1 sinking at the dive rate.
       const tilt = b.mode === 'dive' ? Math.max(-1, Math.min(1, -rate / DIVE_RATE)) : 0;
       const slapAge = world.lastSlap ? world.time - world.lastSlap.time : null;
-      beaverModel.update(now, pace, b.mode, tilt, slapAge, world.carry);
+      beaverModel.update(now, pace, b.mode, tilt, slapAge, world.carry ?? world.haul?.kind ?? null);
       if (world.lastSlap !== seenSlap) {
         seenSlap = world.lastSlap;
         splashAt = seenSlap && b.mode === 'swim' ? { slap: seenSlap, y: b.y + SWIM_SINK + 0.03 } : null;

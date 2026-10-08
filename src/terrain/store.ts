@@ -115,6 +115,29 @@ export class TileStore implements Terrain {
     return level == null ? 0 : Math.max(0, level - sampleHeight(tile, u, v));
   }
 
+  /** Metres to the nearest stream centre line in the tile of the point and the tiles round it, or Infinity. */
+  streamDistance(x: number, z: number): number {
+    const ix = Math.floor(x / this.size);
+    const iz = Math.floor(z / this.size);
+    let best = Infinity;
+    for (let tz = iz - 1; tz <= iz + 1; tz++) {
+      for (let tx = ix - 1; tx <= ix + 1; tx++) {
+        for (const s of this.water.get(tileKey(tx, tz))?.streams ?? []) {
+          for (let i = 1; i < s.pts.length; i++) {
+            const [ax, az] = s.pts[i - 1]!;
+            const [bx, bz] = s.pts[i]!;
+            const dx = bx - ax;
+            const dz = bz - az;
+            const len2 = dx * dx + dz * dz;
+            const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
+            best = Math.min(best, Math.hypot(x - (ax + t * dx), z - (az + t * dz)));
+          }
+        }
+      }
+    }
+    return best;
+  }
+
   isWater(x: number, z: number): boolean {
     return this.waterDepth(x, z) > 0;
   }

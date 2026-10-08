@@ -24,6 +24,27 @@ describe('createBeaverModel', () => {
     expect(visibleBox(m.group).max.x).toBeCloseTo(empty.max.x);
   });
 
+  it('shows mud or a rock in the mouth only while carrying one', () => {
+    const m = createBeaverModel();
+    const visibleMeshes = (): number => {
+      let n = 0;
+      m.group.traverse((o) => {
+        let shown = o instanceof THREE.Mesh;
+        for (let p: THREE.Object3D | null = o; p && shown; p = p.parent) shown = p.visible;
+        if (shown) n++;
+      });
+      return n;
+    };
+    m.update(0.1, 0);
+    const empty = visibleMeshes();
+    m.update(0.2, 0, 'walk', 0, null, 'mud');
+    expect(visibleMeshes()).toBeGreaterThan(empty);
+    m.update(0.3, 0, 'walk', 0, null, 'rock');
+    expect(visibleMeshes()).toBe(empty + 1);
+    m.update(0.4, 0, 'walk', 0, null, null);
+    expect(visibleMeshes()).toBe(empty);
+  });
+
   it('is about a metre and a half long with its tail, and stands on its origin', () => {
     const { group } = createBeaverModel();
     const box = visibleBox(group);

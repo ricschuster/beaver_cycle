@@ -41,7 +41,7 @@ export interface BeaverModel {
    * `mode` picks the pose, `tilt` (-1 rising to 1 sinking) pitches a diver's nose, and
    * `slapAge` is the seconds since a tail slap began, or null, and `carry` is the piece held in the mouth.
    */
-  update(time: number, speed01: number, mode?: BeaverMode, tilt?: number, slapAge?: number | null, carry?: Food | null): void;
+  update(time: number, speed01: number, mode?: BeaverMode, tilt?: number, slapAge?: number | null, carry?: Food | 'mud' | 'rock' | null): void;
 }
 
 function part(geometry: THREE.BufferGeometry, color: number, x: number, y: number, z: number): THREE.Mesh {
@@ -104,6 +104,21 @@ export function createBeaverModel(): BeaverModel {
   lily.visible = false;
   head.add(lily);
 
+  // A lump of mud in the paws and teeth, and a grey rock.
+  const mud = new THREE.Group();
+  mud.position.set(0, -0.12, 0.28);
+  mud.add(ellipsoid(0.15, 0.1, 0.13, 0x5a3f28, 0, 0, 0));
+  mud.add(ellipsoid(0.07, 0.05, 0.07, 0x6b4c31, 0.07, 0.07, 0.03));
+  mud.visible = false;
+  head.add(mud);
+  const rock = new THREE.Group();
+  rock.position.set(0, -0.1, 0.29);
+  const stone = part(new THREE.IcosahedronGeometry(0.16, 0), 0x8d8f8c, 0, 0, 0);
+  stone.scale.set(1, 0.8, 1);
+  rock.add(stone);
+  rock.visible = false;
+  head.add(rock);
+
   // Tail: a flat paddle hinged at the rump. Rotate `tail.rotation.x` to slap.
   const tail = new THREE.Group();
   tail.position.set(0, 0.28, -0.5);
@@ -125,6 +140,8 @@ export function createBeaverModel(): BeaverModel {
     update(time, speed01, mode = 'walk', tilt = 0, slapAge = null, carry = null) {
       branch.visible = carry === 'branch';
       lily.visible = carry === 'lily';
+      mud.visible = carry === 'mud';
+      rock.visible = carry === 'rock';
       const dt = Math.min(Math.max(time - last, 0), 0.1);
       last = time;
       const ease = Math.min(1, dt * 8);

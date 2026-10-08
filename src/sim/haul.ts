@@ -26,6 +26,8 @@ const LOOK = 3;
 export const MUD_REACH = 1.2;
 /** Water this deep (metres) counts as wet. */
 const WET = 0.02;
+/** A stream is wet this far (metres) from its centre line: the channel is 1 to 3 m wide. */
+export const STREAM_HALF_WIDTH = 1.5;
 
 export interface Rock {
   id: string;
@@ -40,13 +42,14 @@ function hash(cx: number, cz: number, salt: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-const wet = (terrain: Terrain, x: number, z: number): boolean => terrain.waterDepth(x, z) > WET;
+/** Wet ground: shallow lake water, or in a stream. */
+const wet = (terrain: Terrain, x: number, z: number): boolean => terrain.waterDepth(x, z) > WET || (terrain.streamDistance?.(x, z) ?? Infinity) <= STREAM_HALF_WIDTH;
 
 /** True where a rock makes sense (Q76): on a stream bed or a bank, or on steep stony ground. Not on a lake floor, and not on flat open ground. */
 export function rockGround(terrain: Terrain, x: number, z: number): boolean {
   const depth = terrain.waterDepth(x, z);
   if (depth > ROCK_MAX_DEPTH) return false;
-  if (depth > WET) return true;
+  if (wet(terrain, x, z)) return true;
   const h = terrain.heightAt(x, z);
   for (const [dx, dz] of [[LOOK, 0], [-LOOK, 0], [0, LOOK], [0, -LOOK]] as const) {
     if (wet(terrain, x + dx, z + dz)) return true;

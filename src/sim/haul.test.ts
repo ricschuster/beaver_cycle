@@ -10,6 +10,8 @@ const dry: Terrain = { heightAt: () => 0, isWater: () => false, waterDepth: () =
 const bank: Terrain = { heightAt: () => 0, isWater: (x) => x > 0, waterDepth: (x) => (x > 0 ? 0.2 : 0) };
 const lake: Terrain = { heightAt: () => 0, isWater: () => true, waterDepth: () => 1.5 };
 /** A steep slope rising 1 m per metre to the east. */
+/** Dry land with a stream along x = 0 (a centre line, 1.5 m to each side). */
+const creek: Terrain = { heightAt: () => 0, isWater: () => false, waterDepth: () => 0, streamDistance: (x) => Math.abs(x) };
 const steep: Terrain = { heightAt: (x) => x, isWater: () => false, waterDepth: () => 0 };
 
 describe('rocks', () => {
@@ -49,6 +51,20 @@ describe('mud', () => {
 
 const gnaw = { ...noActions(), chop: true };
 const drag = { ...noActions(), grab: true };
+
+describe('streams', () => {
+  it('give mud on the stream and at its edge, and rocks on its bed and banks', () => {
+    expect(canScoopMud(creek, 0.5, 0, 0)).toBe(true);
+    expect(canScoopMud(creek, 2.5, 0, -Math.PI / 2)).toBe(true);
+    expect(canScoopMud(creek, 10, 0, 0)).toBe(false);
+    expect(rockGround(creek, 1, 0)).toBe(true);
+    expect(rockGround(creek, 10, 0)).toBe(false);
+    const rocks = rocksNear(creek, 0, 0, 200);
+    expect(rocks.length).toBeGreaterThan(0);
+    for (const r of rocks) expect(Math.abs(r.x)).toBeLessThanOrEqual(4.5);
+    expect(step(createWorld(creek, 0.5, 0), { ...noActions(), chop: true }, 0.1, creek).haul).not.toBeNull();
+  });
+});
 
 describe('hauling', () => {
   it('gnawing at the water edge scoops mud into the mouth, once', () => {

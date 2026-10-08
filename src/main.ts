@@ -1,4 +1,4 @@
-import { mergeActions, relativeToView } from './actions/actions';
+import { mergeActions, noActions, relativeToView } from './actions/actions';
 import { createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { createRenderer } from './render/renderer';
@@ -23,6 +23,11 @@ import { LEVEL_COST, placed, spotAt } from './sim/dam';
 import { lodgeGround, pondsOf, withPonds } from './sim/pond';
 import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
+
+/** The fly view (?fly=1): the farthest zoom (metres), and the pan speed, a base plus a share of the zoom distance (metres per second). */
+const FLY_MAX_DIST = 600;
+const FLY_BASE_SPEED = 8;
+const FLY_SPEED_PER_M = 0.6;
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
 
 async function start(): Promise<void> {
@@ -78,7 +83,10 @@ async function start(): Promise<void> {
   renderer.setDamSpots(damSpots);
   if (query.get('damsites') === '1') setDamSites(true);
 
-  const rig = createCameraRig(renderer.canvas);
+  // ?fly=1: the stick or WASD pans the view over the land, faster the further out it is zoomed (up to 600 m), through trees and
+  // water alike. Nothing is built or gathered, but the clock and the ponds run on.
+  const fly = query.get('fly') === '1';
+  const rig = createCameraRig(renderer.canvas, fly ? FLY_MAX_DIST : undefined);
   let world = { ...createWorld(terrain, startX, startZ), spots: damSpots };
   // ?day=12&time=0.3 starts on that game day at that part of the day (0 dawn, 0.625 dusk), to look at the light.
   const startDay = Number(query.get('day') ?? 0);
@@ -210,7 +218,12 @@ async function start(): Promise<void> {
       stashTap = undefined;
       stashClose = false;
       const move = relativeToView(actions.move, rig.view.yaw);
-      world = step(world, { move, dive: actions.dive, slap: actions.slap, chop: actions.chop, grab: actions.grab, build: actions.build, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
+      if (fly) {
+        const speed = FLY_BASE_SPEED + rig.view.dist * FLY_SPEED_PER_M;
+        const to = { x: world.beaver.x + move.x * speed * dt, z: world.beaver.z + move.z * speed * dt };
+        world = teleport(step(world, noActions(), dt, terrain, trees), terrain, to.x, to.z);
+        if (move.x !== 0 || move.z !== 0) world = { ...world, beaver: { ...world.beaver, heading: Math.atan2(move.x, move.z) } };
+      } else world = step(world, { move, dive: actions.dive, slap: actions.slap, chop: actions.chop, grab: actions.grab, build: actions.build, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
       streamer?.update(world.beaver.x, world.beaver.z);
       rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
     }

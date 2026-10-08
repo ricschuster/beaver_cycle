@@ -18,6 +18,12 @@ describe('camera rig', () => {
     expect(v.dist).toBe(MIN_DIST);
   });
 
+  it('zooms out as far as a given maximum', () => {
+    const v = defaultView();
+    zoom(v, 1000, 600);
+    expect(v.dist).toBe(600);
+  });
+
   it('eases the yaw toward behind the beaver by the short way round', () => {
     // beaver faces +x (heading PI/2), so behind it is 3PI/2, which is -PI/2 once wrapped.
     // From PI the short way is up through the wrap, landing just past -PI.

@@ -109,6 +109,21 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     speedButtons.set(m, b);
   }
 
+  // The achievements, a row that opens and closes (closed at first), near the top so it is easy to find.
+  const achievementsRow = row('Achievements');
+  const achievementsButton = document.createElement('button');
+  achievementsButton.dataset.action = 'achievements';
+  style(achievementsButton);
+  achievementsButton.textContent = 'Show';
+  const achievements = document.createElement('pre');
+  achievements.style.cssText = 'display:none;margin:6px 0 0;font:12px ui-monospace,monospace;white-space:pre';
+  achievementsButton.onclick = () => {
+    const open = achievements.style.display === 'none';
+    achievements.style.display = open ? 'block' : 'none';
+    achievementsButton.textContent = open ? 'Hide' : 'Show';
+  };
+  achievementsRow.append(achievementsButton, achievements);
+
   const timeRow = row('Time of day');
   const parts: [string, number][] = [
     ['Dawn', 0.02],
@@ -244,9 +259,6 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     jumpRow.appendChild(b);
   }
 
-  const achievements = document.createElement('pre');
-  achievements.style.cssText = 'margin:8px 0 0;font:12px ui-monospace,monospace;white-space:pre';
-  panel.appendChild(achievements);
   const readout = document.createElement('pre');
   readout.style.cssText = 'margin:8px 0 0;font:12px ui-monospace,monospace;white-space:pre';
   panel.appendChild(readout);

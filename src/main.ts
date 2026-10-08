@@ -1,6 +1,7 @@
 import { mergeActions, noActions, relativeToView } from './actions/actions';
 import { createHeldKeys, createKeyboardInput } from './actions/keyboard';
 import { createCameraRig, zoom } from './render/cameraRig';
+import { fly as flyStep, flyTarget, glide, look as lookAround, pickGround, type FlyTarget } from './render/flyCam';
 import { createRenderer } from './render/renderer';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
@@ -18,6 +19,7 @@ import { storeCapacity, storeCondition } from './sim/food';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
+import { createFlyButtons } from './ui/flyButtons';
 import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
 import { lodgeGround, pondsOf, withPonds } from './sim/pond';
@@ -33,6 +35,12 @@ const FLY_BASE_SPEED = 8;
 const FLY_SPEED_PER_M = 0.6;
 /** Q zooms in and E zooms out at this rate (e-folds per second). */
 const FLY_ZOOM_RATE = 1.2;
+/** The free fly view (?fly=free) starts this high over the start spot and a little south of it, looking north over the lake. */
+const FREE_START_HEIGHT = 80;
+const FREE_START_BACK = 120;
+const FREE_START_PITCH = 0.3;
+/** The camera's vertical field of view, degrees (renderer.ts), which the tap needs to find the ground under a finger. */
+const CAMERA_FOV = 60;
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
 
 async function start(): Promise<void> {
@@ -91,7 +99,36 @@ async function start(): Promise<void> {
   // ?fly=1: the view comes loose from the beaver, which stands still. The stick or WASD pans it over the land, faster the further
   // out it is zoomed, and Q and E zoom (up to 600 m). The clock and the ponds run on.
   const fly = query.get('fly') === '1';
-  const rig = createCameraRig(renderer.canvas, fly ? { maxDist: FLY_MAX_DIST, pan: (dx, dy) => panFly(dx, dy) } : {});
+  // ?fly=free: a drone. The stick or WASD flies it along where it looks (W forward, A and D sideways), Space or E climbs, Shift or
+  // Q descends, a drag turns it, and a tap on the land glides it there. It keeps 3 m over the ground and the water. The beaver stands still.
+  const free = query.get('fly') === 'free';
+  // The ground, or the water over it, for the drone to stay above.
+  const surface = (x: number, z: number): number => terrain.heightAt(x, z) + (terrain.isWater(x, z) ? terrain.waterDepth(x, z) : 0);
+  let glideTo: FlyTarget | null = null;
+  const rig = createCameraRig(
+    renderer.canvas,
+    fly
+      ? { maxDist: FLY_MAX_DIST, pan: (dx, dy) => panFly(dx, dy) }
+      : free
+        ? {
+            pan: (dx, dy) => {
+              glideTo = null;
+              lookAround(rig.view, dx, dy);
+            },
+            onTap: (x, y) => {
+              const hit = pickGround(rig.view, (x / window.innerWidth) * 2 - 1, 1 - (y / window.innerHeight) * 2, window.innerWidth / window.innerHeight, (CAMERA_FOV * Math.PI) / 180, surface);
+              if (hit && rig.view.free) glideTo = flyTarget(rig.view.free, hit, surface);
+            },
+          }
+        : {},
+  );
+  if (free) {
+    touch.setActionsVisible(false);
+    rig.view.yaw = 0;
+    rig.view.pitch = FREE_START_PITCH;
+    rig.view.free = { x: startX, y: surface(startX, startZ + FREE_START_BACK) + FREE_START_HEIGHT, z: startZ + FREE_START_BACK };
+  }
+  const flyButtons = createFlyButtons(document.body, free && wantsTouchControls(navigator, query));
   // North is -z and east is +x. The view looks straight down with north up, so the map slides with the finger: a drag right
   // shows more to the west. A pixel is about this many metres across at the view's distance.
   const panFly = (dx: number, dy: number): void => {
@@ -239,7 +276,16 @@ async function start(): Promise<void> {
       stashTap = undefined;
       stashClose = false;
       const move = relativeToView(actions.move, rig.view.yaw);
-      if (fly) {
+      if (free && rig.view.free) {
+        // The drone leaves the beaver, which stands still. Any move or climb cancels a tap's glide; the streamer follows the drone.
+        const climb = (held('Space') || held('KeyE') ? 1 : 0) - (held('ShiftLeft') || held('ShiftRight') || held('KeyQ') ? 1 : 0) + flyButtons.read();
+        if (actions.move.x !== 0 || actions.move.z !== 0 || climb !== 0) glideTo = null;
+        if (glideTo) {
+          if (glide(rig.view, glideTo, dt)) glideTo = null;
+        } else flyStep(rig.view, actions.move, climb, dt, surface);
+        world = step(world, noActions(), dt, terrain, trees);
+        streamer?.update(rig.view.free.x, rig.view.free.z);
+      } else if (fly) {
         // The view leaves the beaver, which stands still; the stick or WASD moves the view's own point, Q and E zoom.
         const speed = FLY_BASE_SPEED + rig.view.dist * FLY_SPEED_PER_M;
         const at = rig.view.focus ?? { x: world.beaver.x, z: world.beaver.z };

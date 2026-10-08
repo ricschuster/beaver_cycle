@@ -13,6 +13,7 @@ import type { TileStore } from '../terrain/store';
 import { createBeaverModel } from './beaverModel';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
+import { lookDir } from './flyCam';
 import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
 import { INTERIOR_RADIUS, lodgeCondition } from '../sim/lodge';
 import { storeCondition } from '../sim/food';
@@ -320,9 +321,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
       // The fly view orbits a free point on the ground, or on the water over it, not the beaver.
-      const fx = view.focus && !inside ? view.focus : null;
+      const free = view.free && !inside ? view.free : null;
+      const fx = view.focus && !inside && !free ? view.focus : null;
       const flyY = fx && source ? source.store.heightAt(fx.x, fx.z) + (source.store.isWater(fx.x, fx.z) ? source.store.waterDepth(fx.x, fx.z) : 0) : 0;
-      const look = fx ? { x: fx.x, y: flyY + 1.0, z: fx.z } : { x: b.x, y: b.y + 1.0, z: b.z };
+      const look = free ? { x: free.x, y: free.y, z: free.z } : fx ? { x: fx.x, y: flyY + 1.0, z: fx.z } : { x: b.x, y: b.y + 1.0, z: b.z };
       const flat = Math.cos(view.pitch);
       const want = {
         x: b.x + Math.sin(view.yaw) * view.dist * flat,
@@ -330,17 +332,17 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         z: b.z + Math.cos(view.yaw) * view.dist * flat,
       };
       // Pull in before a tree, easing in over a quarter second and back out over a second.
-      const clear = terrain && !inside && !fx ? clearDistance(look, want, view.dist, terrain) : view.dist;
+      const clear = terrain && !inside && !fx && !free ? clearDistance(look, want, view.dist, terrain) : view.dist;
       const dt = Math.min(0.1, Math.max(0, now - lastFrame));
       lastFrame = now;
       reach = easeReach(reach, clear, dt);
       const f = reach / view.dist;
-      const camX = look.x + (want.x - look.x) * f;
-      const camZ = look.z + (want.z - look.z) * f;
+      const camX = free ? free.x : look.x + (want.x - look.x) * f;
+      const camZ = free ? free.z : look.z + (want.z - look.z) * f;
       // Keep the camera above the ground it swings over, and out of the water surface band.
       const ground = source && !inside ? source.store.heightAt(camX, camZ) : 0;
       const level = source && !inside && source.store.isWater(camX, camZ) ? ground + source.store.waterDepth(camX, camZ) : null;
-      let camY = clearSurface(Math.max(look.y + (want.y - look.y) * f, ground + 1), level);
+      let camY = free ? free.y : clearSurface(Math.max(look.y + (want.y - look.y) * f, ground + 1), level);
       let cx = camX;
       let cz = camZ;
       if (inside && world.lodge) {
@@ -358,7 +360,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         }
       }
       camera.position.set(cx, camY, cz);
-      camera.lookAt(look.x, look.y, look.z);
+      if (free) {
+        const d = lookDir(view.yaw, view.pitch);
+        camera.lookAt(cx + d.x, camY + d.y, cz + d.z);
+      } else camera.lookAt(look.x, look.y, look.z);
       // Under the surface the view turns blue and short.
       const under = level !== null && camY < level;
       interior.update(inside ? world.lodge : null);

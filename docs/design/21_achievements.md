@@ -29,7 +29,7 @@ or drop. The family achievements (a mate, kits, the guides, Q38) wait for M6 and
 | `highDam` | Higher dam | A dam is whole at the top level its spot holds, for a spot that holds level 2 or 3 | `Dam.level` against `maxLevel(spot)` | none |
 | `pioneer` | Pioneer | A dam is started at a spot that a pond found (`newSpots.ts`) | a spot's origin | `DamSpot.found?: true`, set by `withNewSpots` |
 | `pantry` | Pantry | Every one of the 40 places of the store holds a piece | `stockTotal(store) === STORE_CAPACITY` | none |
-| `gardener` | Water gardener | 20 lily pads picked | count of `picked` over all years | `picked` keeps one entry per pad per year, so count entries; a pad picked again after it grew back is not counted twice unless the counter below is added |
+| `gardener` | Water gardener | 20 lily pads picked | each pad picked | `WorldState.padsPicked: number`, counted when a pad is picked (a pad that grew back counts again) |
 | `handy` | Handy beaver | A worn dam, store, or lodge is mended back to new | the end of a mend (`repairing` turns off, the store or lodge wear returns to 1) | `WorldState.mended: number`, counted at that moment |
 | `hauler` | Hauler | 30 loads of mud and rock put down on dams | each mud or rock placed at a dam | `WorldState.hauled: number`, counted in the build step |
 | `year` | A full year | The game clock is one year (`DAYS_PER_YEAR`) past the start | `clock - START_CLOCK` | none |
@@ -45,8 +45,8 @@ or drop. The family achievements (a mate, kits, the guides, Q38) wait for M6 and
   is not the same: it goes when the beaver comes near. A new `found` flag stays.
 - **Pantry** is checked as it stands, so a store that wears down and loses places can still be filled again. Winning
   once is enough.
-- **Water gardener** counts every pad picked in a year and picks again next year as a new pad. A simple counter
-  (`WorldState.padsPicked`) is clearer than reading `picked`, and the plan is to use it.
+- **Water gardener** uses its own counter, not `picked`, because `picked` holds one entry per pad and forgets a pad picked
+  again after it grew back.
 - **Handy beaver** is the one the author's repair idea (Q57) points at: repair is the same carry and place action as
   building, so the achievement says the chore was done once.
 - **Hauler** counts mud and rock placed at a dam, not dropped on the ground, so it is a measure of building.

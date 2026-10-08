@@ -11,6 +11,7 @@ import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
+import { newlyWon } from './achievements';
 import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
 /** The longest stretch of a move, in metres, checked for bumps in one go. */
@@ -100,6 +101,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     time,
     chop,
     felled,
+    achievements: [...world.achievements, ...newlyWon({ felled, achievements: world.achievements })],
     logs,
     drag,
     lodge: built.lodge ? followPond(built.lodge, pondSet.ponds, ground) : null,

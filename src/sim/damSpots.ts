@@ -9,6 +9,8 @@ export interface ScannedSite {
   x: number;
   z: number;
   bed_m: number;
+  /** Where the channel bed lies, a few metres off the drawn stream line (x, z). Missing in an older file. */
+  channel?: [number, number];
   /** Unit vector pointing downstream, in x and z. */
   flow: [number, number];
   crest_m: number;
@@ -23,6 +25,8 @@ export interface ScannedSite {
 export interface DamSpot {
   id: string;
   bed: { x: number; z: number };
+  /** The channel bed the pond is worked out from, a few metres off `bed` (the drawn stream line); `bed` itself when not known. */
+  channel?: { x: number; z: number };
   /** Height of the stream bed here, metres. */
   bedY: number;
   /** Unit vector pointing downstream, in x and z. */
@@ -59,6 +63,7 @@ export function spotFromSite(s: ScannedSite): DamSpot {
   return {
     id: `${s.near}:${Math.round(s.x)}:${Math.round(s.z)}`,
     bed: { x: s.x, z: s.z },
+    ...(s.channel ? { channel: { x: s.channel[0], z: s.channel[1] } } : {}),
     bedY: s.bed_m,
     flow: { x: s.flow[0], z: s.flow[1] },
     maxCrest: s.crest_m,

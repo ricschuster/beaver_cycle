@@ -138,6 +138,14 @@ export class TileStore implements Terrain {
     return best;
   }
 
+  /** The land cover class of the cell under a point, from the finest level loaded. 0 (bare ground) with no tile. */
+  coverAt(x: number, z: number): number {
+    const at = this.locate(x, z);
+    if (!at) return 0;
+    const n = at.tile.n;
+    return at.tile.classes[Math.min(Math.floor(at.v), n - 1) * n + Math.min(Math.floor(at.u), n - 1)] ?? 0;
+  }
+
   isWater(x: number, z: number): boolean {
     return this.waterDepth(x, z) > 0;
   }

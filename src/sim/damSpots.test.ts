@@ -12,6 +12,13 @@ describe('maxLevel', () => {
   });
 });
 
+describe('spotFromSite', () => {
+  it('keeps the channel bed point the scan found beside the drawn line, and does without it in an older file', () => {
+    expect(spotFromSite(site({ channel: [3, -2] })).channel).toEqual({ x: 3, z: -2 });
+    expect(spotFromSite(site({})).channel).toBeUndefined();
+  });
+});
+
 describe('firstSpots', () => {
   const anchor = { x: 0, z: 0 };
   it('takes the nearest sites of the location, spaced apart', () => {

@@ -28,6 +28,18 @@ describe('floodPond', () => {
     expect(pondDepthAt([p], (x, z) => t.heightAt(x, z), -20, 30)).toBe(0);
   });
 
+  it('puts the dam line through the channel bed point when the spot has one, not the drawn line point', () => {
+    const t = valley();
+    // The drawn line point sits 6 m upstream of the channel bed point: the pond stops at the channel point's dam line.
+    const drawn: DamSpot = { ...spot, bed: { x: -6, z: 0 }, channel: { x: 0, z: 0 } };
+    const p = floodPond(t, drawn, 1)!;
+    expect(pondDepthAt([p], (x, z) => t.heightAt(x, z), -3, 0)).toBeGreaterThan(0);
+    expect(pondDepthAt([p], (x, z) => t.heightAt(x, z), 3, 0)).toBe(0);
+    const byLine = floodPond(t, { ...drawn, channel: undefined }, 1)!;
+    expect(pondDepthAt([byLine], (x, z) => t.heightAt(x, z), -3, 0)).toBe(0);
+    expect(p.area).toBeGreaterThan(byLine.area);
+  });
+
   it('is bigger for a higher crest', () => {
     const t = valley();
     expect(floodPond(t, spot, 1)!.area).toBeGreaterThan(floodPond(t, spot, 0.5)!.area);

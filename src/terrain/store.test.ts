@@ -78,6 +78,16 @@ describe('TileStore', () => {
     expect(s.isWater(10, 10)).toBe(false);
   });
 
+  it('reads the land cover class under a point, 0 with no data', () => {
+    const s = new TileStore(makeIndex([0, 0], [0, 0]));
+    expect(s.coverAt(10, 10)).toBe(0);
+    const t = makeTile(0, 0, 0, () => 600, 2);
+    t.classes[0] = 1; // the north west cell is meadow
+    s.put(t);
+    expect(s.coverAt(1, 1)).toBe(1);
+    expect(s.coverAt(100, 100)).toBe(2);
+  });
+
   it('counts tiles by level', () => {
     const s = new TileStore(makeIndex([0, 1], [0, 0]));
     s.put(makeTile(0, 0, 0, () => 0));

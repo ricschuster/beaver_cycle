@@ -266,7 +266,7 @@ def scan_point(heights, x, z, ux, uz, lake_levels=(), lines=None):
         return None  # the first dam must hold a pond on the stream too
     # The site is where the drawn stream runs (the OSM line point), so the ring, the dam, and the pond sit on the
     # stream the player sees. The channel bed found next to it sets the bed height and the pond.
-    return {"x": round(x, 1), "z": round(z, 1), "bed_m": round(bed, 2),
+    return {"x": round(x, 1), "z": round(z, 1), "bed_m": round(bed, 2), "channel": [round(bx, 1), round(bz, 1)],
             "flow": [round(flow[0], 3), round(flow[1], 3)], **best,
             # The dam length at each CRESTS height (None where that level holds no pond), which sets what a dam costs.
             "dam_widths": widths}

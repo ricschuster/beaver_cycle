@@ -64,12 +64,13 @@ export function floodPond(terrain: Terrain, spot: DamSpot, crest: number): Pond 
   const level = spot.bedY + crest;
   const { x: fx, z: fz } = spot.flow;
   // Upstream of the dam line, which runs across the stream through the bed point.
-  const up = (i: number, j: number): number => -((x0 + i * POND_CELL - spot.bed.x) * fx + (z0 + j * POND_CELL - spot.bed.z) * fz);
+  const dam = spot.channel ?? spot.bed;
+  const up = (i: number, j: number): number => -((x0 + i * POND_CELL - dam.x) * fx + (z0 + j * POND_CELL - dam.z) * fz);
   const low = (i: number, j: number): boolean => heights[j * n + i]! < level && up(i, j) > 0;
   let seed: [number, number] | null = null;
-  for (let j = k - SEED_RADIUS / POND_CELL; j <= k + SEED_RADIUS / POND_CELL; j++) {
-    for (let i = k - SEED_RADIUS / POND_CELL; i <= k + SEED_RADIUS / POND_CELL; i++) {
-      if (Math.hypot((i - k) * POND_CELL, (j - k) * POND_CELL) > SEED_RADIUS || up(i, j) < SEED_MIN_UP || !low(i, j)) continue;
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      if (Math.hypot(x0 + i * POND_CELL - dam.x, z0 + j * POND_CELL - dam.z) > SEED_RADIUS || up(i, j) < SEED_MIN_UP || !low(i, j)) continue;
       if (!seed || heights[j * n + i]! < heights[seed[1] * n + seed[0]]!) seed = [i, j];
     }
   }
@@ -168,5 +169,6 @@ export function withPonds(terrain: Terrain, ponds: readonly Pond[]): Terrain {
     waterDepth,
     isWater: (x, z) => waterDepth(x, z) > 0,
     streamDistance: terrain.streamDistance ? (x, z) => terrain.streamDistance!(x, z) : undefined,
+    coverAt: terrain.coverAt ? (x, z) => terrain.coverAt!(x, z) : undefined,
   };
 }

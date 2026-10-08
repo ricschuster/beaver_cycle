@@ -11,7 +11,12 @@ export interface Terrain {
   waterDepth(x: number, z: number): number;
   /** Metres from a point to the nearest stream centre line, or Infinity with no stream near. Missing where the ground has no streams (a test stand-in). */
   streamDistance?(x: number, z: number): number;
+  /** The land cover class at a point (the tile classes, `COVER_MEADOW` and so on). Missing where the ground has no land cover (a test stand-in). */
+  coverAt?(x: number, z: number): number;
 }
+
+/** The land cover class of meadow in the tiles (tools/tiles/build_tiles.py CLASSES). */
+export const COVER_MEADOW = 1;
 
 export function flatTerrain(height = 0): Terrain {
   return {

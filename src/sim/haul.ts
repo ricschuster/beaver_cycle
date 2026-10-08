@@ -2,7 +2,7 @@
 // mouth, like food. Mud is scooped from the wet bank or the shallows. Rocks are not stored in the world: each is worked
 // out from a grid cell and the terrain, as the lily pads are, so the same rocks lie in the same places every time. A
 // rock taken is noted by id. Plain data and pure functions, no three.js (ADR 0007).
-import type { Terrain } from './terrain';
+import { COVER_MEADOW, type Terrain } from './terrain';
 
 /** What the beaver holds in its mouth besides food: mud, or a rock. */
 export interface Haul {
@@ -77,11 +77,12 @@ function hash(cx: number, cz: number, salt: number): number {
 /** Wet ground: shallow lake water, or in a stream. */
 const wet = (terrain: Terrain, x: number, z: number): boolean => terrain.waterDepth(x, z) > WET || (terrain.streamDistance?.(x, z) ?? Infinity) <= STREAM_HALF_WIDTH;
 
-/** True where a rock makes sense (Q76): on a stream bed or a bank, or on steep stony ground. Not on a lake floor, and not on flat open ground. */
+/** True where a rock makes sense (Q76): on a stream bed or a bank, or on steep stony ground. Not on a lake floor, not on flat open ground, and not on a dry meadow (the stream bed itself may cross one). */
 export function rockGround(terrain: Terrain, x: number, z: number): boolean {
   const depth = terrain.waterDepth(x, z);
   if (depth > ROCK_MAX_DEPTH) return false;
   if (wet(terrain, x, z)) return true;
+  if (terrain.coverAt?.(x, z) === COVER_MEADOW) return false;
   const h = terrain.heightAt(x, z);
   for (const [dx, dz] of [[LOOK, 0], [-LOOK, 0], [0, LOOK], [0, -LOOK]] as const) {
     if (wet(terrain, x + dx, z + dz)) return true;

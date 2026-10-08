@@ -133,7 +133,8 @@ the quality budget (#120).
   shoves floating logs aside; a diver swims under them. Moves are checked in
   steps of 0.4 m, so a fast beaver cannot skip a trunk. Logs do not stop
   other logs, and the dragged log passes through trees. Not done: floating logs drifting with the
-  stream, eating, the dam, wear.
+  stream. Eating is at the food store (`16_food_store.md`), the dam and its pond are in
+  (`20_dams_and_ponds.md`), and wear is in (see below).
 - Done so far (lodge, wood only): B (or the Build button) while dragging a log
   places it (`src/sim/lodge.ts`). The first log starts the lodge at a spot 3 m
   ahead of the beaver in shallow water (0.1 to 1.2 m deep) with deep water within
@@ -153,7 +154,10 @@ the quality budget (#120).
   yet, a ring on the spot ahead is green where a lodge can start and red where
   not, and the HUD says why (face the water, too deep, no deep water near). No mud or rock yet, a log that cannot be placed stays in the beaver's mouth, and one
   lodge per world. Numbers are a first guess. Wear and the glowing repair circle
-  come next; the middle of a pond is for later, with the dam.
+  came later (`src/sim/wear.ts`, `15_build_and_repair.md`).
+
+- Left in M5: the first tasks and the wood achievement (30 trees). The HUD counts trees felled, but nothing
+  else is built for them. The wear numbers, drag speed, and other first guesses still need a try on the tablet.
 
 ## M6: One life, then the next
 

@@ -13,7 +13,7 @@ import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
 import { createCarryHud, foodInfoOf } from './ui/carryHud';
-import { ACHIEVEMENT_TEXT } from './sim/achievements';
+import { ACHIEVEMENT_TEXT, achievementLines } from './sim/achievements';
 import { createToast } from './ui/toast';
 import { createClockHud } from './ui/clockHud';
 import { createStashPanel } from './ui/stashPanel';
@@ -168,7 +168,8 @@ async function start(): Promise<void> {
     if (site) {
       const age = ageDays;
       const wear = newWear(world.clock - age * DAY_SECONDS);
-      world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear }, storeWear: wear };
+      // The test lodge is not the player's work, so Home counts as won without a toast (design note 21).
+      world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear }, storeWear: wear, achievements: [...world.achievements, 'home'] };
     }
   }
   let last = performance.now();
@@ -342,6 +343,7 @@ async function start(): Promise<void> {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;
       const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+      menu.setAchievements(achievementLines(world));
       menu.setReadout({
         fps,
         beaver: {

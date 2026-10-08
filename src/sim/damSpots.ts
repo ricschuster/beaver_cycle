@@ -38,6 +38,8 @@ export interface DamSpot {
   widths?: (number | null)[];
   /** A spot found by a pond (`newSpots.ts`) and not yet worked out on the ground near it: its biggest level may be too generous until the beaver comes close. */
   rough?: true;
+  /** True for a spot a pond found (`newSpots.ts`), kept for good: a dam started here is the pioneer achievement. */
+  found?: true;
 }
 
 /** Crest above the bed for each dam level, metres (design note 20). */

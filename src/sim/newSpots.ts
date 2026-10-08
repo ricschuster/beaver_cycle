@@ -97,6 +97,7 @@ function spotAtPoint(terrain: Terrain, p: StreamPoint, near: string): DamSpot | 
     maxCrest: LEVEL_CREST[LEVEL_CREST.length - 1]!,
     pondM2: 0,
     rough: true,
+    found: true,
   };
   return holdOf(terrain, draft);
 }

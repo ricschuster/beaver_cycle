@@ -11,7 +11,7 @@ import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
-import { newlyWon } from './achievements';
+import { tally } from './achievements';
 import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
 /** The longest stretch of a move, in metres, checked for bumps in one go. */
@@ -93,7 +93,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   // A pond that has just grown or sunk may open up new dam spots on the streams round it (design note 20).
   const found = pondSet === prevPonds ? world.spots : withNewSpots(world.spots, pondSet.ponds.filter((p) => prevPonds.crests[p.spot] !== p.crest), ground);
   const spots = refineNear(found, beaver.x, beaver.z, ground, built.dams);
-  return {
+  const next: WorldState = {
     ...world,
     ...food,
     // A worn store loses the places it can no longer hold, and a broken one all of them: what was in them is gone (15_build_and_repair.md).
@@ -101,11 +101,11 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     time,
     chop,
     felled,
-    achievements: [...world.achievements, ...newlyWon({ felled, achievements: world.achievements })],
     logs,
     drag,
     lodge: built.lodge ? followPond(built.lodge, pondSet.ponds, ground) : null,
     dams: built.dams,
+    hauled: built.hauled,
     spots,
     ponds: pondSet.ponds,
     pondCrests: pondSet.crests,
@@ -115,6 +115,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     lastSlap,
     beaver,
   };
+  return tally(world, next);
 }
 
 /**
@@ -125,7 +126,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
  * beaver's mouth.
  */
 function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: number; z: number }, terrain: Terrain, ground: Terrain): { world: WorldState; beaver: BeaverState } {
-  let { lodge, logs, drag, inLodge, storeWear, dams, haul } = world;
+  let { lodge, logs, drag, inLodge, storeWear, dams, haul, hauled } = world;
   let beaver = b;
   if (inLodge && lodge) {
     if (actions.build && atHole(lodge, b.x, b.z)) {
@@ -152,8 +153,9 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
           drag = null;
         } else {
           haul = null;
+          hauled += 1;
         }
-        return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul }, beaver };
+        return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul, hauled }, beaver };
       }
       if (haul) return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul }, beaver };
     }

@@ -52,6 +52,8 @@ export interface TestMenuOptions {
 export interface TestMenu {
   /** Update the readout text. Cheap enough to call a few times a second. */
   setReadout(r: MenuReadout): void;
+  /** The achievements list, one line each (`achievementLines`). */
+  setAchievements(lines: string[]): void;
   setSpeed(multiplier: number): void;
   /** A short note under the readout, such as "Loading..." during a jump. */
   setStatus(text: string): void;
@@ -242,6 +244,9 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     jumpRow.appendChild(b);
   }
 
+  const achievements = document.createElement('pre');
+  achievements.style.cssText = 'margin:8px 0 0;font:12px ui-monospace,monospace;white-space:pre';
+  panel.appendChild(achievements);
   const readout = document.createElement('pre');
   readout.style.cssText = 'margin:8px 0 0;font:12px ui-monospace,monospace;white-space:pre';
   panel.appendChild(readout);
@@ -260,6 +265,10 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   parent.appendChild(root);
 
   const menu: TestMenu = {
+    setAchievements(lines) {
+      const text = lines.join('\n');
+      if (achievements.textContent !== text) achievements.textContent = text;
+    },
     setReadout(r) {
       readout.textContent = formatReadout(r);
     },

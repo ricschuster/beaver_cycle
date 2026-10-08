@@ -31,6 +31,8 @@ test('the test menu sets the speed and jumps to a location', async ({ page }) =>
   await page.goto('/?shadows=0');
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
   const hasTiles = await page.evaluate(() => (window as any).__game.stats() !== null);
+  // Each jump loads real tiles, several seconds apiece.
+  if (hasTiles) test.setTimeout(90_000);
   await page.getByRole('button', { name: 'Test menu' }).click();
   await page.locator('button[data-speed="100"]').click();
   expect(await page.evaluate(() => (window as any).__game.world().speedMultiplier)).toBe(100);
@@ -42,10 +44,11 @@ test('the test menu sets the speed and jumps to a location', async ({ page }) =>
     await page.locator('button[data-location="north"]').click();
     await page.waitForFunction(() => (window as any).__game.world().beaver.z < -1900, null, { polling: 100 });
     expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(500);
-    // the far locations stand on real ground, well above the valley floor
+    // the far locations stand on real ground, well above the valley floor; a jump lands near a dam spot, which for the
+    // east extension lies about a kilometre west of its anchor (x 4909, z 519)
     await page.locator('button[data-location="east-oedseen"]').click();
-    await page.waitForFunction(() => (window as any).__game.world().beaver.x > 4800, null, { polling: 100 });
-    expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(650);
+    await page.waitForFunction(() => (window as any).__game.world().beaver.x > 3500, null, { polling: 100 });
+    expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(600);
     await page.locator('button[data-location="hinterer-springbach"]').click();
     await page.waitForFunction(() => Math.abs((window as any).__game.world().beaver.x - 3207) < 50, null, { polling: 100 });
     expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(750);
@@ -191,4 +194,22 @@ test('the free fly view flies with the keys, turns with a drag, and glides to a 
   const after = await view();
   expect(Math.hypot(after.free.x - at.free.x, after.free.y - at.free.y, after.free.z - at.free.z)).toBeGreaterThan(1);
   expect(errors).toEqual([]);
+});
+
+test('the test menu switches to the drone and the map view and back, keeping the other settings', async ({ page }) => {
+  await page.goto('/?shadows=0&lodge=0');
+  await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator('button[data-fly="free"]').click();
+  await page.waitForURL(/fly=free/);
+  expect(page.url()).toContain('shadows=0');
+  await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator('button[data-fly="map"]').click();
+  await page.waitForURL(/fly=1/);
+  await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator('button[data-fly="off"]').click();
+  await page.waitForURL((u) => !u.search.includes('fly'));
+  expect(page.url()).toContain('lodge=0');
 });

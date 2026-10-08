@@ -330,7 +330,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         z: b.z + Math.cos(view.yaw) * view.dist * flat,
       };
       // Pull in before a tree, easing in over a quarter second and back out over a second.
-      const clear = terrain && !inside ? clearDistance(look, want, view.dist, terrain) : view.dist;
+      const clear = terrain && !inside && !fx ? clearDistance(look, want, view.dist, terrain) : view.dist;
       const dt = Math.min(0.1, Math.max(0, now - lastFrame));
       lastFrame = now;
       reach = easeReach(reach, clear, dt);
@@ -426,8 +426,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         (scene.fog as THREE.Fog).near = under ? 2 : FOG_NEAR;
         (scene.fog as THREE.Fog).far = under ? 45 : FOG_FAR;
       }
-      terrain?.update(b.x, b.z);
-      spotRings?.update(b.x, b.z, world.dams, world.clock);
+      // The land and the spot rings are drawn around the view's point: the beaver, or the free point of the fly view.
+      terrain?.update(look.x, look.z);
+      spotRings?.update(look.x, look.z, world.dams, world.clock);
       pondView.update(world.ponds);
       if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z), world.clock, world.ponds);
       lodgeView.update(inside ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);

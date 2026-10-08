@@ -26,6 +26,9 @@ import { treeTuning } from './terrain/trees';
 
 /** The fly view (?fly=1): the farthest zoom (metres), and the pan speed, a base plus a share of the zoom distance (metres per second). */
 const FLY_MAX_DIST = 600;
+/** The fly view starts high above the start, looking down steeply. */
+const FLY_START_DIST = 250;
+const FLY_START_PITCH = 1.0;
 const FLY_BASE_SPEED = 8;
 const FLY_SPEED_PER_M = 0.6;
 /** Q zooms in and E zooms out at this rate (e-folds per second). */
@@ -90,6 +93,11 @@ async function start(): Promise<void> {
   const fly = query.get('fly') === '1';
   const rig = createCameraRig(renderer.canvas, fly ? FLY_MAX_DIST : undefined);
   const held = createHeldKeys(window);
+  if (fly) {
+    rig.view.dist = FLY_START_DIST;
+    rig.view.pitch = FLY_START_PITCH;
+    rig.view.focus = { x: startX, z: startZ };
+  }
   let world = { ...createWorld(terrain, startX, startZ), spots: damSpots };
   // ?day=12&time=0.3 starts on that game day at that part of the day (0 dawn, 0.625 dusk), to look at the light.
   const startDay = Number(query.get('day') ?? 0);

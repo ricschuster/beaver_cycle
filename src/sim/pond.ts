@@ -2,9 +2,10 @@
 // connected to the stream. A flood fill over a window of the ground, the same walk the dam site scan does
 // (tools/dam-sites/scan_dam_sites.py). Water is not simulated: the level is a number and the extent a fill. The fill is
 // kept as a grid of ground heights and flooded points, so it never asks the ground again. No three.js (ADR 0007).
-import { LEVEL1_COST, damProgress, type Dam } from './dam';
+import { LEVEL1_COST, damCondition, damProgress, type Dam } from './dam';
 import { LEVEL_CREST, type DamSpot } from './damSpots';
 import type { Terrain } from './terrain';
+import { WORN_BELOW } from './wear';
 
 /** Grid cell and half side of the window, metres: the same as the scan. */
 export const POND_CELL = 2;
@@ -17,9 +18,14 @@ const SEED_MIN_UP = 1;
 /** A pond shows only from this crest height up, metres: a few centimetres is a wet patch. */
 export const MIN_CREST = 0.15;
 
+/** The crest is worked out in steps of this many metres, so the pond is flooded again only when the level moves a step. */
+export const CREST_STEP = 0.05;
+
 export interface Pond {
   /** The `DamSpot.id` of the dam holding it. */
   spot: string;
+  /** Crest height above the bed it was flooded for, metres. */
+  crest: number;
   /** Height of the water surface, metres. */
   level: number;
   /** Grid points on a side, and the position of point (0, 0), metres. */
@@ -34,9 +40,15 @@ export interface Pond {
   area: number;
 }
 
-/** Height of the water above the stream bed for a dam, rising as it is built: the full level 1 crest when whole. */
-export function crestOf(dam: Dam | undefined): number {
-  return LEVEL_CREST[0]! * damProgress(dam, LEVEL1_COST);
+/**
+ * Height of the water above the stream bed for a dam, in steps of `CREST_STEP`: it rises as the dam is built to the full
+ * level 1 crest. A whole dam holds it while good, and lets it sag as it wears (15_build_and_repair.md): the level falls with
+ * the condition below worn, so a worn dam sags a little each day and a broken one drains to the stream within days.
+ */
+export function crestOf(dam: Dam | undefined, clock = 0): number {
+  const full = LEVEL_CREST[0]! * damProgress(dam, LEVEL1_COST);
+  const crest = full * Math.min(1, damCondition(dam, clock) / WORN_BELOW);
+  return Math.round(crest / CREST_STEP) * CREST_STEP;
 }
 
 /** The pond a crest of this height holds at a spot, or null when the ground does not hold it (too low, too wide, spills). */
@@ -78,18 +90,36 @@ export function floodPond(terrain: Terrain, spot: DamSpot, crest: number): Pond 
       queue.push([a, b]);
     }
   }
-  return { spot: spot.id, level, n, x0, z0, heights, flooded, area: cells * POND_CELL ** 2 };
+  return { spot: spot.id, crest, level, n, x0, z0, heights, flooded, area: cells * POND_CELL ** 2 };
 }
 
-/** The ponds of a list of dams: one per dam that holds water, at the crest the dam has been built to. */
-export function pondsOf(dams: readonly Dam[], spots: readonly DamSpot[], terrain: Terrain): Pond[] {
+/** What the ponds were last flooded for: the ponds, and the crest of each dam they were worked out at. */
+export interface PondSet {
+  ponds: Pond[];
+  crests: Record<string, number>;
+}
+
+export const noPonds: PondSet = { ponds: [], crests: {} };
+
+/** The ponds of a list of dams: one per dam that holds water, at the crest the dam has been built and worn to at `clock`. */
+export function pondsOf(dams: readonly Dam[], spots: readonly DamSpot[], terrain: Terrain, clock = 0): PondSet {
   const ponds: Pond[] = [];
+  const crests: Record<string, number> = {};
   for (const dam of dams) {
     const spot = spots.find((s) => s.id === dam.spot);
-    const pond = spot ? floodPond(terrain, spot, crestOf(dam)) : null;
+    if (!spot) continue;
+    const crest = crestOf(dam, clock);
+    crests[dam.spot] = crest;
+    const pond = floodPond(terrain, spot, crest);
     if (pond) ponds.push(pond);
   }
-  return ponds;
+  return { ponds, crests };
+}
+
+/** `prev` itself while no dam's crest has moved a step, else the ponds worked out again. Cheap enough to ask every frame. */
+export function pondsAt(prev: PondSet, dams: readonly Dam[], spots: readonly DamSpot[], terrain: Terrain, clock: number): PondSet {
+  const same = dams.every((d) => !spots.some((s) => s.id === d.spot) || prev.crests[d.spot] === crestOf(d, clock));
+  return same && Object.keys(prev.crests).length === dams.filter((d) => spots.some((s) => s.id === d.spot)).length ? prev : pondsOf(dams, spots, terrain, clock);
 }
 
 /** Metres of pond water above the ground at a point, 0 outside every pond. */

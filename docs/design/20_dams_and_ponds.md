@@ -186,7 +186,7 @@ interface Dam {
 1. Dam site data into the game: the first spots for every location, the free
    spot ring, one level 1 dam (wood, mud, rock as plain piles), no pond yet.
 2. The flood fill and the pond surface at the crest height.
-3. Wear of the dam and the pond level that follows it. Repair (doc 15).
+3. Wear of the dam and the pond level that follows it. Repair (doc 15). Done.
 4. Levels 2 and 3, and new spots from a new pond.
 5. Lily pads growing in a new pond, and the lodge in a pond.
 
@@ -235,8 +235,27 @@ Each step is playable on a tablet and small enough for one pull request.
 - A spot lies on the drawn stream line (the scan reports the OSM line point, not the channel bed it
   found a few metres off), so the ring, the dam, and the pond sit on the stream the player sees. The fill
   seeds from the lowest upstream ground within 8 m of the spot, since the real channel is a little off the line.
-- Not built yet: wear and repair of the dam and the pond level that follows it, levels 2 and 3, new spots from
-  a new pond, lily pads, the lodge in a pond.
+- Not built yet: levels 2 and 3, new spots from a new pond, lily pads, the lodge in a pond.
+
+## Built so far (step 3, wear of the dam)
+
+Code in `src/sim/dam.ts` (wear and mend) and `src/sim/pond.ts` (the level that follows).
+
+- A dam gets a `wear` record (`wear.ts`) the moment its last piece goes on, and its condition falls on the game
+  clock like the lodge's: worn (0.5) after a season, 10 days. A sleep or a generation away ages it the same way.
+- The pond level is the full crest while the dam is good, then falls in step with the condition: at 0.5 it
+  starts to sag, and at 0 the pond is gone and the water is back to the stream. So a worn dam sags for about 7
+  days, and a broken one (below 0.15) drains in the last 3. Nothing is lost, and mending lifts the level again.
+- The crest is worked out in steps of 5 cm, and a pond is flooded again only when a dam's crest moves a step
+  (`pondsAt`), so the level never jumps and the fill is not redone every frame.
+- Repair is the build button with a log, mud, or a rock at a worn dam. A wood unit mends 0.1, mud 0.1, a rock
+  0.2 (a long log is 2 units). A good dam takes nothing. A broken dam is built again with the full set (8 wood,
+  4 mud, 2 rocks), starting from nothing, and the pond grows back as it goes up. It is a chore, never a loss.
+- A worn dam loses sticks and mounds in the view, down to a third when gone, and shows the gold repair glow
+  (brighter when broken). The HUD line at the spot says how worn it is and how many units it needs.
+- To try it: `?age=N` makes a dam N days old when the test menu fills it in (worn at 10, broken at 17).
+- Not built: teenagers who repair the dam, a worn dam's effect on fish and lily pads (there are none in ponds
+  yet), the cost of a wear step on the shore (a lodge door left in shallows).
 - Stream lines snap to the terrain channel in the tile build, and the scan drops a site whose pond is not on
   the drawn stream (ADR 0010, session 40). The author checked it on the tablet and it looks right.
 

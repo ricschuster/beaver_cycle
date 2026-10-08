@@ -1,11 +1,11 @@
 // Trees felled, the log being dragged, and how far a gnaw has got, top left under the clock. DOM only.
 import { atStore, storeCapacity, storeCondition, stockMeals, stockTotal, strippable } from '../sim/food';
-import { damAt, damProgress, damWhole, needs, spotAt } from '../sim/dam';
+import { damAt, damCondition, damMendUnits, damProgress, damWhole, needs, settled, spotAt } from '../sim/dam';
 import { canScoopMud, reachableDropped, reachableRock } from '../sim/haul';
 import { reachablePad } from '../sim/lily';
 import type { Terrain } from '../sim/terrain';
 import { LODGE_WOOD, lodgeComplete, lodgeCondition, nearLodge, type SiteProblem } from '../sim/lodge';
-import { LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, needsRepair, stageOf, woodToMend } from '../sim/wear';
+import { LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, WORN_BELOW, needsRepair, stageOf, woodToMend } from '../sim/wear';
 import type { WorldState } from '../sim/state';
 
 /** What the spot ahead is for a new lodge while dragging a log with no lodge yet: fine, a problem, or null when it does not apply. */
@@ -36,7 +36,7 @@ export interface FoodInfo {
   /** The dam spot within reach: how far the dam is and what it still needs. */
   dam: { percent: number; wood: number; mud: number; rock: number; whole: boolean; canAdd: boolean } | null;
   /** The lodge or store within reach that needs repair: its condition in percent and the wood units still needed. */
-  repair: { what: 'lodge' | 'store'; percent: number; wood: number; broken: boolean } | null;
+  repair: { what: 'lodge' | 'store' | 'dam'; percent: number; wood: number; broken: boolean } | null;
   hint: 'pick' | 'strip' | 'rock' | 'mud' | 'store' | 'eat' | null;
 }
 
@@ -58,6 +58,8 @@ export function formatDam(d: NonNullable<FoodInfo['dam']>): string {
 
 /** "store worn 25%, needs 6 wood (a long log is 2)", or "broken" for a piece that has to be rebuilt. */
 export function formatRepair(r: NonNullable<FoodInfo['repair']>): string {
+  // A dam takes wood, mud, and rocks alike. A broken one is built again, which the dam line says.
+  if (r.what === 'dam') return r.broken ? 'dam broken, build it again' : `dam worn ${r.percent}%, needs ${r.wood} units (a long log is 2, mud 1, a rock 2)`;
   const state = r.broken ? `${r.what} broken` : `${r.what} worn ${r.percent}%`;
   return `${state}, needs ${r.wood} wood (a long log is 2)`;
 }
@@ -69,8 +71,9 @@ export function formatFood(food: FoodInfo | null): string {
   if (food.carry) parts.push(food.carry === 'branch' ? 'carrying a branch' : 'carrying a lily pad');
   if (food.haul) parts.push(food.haul === 'mud' ? 'carrying mud, press Drag to put it down' : 'carrying a rock, press Drag to put it down');
   if (food.store) parts.push(`store ${food.store.total} of ${food.store.capacity}, ${food.store.meals} ${food.store.meals === 1 ? 'meal' : 'meals'}`);
-  if (food.dam) parts.push(formatDam(food.dam));
+  // A worn dam is whole, so its repair line says it all. A broken one shows both: that it broke and what it needs again.
   if (food.repair) parts.push(formatRepair(food.repair));
+  if (food.dam && !(food.repair?.what === 'dam' && !food.repair.broken)) parts.push(formatDam(food.dam));
   if (food.hint) parts.push(HINT_TEXT[food.hint]);
   return parts.length ? `, ${parts.join(', ')}` : '';
 }
@@ -108,16 +111,20 @@ export function foodInfoOf(world: WorldState, terrain: Terrain, ground: Terrain 
     else if (reachableRock(terrain, b.x, b.z, world.rocksTaken)) hint = 'rock';
     else if (canScoopMud(terrain, b.x, b.z, b.heading)) hint = 'mud';
   }
-  const repair = whole && !world.inLodge ? repairInfoOf(world) : null;
+  const lodgeRepair = whole && !world.inLodge ? repairInfoOf(world) : null;
   const spot = world.inLodge ? null : spotAt(world.spots, b.x, b.z);
-  const dam = spot ? damAt(world.dams, spot) : undefined;
+  const stored = spot ? damAt(world.dams, spot) : undefined;
+  const dam = settled(stored, world.clock);
   const need = needs(dam);
   const log = world.drag ? world.logs.find((l) => l.id === world.drag) : undefined;
-  const canAdd = (haul?.kind === 'mud' && need.mud > 0) || (haul?.kind === 'rock' && need.rock > 0) || (!!log && need.wood > 0);
+  const mendable = damMendUnits(dam, world.clock) > 0;
+  const canAdd = mendable ? !!haul || !!log : (haul?.kind === 'mud' && need.mud > 0) || (haul?.kind === 'rock' && need.rock > 0) || (!!log && need.wood > 0);
+  const level = damCondition(stored, world.clock);
+  const damRepair: FoodInfo['repair'] = stored?.wear && level < WORN_BELOW ? { what: 'dam', percent: Math.round(level * 100), wood: damMendUnits(dam, world.clock), broken: stageOf(level) === 'broken' } : null;
   const damInfo: FoodInfo['dam'] = spot ? { percent: Math.round(damProgress(dam) * 100), ...need, whole: damWhole(dam), canAdd } : null;
   if (!carry && !haul && !whole && !hint && !damInfo) return null;
   const capacity = storeCapacity(storeCondition(world.storeWear, world.clock));
-  return { carry, haul: haul?.kind ?? null, dam: damInfo, store: whole ? { total: stockTotal(store), capacity, meals: stockMeals(store) } : null, repair, hint };
+  return { carry, haul: haul?.kind ?? null, dam: damInfo, store: whole ? { total: stockTotal(store), capacity, meals: stockMeals(store) } : null, repair: lodgeRepair ?? damRepair, hint };
 }
 
 export interface CarryHud {
@@ -130,7 +137,7 @@ export function formatCarry(felled: number, dragging: boolean, gnaw: number | nu
   if (spot) return SPOT_TEXT[spot] + formatFood(food);
   const lodgeText = lodge === null ? '' : lodge >= 1 ? ', lodge done' : `, lodge ${Math.floor(lodge * 100)}%`;
   const base = `${felled} ${felled === 1 ? 'tree' : 'trees'} felled${lodgeText}`;
-  if (dragging) return (site ? `${base}, dragging a log, ${SITE_TEXT[site]}` : `${base}, dragging a log`) + (food?.repair ? `, ${formatRepair(food.repair)}, press Build to add it` : '') + (food?.dam ? `, ${formatDam(food.dam)}` : '');
+  if (dragging) return (site ? `${base}, dragging a log, ${SITE_TEXT[site]}` : `${base}, dragging a log`) + (food?.repair ? `, ${formatRepair(food.repair)}, press Build to add it` : '') + (food?.dam && !(food.repair?.what === 'dam' && !food.repair.broken) ? `, ${formatDam(food.dam)}` : '');
   return (gnaw === null ? base : `${base}, gnawing ${Math.floor(Math.min(1, gnaw) * 100)}%`) + formatFood(food);
 }
 

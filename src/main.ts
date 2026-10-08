@@ -86,12 +86,14 @@ async function start(): Promise<void> {
   if (query.has('day') || query.has('time')) {
     world = { ...world, clock: (Math.max(0, startDay) + (Number.isFinite(startTime) ? startTime : 0.05)) * DAY_SECONDS };
   }
+  // ?age=N makes them N game days old, to try wear and repair: the lodge is worn at 40 and broken at 68, the store at 20 and
+  // 34, and a dam the test menu fills in at 10 and 17.
+  const ageDays = Math.max(0, Number(query.get('age') ?? 0) || 0);
   // A whole lodge near the start, so the lodge can be tried without building one first. ?lodge=0 leaves it out.
   if (query.get('lodge') !== '0') {
     const site = findSite(terrain, startX, startZ, 300);
     if (site) {
-      // ?age=N makes them N game days old, to try wear and repair: the lodge is worn at 40 and broken at 68, the store at 20 and 34.
-      const age = Math.max(0, Number(query.get('age') ?? 0) || 0);
+      const age = ageDays;
       const wear = newWear(world.clock - age * DAY_SECONDS);
       world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear }, storeWear: wear };
     }
@@ -137,8 +139,9 @@ async function start(): Promise<void> {
             onFill() {
               const spot = spotAt(damSpots, world.beaver.x, world.beaver.z);
               if (spot) {
-                const dams = placed(world.dams, spot, LEVEL1_COST);
-                world = { ...world, dams, ponds: pondsOf(dams, damSpots, terrain) };
+                const dams = placed(world.dams, spot, LEVEL1_COST, undefined, world.clock).map((d) => (d.spot === spot.id && d.wear ? { ...d, wear: newWear(world.clock - ageDays * DAY_SECONDS) } : d));
+                const set = pondsOf(dams, damSpots, terrain, world.clock);
+                world = { ...world, dams, ponds: set.ponds, pondCrests: set.crests };
               }
             },
           }

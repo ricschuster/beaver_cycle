@@ -145,7 +145,8 @@ Wood only, since mud and rock come with the dam. Code in `src/sim/wear.ts`.
   still needs (a long log is 2), and the store line shows its real capacity.
 - The lodge clock runs at half speed inside, so buildings wear slower while the
   beaver is in the lodge. That is a small difference from the text above.
-- Not built: the dam, the worn look of the store, teenagers who repair, Papa's
+- The dam wears too, see `20_dams_and_ponds.md` (step 3): a season to worn, mended by wood, mud, and rocks.
+- Not built: the worn look of the store, teenagers who repair, Papa's
   guided repair, a worn lodge's effect on rest.
 
 ## Open questions

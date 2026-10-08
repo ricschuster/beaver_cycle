@@ -80,4 +80,18 @@ describe('dam line', () => {
     expect(formatCarry(0, false, null, null, null, null, foodInfoOf(w, flatTerrain(0)))).toContain('dam done');
     expect(foodInfoOf({ ...w, beaver: { ...w.beaver, x: 50 } }, flatTerrain(0))).toBeNull();
   });
+  it('shows a worn dam as a repair that takes any material, and a broken one as built again', () => {
+    const dams = [{ spot: 's', wood: 8, mud: 4, rock: 2, wear: newWear(0) }];
+    const base = { ...createWorld(flatTerrain(0)), spots: [spot], dams, haul: { kind: 'rock' as const } };
+    const worn = foodInfoOf({ ...base, clock: 12 * DAY_SECONDS }, flatTerrain(0))!; // condition 0.4
+    expect(worn.repair).toEqual({ what: 'dam', percent: 40, wood: 6, broken: false });
+    expect(worn.dam).toMatchObject({ whole: true, canAdd: true });
+    const text = formatCarry(0, false, null, null, null, null, worn);
+    expect(text).toContain('dam worn 40%, needs 6 units (a long log is 2, mud 1, a rock 2)');
+    expect(text).not.toContain('dam done');
+    const broken = foodInfoOf({ ...base, clock: 18 * DAY_SECONDS }, flatTerrain(0))!;
+    expect(broken.repair).toMatchObject({ what: 'dam', broken: true });
+    expect(broken.dam).toMatchObject({ whole: false, percent: 0 });
+    expect(formatCarry(0, false, null, null, null, null, broken)).toContain('dam broken, build it again, dam 0%, needs 8 wood, 4 mud, 2 rocks');
+  });
 });

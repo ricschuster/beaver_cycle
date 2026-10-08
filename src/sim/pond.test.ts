@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
 import { LEVEL1_COST } from './dam';
 import type { DamSpot } from './damSpots';
-import { MIN_CREST, crestOf, floodPond, pondDepthAt, pondsOf, withPonds } from './pond';
+import { MIN_CREST, crestOf, floodPond, pondDepthAt, pondsAt, pondsOf, withPonds } from './pond';
+import { DAY_SECONDS } from './clock';
+import { newWear } from './wear';
 import { createWorld } from './state';
 import { step } from './step';
 import type { Terrain } from './terrain';
@@ -40,9 +42,9 @@ describe('floodPond', () => {
 describe('ponds of dams', () => {
   it('rise as the dam is built and are none before it is started', () => {
     const t = valley();
-    expect(pondsOf([], [spot], t)).toEqual([]);
-    const part = pondsOf([{ spot: spot.id, wood: 4, mud: 2, rock: 1 }], [spot], t);
-    const whole = pondsOf([{ spot: spot.id, ...LEVEL1_COST }], [spot], t);
+    expect(pondsOf([], [spot], t).ponds).toEqual([]);
+    const part = pondsOf([{ spot: spot.id, wood: 4, mud: 2, rock: 1 }], [spot], t).ponds;
+    const whole = pondsOf([{ spot: spot.id, ...LEVEL1_COST }], [spot], t).ponds;
     expect(part).toHaveLength(1);
     expect(part[0]!.level).toBeCloseTo(0.5);
     expect(whole[0]!.level).toBeCloseTo(1);
@@ -51,7 +53,7 @@ describe('ponds of dams', () => {
 
   it('add water to the ground for the beaver to swim in', () => {
     const t = valley();
-    const wet = withPonds(t, pondsOf([{ spot: spot.id, ...LEVEL1_COST }], [spot], t));
+    const wet = withPonds(t, pondsOf([{ spot: spot.id, ...LEVEL1_COST }], [spot], t).ponds);
     expect(wet.waterDepth(-20, 0)).toBeGreaterThan(0.5);
     expect(wet.isWater(-20, 0)).toBe(true);
     expect(wet.waterDepth(20, 0)).toBe(0);
@@ -68,5 +70,37 @@ describe('placing the last piece', () => {
     expect(w.dams[0]).toMatchObject({ rock: 2 });
     expect(w.ponds).toHaveLength(1);
     expect(w.ponds[0]!.level).toBeCloseTo(1);
+  });
+});
+
+describe('a pond follows the wear of its dam', () => {
+  const t = valley();
+  const whole = (age: number) => ({ spot: spot.id, ...LEVEL1_COST, wear: newWear(-age * DAY_SECONDS) });
+  const crestAt = (age: number) => crestOf(whole(age), 0);
+
+  it('holds the full crest while the dam is good, then sags and drains to nothing', () => {
+    expect(crestAt(0)).toBeCloseTo(1);
+    expect(crestAt(9)).toBeCloseTo(1); // still good above 0.5 condition (a season is 10 days)
+    expect(crestAt(10.5)).toBeLessThan(1);
+    expect(crestAt(10.5)).toBeGreaterThan(crestAt(14));
+    expect(crestAt(14)).toBeGreaterThan(0);
+    expect(crestAt(20)).toBe(0);
+    expect(crestAt(40)).toBe(0);
+  });
+
+  it('is no pond once drained, and a mended dam brings it back', () => {
+    expect(pondsOf([whole(30)], [spot], t, 0).ponds).toEqual([]);
+    expect(pondsOf([whole(0)], [spot], t, 0).ponds).toHaveLength(1);
+  });
+
+  it('is worked out again only when the crest moves a step', () => {
+    const dam = whole(0);
+    const first = pondsOf([dam], [spot], t, 0);
+    expect(pondsAt(first, [dam], [spot], t, 1 * DAY_SECONDS)).toBe(first);
+    const later = pondsAt(first, [dam], [spot], t, 12 * DAY_SECONDS);
+    expect(later).not.toBe(first);
+    expect(later.ponds[0]!.level).toBeLessThan(first.ponds[0]!.level);
+    const drained = pondsOf([whole(30)], [spot], t, 0);
+    expect(pondsAt(drained, [whole(30)], [spot], t, 0)).toBe(drained);
   });
 });

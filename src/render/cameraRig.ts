@@ -31,8 +31,8 @@ export function drag(v: ViewState, dx: number, dy: number): void {
   v.pitch = clamp(v.pitch + dy * 0.004, MIN_PITCH, MAX_PITCH);
 }
 
-export function zoom(v: ViewState, factor: number): void {
-  v.dist = clamp(v.dist * factor, MIN_DIST, MAX_DIST);
+export function zoom(v: ViewState, factor: number, maxDist = MAX_DIST): void {
+  v.dist = clamp(v.dist * factor, MIN_DIST, maxDist);
 }
 
 /** Ease the yaw toward the spot behind the beaver. Pure on its numbers. */
@@ -46,7 +46,8 @@ export interface CameraRig {
   update(dt: number, heading: number, moving: boolean): void;
 }
 
-export function createCameraRig(el: HTMLElement): CameraRig {
+/** `maxDist` is how far out the view may zoom (the fly mode of the test URL lifts it). */
+export function createCameraRig(el: HTMLElement, maxDist = MAX_DIST): CameraRig {
   const view = defaultView();
   let idle = FOLLOW_DELAY;
   const pointers = new Map<number, { x: number; y: number }>();
@@ -71,7 +72,7 @@ export function createCameraRig(el: HTMLElement): CameraRig {
     } else if (pointers.size === 2) {
       const [a, b] = [...pointers.values()] as [{ x: number; y: number }, { x: number; y: number }];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinch > 0 && d > 0) zoom(view, pinch / d);
+      if (pinch > 0 && d > 0) zoom(view, pinch / d, maxDist);
       pinch = d;
     }
   });
@@ -85,7 +86,7 @@ export function createCameraRig(el: HTMLElement): CameraRig {
     'wheel',
     (e) => {
       e.preventDefault();
-      zoom(view, Math.exp(e.deltaY * 0.001));
+      zoom(view, Math.exp(e.deltaY * 0.001), maxDist);
       idle = 0;
     },
     { passive: false },

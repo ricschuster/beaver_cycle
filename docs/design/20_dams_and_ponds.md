@@ -209,7 +209,12 @@ Each step is playable on a tablet and small enough for one pull request.
   scan found 295 sites, 132 of them swimmable ponds: core 23, north 31, south 21,
   Vorderer Springbach 19, Hinterer Springbach 32, east-oedseen 6. All six areas
   give six spots at 150 m spacing.
-- Not built yet: the level 1 dam, the materials, the pond.
+- Mud and rocks (`src/sim/haul.ts`, `src/render/rockView.ts`): one thing in the mouth at a time, like food.
+  Gnaw at the water's edge scoops mud. Gnaw next to a rock picks it up. The Drag button puts it down
+  (mud goes back, a rock lies where it was found). Rocks are worked out from the ground like lily pads
+  (10 m cells, 40 percent of them), on stream beds, banks, and steep ground, none on a lake floor or flat
+  dry land. The land cover class is not used yet, so a rock can lie in a meadow bank. Tune on the tablet.
+- Not built yet: placing them at a spot, the level 1 dam, the pond.
 
 ## Decided
 

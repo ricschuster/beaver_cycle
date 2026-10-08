@@ -1,5 +1,6 @@
 // Trees felled, the log being dragged, and how far a gnaw has got, top left under the clock. DOM only.
 import { atStore, storeCapacity, storeCondition, stockMeals, stockTotal, strippable } from '../sim/food';
+import { canScoopMud, reachableRock } from '../sim/haul';
 import { reachablePad } from '../sim/lily';
 import type { Terrain } from '../sim/terrain';
 import { LODGE_WOOD, lodgeComplete, lodgeCondition, nearLodge, type SiteProblem } from '../sim/lodge';
@@ -28,15 +29,19 @@ const SPOT_TEXT: Record<'hole' | 'nest' | 'room', string> = {
 /** The food in play: the piece in the mouth, the store once the lodge is whole (null before), and what a press would do here. */
 export interface FoodInfo {
   carry: 'branch' | 'lily' | null;
+  /** Mud or a rock in the mouth, for the dam. */
+  haul: 'mud' | 'rock' | null;
   store: { total: number; capacity: number; meals: number } | null;
   /** The lodge or store within reach that needs repair: its condition in percent and the wood units still needed. */
   repair: { what: 'lodge' | 'store'; percent: number; wood: number; broken: boolean } | null;
-  hint: 'pick' | 'strip' | 'store' | 'eat' | null;
+  hint: 'pick' | 'strip' | 'rock' | 'mud' | 'store' | 'eat' | null;
 }
 
 const HINT_TEXT: Record<NonNullable<FoodInfo['hint']>, string> = {
   pick: 'press Gnaw to pick a lily pad',
   strip: 'press Gnaw to strip a branch',
+  rock: 'press Gnaw to pick up a rock',
+  mud: 'press Gnaw to scoop mud',
   store: 'press Build to open the store',
   eat: 'press Gnaw to eat it',
 };
@@ -52,6 +57,7 @@ export function formatFood(food: FoodInfo | null): string {
   if (!food) return '';
   const parts: string[] = [];
   if (food.carry) parts.push(food.carry === 'branch' ? 'carrying a branch' : 'carrying a lily pad');
+  if (food.haul) parts.push(food.haul === 'mud' ? 'carrying mud, press Drag to put it down' : 'carrying a rock, press Drag to put it down');
   if (food.store) parts.push(`store ${food.store.total} of ${food.store.capacity}, ${food.store.meals} ${food.store.meals === 1 ? 'meal' : 'meals'}`);
   if (food.repair) parts.push(formatRepair(food.repair));
   if (food.hint) parts.push(HINT_TEXT[food.hint]);
@@ -74,22 +80,25 @@ function repairInfoOf(world: WorldState): FoodInfo['repair'] {
 
 /** The food line for a world: the store once the lodge is whole, the piece in the mouth, and what a press would do here. */
 export function foodInfoOf(world: WorldState, terrain: Terrain): FoodInfo | null {
-  const { lodge, beaver: b, carry, store } = world;
+  const { lodge, beaver: b, carry, haul, store } = world;
   const whole = lodgeComplete(lodge);
   let hint: FoodInfo['hint'] = null;
   if (world.inLodge) {
     if (carry) hint = 'eat';
-  } else if (whole && atStore(lodge, b.x, b.z) && !world.drag) {
+  } else if (whole && atStore(lodge, b.x, b.z) && !world.drag && !haul) {
     hint = 'store';
-  } else if (!carry && !world.drag && !world.chop && b.mode !== 'dive' && reachablePad(terrain, b.x, b.z, world.clock, world.picked)) {
+  } else if (!carry && !haul && !world.drag && !world.chop && b.mode !== 'dive' && reachablePad(terrain, b.x, b.z, world.clock, world.picked)) {
     hint = 'pick';
-  } else if (!carry && !world.drag && !world.chop && b.mode !== 'dive' && strippable(world.logs, world.stripped, b.x, b.z)) {
+  } else if (!carry && !haul && !world.drag && !world.chop && b.mode !== 'dive' && strippable(world.logs, world.stripped, b.x, b.z)) {
     hint = 'strip';
+  } else if (!carry && !haul && !world.drag && !world.chop && b.mode === 'walk') {
+    if (reachableRock(terrain, b.x, b.z, world.rocksTaken)) hint = 'rock';
+    else if (canScoopMud(terrain, b.x, b.z, b.heading)) hint = 'mud';
   }
   const repair = whole && !world.inLodge ? repairInfoOf(world) : null;
-  if (!carry && !whole && !hint) return null;
+  if (!carry && !haul && !whole && !hint) return null;
   const capacity = storeCapacity(storeCondition(world.storeWear, world.clock));
-  return { carry, store: whole ? { total: stockTotal(store), capacity, meals: stockMeals(store) } : null, repair, hint };
+  return { carry, haul: haul?.kind ?? null, store: whole ? { total: stockTotal(store), capacity, meals: stockMeals(store) } : null, repair, hint };
 }
 
 export interface CarryHud {

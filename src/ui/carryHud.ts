@@ -1,5 +1,6 @@
 // Trees felled, the log being dragged, and how far a gnaw has got, top left under the clock. DOM only.
 import { atStore, storeCapacity, storeCondition, stockMeals, stockTotal, strippable } from '../sim/food';
+import { maxLevel } from '../sim/damSpots';
 import { damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, levelOf, needs, raised, settled, spotAt } from '../sim/dam';
 import { canScoopMud, reachableDropped, reachableRock } from '../sim/haul';
 import { reachablePad } from '../sim/lily';
@@ -33,8 +34,8 @@ export interface FoodInfo {
   /** Mud or a rock in the mouth, for the dam. */
   haul: 'mud' | 'rock' | null;
   store: { total: number; capacity: number; meals: number } | null;
-  /** The dam spot within reach: how far the dam is and what it still needs. `level` is the one it is built to, and `raise` is true for a whole dam that can be raised to it, so `wood`, `mud`, and `rock` are what the raise needs. */
-  dam: { percent: number; wood: number; mud: number; rock: number; whole: boolean; canAdd: boolean; level: number; raise: boolean } | null;
+  /** The dam spot within reach: how far the dam is and what it still needs. `level` is the one it is built to, and `raise` is true for a whole dam that can be raised to it, `top` is true for a whole dam at the biggest level the spot holds, so `wood`, `mud`, and `rock` are what the raise needs. */
+  dam: { percent: number; wood: number; mud: number; rock: number; whole: boolean; canAdd: boolean; level: number; raise: boolean; top: boolean } | null;
   /** The lodge or store within reach that needs repair: its condition in percent and the wood units still needed. */
   repair: { what: 'lodge' | 'store' | 'dam'; percent: number; wood: number; broken: boolean } | null;
   hint: 'pick' | 'strip' | 'rock' | 'mud' | 'store' | 'eat' | null;
@@ -51,7 +52,7 @@ const HINT_TEXT: Record<NonNullable<FoodInfo['hint']>, string> = {
 
 /** "dam 40%, needs 4 wood, 2 mud, 1 rock", with "press Build to add it" when the mouth or the drag has something it needs. */
 export function formatDam(d: NonNullable<FoodInfo['dam']>): string {
-  if (d.whole) return d.level > 1 ? `dam level ${d.level} done` : 'dam done';
+  if (d.whole) return `${d.level > 1 ? `dam level ${d.level} done` : 'dam done'}${d.top ? ', as high as a dam can go here' : ''}`;
   const list = [d.wood && `${d.wood} wood`, d.mud && `${d.mud} mud`, d.rock && `${d.rock} ${d.rock === 1 ? 'rock' : 'rocks'}`].filter(Boolean).join(', ');
   const add = d.canAdd ? ', press Build to add it' : '';
   if (d.raise) return `dam level ${d.level - 1} done, raise it to level ${d.level}: needs ${list}${add}`;
@@ -125,7 +126,7 @@ export function foodInfoOf(world: WorldState, terrain: Terrain, ground: Terrain 
   const canAdd = mendable ? !!haul || !!log : (haul?.kind === 'mud' && need.mud > 0) || (haul?.kind === 'rock' && need.rock > 0) || (!!log && need.wood > 0);
   const level = damCondition(stored, world.clock);
   const damRepair: FoodInfo['repair'] = damNeedsRepair(stored, world.clock) ? { what: 'dam', percent: Math.round(level * 100), wood: damMendUnits(dam, world.clock), broken: stageOf(level) === 'broken' } : null;
-  const damInfo: FoodInfo['dam'] = spot ? { percent: Math.round(damProgress(up ?? dam) * 100), ...need, whole: damWhole(dam) && !up, canAdd, level: levelOf(up ?? dam), raise: !!up } : null;
+  const damInfo: FoodInfo['dam'] = spot ? { percent: Math.round(damProgress(up ?? dam) * 100), ...need, whole: damWhole(dam) && !up, canAdd, level: levelOf(up ?? dam), raise: !!up, top: damWhole(dam) && !up && levelOf(dam) >= maxLevel(spot) } : null;
   if (!carry && !haul && !whole && !hint && !damInfo) return null;
   const capacity = storeCapacity(storeCondition(world.storeWear, world.clock));
   return { carry, haul: haul?.kind ?? null, dam: damInfo, store: whole ? { total: stockTotal(store), capacity, meals: stockMeals(store) } : null, repair: lodgeRepair ?? damRepair, hint };

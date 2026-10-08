@@ -327,6 +327,11 @@ Code in `src/sim/newSpots.ts`, `Terrain.streamPoints` (`src/terrain/store.ts`), 
   tile store holds, so ADR 0010 holds here too. Level 1 must pass, and the spot's biggest level is the crest with the biggest pond.
 - A new spot lies at least 45 m from any known spot and from the others found, the biggest pond first. Spots stay when a pond
   sinks, so nothing is taken away. The spot ring view is made again when the list grows.
+- A new spot is found while the beaver may be far away, on the coarse ground, which can promise a bigger dam than the fine
+  ground holds (one spot read level 2 on the 5 m tiles and level 1 on all of them). So it is `rough` until the beaver comes
+  within 100 m (`refineNear`), when its levels and dam lengths are worked out again on the ground loaded then. A spot with a
+  dam started keeps its figures, since the price is fixed.
+- The HUD line of a whole dam at the biggest level its spot holds ends with "as high as a dam can go here".
 - A ground without stream lines (a test stand-in) finds none. Nothing saves the spots yet, so they are found again from the dams.
 - Not yet tried on the real tiles on screen. The cost per pond change is a few dozen fills of an 81 by 81 window; measure it on the tablet.
 

@@ -156,8 +156,9 @@ the quality budget (#120).
   lodge per world. Numbers are a first guess. Wear and the glowing repair circle
   came later (`src/sim/wear.ts`, `15_build_and_repair.md`).
 
-- Left in M5: the first tasks and the wood achievement (30 trees). The HUD counts trees felled, but nothing
-  else is built for them. The wear numbers, drag speed, and other first guesses still need a try on the tablet.
+- Achievements (`21_achievements.md`): ten, with a toast and a list in the test menu. The first tasks are not built; the
+  author's list (a mate, kits, the guides) is M6. What is left is in #220. The wear numbers, drag speed, and other first
+  guesses still need a try on the tablet.
 
 ## M6: One life, then the next
 

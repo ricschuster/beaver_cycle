@@ -271,6 +271,12 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   let lastFrame = 0;
   let damSiteGroup: THREE.Group | null = null;
   let spotRings: SpotRings | null = null;
+  let ringSpots: readonly DamSpot[] = [];
+  const showRings = (spots: readonly DamSpot[]): void => {
+    spotRings?.dispose();
+    ringSpots = spots;
+    spotRings = createSpotRings(scene, spots);
+  };
   const UNDERWATER = new THREE.Color(0x2c7a96);
   let lastUnderwater = 0x2c7a96;
 
@@ -285,7 +291,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       damSiteGroup = createDamSiteView(scene, sites);
     },
     setDamSpots(spots) {
-      spotRings = createSpotRings(scene, spots);
+      showRings(spots);
     },
     setDamSitesVisible(on) {
       if (damSiteGroup) damSiteGroup.visible = on;
@@ -440,6 +446,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       }
       // The land and the spot rings are drawn around the view's point: the beaver, or the free point of the fly view.
       terrain?.update(look.x, look.z);
+      // Spots found as ponds grow (newSpots.ts) get their rings.
+      if (world.spots !== ringSpots && world.spots.length !== ringSpots.length) showRings(world.spots);
       spotRings?.update(look.x, look.z, world.dams, world.clock);
       pondView.update(world.ponds);
       if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z), world.clock, world.ponds);

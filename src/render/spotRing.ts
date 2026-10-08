@@ -5,6 +5,8 @@ import { damAt, damWhole, raised, type Dam } from '../sim/dam';
 import type { DamSpot } from '../sim/damSpots';
 
 export interface SpotRings {
+  /** Take the rings out of the scene. */
+  dispose(): void;
   /** Show the rings of the spots within `range` metres of the beaver, hide the rest. A spot with a dam started is green, one with a whole dam has no ring unless it can be raised. */
   update(x: number, z: number, dams?: readonly Dam[], clock?: number): void;
 }
@@ -28,6 +30,12 @@ export function createSpotRings(scene: THREE.Scene, spots: readonly DamSpot[]): 
     return { spot: s, ring };
   });
   return {
+    dispose() {
+      for (const { ring } of rings) ring.removeFromParent();
+      material.dispose();
+      building.dispose();
+      geometry.dispose();
+    },
     update(x, z, dams = [], clock = 0) {
       for (const { spot, ring } of rings) {
         const dam = damAt(dams, spot);

@@ -1,4 +1,4 @@
-import type { Terrain } from '../sim/terrain';
+import type { StreamPoint, Terrain } from '../sim/terrain';
 import { CLASS_LAKE, LEVEL_FINE, sampleHeight, type DecodedTile, type IndexTile, type TileIndex, type TileWater } from './format';
 
 export const tileKey = (tx: number, tz: number): string => `${tx}_${tz}`;
@@ -138,6 +138,22 @@ export class TileStore implements Terrain {
     return best;
   }
 
+  /** Points every `step` metres along the stream lines of the tiles round a point, those within `r` metres of it. */
+  streamPoints(x: number, z: number, r: number, step: number): StreamPoint[] {
+    const ix = Math.floor(x / this.size);
+    const iz = Math.floor(z / this.size);
+    const m = Math.ceil(r / this.size);
+    const out: StreamPoint[] = [];
+    for (let tz = iz - m; tz <= iz + m; tz++) {
+      for (let tx = ix - m; tx <= ix + m; tx++) {
+        for (const s of this.water.get(tileKey(tx, tz))?.streams ?? []) {
+          for (const p of alongLine(s.pts, step)) if (Math.hypot(p.x - x, p.z - z) <= r) out.push(p);
+        }
+      }
+    }
+    return out;
+  }
+
   /** The land cover class of the cell under a point, from the finest level loaded. 0 (bare ground) with no tile. */
   coverAt(x: number, z: number): number {
     const at = this.locate(x, z);
@@ -149,4 +165,25 @@ export class TileStore implements Terrain {
   isWater(x: number, z: number): boolean {
     return this.waterDepth(x, z) > 0;
   }
+}
+
+/** Points every `step` metres along a polyline, with the unit direction of the line there. */
+export function alongLine(pts: readonly (readonly [number, number])[], step: number): StreamPoint[] {
+  const out: StreamPoint[] = [];
+  let carry = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, z0] = pts[i - 1]!;
+    const [x1, z1] = pts[i]!;
+    const d = Math.hypot(x1 - x0, z1 - z0);
+    if (d === 0) continue;
+    const ux = (x1 - x0) / d;
+    const uz = (z1 - z0) / d;
+    let s = carry ? step - carry : 0;
+    while (s <= d) {
+      out.push({ x: x0 + ux * s, z: z0 + uz * s, ux, uz });
+      s += step;
+    }
+    carry = d - (s - step);
+  }
+  return out;
 }

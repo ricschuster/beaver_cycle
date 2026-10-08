@@ -216,15 +216,15 @@ async function start(): Promise<void> {
             onGo() {
               if (!streamer) return;
               const b = world.beaver;
-              const near = damSpots.reduce((best, s) => (Math.hypot(s.bed.x - b.x, s.bed.z - b.z) < Math.hypot(best.bed.x - b.x, best.bed.z - b.z) ? s : best));
+              const near = world.spots.reduce((best, s) => (Math.hypot(s.bed.x - b.x, s.bed.z - b.z) < Math.hypot(best.bed.x - b.x, best.bed.z - b.z) ? s : best));
               menu.setStatus('Loading...');
               jump = { x: near.bed.x, z: near.bed.z, deadline: performance.now() + 8000, spawn: null };
             },
             onFill() {
-              const spot = spotAt(damSpots, world.beaver.x, world.beaver.z);
+              const spot = spotAt(world.spots, world.beaver.x, world.beaver.z);
               if (spot) {
                 const dams = placed(world.dams, spot, LEVEL_COST[2]!, undefined, world.clock).map((d) => (d.spot === spot.id && d.wear ? { ...d, wear: newWear(world.clock - ageDays * DAY_SECONDS) } : d));
-                const set = pondsOf(dams, damSpots, terrain, world.clock);
+                const set = pondsOf(dams, world.spots, terrain, world.clock);
                 world = { ...world, dams, ponds: set.ponds, pondCrests: set.crests };
               }
             },

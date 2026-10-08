@@ -242,7 +242,7 @@ Each step is playable on a tablet and small enough for one pull request.
   for 9 in 10 (the rest is the seed cell). A file from an older scan has no `channel` and falls back to the line point.
 - Rocks do not lie on a dry meadow (the land cover class of the tile), whether a bank or steep ground. The wet stream bed
   may cross a meadow and keeps its rocks.
-- Not built yet: new spots from a new pond, lily pads, the lodge in a pond.
+- New spots from a new pond: see "Built so far (new spots)" below. Not built yet: lily pads, the lodge in a pond.
 
 ## Built so far (step 3, wear of the dam)
 
@@ -316,6 +316,19 @@ Code in `src/sim/pond.ts` (`lodgeGround`, `pondAt`), `src/sim/lodge.ts` (`Lodge.
   reloads the page with `fly` set and the other settings kept.
 - Not built yet: the door depth when a pond sags below 1.2 m, new spots
   from a new pond, and lily pads in a new pond.
+
+## Built so far (new spots)
+
+Code in `src/sim/newSpots.ts`, `Terrain.streamPoints` (`src/terrain/store.ts`), and the hook in `src/sim/step.ts`.
+
+- When a pond is flooded again (its crest moved a step), the stream lines within 40 m of its water, and the lines running into it,
+  are scanned for spots. It is a port of the scan: snap to the lowest ground within 6 m, the downstream side, the dam length at each
+  crest (40 m at most), the pond by `floodPond` itself, 200 m2 at least, and the same line gate. The lines are the snapped ones the
+  tile store holds, so ADR 0010 holds here too. Level 1 must pass, and the spot's biggest level is the crest with the biggest pond.
+- A new spot lies at least 45 m from any known spot and from the others found, the biggest pond first. Spots stay when a pond
+  sinks, so nothing is taken away. The spot ring view is made again when the list grows.
+- A ground without stream lines (a test stand-in) finds none. Nothing saves the spots yet, so they are found again from the dams.
+- Not yet tried on the real tiles on screen. The cost per pond change is a few dozen fills of an 81 by 81 window; measure it on the tablet.
 
 ## Decided
 

@@ -36,6 +36,10 @@ has to guess.
   side streams (the author said three in Q74 and changed it to six in session 38).
   They are the swimmable ponds nearest the start, at least 150 m apart. Which six
   is a tuning step on a tablet, not a design question.
+  The scan drops a site whose level 1 pond does not lie on the drawn stream (at least half of
+  its cells within 5 m of the line, and half of the upstream line points inside it), because the 5 m
+  terrain can fill a basin beside the line. This leaves few sites in the small locations until the
+  stream lines are snapped to the channel.
 - **Spots that come later.** A built dam makes a pond. The pond's edge, and the
   streams that run into it, are scanned again for new spots (Q74). So spots are
   found as ponds grow, not fixed up front. The scan runs in the sim at build

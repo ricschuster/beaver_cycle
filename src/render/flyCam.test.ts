@@ -40,7 +40,7 @@ describe('fly camera', () => {
   it('turns with a drag and clamps the pitch', () => {
     const v = view();
     look(v, 100, 0);
-    expect(v.yaw).toBeGreaterThan(0);
+    expect(v.yaw).toBeLessThan(0);
     look(v, 0, 50);
     expect(v.pitch).toBeGreaterThan(0);
     look(v, 0, 100000);

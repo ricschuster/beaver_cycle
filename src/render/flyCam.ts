@@ -38,9 +38,9 @@ export function lookDir(yaw: number, pitch: number): Vec3 {
   return { x: -Math.sin(yaw) * c, y: -Math.sin(pitch), z: -Math.cos(yaw) * c };
 }
 
-/** Turn the view by a drag in pixels. Sideways the world follows the finger; up and down is inverted, so dragging down looks down. */
+/** Turn the view by a drag in pixels, inverted both ways: dragging right looks right and dragging down looks down. */
 export function look(v: ViewState, dx: number, dy: number): void {
-  v.yaw = wrap(v.yaw + dx * LOOK_YAW);
+  v.yaw = wrap(v.yaw - dx * LOOK_YAW);
   v.pitch = clamp(v.pitch + dy * LOOK_PITCH, FLY_MIN_PITCH, FLY_MAX_PITCH);
 }
 

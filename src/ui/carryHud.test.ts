@@ -77,8 +77,16 @@ describe('dam line', () => {
   });
   it('says done for a whole dam and shows nothing away from a spot', () => {
     const w = { ...createWorld(flatTerrain(0)), spots: [{ ...spot, maxCrest: 1 }], dams: [{ spot: 's', wood: 8, mud: 4, rock: 2 }] };
-    expect(formatCarry(0, false, null, null, null, null, foodInfoOf(w, flatTerrain(0)))).toContain('dam done');
+    expect(formatCarry(0, false, null, null, null, null, foodInfoOf(w, flatTerrain(0)))).toContain('dam done, as high as a dam can go here');
     expect(foodInfoOf({ ...w, beaver: { ...w.beaver, x: 50 } }, flatTerrain(0))).toBeNull();
+  });
+  it('says as high as a dam can go only at the top level of the spot', () => {
+    const w = { ...createWorld(flatTerrain(0)), spots: [spot], dams: [{ spot: 's', level: 2 as const, wood: 14, mud: 8, rock: 5 }] };
+    const mid = foodInfoOf(w, flatTerrain(0))!;
+    expect(mid.dam).toMatchObject({ top: false, raise: true });
+    expect(formatCarry(0, false, null, null, null, null, mid)).not.toContain('as high as');
+    const top = foodInfoOf({ ...w, dams: [{ spot: 's', level: 3 as const, wood: 22, mud: 12, rock: 9 }] }, flatTerrain(0))!;
+    expect(formatCarry(0, false, null, null, null, null, top)).toContain('dam level 3 done, as high as a dam can go here');
   });
   it('offers to raise a good whole dam, and counts a raise from the level below', () => {
     const w = { ...createWorld(flatTerrain(0)), spots: [spot], dams: [{ spot: 's', wood: 8, mud: 4, rock: 2 }], haul: { kind: 'rock' as const } };
@@ -96,7 +104,7 @@ describe('dam line', () => {
     expect(worn.dam).toMatchObject({ whole: true, canAdd: true });
     const text = formatCarry(0, false, null, null, null, null, worn);
     expect(text).toContain('dam worn 40%, needs 6 units (a long log is 2, mud 1, a rock 2)');
-    expect(text).not.toContain('dam done');
+    expect(text).not.toContain('dam done, as high as a dam can go here');
     const mended = [{ ...dams[0]!, repairing: true, wear: { level: 0.6, since: 12 * DAY_SECONDS, mend: 0 } }];
     const part = foodInfoOf({ ...base, dams: mended, clock: 12 * DAY_SECONDS }, flatTerrain(0))!; // good again, not new
     expect(part.repair).toEqual({ what: 'dam', percent: 60, wood: 4, broken: false });

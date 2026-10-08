@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DamSpot } from './damSpots';
-import { newSpotsFrom, withNewSpots } from './newSpots';
+import { newSpotsFrom, refineNear, withNewSpots } from './newSpots';
 import { floodPond } from './pond';
 import type { StreamPoint, Terrain } from './terrain';
 
@@ -47,5 +47,31 @@ describe('newSpotsFrom', () => {
     const once = withNewSpots([spot], [pond], t);
     expect(once.length).toBeGreaterThan(1);
     expect(withNewSpots(once, [pond], t)).toBe(once);
+  });
+});
+
+describe('refineNear', () => {
+  const t = valley();
+  const rough = (): DamSpot => ({ ...withNewSpots([spot], [floodPond(t, spot, 1)!], t)[1]!, maxCrest: 0.5 });
+
+  it('works a rough spot out again once the beaver is near, and leaves it alone far away', () => {
+    const r = { ...rough(), rough: true as const };
+    const list = [spot, r];
+    expect(refineNear(list, 1000, 0, t, [])).toBe(list);
+    const done = refineNear(list, r.bed.x, r.bed.z, t, []);
+    expect(done[1]!.rough).toBeUndefined();
+    expect(done[1]!.maxCrest).toBeGreaterThan(0.5);
+    expect(refineNear(done, r.bed.x, r.bed.z, t, [])).toBe(done);
+  });
+
+  it('keeps the figures of a spot with a dam started, and drops the rough mark', () => {
+    const r = { ...rough(), rough: true as const };
+    const done = refineNear([spot, r], r.bed.x, r.bed.z, t, [{ spot: r.id }]);
+    const { rough: _rough, ...kept } = r;
+    expect(done[1]).toEqual(kept);
+  });
+
+  it('marks the spots a pond finds as rough', () => {
+    expect(withNewSpots([spot], [floodPond(t, spot, 1)!], t)[1]!.rough).toBe(true);
   });
 });

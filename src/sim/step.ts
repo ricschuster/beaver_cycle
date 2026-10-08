@@ -5,7 +5,7 @@ import { atStore, storeCapacity, storeCondition, strippable, tapped, trimmed } f
 import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, checkSite, followPond, lodgeSolid, type Lodge, nearLodge, towardDoor } from './lodge';
 import { damAt, placed, spotAt } from './dam';
-import { withNewSpots } from './newSpots';
+import { refineNear, withNewSpots } from './newSpots';
 import { lodgeGround, pondAt, pondsAt, withPonds, type Pond } from './pond';
 import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
@@ -90,7 +90,8 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   const prevPonds = { ponds: world.ponds, crests: world.pondCrests };
   const pondSet = pondsAt(prevPonds, built.dams, world.spots, ground, world.clock);
   // A pond that has just grown or sunk may open up new dam spots on the streams round it (design note 20).
-  const spots = pondSet === prevPonds ? world.spots : withNewSpots(world.spots, pondSet.ponds.filter((p) => prevPonds.crests[p.spot] !== p.crest), ground);
+  const found = pondSet === prevPonds ? world.spots : withNewSpots(world.spots, pondSet.ponds.filter((p) => prevPonds.crests[p.spot] !== p.crest), ground);
+  const spots = refineNear(found, beaver.x, beaver.z, ground, built.dams);
   return {
     ...world,
     ...food,

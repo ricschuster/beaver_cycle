@@ -2,7 +2,7 @@
 // many of each as have been placed. A worn dam loses sticks and mounds and shows the gold repair glow (Q55), a broken one
 // is mostly gone. The pond is drawn by pondView. Reads state only.
 import * as THREE from 'three';
-import { LEVEL1_COST, damCondition, damNeedsRepair, type Dam } from '../sim/dam';
+import { costOf, damCondition, damNeedsRepair, type Dam } from '../sim/dam';
 import type { DamSpot } from '../sim/damSpots';
 import { WORN_BELOW, stageOf } from '../sim/wear';
 import { createRepairGlow, type RepairGlow } from './repairGlow';
@@ -56,7 +56,7 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
         if (!entry) glows.set(dam.spot, { glow, at });
         glow.set(damNeedsRepair(dam, clock) ? { ...at, broken: stageOf(level) === 'broken' } : null);
       }
-      const key = dams.map((d) => `${d.spot}:${d.wood}:${d.mud}:${d.rock}:${Math.round(shownShare(damCondition(d, clock)) * 20)}`).join('|');
+      const key = dams.map((d) => `${d.spot}:${d.wood}:${d.mud}:${d.rock}:${d.level ?? 1}:${Math.round(shownShare(damCondition(d, clock)) * 20)}`).join('|');
       if (key === shown) return;
       shown = key;
       root.clear();
@@ -71,7 +71,7 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
         const group = new THREE.Group();
         group.position.set(spot.bed.x, base, spot.bed.z);
         group.rotation.y = Math.atan2(-lateral.z, lateral.x);
-        const sticks = count(Math.min(dam.wood, LEVEL1_COST.wood));
+        const sticks = count(Math.min(dam.wood, costOf(dam).wood));
         for (let i = 0; i < sticks; i++) {
           const o = mesh(stickGeometry, wood);
           o.position.set(((i % ROW) - (ROW - 1) / 2) * SPACING + (Math.floor(i / ROW) % 2) * 0.6, 0.17 + Math.floor(i / ROW) * 0.3, ((i * 7) % 3) * 0.08);
@@ -80,13 +80,13 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
         }
         for (let i = 0; i < count(dam.mud); i++) {
           const o = mesh(moundGeometry, mud);
-          o.position.set(((i % ROW) - (ROW - 1) / 2) * SPACING, 0.4, 0.35);
+          o.position.set(((i % ROW) - (ROW - 1) / 2) * SPACING, 0.4 + Math.floor(i / ROW) * 0.5, 0.35);
           o.scale.set(1.2, 0.5, 1.1);
           group.add(o);
         }
         for (let i = 0; i < count(dam.rock); i++) {
           const o = mesh(rockGeometry, stone);
-          o.position.set((i - 0.5) * 3.2, 0.75, -0.3);
+          o.position.set(((i % 3) - 1) * 3.2, 0.75 + Math.floor(i / 3) * 0.7, -0.3 - Math.floor(i / 3) * 0.2);
           o.rotation.set(i, i * 2, 0);
           group.add(o);
         }

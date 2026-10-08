@@ -88,6 +88,17 @@ describe('a pond follows the wear of its dam', () => {
     expect(crestAt(40)).toBe(0);
   });
 
+  it('rises on from the level below when a dam is raised, and wears from the crest of its level', () => {
+    const raising = (wood: number) => ({ spot: spot.id, level: 2 as const, wood, mud: 4, rock: 2 });
+    expect(crestOf(raising(8))).toBeCloseTo(1); // just raised, nothing added
+    expect(crestOf(raising(14))).toBeGreaterThan(1);
+    expect(crestOf(raising(14))).toBeLessThan(1.5);
+    const level2 = { spot: spot.id, level: 2 as const, wood: 14, mud: 8, rock: 5, wear: newWear(0) };
+    expect(crestOf(level2, 0)).toBeCloseTo(1.5);
+    expect(crestOf({ ...level2, level: 3 }, 0)).toBeLessThan(2); // level 3 with the level 2 set is a third of the way
+    expect(crestOf(level2, 15 * DAY_SECONDS)).toBeCloseTo(0.75, 1); // condition 0.25: half the crest, sagging from 1.5 m
+  });
+
   it('is no pond once drained, and a mended dam brings it back', () => {
     expect(pondsOf([whole(30)], [spot], t, 0).ponds).toEqual([]);
     expect(pondsOf([whole(0)], [spot], t, 0).ponds).toHaveLength(1);

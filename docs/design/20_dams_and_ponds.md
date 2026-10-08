@@ -187,7 +187,7 @@ interface Dam {
    spot ring, one level 1 dam (wood, mud, rock as plain piles), no pond yet.
 2. The flood fill and the pond surface at the crest height.
 3. Wear of the dam and the pond level that follows it. Repair (doc 15). Done.
-4. Levels 2 and 3, and new spots from a new pond.
+4. Levels 2 and 3 (done, see step 4 below), and new spots from a new pond.
 5. Lily pads growing in a new pond, and the lodge in a pond.
 
 Each step is playable on a tablet and small enough for one pull request.
@@ -235,7 +235,7 @@ Each step is playable on a tablet and small enough for one pull request.
 - A spot lies on the drawn stream line (the scan reports the OSM line point, not the channel bed it
   found a few metres off), so the ring, the dam, and the pond sit on the stream the player sees. The fill
   seeds from the lowest upstream ground within 8 m of the spot, since the real channel is a little off the line.
-- Not built yet: levels 2 and 3, new spots from a new pond, lily pads, the lodge in a pond.
+- Not built yet: new spots from a new pond, lily pads, the lodge in a pond.
 
 ## Built so far (step 3, wear of the dam)
 
@@ -258,6 +258,25 @@ Code in `src/sim/dam.ts` (wear and mend) and `src/sim/pond.ts` (the level that f
 - To try it: `?age=N` makes a dam N days old when the test menu fills it in (worn at 10, broken at 17).
 - Not built: teenagers who repair the dam, a worn dam's effect on fish and lily pads (there are none in ponds
   yet), the cost of a wear step on the shore (a lodge door left in shallows).
+
+## Built so far (step 4, levels 2 and 3)
+
+Code in `src/sim/dam.ts` (`Dam.level`, `LEVEL_COST`, `raised`) and `src/sim/pond.ts` (`crestOf`).
+
+- A dam has a level, 1 to 3 (missing means 1). It holds the wood, mud, and rock of its level in all: 8/4/2, 14/8/5,
+  22/12/9. The crest is 1.0, 1.5, and 2.0 m, up to what the spot holds (`maxLevel`).
+- Raising is the build button at the dam, as for building and mending. A whole dam that is good (condition 0.5 or
+  more, and not marked for repair) and below the spot's biggest level is raised by the next piece placed: it keeps
+  what it has, takes the rest of the next level's cost, and the pond rises from the old crest to the new one as it
+  goes (`crestOf`), the same as level 1. A worn dam is mended first. The spot ring shows again on a dam that can
+  be raised, and the HUD line says "dam level 1 done, raise it to level 2: needs ...".
+- While a dam is raised it does not wear, and it is new when the bigger level is whole (the wear record is made
+  again). So raising also renews it.
+- A broken dam is built again from nothing at level 1 (14 units, not 43), so a bad run never costs a big dam twice. To tune.
+- To try it: the test menu "Finish dam here" fills a dam to level 1, and each press after raises it and fills the
+  next level, up to what the spot holds.
+- Not built: the view of a bigger dam is the same piles, more of them and higher. A shaped wall comes with the
+  art.
 
 ## Decided
 

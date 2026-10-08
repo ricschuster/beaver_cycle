@@ -2,7 +2,7 @@
 // connected to the stream. A flood fill over a window of the ground, the same walk the dam site scan does
 // (tools/dam-sites/scan_dam_sites.py). Water is not simulated: the level is a number and the extent a fill. The fill is
 // kept as a grid of ground heights and flooded points, so it never asks the ground again. No three.js (ADR 0007).
-import { LEVEL1_COST, damCondition, damProgress, type Dam } from './dam';
+import { damCondition, damProgress, levelOf, type Dam } from './dam';
 import { LEVEL_CREST, type DamSpot } from './damSpots';
 import type { Terrain } from './terrain';
 import { WORN_BELOW } from './wear';
@@ -41,12 +41,13 @@ export interface Pond {
 }
 
 /**
- * Height of the water above the stream bed for a dam, in steps of `CREST_STEP`: it rises as the dam is built to the full
- * level 1 crest. A whole dam holds it while good, and lets it sag as it wears (15_build_and_repair.md): the level falls with
+ * Height of the water above the stream bed for a dam, in steps of `CREST_STEP`: it rises as the dam is built to the crest of its
+ * level (1.0, 1.5, 2.0 m), and on from the level below when it is raised. A whole dam holds it while good, and lets it sag as it wears (15_build_and_repair.md): the level falls with
  * the condition below worn, so a worn dam sags a little each day and a broken one drains to the stream within days.
  */
 export function crestOf(dam: Dam | undefined, clock = 0): number {
-  const full = LEVEL_CREST[0]! * damProgress(dam, LEVEL1_COST);
+  const below = LEVEL_CREST[levelOf(dam) - 2] ?? 0;
+  const full = below + (LEVEL_CREST[levelOf(dam) - 1]! - below) * damProgress(dam);
   const crest = full * Math.min(1, damCondition(dam, clock) / WORN_BELOW);
   return Math.round(crest / CREST_STEP) * CREST_STEP;
 }

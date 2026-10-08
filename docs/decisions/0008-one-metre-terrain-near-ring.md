@@ -97,8 +97,9 @@ or `--fine 1`; the first run caches about 100 MB of the BEV 1 m terrain in
   - So 2 m has plenty of room. 1 m needs smaller fine tiles (for example 80 m)
     or mesh building spread over several frames before it can be the base.
 - Looks: the bank is a smooth slope and the shoreline steps are 2 m, not 5 m.
-  The lake water is still drawn in whole cells, so the water edge shows steps.
-  Cutting the water at the true shore line is a follow up.
+  The lake water was first drawn in whole cells, so the water edge showed steps.
+  Since #90 the lake surface is cut at the true shoreline (`buildLakeGeometry`
+  clips each triangle at the lake level), so the edge no longer steps.
 
 ## Decision
 
@@ -122,8 +123,8 @@ blocky at 5 m. Decided, using the datum check and the prototype above:
   in M5, with smaller fine tiles (for example 80 m) or mesh building spread over
   several frames.
 - Not decided here: fine tiles beyond the lake shores (streams, the lodge
-  site), and cutting the water surface at the true shoreline, which still steps
-  in whole cells.
+  site). Cutting the water surface at the true shoreline was a follow up and is
+  done (#90).
 
 ## Consequences
 

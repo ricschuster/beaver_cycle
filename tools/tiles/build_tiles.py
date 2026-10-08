@@ -51,6 +51,7 @@ gdal.UseExceptions()
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "area-editor"))
 import build_data  # noqa: E402
+import snap_streams  # noqa: E402
 
 CELL = 5.0  # metres, the finest the data has (ADR 0002)
 TILE_CELLS = 64  # cells per tile side at level 0
@@ -580,7 +581,20 @@ def build_fine(out, g, cell, tiles, lakes, lake_levels):
     return ranges
 
 
-def build(out=OUT, fine=None, backdrop=True):
+def snap_stream_lines(streams, h, g, lake_vert):
+    """Move the OSM stream lines onto the channel of the 5 m terrain (ADR 0010) and print what moved."""
+    streams, rep = snap_streams.snap_streams(
+        streams, snap_streams.Heights(h, g.x0, g.z0, g.cell), lake_vert)
+    print(f"stream lines snapped to the channel: {rep['points']} points, {rep['kept']} kept on the OSM line, "
+          f"moved median {rep['median_m']:.1f} m, 90th percentile {rep['p90_m']:.1f} m, max {rep['max_m']:.1f} m")
+    for name, x, z, d in sorted(rep["big_moves"], key=lambda b: -b[3])[:10]:
+        print(f"  moved {d} m: {name or '(unnamed)'} at ({x}, {z})")
+    if len(rep["big_moves"]) > 10:
+        print(f"  ... and {len(rep['big_moves']) - 10} more points moved over {snap_streams.BIG_MOVE} m")
+    return streams
+
+
+def build(out=OUT, fine=None, backdrop=True, snap=True):
     out = Path(out)
     keep = wanted_tiles()
     far = far_tiles() if backdrop else set()
@@ -591,6 +605,8 @@ def build(out=OUT, fine=None, backdrop=True):
     h, lake_cells, lake_vert, lake_level, lake_list, lake_levels = make_lake_bed(
         g, h, lakes, code == CLASSES["wetland"])
     code[lake_cells] = CLASSES["lake"]
+    if snap:
+        streams = snap_stream_lines(streams, h, g, lake_vert)
     q = np.rint(h / SCALE).astype(np.int64)
 
     fine_set = {}
@@ -771,6 +787,8 @@ def main():
                          "BEV 1 m terrain: 2 by default (ADR 0008), 1 is heavy for a tablet, 0 turns them off")
     ap.add_argument("--no-backdrop", action="store_true",
                     help="skip the far backdrop (coarse tiles out to 5 km beyond the play area)")
+    ap.add_argument("--no-snap", action="store_true",
+                    help="keep the OSM stream lines where they are (no snap to the channel, ADR 0010)")
     ap.add_argument("--fetch-fine", action="store_true", help="only cache the BEV 1 m terrain in data/raw/")
     args = ap.parse_args()
     if args.fetch_fine:
@@ -783,7 +801,7 @@ def main():
             fetch_fine(rg)
         return
     if not args.check_only:
-        build(args.out, args.fine, backdrop=not args.no_backdrop)
+        build(args.out, args.fine, backdrop=not args.no_backdrop, snap=not args.no_snap)
     check(args.out)
 
 

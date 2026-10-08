@@ -38,8 +38,8 @@ has to guess.
   is a tuning step on a tablet, not a design question.
   The scan drops a site whose level 1 pond does not lie on the drawn stream (at least half of
   its cells within 5 m of the line, and half of the upstream line points inside it), because the 5 m
-  terrain can fill a basin beside the line. This leaves few sites in the small locations until the
-  stream lines are snapped to the channel.
+  terrain can fill a basin beside the line. The tile build snaps the stream lines to the
+  channel first ([ADR 0010](../decisions/0010-snap-streams-to-the-channel.md)), so most sites pass.
 - **Spots that come later.** A built dam makes a pond. The pond's edge, and the
   streams that run into it, are scanned again for new spots (Q74). So spots are
   found as ponds grow, not fixed up front. The scan runs in the sim at build

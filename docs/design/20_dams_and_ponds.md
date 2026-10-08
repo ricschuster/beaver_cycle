@@ -297,7 +297,10 @@ Code in `src/sim/pond.ts` (`lodgeGround`, `pondAt`), `src/sim/lodge.ts` (`Lodge.
 - A lodge started in a pond is tagged with its dam spot (`Lodge.pond`). Its floor follows the pond: it rises with the
   water when the dam is raised and falls when the dam wears, so the room stays dry and the door under water. When the
   pond has drained it rests on the ground. A lodge in the lake is not touched.
-- Not built yet: the door depth when a pond sags below 1.2 m, a test menu way to place a lodge in a pond, new spots
+- To try it: the game starts with a whole test lodge near the start, and the lodge preview shows only when there is no
+  lodge. Start with `?lodge=0` or press "Remove lodge" in the test menu (Lodge row), finish a dam to level 2 or 3, and
+  drag a log into the pond.
+- Not built yet: the door depth when a pond sags below 1.2 m, new spots
   from a new pond, and lily pads in a new pond.
 
 ## Decided

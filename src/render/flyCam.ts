@@ -52,16 +52,16 @@ function keepAbove(y: number, surface: number): number {
   return Math.min(FLY_CEILING, Math.max(surface + FLY_MIN_HEIGHT, y));
 }
 
-/** Fly one frame: `move` is the stick (x left, z forward, along the view, climbing with the pitch), `climb` is -1..1 straight up. */
+/** Fly one frame: `move` is the stick (x left, z forward), level over the ground whatever the pitch; `climb` is -1..1 straight up. */
 export function fly(v: ViewState, move: { x: number; z: number }, climb: number, dt: number, surface: Surface): void {
   const p = v.free;
   if (!p) return;
   const speed = (BASE_SPEED + Math.max(0, p.y - surface(p.x, p.z)) * SPEED_PER_M) * dt;
   const side = relativeToView({ x: move.x, z: 0 }, v.yaw);
-  const ahead = lookDir(v.yaw, v.pitch);
-  const x = p.x + (side.x + ahead.x * move.z) * speed;
-  const z = p.z + (side.z + ahead.z * move.z) * speed;
-  const y = p.y + (ahead.y * move.z + climb * CLIMB_SHARE) * speed;
+  const ahead = relativeToView({ x: 0, z: move.z }, v.yaw);
+  const x = p.x + (side.x + ahead.x) * speed;
+  const z = p.z + (side.z + ahead.z) * speed;
+  const y = p.y + climb * CLIMB_SHARE * speed;
   v.free = { x, y: keepAbove(y, surface(x, z)), z };
 }
 

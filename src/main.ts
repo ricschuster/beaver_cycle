@@ -97,7 +97,7 @@ async function start(): Promise<void> {
   // ?fly=1: the view comes loose from the beaver, which stands still. The stick or WASD pans it over the land, faster the further
   // out it is zoomed, and the wheel zooms (up to 600 m). The clock and the ponds run on.
   const fly = query.get('fly') === '1';
-  // ?fly=free: a drone. The stick or WASD flies it along where it looks (W forward, A and D sideways), Space or E climbs, Shift or
+  // ?fly=free: a drone. The stick or WASD flies it level over the ground (W forward, A and D sideways), Space or E climbs, Shift or
   // Q descends, a drag turns it, and a tap on the land glides it there. It keeps 3 m over the ground and the water. The beaver stands still.
   const free = query.get('fly') === 'free';
   // The ground, or the water over it, for the drone to stay above.

@@ -12,11 +12,11 @@ describe('fly camera', () => {
     expect(lookDir(0, Math.PI / 4).y).toBeLessThan(0);
   });
 
-  it('flies forward along where it looks, with the pitch', () => {
+  it('flies forward level, whatever the pitch', () => {
     const v = view({ pitch: Math.PI / 4 });
     fly(v, { x: 0, z: 1 }, 0, 1, flat(0));
     expect(v.free!.z).toBeLessThan(0);
-    expect(v.free!.y).toBeLessThan(100);
+    expect(v.free!.y).toBeCloseTo(100);
   });
 
   it('strafes left with positive x', () => {
@@ -26,8 +26,8 @@ describe('fly camera', () => {
   });
 
   it('keeps a height over the ground and cannot dive into it', () => {
-    const v = view({ pitch: 1.5, free: { x: 0, y: 5, z: 0 } });
-    for (let i = 0; i < 50; i++) fly(v, { x: 0, z: 1 }, 0, 0.1, flat(0));
+    const v = view({ free: { x: 0, y: 5, z: 0 } });
+    for (let i = 0; i < 50; i++) fly(v, { x: 0, z: 0 }, -1, 0.1, flat(0));
     expect(v.free!.y).toBeCloseTo(FLY_MIN_HEIGHT);
   });
 

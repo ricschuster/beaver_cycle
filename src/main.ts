@@ -19,7 +19,7 @@ import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { loadDamSites } from './render/damSites';
-import { LEVEL1_COST, placed, spotAt } from './sim/dam';
+import { LEVEL_COST, placed, spotAt } from './sim/dam';
 import { pondsOf, withPonds } from './sim/pond';
 import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
@@ -139,7 +139,7 @@ async function start(): Promise<void> {
             onFill() {
               const spot = spotAt(damSpots, world.beaver.x, world.beaver.z);
               if (spot) {
-                const dams = placed(world.dams, spot, LEVEL1_COST, undefined, world.clock).map((d) => (d.spot === spot.id && d.wear ? { ...d, wear: newWear(world.clock - ageDays * DAY_SECONDS) } : d));
+                const dams = placed(world.dams, spot, LEVEL_COST[2]!, undefined, world.clock).map((d) => (d.spot === spot.id && d.wear ? { ...d, wear: newWear(world.clock - ageDays * DAY_SECONDS) } : d));
                 const set = pondsOf(dams, damSpots, terrain, world.clock);
                 world = { ...world, dams, ponds: set.ponds, pondCrests: set.crests };
               }

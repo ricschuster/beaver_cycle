@@ -1,12 +1,12 @@
 // A calm white ring on each free dam spot near the beaver (Q72), so the valley stays quiet far from one. The gold ring
 // is for repair (repairGlow.ts), so a free spot looks different. Reads state only.
 import * as THREE from 'three';
-import { damAt, damWhole, type Dam } from '../sim/dam';
+import { damAt, damWhole, raised, type Dam } from '../sim/dam';
 import type { DamSpot } from '../sim/damSpots';
 
 export interface SpotRings {
-  /** Show the rings of the spots within `range` metres of the beaver, hide the rest. A spot with a dam started is green, one with a whole dam has no ring. */
-  update(x: number, z: number, dams?: readonly Dam[]): void;
+  /** Show the rings of the spots within `range` metres of the beaver, hide the rest. A spot with a dam started is green, one with a whole dam has no ring unless it can be raised. */
+  update(x: number, z: number, dams?: readonly Dam[], clock?: number): void;
 }
 
 /** Ring radius, metres: about half a first dam. */
@@ -28,10 +28,10 @@ export function createSpotRings(scene: THREE.Scene, spots: readonly DamSpot[]): 
     return { spot: s, ring };
   });
   return {
-    update(x, z, dams = []) {
+    update(x, z, dams = [], clock = 0) {
       for (const { spot, ring } of rings) {
         const dam = damAt(dams, spot);
-        ring.visible = Math.hypot(spot.bed.x - x, spot.bed.z - z) <= SHOW_RANGE && !damWhole(dam);
+        ring.visible = Math.hypot(spot.bed.x - x, spot.bed.z - z) <= SHOW_RANGE && (!damWhole(dam) || !!raised(dam, spot, clock));
         ring.material = dam ? building : material;
       }
     },

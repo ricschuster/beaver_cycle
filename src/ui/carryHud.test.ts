@@ -76,9 +76,17 @@ describe('dam line', () => {
     expect(formatCarry(0, false, null, null, null, null, info)).toContain('dam 64%, needs 3 mud, 2 rocks, press Build to add it');
   });
   it('says done for a whole dam and shows nothing away from a spot', () => {
-    const w = { ...createWorld(flatTerrain(0)), spots: [spot], dams: [{ spot: 's', wood: 8, mud: 4, rock: 2 }] };
+    const w = { ...createWorld(flatTerrain(0)), spots: [{ ...spot, maxCrest: 1 }], dams: [{ spot: 's', wood: 8, mud: 4, rock: 2 }] };
     expect(formatCarry(0, false, null, null, null, null, foodInfoOf(w, flatTerrain(0)))).toContain('dam done');
     expect(foodInfoOf({ ...w, beaver: { ...w.beaver, x: 50 } }, flatTerrain(0))).toBeNull();
+  });
+  it('offers to raise a good whole dam, and counts a raise from the level below', () => {
+    const w = { ...createWorld(flatTerrain(0)), spots: [spot], dams: [{ spot: 's', wood: 8, mud: 4, rock: 2 }], haul: { kind: 'rock' as const } };
+    const info = foodInfoOf(w, flatTerrain(0))!;
+    expect(info.dam).toMatchObject({ raise: true, whole: false, level: 2, percent: 0, wood: 6, mud: 4, rock: 3, canAdd: true });
+    expect(formatCarry(0, false, null, null, null, null, info)).toContain('dam level 1 done, raise it to level 2: needs 6 wood, 4 mud, 3 rocks, press Build to add it');
+    const part = { ...w, dams: [{ spot: 's', level: 2 as const, wood: 14, mud: 4, rock: 2 }], haul: null };
+    expect(formatCarry(0, false, null, null, null, null, foodInfoOf(part, flatTerrain(0)))).toContain('dam level 2 46%, needs 4 mud, 3 rocks');
   });
   it('shows a worn dam as a repair that takes any material, and a broken one as built again', () => {
     const dams = [{ spot: 's', wood: 8, mud: 4, rock: 2, wear: newWear(0) }];

@@ -74,8 +74,21 @@ Now: the wood count up ("12 of 30 trees felled") and then the achievement. For t
 the carry HUD line, which is already long. Proposal: an achievements panel in the test menu first (a list with won and
 not won), and a proper screen in the art pass (#105). Counting up stays in the carry HUD only for wood.
 
+## Decided and built
+
+The author agreed on the list, and on these three points:
+
+- **Home** is not won by the test lodge the game starts with. The start marks it won without a toast, so it shows only
+  when the beaver finishes a lodge (`?lodge=0` for a new game without the test one).
+- **A list of the achievements** is in the test menu (`achievementLines`), with the count for wood, water gardener, and
+  hauler. A proper screen waits for the art pass (#105).
+- **The family and guide achievements** wait for M6.
+
+Built in `src/sim/achievements.ts`: one rule per achievement, checked each step by `tally`. Counters in `WorldState`:
+`padsPicked`, `mended`, `hauled`. `DamSpot.found` marks a spot a pond found. A piece counts as mended when it was worn
+below 0.99 and is back above 0.999 (wear falls a little every tick), so a dam raised a level is not a mend. Not tried on the
+tablet.
+
 ## Not decided
 
-- Whether Home should be won by a test lodge (see above).
-- Whether a screen listing the achievements and their progress is wanted before M6.
-- The family and guide achievements, and their toasts, in M6.
+- More achievements, and a screen for them: see the issue "Later: more achievements".

@@ -83,6 +83,10 @@ export interface WorldState {
   eaten: number;
   /** Ids of the achievements won so far (`achievements.ts`). They stay won. Each baby will start its own list later (Q40). */
   achievements: AchievementId[];
+  /** Counters for achievements that need an event (`achievements.ts`): lily pads picked, pieces mended back to new, loads of mud and rock put on dams. */
+  padsPicked: number;
+  mended: number;
+  hauled: number;
   /** Test setting that scales movement speed (x1, x5, x20, x100). Not a game rule. */
   speedMultiplier: number;
 }
@@ -139,7 +143,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

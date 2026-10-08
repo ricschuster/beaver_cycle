@@ -29,6 +29,8 @@ export interface TestMenuOptions {
   onJump(id: string): void;
   /** Test stand-in for entering and leaving a lodge (M4): the clock runs at half speed inside. */
   onLodge(inLodge: boolean): void;
+  /** Take the lodge and its wear away, so a new one can be started (for instance in a pond). */
+  onRemoveLodge(): void;
   /** Sleep through the night; only does something in the lodge at night. */
   onSleep(): void;
   /** Jump to a part of the day, 0 dawn to 1. */
@@ -193,7 +195,16 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   sleepButton.dataset.action = 'sleep';
   style(sleepButton);
   sleepButton.onclick = () => opts.onSleep();
-  lodgeRow.append(lodgeButton, sleepButton);
+  const removeButton = document.createElement('button');
+  removeButton.textContent = 'Remove lodge';
+  removeButton.dataset.action = 'lodge-remove';
+  style(removeButton);
+  removeButton.onclick = () => {
+    inLodge = false;
+    showLodge();
+    opts.onRemoveLodge();
+  };
+  lodgeRow.append(lodgeButton, sleepButton, removeButton);
 
   const jumpRow = row('Jump to');
   for (const loc of opts.locations) {

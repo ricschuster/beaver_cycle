@@ -6,9 +6,10 @@ import { createRenderer } from './render/renderer';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
-import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, type WorldState } from './sim/state';
+import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { parentsAt } from './sim/family';
+import { follower } from './sim/partners';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
 import { CHOP_TIME, noTrees, type TreeSource } from './sim/trees';
@@ -280,6 +281,7 @@ async function start(): Promise<void> {
   const toast = createToast(hud);
   let wasCalled = false;
   let lastStage: Stage | null = null;
+  let lastFollower: string | null = null;
   let wonShown = -1; // set on the first frame, so achievements already won in a loaded game give no toast
   // Taps on the stash screen wait here until the next step takes them.
   let stashTap: number | undefined;
@@ -362,10 +364,14 @@ async function start(): Promise<void> {
     // Growing up from a teenager: Mama and Papa say it is time to start a family of one's own (Q8, Q50).
     const nowStage = lifeAt(world.clock, world.bornAt).stage;
     if (lastStage === 'teenager' && nowStage === 'adult') {
-      world = leaveHome(world);
+      world = withPartners(leaveHome(world));
       toast.show('Mama and Papa say it is time to start a family of your own');
     }
     lastStage = nowStage;
+    // A lone beaver the player meets slaps its tail and follows.
+    const following = follower(world.partners)?.id ?? null;
+    if (following && following !== lastFollower) toast.show('A beaver slaps its tail and follows you');
+    lastFollower = following;
     // A toast for each achievement won since the last frame.
     if (wonShown < 0) wonShown = world.achievements.length;
     for (const id of world.achievements.slice(wonShown)) toast.show(ACHIEVEMENT_TEXT[id]);

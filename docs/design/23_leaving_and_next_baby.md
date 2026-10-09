@@ -32,11 +32,17 @@ The grown beaver stays in the world, and the next baby is its child:
    `world.formerHomes` (`leaveHome`): it stays solid and drawn, gets old, and
    cannot be used, and the food store goes with it. The world has no home, so
    building a new lodge is the old flow, unchanged.
-2. **Explore for a partner.** One lone beaver lives in another pond of the play
+2. **Explore for a partner (built, `src/sim/partners.ts`).** One lone beaver lives in another pond of the play
    area, far enough that the player has to look for it (Q62). Finding it is
    swimming near it, and it answers with a tail slap. Which pond is picked from
    the dam spots or the lake edge, and by the game, so it is the same every
-   time for a given start.
+   time for a given start. Built as three lone beavers at dam spots at least
+   120 m from the old home and 150 m from each other, each with a coat and a
+   shade. The one the player comes within 8 m of slaps its tail and follows; meet
+   another and that one follows instead, and the first stays where it stood. A
+   follower moves into the lodge when it is whole. To try it, press Teenager and
+   then Adult in the test menu: the lodge becomes a former home and the beavers
+   appear. The shade is drawn; the kit's coat (step 4) is not built.
 3. **Build a home.** The player builds a lodge (as now) in a pond near the
    partner, or in the partner's pond. The partner moves in when the lodge is
    whole. The dam, lodge, and store need repair, as now, and the partner helps

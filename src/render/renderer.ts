@@ -7,7 +7,7 @@ import { seasonLook } from './seasonLook';
 import { moonDirection, nightness, starDirections } from './nightSky';
 import { skyLook } from './skyLook';
 import { sunDirection } from './sunShadow';
-import { DIVE_RATE, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
+import { DIVE_RATE, SWIM_ENTER_DEPTH, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
 import { STAGE_RULES, stageAt } from '../sim/life';
@@ -17,7 +17,7 @@ import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
 import { lookDir } from './flyCam';
 import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
-import { INTERIOR_RADIUS, lodgeCondition } from '../sim/lodge';
+import { INTERIOR_RADIUS, NEST_SPOTS, lodgeCondition } from '../sim/lodge';
 import { storeCondition } from '../sim/food';
 import { createLodgeView, type LodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
@@ -212,6 +212,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     prepareBeaver(model.group);
     parentModels.set(id, { model, pace: 0 });
   }
+  // The lone beavers of the valley, one model each, made when first seen.
+  const partnerModels = new Map<string, { model: BeaverModel; pace: number; x: number; z: number }>();
   let coatShown = -1;
 
   // A ring that spreads over the water where the beaver slapped its tail.
@@ -363,6 +365,36 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         entry.model.update(now, entry.pace, p.mode === 'swim' ? 'swim' : 'walk');
         g.position.set(p.x, p.y, p.z);
         g.rotation.y = p.heading;
+      }
+      for (const p of world.partners) {
+        let entry = partnerModels.get(p.id);
+        if (!entry) {
+          const model = createBeaverModel(p.coat);
+          model.setCoat(p.coat, p.shade);
+          scene.add(model.group);
+          prepareBeaver(model.group);
+          entry = { model, pace: 0, x: p.x, z: p.z };
+          partnerModels.set(p.id, entry);
+        }
+        const g = entry.model.group;
+        // One in the lodge is drawn on its nest while the player is in, else it is out of sight.
+        const home = p.state === 'home';
+        g.visible = !bare && (home ? inside : !inside);
+        if (!g.visible) continue;
+        const ground = source ? source.store.heightAt(p.x, p.z) : 0;
+        const depth = source ? source.store.waterDepth(p.x, p.z) : 0;
+        const swim = !home && depth >= SWIM_ENTER_DEPTH;
+        const nest = NEST_SPOTS[1]!;
+        const at = home && world.lodge ? { x: world.lodge.x + nest.x, y: world.lodge.base, z: world.lodge.z + nest.z } : { x: p.x, y: swim ? ground + depth - SWIM_SINK : ground, z: p.z };
+        const moved = Math.hypot(at.x - entry.x, at.z - entry.z);
+        entry.x = at.x;
+        entry.z = at.z;
+        entry.pace += ((moved > 0.001 && moved < 5 ? 1 : 0) - entry.pace) * 0.2;
+        entry.model.update(now, entry.pace, swim ? 'swim' : 'walk', 0, p.metAt === null ? null : world.time - p.metAt);
+        const wanted = home && world.lodge ? Math.atan2(-nest.x, -nest.z) : p.heading;
+        if (g.parent !== drawn) drawn.add(g);
+        g.position.set(at.x, at.y, at.z);
+        g.rotation.y = wanted;
       }
       beaver.visible = !bare;
       beaver.position.set(b.x, b.y, b.z);

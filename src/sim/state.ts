@@ -8,6 +8,7 @@ import type { AchievementId } from './achievements';
 import type { Dam } from './dam';
 import type { DamSpot } from './damSpots';
 import type { Dropped, Haul } from './haul';
+import { seedPartners, type Partner } from './partners';
 import type { Pond } from './pond';
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
@@ -56,6 +57,8 @@ export interface WorldState {
   lodge: Lodge | null;
   /** Lodges the family has left (docs/design/23_leaving_and_next_baby.md). They stay solid, get old, and cannot be used. */
   formerHomes: Lodge[];
+  /** Lone beavers about the valley, once the player beaver has left home (`partners.ts`). One may follow the player, and one live in the lodge. */
+  partners: Partner[];
   /** Felled trees lying where they fell, and in water floating. */
   logs: Log[];
   /** The id of the log the beaver is dragging, or null. One at a time. */
@@ -156,7 +159,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {
@@ -235,6 +238,11 @@ export function leaveHome(world: WorldState): WorldState {
   // Out of the room, at the entrance, if the leaving came while the beaver was asleep inside.
   const out = world.inLodge ? { ...b, ...doorPoint(world.lodge, DOOR_DISTANCE), y: world.lodge.base, mode: 'walk' as const } : b;
   return { ...world, formerHomes: [...world.formerHomes, world.lodge], lodge: null, store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out };
+}
+
+/** The lone beavers of the valley, put at the dam spots when the player beaver has left home. */
+export function withPartners(world: WorldState): WorldState {
+  return { ...world, partners: seedPartners(world.spots, world.formerHomes.at(-1) ?? world.beaver) };
 }
 
 /** A baby is born in the lodge, on its own nest (Q8, Q34). With no whole lodge the beaver stays where it is. */

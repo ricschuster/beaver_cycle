@@ -12,6 +12,7 @@ import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
+import { moveIn, stepPartners } from './partners';
 import { tally } from './achievements';
 import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
@@ -134,6 +135,12 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     lastSlap,
     beaver,
   };
+  // The lone beavers: one the player comes near follows it, and moves into a whole lodge.
+  if (next.partners.length > 0) {
+    let partners = stepPartners(next.partners, beaver, time, dt);
+    if (lodgeComplete(next.lodge)) partners = moveIn(partners);
+    next.partners = partners;
+  }
   return tally(world, next);
 }
 

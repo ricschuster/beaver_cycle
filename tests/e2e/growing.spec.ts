@@ -89,8 +89,8 @@ test('the message that it is time to start a family is not lost under the full y
     new MutationObserver(() => (window as any).__toasts.push(document.getElementById('toast')?.textContent ?? '')).observe(document.getElementById('toast')!, { childList: true, characterData: true, subtree: true });
   });
   for (let i = 0; i < 2; i++) {
-    await page.waitForTimeout(2500);
-    await page.locator('button[data-action="sleep-grow"]').click();
+    // The panel is back once the fade from the last sleep is over; on a slow runner that takes longer than a fixed wait.
+    await page.locator('button[data-action="sleep-grow"]').click({ timeout: 20_000 });
   }
   await page.waitForFunction(() => (window as any).__game.world().formerHomes.length === 1, null, { polling: 200, timeout: 20_000 });
   // The messages show in turn, so the family's message comes after the achievement.

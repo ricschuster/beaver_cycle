@@ -10,6 +10,7 @@ import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLod
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { formerParentsAt, parentsAt } from './sim/family';
 import { AnimalField, capFor } from './sim/animals';
+import { neighboursAt, seedNeighbours } from './sim/neighbours';
 import { CUE_EVERY, HEARD_DISTANCE, follower, mateOf, partnerCue } from './sim/partners';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
@@ -184,6 +185,8 @@ async function start(): Promise<void> {
       world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear }, storeWear: wear, achievements: [...world.achievements, 'home'] };
     }
   }
+  // Another family lives at a pond far from the start (note 24).
+  world = { ...world, neighbours: seedNeighbours(world.spots, world.lodge ?? world.beaver, terrain, 1, world.lodge ? [world.lodge] : []) };
   // ?stage=baby|teenager|adult starts the beaver at the start of that life stage (default adult). A baby starts in the lodge.
   const stageParam = query.get('stage');
   if (STAGES.includes(stageParam as Stage)) world = startStage(world, stageParam as Stage);
@@ -417,7 +420,7 @@ async function start(): Promise<void> {
       animalField.trim(world.beaver.x, world.beaver.z);
     }
     const animals = animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps));
-    renderer.draw(world, rig.view, [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)], animals);
+    renderer.draw(world, rig.view, [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)], animals, neighboursAt(world.neighbours, world.clock, ponded));
     if (now - lastReadout > 500) {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;
@@ -451,6 +454,8 @@ async function start(): Promise<void> {
     // Mama and Papa as drawn now: of the player's lodge while young, and of every lodge the family has left.
     parents: () => [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds), world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds))],
     formerParents: () => formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds)),
+    // The beavers of the other families as drawn now.
+    neighbours: () => neighboursAt(world.neighbours, world.clock, withPonds(terrain, world.ponds)),
     // The ambient animals around the beaver now.
     animals: () => animalField.near(withPonds(terrain, world.ponds), world.beaver.x, world.beaver.z, world.clock, capFor(fps)),
     lodgeSite: (radius: number) => findSite(lodgeGround(terrain, world.ponds), world.beaver.x, world.beaver.z, radius),

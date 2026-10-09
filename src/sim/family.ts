@@ -117,26 +117,29 @@ function familyAt(lodge: Lodge | null, clock: number, inLodge: boolean, terrain:
   }
   const parts = pondParts(lodge, terrain);
   if (parts.length === 0) return [];
-  return ids.map((id, i) => {
-    const slot = Math.floor(clock / STAY);
-    const pick = (s: number) => parts[mix(s * 2 + i, Math.round(lodge.x * 7 + lodge.z)) % parts.length]!;
-    const from = pick(slot - 1);
-    const to = pick(slot);
-    const t = Math.min(1, ((clock / STAY) % 1) / TRAVEL);
-    const ease = t * t * (3 - 2 * t);
-    let x = from.x + (to.x - from.x) * ease;
-    let z = from.z + (to.z - from.z) * ease;
-    // A straight line between two parts may run through the dome, which is solid: swim round it.
-    const away = Math.hypot(x - lodge.x, z - lodge.z);
-    if (away < SOLID_RADIUS + CLEAR) {
-      const dx = away > 1e-6 ? (x - lodge.x) / away : 1;
-      const dz = away > 1e-6 ? (z - lodge.z) / away : 0;
-      x = lodge.x + dx * (SOLID_RADIUS + CLEAR);
-      z = lodge.z + dz * (SOLID_RADIUS + CLEAR);
-    }
-    const moving = t < 1 && (from.x !== to.x || from.z !== to.z);
-    const heading = moving ? Math.atan2(to.x - from.x, to.z - from.z) : Math.atan2(lodge.x - x, lodge.z - z) + (i === 0 ? 0.6 : -0.6);
-    const y = terrain.heightAt(x, z) + terrain.waterDepth(x, z) - 0.2;
-    return { id, coat: coats[i]!, x, z, y, heading, mode: 'swim' as const, pace: moving ? 1 : 0, inside: false };
-  });
+  return ids.map((id, i) => ({ id, coat: coats[i]!, ...pondPlace(lodge, parts, terrain, clock, i), mode: 'swim' as const, inside: false }));
+}
+
+/** Where beaver number `i` of a lodge's pond is at a clock value: its feet height, heading, and whether it is on the move. */
+export function pondPlace(lodge: Lodge, parts: readonly { x: number; z: number }[], terrain: Terrain, clock: number, i: number): { x: number; y: number; z: number; heading: number; pace: number } {
+  const slot = Math.floor(clock / STAY);
+  const pick = (s: number) => parts[mix(s * 2 + i, Math.round(lodge.x * 7 + lodge.z)) % parts.length]!;
+  const from = pick(slot - 1);
+  const to = pick(slot);
+  const t = Math.min(1, ((clock / STAY) % 1) / TRAVEL);
+  const ease = t * t * (3 - 2 * t);
+  let x = from.x + (to.x - from.x) * ease;
+  let z = from.z + (to.z - from.z) * ease;
+  // A straight line between two parts may run through the dome, which is solid: swim round it.
+  const away = Math.hypot(x - lodge.x, z - lodge.z);
+  if (away < SOLID_RADIUS + CLEAR) {
+    const dx = away > 1e-6 ? (x - lodge.x) / away : 1;
+    const dz = away > 1e-6 ? (z - lodge.z) / away : 0;
+    x = lodge.x + dx * (SOLID_RADIUS + CLEAR);
+    z = lodge.z + dz * (SOLID_RADIUS + CLEAR);
+  }
+  const moving = t < 1 && (from.x !== to.x || from.z !== to.z);
+  const heading = moving ? Math.atan2(to.x - from.x, to.z - from.z) : Math.atan2(lodge.x - x, lodge.z - z) + (i % 2 === 0 ? 0.6 : -0.6);
+  const y = terrain.heightAt(x, z) + terrain.waterDepth(x, z) - 0.2;
+  return { x, y, z, heading, pace: moving ? 1 : 0 };
 }

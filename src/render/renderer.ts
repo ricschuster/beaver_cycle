@@ -24,6 +24,7 @@ import { createLodgeView, type LodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
 import { createAnimalView } from './animalView';
 import type { Animal } from '../sim/animals';
+import type { NeighbourBeaver } from '../sim/neighbours';
 import { createLogView } from './logView';
 import { createDamView } from './damView';
 import { createPondView } from './pondView';
@@ -43,7 +44,7 @@ export interface TerrainSource {
 
 export interface Renderer {
   /** Draw the world. `parents` are Mama and Papa from `parentsAt`, none when the player beaver is grown. */
-  draw(world: WorldState, view: ViewState, parents?: readonly Parent[], animals?: readonly Animal[]): void;
+  draw(world: WorldState, view: ViewState, parents?: readonly Parent[], animals?: readonly Animal[], neighbours?: readonly NeighbourBeaver[]): void;
   terrain: TerrainView | null;
   /** Turn the sun shadows on or off while running. Does nothing if the game started without them. */
   setShadows(on: boolean): void;
@@ -214,6 +215,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const parentModels = new Map<ParentId, { model: BeaverModel; pace: number; coat: string }>();
   // The lone beavers of the valley, one model each, made when first seen.
   const partnerModels = new Map<string, { model: BeaverModel; pace: number; x: number; z: number }>();
+  // The beavers of the other families, one model each, made when first seen, and the lodges they live in.
+  const neighbourModels = new Map<string, { model: BeaverModel; coat: string; pace: number }>();
+  const neighbourViews: LodgeView[] = [];
   let coatShown = '';
 
   // A ring that spreads over the water where the beaver slapped its tail.
@@ -318,7 +322,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     setShadows(on) {
       shadowsOn = on && shadows;
     },
-    draw(world, view, parents = [], animals = []) {
+    draw(world, view, parents = [], animals = [], neighbours = []) {
       const b = world.beaver;
       const moved = Math.hypot(b.x - lastX, b.z - lastZ);
       lastX = b.x;
@@ -378,6 +382,32 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         g.position.set(p.x, p.y, p.z);
         g.rotation.y = p.heading;
       }
+      for (const entry of neighbourModels.values()) entry.model.group.visible = false;
+      for (const n of neighbours) {
+        let entry = neighbourModels.get(n.id);
+        if (!entry) {
+          const model = createBeaverModel(n.coat.coat);
+          scene.add(model.group);
+          prepareBeaver(model.group);
+          entry = { model, coat: '', pace: 0 };
+          neighbourModels.set(n.id, entry);
+        }
+        const g = entry.model.group;
+        g.visible = !bare && !inside;
+        if (!g.visible) continue;
+        const nCoat = `${n.coat.coat}:${n.coat.shade}`;
+        if (nCoat !== entry.coat) {
+          entry.coat = nCoat;
+          entry.model.setCoat(n.coat.coat, n.coat.shade);
+        }
+        entry.pace += (n.pace - entry.pace) * 0.1;
+        entry.model.update(now, entry.pace, 'swim');
+        g.position.set(n.x, n.y, n.z);
+        g.rotation.y = n.heading;
+        g.scale.setScalar(n.scale);
+      }
+      while (neighbourViews.length < world.neighbours.length) neighbourViews.push(createLodgeView(scene, shadows, prepare, false));
+      neighbourViews.forEach((view, i) => view.update(bare || inside ? null : world.neighbours[i]?.lodge ?? null, 1));
       for (const p of world.partners) {
         let entry = partnerModels.get(p.id);
         if (!entry) {

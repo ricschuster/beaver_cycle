@@ -7,7 +7,7 @@ import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, at
 import { damAt, placed, spotAt } from './dam';
 import { refineNear, withNewSpots } from './newSpots';
 import { lodgeGround, pondAt, pondsAt, withPonds, type Pond } from './pond';
-import { STAGE_RULES, stageAt } from './life';
+import { STAGE_RULES, softEdge, stageAt } from './life';
 import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
@@ -67,11 +67,12 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   }
   if (housed) p = clampInterior(world.lodge!, p.x, p.z);
   else if (world.lodge) {
-    // A young beaver stays near home. A gentle limit for now: it does not go past the range (the parents calling it back comes later).
+    // A young beaver stays near home: the last metres slow it down, as the parents call it back, and it goes no further.
     const dx = p.x - world.lodge.x;
     const dz = p.z - world.lodge.z;
     const d = Math.hypot(dx, dz);
-    if (d > rules.range) p = { x: world.lodge.x + (dx / d) * rules.range, z: world.lodge.z + (dz / d) * rules.range };
+    const kept = softEdge(Math.hypot(b.x - world.lodge.x, b.z - world.lodge.z), d, rules.range);
+    if (kept < d) p = { x: world.lodge.x + (dx / d) * kept, z: world.lodge.z + (dz / d) * kept };
   }
   const { x: nx, z: nz } = p;
   const time = world.time + dt;

@@ -84,9 +84,7 @@ this slice. It belongs to the family slice (Q59).
   test menu row.
 - Step 3: `STAGE_RULES` in `life.ts`. Speed is 0.5 for a baby and 0.85 for a
   teenager. A baby cannot fell, grab, gnaw food, build, or use the store, and
-  stays within 60 m of its lodge (a hard stop for now, the parents calling it
-  back comes later). Model scale is 0.45, 0.75, and 1. The camera distance does
-  not follow the scale yet.
+  stays within 60 m of its lodge. Model scale is 0.45, 0.75, and 1.
 - Step 4: sleeping ahead. In the lodge on the nest, at any hour, a panel offers
   "Sleep until next season" and, for a baby or teenager, "Sleep until
   teenager" or "adult". Both wake at dawn. At night the old morning and dream
@@ -94,6 +92,11 @@ this slice. It belongs to the family slice (Q59).
 - Step 5: achievements per life. `newLife` (test menu "New baby") makes the
   beaver a baby again with a clean list. The handover itself, where the baby is
   born and who its family are, is the next slice.
+- Small gaps: the camera follows a young beaver closer and lower (the square
+  root of its size). Over the last 12 m before the range the baby slows to a
+  stop and a toast says "Mama calls you back". There are no parent beavers yet,
+  so it is only the voice. The range is still a distance from the lodge, not
+  the pond shape.
 
 ## Not in this slice
 

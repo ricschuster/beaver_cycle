@@ -5,7 +5,7 @@ import { flatTerrain } from './terrain';
 import { step } from './step';
 import { noActions } from '../actions/actions';
 import { nextSeasonStart } from './clock';
-import { BABY_DAYS, growUpDawn, STAGE_RULES, TEENAGER_DAYS, bornAtFor, lifeAt, stageAt, stageStart } from './life';
+import { CALL_BAND, isCalledBack, softEdge, BABY_DAYS, growUpDawn, STAGE_RULES, TEENAGER_DAYS, bornAtFor, lifeAt, stageAt, stageStart } from './life';
 
 const d = (days: number) => days * DAY_SECONDS;
 
@@ -129,5 +129,28 @@ describe('sleeping ahead', () => {
   it('does nothing outside the lodge', () => {
     const out = setInLodge(home('baby'), false);
     expect(sleepUntil(out, 'season')).toBe(out);
+  });
+});
+
+describe('the soft edge', () => {
+  const range = 60;
+
+  it('leaves steps inside the band and steps toward home alone', () => {
+    expect(softEdge(10, 11, range)).toBe(11);
+    expect(softEdge(59, 58, range)).toBe(58);
+  });
+
+  it('shrinks outward steps in the band and stops at the range', () => {
+    const start = range - CALL_BAND;
+    const kept = softEdge(start + 6, start + 7, range);
+    expect(kept).toBeGreaterThan(start + 6);
+    expect(kept).toBeLessThan(start + 7);
+    expect(softEdge(range, range + 1, range)).toBe(range);
+  });
+
+  it('is called back only in the band, and never for an adult', () => {
+    expect(isCalledBack(range - CALL_BAND - 1, range)).toBe(false);
+    expect(isCalledBack(range - 1, range)).toBe(true);
+    expect(isCalledBack(1000, Infinity)).toBe(false);
   });
 });

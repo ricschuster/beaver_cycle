@@ -334,24 +334,28 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       beaver.visible = !bare;
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
-      beaver.scale.setScalar(STAGE_RULES[stageAt(world.clock, world.bornAt)].scale);
+      const size = STAGE_RULES[stageAt(world.clock, world.bornAt)].scale;
+      beaver.scale.setScalar(size);
       // The fly view orbits a free point on the ground, or on the water over it, not the beaver.
       const free = view.free && !inside ? view.free : null;
       const fx = view.focus && !inside && !free ? view.focus : null;
       const flyY = fx && source ? source.store.heightAt(fx.x, fx.z) + (source.store.isWater(fx.x, fx.z) ? source.store.waterDepth(fx.x, fx.z) : 0) : 0;
-      const look = free ? { x: free.x, y: free.y, z: free.z } : fx ? { x: fx.x, y: flyY + 1.0, z: fx.z } : { x: b.x, y: b.y + 1.0, z: b.z };
+      // A young beaver is small, so the camera follows it closer and lower (the square root of its size, so a baby is not too near).
+      const follow = free || fx ? 1 : Math.sqrt(size);
+      const dist = view.dist * follow;
+      const look = free ? { x: free.x, y: free.y, z: free.z } : fx ? { x: fx.x, y: flyY + 1.0, z: fx.z } : { x: b.x, y: b.y + follow, z: b.z };
       const flat = Math.cos(view.pitch);
       const want = {
-        x: b.x + Math.sin(view.yaw) * view.dist * flat,
-        y: look.y + Math.sin(view.pitch) * view.dist,
-        z: b.z + Math.cos(view.yaw) * view.dist * flat,
+        x: b.x + Math.sin(view.yaw) * dist * flat,
+        y: look.y + Math.sin(view.pitch) * dist,
+        z: b.z + Math.cos(view.yaw) * dist * flat,
       };
       // Pull in before a tree, easing in over a quarter second and back out over a second.
-      const clear = terrain && !inside && !fx && !free ? clearDistance(look, want, view.dist, terrain) : view.dist;
+      const clear = terrain && !inside && !fx && !free ? clearDistance(look, want, dist, terrain) : dist;
       const dt = Math.min(0.1, Math.max(0, now - lastFrame));
       lastFrame = now;
       reach = easeReach(reach, clear, dt);
-      const f = reach / view.dist;
+      const f = reach / dist;
       const camX = free ? free.x : look.x + (want.x - look.x) * f;
       const camZ = free ? free.z : look.z + (want.z - look.z) * f;
       // Keep the camera above the ground it swings over, and out of the water surface band.

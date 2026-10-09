@@ -6,7 +6,7 @@ import { createRenderer } from './render/renderer';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
-import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, type WorldState } from './sim/state';
+import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { parentsAt } from './sim/family';
 import { createLifeHud } from './ui/lifeHud';
@@ -361,7 +361,10 @@ async function start(): Promise<void> {
     wasCalled = called;
     // Growing up from a teenager: Mama and Papa say it is time to start a family of one's own (Q8, Q50).
     const nowStage = lifeAt(world.clock, world.bornAt).stage;
-    if (lastStage === 'teenager' && nowStage === 'adult') toast.show('Mama and Papa say it is time to start a family of your own');
+    if (lastStage === 'teenager' && nowStage === 'adult') {
+      world = leaveHome(world);
+      toast.show('Mama and Papa say it is time to start a family of your own');
+    }
     lastStage = nowStage;
     // A toast for each achievement won since the last frame.
     if (wonShown < 0) wonShown = world.achievements.length;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
-import { LODGE_WOOD, NEST } from './lodge';
-import { createWorld, intoLodge, setClock, setStage, setInLodge, sleep, sleepUntil } from './state';
+import { LODGE_WOOD, NEST, SOLID_RADIUS } from './lodge';
+import { createWorld, intoLodge, leaveHome, setClock, setStage, setInLodge, sleep, sleepUntil } from './state';
 import { flatTerrain } from './terrain';
 import { step } from './step';
 import { noActions } from '../actions/actions';
@@ -193,5 +193,36 @@ describe('a baby is born in the lodge', () => {
     expect(intoLodge(none)).toBe(none);
     const part = { ...none, lodge: { ...lodge, wood: 1 } };
     expect(intoLodge(part)).toBe(part);
+  });
+});
+
+describe('leaving home', () => {
+  const home = { x: 0, z: 20, base: 0, door: 0, wood: LODGE_WOOD };
+
+  it('moves the lodge to the former homes and empties the store', () => {
+    const w = leaveHome({ ...createWorld(flatTerrain(0)), lodge: home });
+    expect(w.lodge).toBeNull();
+    expect(w.formerHomes).toEqual([home]);
+    expect(w.store).toEqual(createWorld(flatTerrain(0)).store);
+    expect(w.storeWear).toBeUndefined();
+  });
+
+  it('puts a sleeper out at the door', () => {
+    const inside = intoLodge({ ...createWorld(flatTerrain(0)), lodge: home });
+    const w = leaveHome(inside);
+    expect(w.inLodge).toBe(false);
+    expect(Math.hypot(w.beaver.x - home.x, w.beaver.z - home.z)).toBeGreaterThan(SOLID_RADIUS);
+  });
+
+  it('does nothing without a lodge', () => {
+    const w = createWorld(flatTerrain(0));
+    expect(leaveHome(w)).toBe(w);
+  });
+
+  it('keeps the old lodge solid', () => {
+    const w = leaveHome({ ...createWorld(flatTerrain(0), 0, home.z - SOLID_RADIUS - 3), lodge: home });
+    let s = { ...w, beaver: { ...w.beaver, heading: 0 } };
+    for (let i = 0; i < 100; i++) s = step(s, { ...noActions(), move: { x: 0, z: 1 } }, 0.1, flatTerrain(0));
+    expect(Math.hypot(s.beaver.x - home.x, s.beaver.z - home.z)).toBeGreaterThanOrEqual(SOLID_RADIUS - 0.01);
   });
 });

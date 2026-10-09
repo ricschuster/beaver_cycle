@@ -19,7 +19,7 @@ import { lookDir } from './flyCam';
 import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
 import { INTERIOR_RADIUS, lodgeCondition } from '../sim/lodge';
 import { storeCondition } from '../sim/food';
-import { createLodgeView } from './lodgeView';
+import { createLodgeView, type LodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
 import { createLogView } from './logView';
 import { createDamView } from './damView';
@@ -185,6 +185,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const logView = createLogView(scene, shadows, prepare);
   const lodgeView = createLodgeView(scene, shadows, prepare);
   const storeView = createStoreView(scene, shadows, prepare);
+  // The lodges the family has left, one view each, made when first needed.
+  const formerViews: LodgeView[] = [];
   const lilyView = createLilyView(scene, prepare);
   const rockView = createRockView(scene, prepare);
   const damView = createDamView(scene, shadows, prepare);
@@ -488,6 +490,11 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       spotRings?.update(look.x, look.z, world.dams, world.clock);
       pondView.update(world.ponds);
       if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z), world.clock, world.ponds);
+      while (formerViews.length < world.formerHomes.length) formerViews.push(createLodgeView(scene, shadows, prepare, false));
+      formerViews.forEach((view, i) => {
+        const old = world.formerHomes[i];
+        view.update(bare || !old ? null : old, old ? lodgeCondition(old, world.clock) : 1);
+      });
       lodgeView.update(inside || bare ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside || bare ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
       if (source && !bare) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);

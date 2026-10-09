@@ -3,7 +3,7 @@
 import { START_CLOCK, nextDawn, nextSeasonStart, isNight } from './clock';
 import { bornAtFor, growUpDawn, type Stage } from './life';
 import { emptyStock, type Food, type Stock } from './food';
-import { NEST, atNest, lodgeComplete, type Lodge } from './lodge';
+import { DOOR_DISTANCE, NEST, atNest, doorPoint, lodgeComplete, type Lodge } from './lodge';
 import type { AchievementId } from './achievements';
 import type { Dam } from './dam';
 import type { DamSpot } from './damSpots';
@@ -54,6 +54,8 @@ export interface WorldState {
   lastSlap: Slap | null;
   /** The lodge, once its first log is placed, or null. One for now. */
   lodge: Lodge | null;
+  /** Lodges the family has left (docs/design/23_leaving_and_next_baby.md). They stay solid, get old, and cannot be used. */
+  formerHomes: Lodge[];
   /** Felled trees lying where they fell, and in water floating. */
   logs: Log[];
   /** The id of the log the beaver is dragging, or null. One at a time. */
@@ -154,7 +156,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {
@@ -221,6 +223,18 @@ export function newLife(world: WorldState): WorldState {
     mended: 0,
     hauled: 0,
   };
+}
+
+/**
+ * The grown beaver leaves home to start a family of its own (Q8, Q50). The lodge it grew up in stays and gets old (Q63),
+ * with its food store, and the beaver has no home until it builds one. Without a lodge nothing changes.
+ */
+export function leaveHome(world: WorldState): WorldState {
+  if (!world.lodge) return world;
+  const b = world.beaver;
+  // Out of the room, at the entrance, if the leaving came while the beaver was asleep inside.
+  const out = world.inLodge ? { ...b, ...doorPoint(world.lodge, DOOR_DISTANCE), y: world.lodge.base, mode: 'walk' as const } : b;
+  return { ...world, formerHomes: [...world.formerHomes, world.lodge], lodge: null, store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out };
 }
 
 /** A baby is born in the lodge, on its own nest (Q8, Q34). With no whole lodge the beaver stays where it is. */

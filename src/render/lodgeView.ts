@@ -16,7 +16,8 @@ const DOME_HEIGHT = 1.8;
 /** How far the dome's foot sinks below the surface, so it sits in the water. */
 const SINK = 0.3;
 
-export function createLodgeView(scene: THREE.Scene, shadows: boolean, prepare: (m: THREE.Material) => void): LodgeView {
+/** `repairable` is false for a lodge the family has left: it gets old but nobody mends it, so it shows no glow. */
+export function createLodgeView(scene: THREE.Scene, shadows: boolean, prepare: (m: THREE.Material) => void, repairable = true): LodgeView {
   // A unit half sphere, flat side down, scaled to the lodge's radius and height.
   const geometry = new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
   const material = new THREE.MeshLambertMaterial({ color: 0x7a5a38, flatShading: true });
@@ -63,7 +64,7 @@ export function createLodgeView(scene: THREE.Scene, shadows: boolean, prepare: (
       const slump = lodgeProgress(lodge) < 1 ? 1 : 1 - 0.25 * wear;
       material.color.copy(newColor).lerp(wornColor, wear);
       mesh.scale.set(LODGE_RADIUS, DOME_HEIGHT * (0.25 + 0.75 * p) * slump, LODGE_RADIUS);
-      glow.set(p >= 1 && needsRepair(level) ? { x: lodge.x, y: lodge.base, z: lodge.z, broken: level < BROKEN_BELOW } : null);
+      glow.set(repairable && p >= 1 && needsRepair(level) ? { x: lodge.x, y: lodge.base, z: lodge.z, broken: level < BROKEN_BELOW } : null);
     },
   };
 }

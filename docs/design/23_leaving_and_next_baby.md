@@ -28,7 +28,10 @@ The grown beaver stays in the world, and the next baby is its child:
 
 1. **Mama says go (built).** When the teenager year ends, a toast says it is time
    to start a family of one's own, and Mama and Papa are no longer drawn. The
-   player beaver is an adult.
+   player beaver is an adult. The lodge it grew up in moves to
+   `world.formerHomes` (`leaveHome`): it stays solid and drawn, gets old, and
+   cannot be used, and the food store goes with it. The world has no home, so
+   building a new lodge is the old flow, unchanged.
 2. **Explore for a partner.** One lone beaver lives in another pond of the play
    area, far enough that the player has to look for it (Q62). Finding it is
    swimming near it, and it answers with a tail slap. Which pond is picked from
@@ -76,8 +79,7 @@ The grown beaver stays in the world, and the next baby is its child:
 
 ## A way to build it
 
-One lodge stays "the home": `world.lodge`, which everything already reads. When
-the kit is born, the home becomes the new lodge, and the old one moves to
-`world.formerHomes`, where it is drawn, solid, and wears, but cannot be used (no
-sleeping, no store, no range). That keeps the refactor small. The old store goes
-with its lodge.
+`world.lodge` stays "the home" and everything keeps reading it. The adult has none
+after leaving (`leaveHome`), so the new lodge is built with the existing flow, and
+when the kit is born it is the home of the baby. Former homes are in
+`world.formerHomes`.

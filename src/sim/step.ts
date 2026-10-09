@@ -60,7 +60,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   // The lodge is solid from outside; inside it the beaver walks the round room, round the water hole, and meets no trees.
   const housed = world.inLodge && world.lodge !== null;
   const near = housed ? [] : trees.trunksNear(b.x + total.x / 2, b.z + total.z / 2, Math.hypot(total.x, total.z) / 2 + 2 * BEAVER_RADIUS + MAX_TRUNK, new Set(world.felled));
-  const former = world.formerHomes.map(lodgeSolid);
+  const former = [...world.formerHomes.map(lodgeSolid), ...world.neighbours.map((n) => lodgeSolid(n.lodge))];
   const trunks = housed ? [holeSolid(world.lodge!)] : world.lodge ? [...near, ...former, lodgeSolid(world.lodge)] : [...near, ...former];
   let p = { x: b.x, z: b.z };
   let pushed = world.logs;

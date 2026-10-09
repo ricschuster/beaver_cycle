@@ -1,6 +1,6 @@
 # NPCs and animals
 
-Status: draft. Slice 1 (ambient animals, #272) is built: `src/sim/animals.ts` and `src/render/animalView.ts`. The author agreed the order of work (open question 6), the cap of 40 to start, simple shapes, and deer, duck, heron, and fox. The author chose the direction (below); everything marked **Proposal** is mine and waits for the author.
+Status: draft. Slice 2 (one other family, #273) is built: `src/sim/neighbours.ts`. One family lives in a whole lodge at a pond far from the start, with a mama, a papa, and the kits of the last two springs, who grow on the clock and leave when grown. By day they swim the pond, at night they sleep in the lodge and are not drawn. Tasks beyond swim, rest, and sleep (eat, carry, repair, wander ashore) are not built. Slice 1 (ambient animals, #272) is built: `src/sim/animals.ts` and `src/render/animalView.ts`. The author agreed the order of work (open question 6), the cap of 40 to start, simple shapes, and deer, duck, heron, and fox. The author chose the direction (below); everything marked **Proposal** is mine and waits for the author.
 This is milestone M7 (#279). Nothing here is built. Today the only NPCs are the lone beavers in `src/sim/partners.ts`.
 
 ## What the author has said

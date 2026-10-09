@@ -41,6 +41,8 @@ export interface TestMenuOptions {
   onSeason(season: Season): void;
   /** Make the beaver just reach a life stage now (baby, teenager, adult). */
   onStage(stage: Stage): void;
+  /** Begin a new baby's life (Q34, Q40): new achievements, the old lodge and dams stay but win nothing. */
+  onNewLife(): void;
   /** False when the game started without shadows (?shadows=0); the toggle is greyed out. */
   shadowsAvailable: boolean;
   onShadows(on: boolean): void;
@@ -161,6 +163,12 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     b.onclick = () => opts.onStage(stage);
     stageRow.appendChild(b);
   }
+  const lifeButton = document.createElement('button');
+  lifeButton.textContent = 'New baby';
+  lifeButton.dataset.action = 'new-life';
+  style(lifeButton);
+  lifeButton.onclick = () => opts.onNewLife();
+  stageRow.appendChild(lifeButton);
   const viewRow = row('View');
   const views: [FlyMode, string][] = [
     ['off', 'Beaver'],

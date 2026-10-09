@@ -6,7 +6,7 @@ import { createRenderer } from './render/renderer';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
-import { canRest, canSleep, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage } from './sim/state';
+import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage } from './sim/state';
 import { STAGES, lifeAt, type Stage } from './sim/life';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
@@ -199,6 +199,9 @@ async function start(): Promise<void> {
     },
     onTimeOfDay(t) {
       world = setClock(world, withTimeOfDay(world.clock, t));
+    },
+    onNewLife() {
+      world = setStage(newLife(world), 'baby');
     },
     onStage(stage) {
       world = setStage(world, stage);

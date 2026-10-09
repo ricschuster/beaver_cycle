@@ -13,6 +13,12 @@ import type { Log } from './logs';
 import type { Terrain } from './terrain';
 import type { Wear } from './wear';
 
+export interface Journey {
+  start: number;
+  felled: number;
+  inherited: string[];
+}
+
 export type BeaverMode = 'walk' | 'swim' | 'dive';
 
 export interface BeaverState {
@@ -86,6 +92,8 @@ export interface WorldState {
   eaten: number;
   /** Ids of the achievements won so far (`achievements.ts`). They stay won. Each baby will start its own list later (Q40). */
   achievements: AchievementId[];
+  /** Where this life's journey started (Q40): the clock then, the trees already felled, and the buildings earlier lives left (`inherited`: 'lodge', 'store', 'dam:<spot>'), which win nothing. */
+  journey: Journey;
   /** Counters for achievements that need an event (`achievements.ts`): lily pads picked, pieces mended back to new, loads of mud and rock put on dams. */
   padsPicked: number;
   mended: number;
@@ -146,7 +154,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {
@@ -196,6 +204,23 @@ export function sleep(world: WorldState): WorldState {
 export function setClock(world: WorldState, clock: number): WorldState {
   // Age moves with the clock, so a test jump to another season or time does not make the beaver older or younger.
   return { ...world, clock, bornAt: world.bornAt + (clock - world.clock) };
+}
+
+/**
+ * A new baby begins (Q34, Q40): a new list of achievements and counters, at the clock now. What stands is kept and gets old
+ * (Q63), but it was not built in this life, so it wins nothing. Where the baby is born and who its family are come later.
+ */
+export function newLife(world: WorldState): WorldState {
+  const inherited = [...(world.lodge ? ['lodge'] : []), ...(world.storeWear ? ['store'] : []), ...world.dams.map((d) => `dam:${d.spot}`)];
+  return {
+    ...world,
+    bornAt: world.clock,
+    achievements: [],
+    journey: { start: world.clock, felled: world.felled.length, inherited },
+    padsPicked: 0,
+    mended: 0,
+    hauled: 0,
+  };
 }
 
 /** Make the beaver just reach this life stage now. A test tool, and the ?stage= start. */

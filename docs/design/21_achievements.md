@@ -13,8 +13,9 @@ or drop. The family achievements (a mate, kits, the guides, Q38) wait for M6 and
   moment it is won (`src/ui/toast.ts`). A game loaded with some already won gives no toast.
 - It is checked from state in `step`, by one rule per achievement, in `achievements.ts`. Rules are plain functions of
   the world, so they are easy to test.
-- Per baby (Q40): when generations arrive, `achievements` and the counters below are kept per beaver. Until then there
-  is one set for the world.
+- Per baby (Q40): `newLife` in `state.ts` starts the list and the counters again. `WorldState.journey` holds where the life
+  started: the clock, the trees already felled, and the buildings earlier lives left (`inherited`). Those win nothing,
+  since the new baby did not build them (Q63). Trees and "a full year" count from the start of the life.
 - A goal that counts something (trees, pads, loads) counts what was done, not what stands now, so a worn or lost piece
   never takes it back. Goals that read the world as it is (a whole dam, a full store) are won the moment they are true.
 - The numbers are first guesses to feel on the tablet.

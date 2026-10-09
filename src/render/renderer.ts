@@ -22,6 +22,8 @@ import { INTERIOR_RADIUS, NEST_SPOTS, lodgeCondition } from '../sim/lodge';
 import { keptStock, storeCondition } from '../sim/food';
 import { createLodgeView, type LodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
+import { createAnimalView } from './animalView';
+import type { Animal } from '../sim/animals';
 import { createLogView } from './logView';
 import { createDamView } from './damView';
 import { createPondView } from './pondView';
@@ -41,7 +43,7 @@ export interface TerrainSource {
 
 export interface Renderer {
   /** Draw the world. `parents` are Mama and Papa from `parentsAt`, none when the player beaver is grown. */
-  draw(world: WorldState, view: ViewState, parents?: readonly Parent[]): void;
+  draw(world: WorldState, view: ViewState, parents?: readonly Parent[], animals?: readonly Animal[]): void;
   terrain: TerrainView | null;
   /** Turn the sun shadows on or off while running. Does nothing if the game started without them. */
   setShadows(on: boolean): void;
@@ -191,6 +193,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   // The lodges the family has left, one view each, made when first needed.
   const formerViews: LodgeView[] = [];
   const lilyView = createLilyView(scene, prepare);
+  const animalView = createAnimalView(scene, prepare);
   const rockView = createRockView(scene, prepare);
   const damView = createDamView(scene, shadows, prepare);
   const pondView = createPondView(scene, prepare);
@@ -315,7 +318,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     setShadows(on) {
       shadowsOn = on && shadows;
     },
-    draw(world, view, parents = []) {
+    draw(world, view, parents = [], animals = []) {
       const b = world.beaver;
       const moved = Math.hypot(b.x - lastX, b.z - lastZ);
       lastX = b.x;
@@ -545,6 +548,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       });
       lodgeView.update(inside || bare ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside || bare ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
+      if (!bare) animalView.update(animals, now);
       if (source && !bare) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
       if (source && !bare) rockView.update(source.store, b.x, b.z, world.rocksTaken, world.dropped);
       csm?.update();

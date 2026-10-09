@@ -1,7 +1,7 @@
 // Shared helpers for the playtests in tests/e2e: drive the real game the way a player does, with the keys and the test menu,
 // and read its state through the read only `window.__game` hook (src/main.ts).
 import { expect, type Page } from '@playwright/test';
-import { DOOR_DISTANCE, NEST, doorPoint } from '../../src/sim/lodge';
+import { DOOR_DISTANCE, HOLE, NEST, doorPoint } from '../../src/sim/lodge';
 
 export type Point = { x: number; z: number };
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -273,4 +273,24 @@ export async function scoopLoad(page: Page, spot: { bed: Point }): Promise<'mud'
     }
   }
   return null;
+}
+
+/** Click a button of the test menu, opening the menu first if it is closed and closing it again, so screenshots stay clear. */
+export async function menuClick(page: Page, selector: string): Promise<void> {
+  const open = await page.locator('button[data-speed="1"]').isVisible();
+  if (!open) await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator(selector).click();
+  await page.getByRole('button', { name: 'Test menu' }).click();
+}
+
+/** Mama and Papa as the game draws them now (`__game.parents`): the player's own while young, and those of former homes. */
+export const parentsNow = (page: Page): Promise<any[]> => page.evaluate(() => JSON.parse(JSON.stringify((window as any).__game.parents())));
+
+/** From inside the lodge, walk to the water hole and press the build button there, which dives out through the entrance. */
+export async function leaveLodgeByHole(page: Page): Promise<void> {
+  const lodge = (await world(page)).lodge;
+  expect(lodge, 'a lodge to leave').toBeTruthy();
+  await walkToPoint(page, { x: lodge.x + HOLE.x, z: lodge.z + HOLE.z - HOLE.radius - 0.5 }, 0.5, 15_000);
+  await tap(page, 'KeyB');
+  await page.waitForFunction(() => !(window as any).__game.world().inLodge, null, { polling: 100, timeout: 5000 });
 }

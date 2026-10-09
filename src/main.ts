@@ -427,6 +427,8 @@ async function start(): Promise<void> {
     // Where a playtest can find things to work on: the nearest standing tree, and the nearest spot a lodge could start.
     nearestTree: (x: number, z: number, reach: number) => trees.nearest(x, z, reach, new Set(world.felled)),
     lilyPadsNear: (radius: number) => lilyPadsNear(terrain, world.beaver.x, world.beaver.z, radius, world.clock, world.picked),
+    // Mama and Papa as drawn now: of the player's lodge while young, and of every lodge the family has left.
+    parents: () => [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds), world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds))],
     lodgeSite: (radius: number) => findSite(lodgeGround(terrain, world.ponds), world.beaver.x, world.beaver.z, radius),
   };
 }

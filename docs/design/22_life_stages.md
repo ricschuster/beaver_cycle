@@ -91,6 +91,9 @@ this slice. It belongs to the family slice (Q59).
   "Sleep until next season" and, for a baby or teenager, "Sleep until
   teenager" or "adult". Both wake at dawn. At night the old morning and dream
   choices stay. `sleepUntil` in `state.ts`, `growUpDawn` in `life.ts`.
+- Step 5: achievements per life. `newLife` (test menu "New baby") makes the
+  beaver a baby again with a clean list. The handover itself, where the baby is
+  born and who its family are, is the next slice.
 
 ## Not in this slice
 
@@ -104,4 +107,4 @@ this slice. It belongs to the family slice (Q59).
 2. `bornAt` in the world state, a stage in the HUD and the test menu (set stage).
 3. Model scale, speed, and what each stage may do.
 4. The skip action.
-5. Achievements per life.
+5. Achievements per life (done).

@@ -6,7 +6,7 @@ import { LEVEL1_COST, LEVEL_COST } from './dam';
 import type { DamSpot } from './damSpots';
 import { STORE_CAPACITY } from './food';
 import { LODGE_WOOD } from './lodge';
-import { createWorld, type WorldState } from './state';
+import { createWorld, newLife, type WorldState } from './state';
 import { step } from './step';
 import type { Terrain } from './terrain';
 import { newWear } from './wear';
@@ -109,10 +109,45 @@ describe('in a step', () => {
 describe('the list', () => {
   it('marks what is won and counts what is counted', async () => {
     const { achievementLines } = await import('./achievements');
-    const lines = achievementLines({ achievements: ['home'], felled: ids(12), padsPicked: 3, hauled: 0 });
+    const lines = achievementLines({ achievements: ['home'], felled: ids(12), padsPicked: 3, hauled: 0, journey: base().journey });
     expect(lines[0]).toBe('[ ] Wood 12/30');
     expect(lines[1]).toBe('[x] Home');
     expect(lines).toContain('[ ] Water gardener 3/20');
     expect(lines).toHaveLength(10);
+  });
+});
+
+describe('each life has its own journey', () => {
+  const lived = (): WorldState => ({
+    ...base(),
+    felled: ids(WOOD_TREES),
+    lodge: { x: 0, z: 0, base: 0, door: 0, wood: LODGE_WOOD },
+    dams: [whole],
+    padsPicked: 5,
+    achievements: ['wood', 'home', 'firstDam'],
+  });
+
+  it('starts the list and the counters again', () => {
+    const w = newLife(lived());
+    expect(w.achievements).toEqual([]);
+    expect(w.padsPicked).toBe(0);
+    expect(w.journey.inherited).toEqual(['lodge', `dam:${spot.id}`]);
+  });
+
+  it('what earlier lives built wins nothing, and the trees already felled do not count', () => {
+    expect(won(newLife(lived()))).toEqual([]);
+  });
+
+  it('trees count from the new life, and a dam built in it counts', () => {
+    const w = newLife(lived());
+    expect(won({ ...w, felled: ids(WOOD_TREES + 29) })).toEqual([]);
+    expect(won({ ...w, felled: ids(WOOD_TREES + WOOD_TREES) })).toEqual(['wood']);
+    expect(won({ ...w, dams: [...w.dams, { ...whole, spot: 'core:other' }] })).toEqual(['firstDam']);
+  });
+
+  it('a full year counts from the start of the life', () => {
+    const w = newLife({ ...lived(), clock: 5 * DAY_SECONDS });
+    expect(won({ ...w, clock: w.journey.start + DAYS_PER_YEAR * DAY_SECONDS - 1 })).toEqual([]);
+    expect(won({ ...w, clock: w.journey.start + DAYS_PER_YEAR * DAY_SECONDS })).toEqual(['year']);
   });
 });

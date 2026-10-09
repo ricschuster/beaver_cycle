@@ -1,10 +1,11 @@
 // Achievements (Q38 to Q40, design note 21). Each is a rule over the world, checked every step. Plain data, so a save keeps
 // what is won. A win stays won. Counters that need an event (pads picked, pieces mended, loads hauled) are kept in the world.
+// Each life has its own journey (Q40): `newLife` starts the list and the counters again, and what earlier lives built does not count.
 import { STORE_CAPACITY, stockTotal, storeCondition } from './food';
 import { damCondition, damWhole, levelOf, type Dam } from './dam';
 import { maxLevel } from './damSpots';
 import { lodgeComplete, lodgeCondition } from './lodge';
-import { DAY_SECONDS, DAYS_PER_YEAR, START_CLOCK } from './clock';
+import { DAY_SECONDS, DAYS_PER_YEAR } from './clock';
 import type { WorldState } from './state';
 
 export type AchievementId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year';
@@ -21,23 +22,28 @@ export const HAULER_LOADS = 30;
 /** Pieces mended back to new for the handy beaver. */
 export const HANDY_MENDS = 1;
 
-type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock'>;
+type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey'>;
+
+/** Trees felled in this life. */
+export const treesThisLife = (w: Pick<WorldState, 'felled' | 'journey'>): number => w.felled.length - w.journey.felled;
+
+const mine = (w: Facts, id: string): boolean => !w.journey.inherited.includes(id);
 
 const RULES: Record<AchievementId, (w: Facts) => boolean> = {
-  wood: (w) => w.felled.length >= WOOD_TREES,
-  home: (w) => lodgeComplete(w.lodge),
-  firstDam: (w) => w.dams.some((d) => damWhole(d)),
+  wood: (w) => treesThisLife(w) >= WOOD_TREES,
+  home: (w) => lodgeComplete(w.lodge) && mine(w, 'lodge'),
+  firstDam: (w) => w.dams.some((d) => damWhole(d) && mine(w, `dam:${d.spot}`)),
   highDam: (w) =>
     w.dams.some((d) => {
       const spot = w.spots.find((s) => s.id === d.spot);
-      return !!spot && maxLevel(spot) >= 2 && levelOf(d) >= maxLevel(spot) && damWhole(d);
+      return mine(w, `dam:${d.spot}`) && !!spot && maxLevel(spot) >= 2 && levelOf(d) >= maxLevel(spot) && damWhole(d);
     }),
-  pioneer: (w) => w.dams.some((d) => w.spots.find((s) => s.id === d.spot)?.found === true),
-  pantry: (w) => stockTotal(w.store) === STORE_CAPACITY,
+  pioneer: (w) => w.dams.some((d) => mine(w, `dam:${d.spot}`) && w.spots.find((s) => s.id === d.spot)?.found === true),
+  pantry: (w) => stockTotal(w.store) === STORE_CAPACITY && mine(w, 'store'),
   gardener: (w) => w.padsPicked >= GARDENER_PADS,
   handy: (w) => w.mended >= HANDY_MENDS,
   hauler: (w) => w.hauled >= HAULER_LOADS,
-  year: (w) => w.clock - START_CLOCK >= DAYS_PER_YEAR * DAY_SECONDS,
+  year: (w) => w.clock - w.journey.start >= DAYS_PER_YEAR * DAY_SECONDS,
 };
 
 /** The achievements the world has now won that it did not have yet, in the order to show them. */
@@ -102,10 +108,10 @@ export const ACHIEVEMENT_NAME: Record<AchievementId, string> = {
 };
 
 /** The list for the test menu: one line per achievement, with a mark for won and the count where there is one. */
-export function achievementLines(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled'>): string[] {
+export function achievementLines(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey'>): string[] {
   const count = (id: AchievementId): string => {
     if (world.achievements.includes(id)) return '';
-    if (id === 'wood') return ` ${world.felled.length}/${WOOD_TREES}`;
+    if (id === 'wood') return ` ${treesThisLife(world)}/${WOOD_TREES}`;
     if (id === 'gardener') return ` ${world.padsPicked}/${GARDENER_PADS}`;
     if (id === 'hauler') return ` ${world.hauled}/${HAULER_LOADS}`;
     return '';

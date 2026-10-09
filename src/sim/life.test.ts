@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
 import { createWorld, setClock, setStage, setInLodge, sleep } from './state';
 import { flatTerrain } from './terrain';
-import { BABY_DAYS, TEENAGER_DAYS, bornAtFor, lifeAt, stageAt, stageStart } from './life';
+import { step } from './step';
+import { noActions } from '../actions/actions';
+import { BABY_DAYS, STAGE_RULES, TEENAGER_DAYS, bornAtFor, lifeAt, stageAt, stageStart } from './life';
 
 const d = (days: number) => days * DAY_SECONDS;
 
@@ -63,5 +65,36 @@ describe('life in the world', () => {
     const woke = sleep(night);
     expect(woke.clock).toBeGreaterThan(night.clock);
     expect(lifeAt(woke.clock, woke.bornAt).progress).toBeGreaterThan(lifeAt(night.clock, night.bornAt).progress);
+  });
+});
+
+describe('stage rules', () => {
+  const flat = flatTerrain(0);
+  const fwd = { ...noActions(), move: { x: 0, z: 1 } };
+  const run = (w: ReturnType<typeof createWorld>, a = fwd, secs = 1) => {
+    for (let i = 0; i < secs * 10; i++) w = step(w, a, 0.1, flat);
+    return w;
+  };
+
+  it('a baby walks slower than an adult, and a teenager in between', () => {
+    const at = (stage: 'baby' | 'teenager' | 'adult') => run(setStage(createWorld(flat), stage)).beaver.z;
+    expect(at('baby')).toBeLessThan(at('teenager'));
+    expect(at('teenager')).toBeLessThan(at('adult'));
+  });
+
+  it('a baby cannot put down a load, an adult can', () => {
+    const grab = { ...noActions(), grab: true };
+    const load = { ...createWorld(flat), haul: { kind: 'mud' as const } };
+    expect(step(setStage(load, 'baby'), grab, 0.1, flat).haul).not.toBeNull();
+    expect(step(load, grab, 0.1, flat).haul).toBeNull();
+  });
+
+  it('a baby stays within range of its lodge', () => {
+    const lodge = { x: 0, z: 0, base: 0, door: 0, wood: 99 };
+    const baby = setStage({ ...createWorld(flat), lodge }, 'baby');
+    const w = run(baby, fwd, 30);
+    expect(Math.hypot(w.beaver.x, w.beaver.z)).toBeLessThanOrEqual(STAGE_RULES.baby.range + 1e-6);
+    const adult = run({ ...createWorld(flat), lodge }, fwd, 30);
+    expect(Math.hypot(adult.beaver.x, adult.beaver.z)).toBeGreaterThan(STAGE_RULES.baby.range);
   });
 });

@@ -171,6 +171,13 @@ the quality budget (#120).
 - Other beavers: help, trade, and play (Q62). A visitor who notices the scent
   mounds becomes a new neighbor.
 
+## M7: NPCs and animals
+
+The valley comes alive: ambient animals, other beaver families that act and can be
+interacted with, and predators. Design in `24_npcs_and_animals.md`, tracked in #279.
+It takes over the "other beavers" line of M6 (Q62) once the author decides how
+families and animals are interacted with.
+
 ## Later
 
 - **Desktop play.** The same build runs in a desktop browser with keyboard and

@@ -54,13 +54,13 @@ export interface BeaverModel {
   update(time: number, speed01: number, mode?: BeaverMode, tilt?: number, slapAge?: number | null, carry?: Food | 'mud' | 'rock' | null): void;
 }
 
-function part(geometry: THREE.BufferGeometry, color: number, x: number, y: number, z: number): THREE.Mesh {
+export function part(geometry: THREE.BufferGeometry, color: number, x: number, y: number, z: number): THREE.Mesh {
   const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color }));
   mesh.position.set(x, y, z);
   return mesh;
 }
 
-function ellipsoid(rx: number, ry: number, rz: number, color: number, x: number, y: number, z: number): THREE.Mesh {
+export function ellipsoid(rx: number, ry: number, rz: number, color: number, x: number, y: number, z: number): THREE.Mesh {
   const m = part(new THREE.SphereGeometry(1, 16, 12), color, x, y, z);
   m.scale.set(rx, ry, rz);
   return m;

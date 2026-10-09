@@ -8,8 +8,8 @@ import { damAt, placed, spotAt } from './dam';
 import { refineNear, withNewSpots } from './newSpots';
 import { lodgeGround, pondAt, pondsAt, withPonds, type Pond } from './pond';
 import { STAGE_RULES, softEdge, stageAt } from './life';
-import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
-import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
+import { canScoopMud, putDown, reachableDropped, reachableRock, rotted } from './haul';
+import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, logRotted, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
 import { moveIn, stepPartners } from './partners';
@@ -106,7 +106,9 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   // The same goes for mud or a rock in the mouth: it cannot gnaw a tree, and the grab button puts it down instead.
   const full = (world.carry !== null || world.haul !== null) && !world.drag;
   const workActions = { ...actions, chop: actions.chop && !eating && world.haul === null, grab: actions.grab && !full };
-  const { chop, felled, logs, drag } = work(built, beaver, workActions, dt, len > 0, trees, terrain);
+  const { chop, felled, logs: worked, drag } = work(built, beaver, workActions, dt, len > 0, trees, terrain, world.clock);
+  // A log that has lain a year rots away (not the one being dragged).
+  const logs = worked.some((l) => l.id !== drag && logRotted(l, world.clock)) ? worked.filter((l) => l.id === drag || !logRotted(l, world.clock)) : worked;
   const food = feed({ ...built, logs, drag, chop }, beaver, actions, eating, world.drag === null, terrain, ground);
   const prevPonds = { ponds: world.ponds, crests: world.pondCrests };
   const pondSet = pondsAt(prevPonds, built.dams, world.spots, ground, world.clock);
@@ -226,31 +228,34 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
  */
 function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain, ground: Terrain): Pick<WorldState, 'carry' | 'haul' | 'rocksTaken' | 'dropped' | 'store' | 'stashOpen' | 'stripped' | 'picked' | 'eaten'> {
   let { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten } = world;
+  if (dropped.some((d) => rotted(d, world.clock))) dropped = dropped.filter((d) => !rotted(d, world.clock));
   if (eating) return { carry: null, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten: eaten + 1 };
   if (world.inLodge) return { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten };
-  if (haul && actions.grab) {
+  if ((haul || carry) && actions.grab) {
     // Put it down in front of the beaver. It lies there and can be picked up again.
-    dropped = [...dropped, putDown(haul, b.x, b.z, b.heading, world.time)];
+    dropped = [...dropped, putDown(haul ?? { kind: carry! }, b.x, b.z, b.heading, world.time, world.clock)];
     haul = null;
+    carry = null;
   } else if (actions.build && wasFree && atStore(world.lodge, b.x, b.z) && !haul) {
     stashOpen = true;
   } else if (!carry && !haul && actions.chop && !world.chop && !world.drag && b.mode !== 'dive') {
-    const pad = reachablePad(ground, b.x, b.z, world.clock, picked);
-    const log = pad ? null : strippable(world.logs, stripped, b.x, b.z);
-    if (pad) {
+    const lying = b.mode === 'walk' ? reachableDropped(dropped, b.x, b.z) : null;
+    const pad = lying ? null : reachablePad(ground, b.x, b.z, world.clock, picked);
+    const log = lying || pad ? null : strippable(world.logs, stripped, b.x, b.z);
+    if (lying) {
+      dropped = dropped.filter((d) => d !== lying);
+      if (lying.kind === 'branch' || lying.kind === 'lily') carry = lying.kind;
+      else haul = { kind: lying.kind };
+    } else if (pad) {
       picked = pickedPad(picked, pad, world.clock);
       carry = 'lily';
     } else if (log) {
       stripped = { ...stripped, [log.id]: (stripped[log.id] ?? 0) + 1 };
       carry = 'branch';
     } else if (b.mode === 'walk') {
-      // Nothing to pick or strip: a piece put down, a rock in reach, or else mud from the wet ground at hand.
-      const piece = reachableDropped(dropped, b.x, b.z);
-      const rock = piece ? null : reachableRock(terrain, b.x, b.z, rocksTaken);
-      if (piece) {
-        dropped = dropped.filter((d) => d !== piece);
-        haul = { kind: piece.kind };
-      } else if (rock) {
+      // Nothing to pick or strip: a rock in reach, or else mud from the wet ground at hand.
+      const rock = reachableRock(terrain, b.x, b.z, rocksTaken);
+      if (rock) {
         rocksTaken = [...rocksTaken, rock.id];
         haul = { kind: 'rock' };
       } else if (canScoopMud(terrain, b.x, b.z, b.heading)) {
@@ -267,7 +272,7 @@ function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boole
  * lost by stopping, the tree stands. Dragging: a press takes the end of a log in reach, one at a time, and
  * another press (or diving) lets go. A log lies where it is left, and floats where the water is deep.
  */
-function work(world: WorldState, b: BeaverState, actions: Actions, dt: number, moving: boolean, trees: TreeSource, terrain: Terrain) {
+function work(world: WorldState, b: BeaverState, actions: Actions, dt: number, moving: boolean, trees: TreeSource, terrain: Terrain, clock: number) {
   const { felled } = world;
   let { chop, logs, drag } = world;
   if (drag && b.mode === 'dive') drag = null;
@@ -294,6 +299,6 @@ function work(world: WorldState, b: BeaverState, actions: Actions, dt: number, m
   }
   if (!chop || chop.progress < CHOP_TIME) return { chop, felled, logs, drag };
   const fell = Math.atan2(chop.x - b.x, chop.z - b.z);
-  const log: Log = fallenLog(terrain, chop.id, chop.x, chop.z, fell, logLength(chop.wood));
+  const log: Log = fallenLog(terrain, chop.id, chop.x, chop.z, fell, logLength(chop.wood), clock);
   return { chop: null, felled: [...felled, chop.id], logs: [...logs, log], drag };
 }

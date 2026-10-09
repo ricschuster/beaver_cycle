@@ -1,5 +1,6 @@
 // Logs: a felled tree lies where it fell. A beaver cannot carry one, only drag it by the end, one at a
 // time, and it floats in deep water. Plain data and pure functions, no three.js (ADR 0007).
+import { DAYS_PER_YEAR, DAY_SECONDS } from './clock';
 import type { Terrain } from './terrain';
 import { BEAVER_RADIUS } from './trees';
 
@@ -16,7 +17,15 @@ export interface Log {
   length: number;
   /** True while it lies on the water instead of the ground. */
   floating: boolean;
+  /** The game clock when the tree fell. A log without it never rots. */
+  at?: number;
 }
+
+/** A felled log rots away after a game year. A tuning number. */
+export const LOG_ROT = DAYS_PER_YEAR * DAY_SECONDS;
+
+/** True once a log has rotted away by `clock`. */
+export const logRotted = (log: Log, clock: number): boolean => log.at !== undefined && clock - log.at >= LOG_ROT;
 
 /** Metres across a log is twice this. */
 export const LOG_RADIUS = 0.35;
@@ -45,10 +54,10 @@ export function rest(terrain: Terrain, x: number, z: number): { y: number; float
 }
 
 /** A log lying along `heading` with its near end at (x, z), such as a tree that has just fallen. */
-export function fallenLog(terrain: Terrain, id: string, x: number, z: number, heading: number, length: number): Log {
+export function fallenLog(terrain: Terrain, id: string, x: number, z: number, heading: number, length: number, at?: number): Log {
   const cx = x + Math.sin(heading) * (length / 2);
   const cz = z + Math.cos(heading) * (length / 2);
-  return { id, x: cx, z: cz, heading, length, ...rest(terrain, cx, cz) };
+  return { id, x: cx, z: cz, heading, length, ...rest(terrain, cx, cz), ...(at === undefined ? {} : { at }) };
 }
 
 /** Distance in metres from a point to the nearest point on the log, along its length. */

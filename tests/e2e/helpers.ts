@@ -223,3 +223,54 @@ export const toasts = (page: Page): Promise<string[]> => page.evaluate(() => (wi
 
 /** Open or close the test menu panel (it is a toggle). */
 export const toggleMenu = (page: Page): Promise<void> => page.getByRole('button', { name: 'Test menu' }).click();
+
+/** Go to the nearest dam spot with the test menu, and wait until the beaver stands in its ring. Returns the spot. */
+export async function goToNearestSpot(page: Page): Promise<any> {
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator('button[data-action="dam-go"]').click();
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.waitForFunction(
+    () => {
+      const w = (window as any).__game.world();
+      return w.spots.some((s: any) => Math.hypot(s.bed.x - w.beaver.x, s.bed.z - w.beaver.z) < 15);
+    },
+    null,
+    { polling: 200, timeout: 60_000 },
+  );
+  await page.waitForTimeout(1000);
+  return nearestSpot(page);
+}
+
+/** The dam spot nearest the beaver, with its distance `d`. */
+export async function nearestSpot(page: Page): Promise<any> {
+  const w = await world(page);
+  return w.spots.map((s: any) => ({ ...s, d: Math.hypot(s.bed.x - w.beaver.x, s.bed.z - w.beaver.z) })).sort((a: any, b: any) => a.d - b.d)[0];
+}
+
+/**
+ * Pick up a load of mud or a rock near a dam spot, away from trees (a tree within reach would be gnawed instead). It tries a ring
+ * of places round the spot, each facing the spot where the stream is. Returns the kind in the mouth, or null.
+ */
+export async function scoopLoad(page: Page, spot: { bed: Point }): Promise<'mud' | 'rock' | null> {
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    for (const r of [3.5, 6]) {
+      const at = { x: spot.bed.x + Math.cos(a) * r, z: spot.bed.z + Math.sin(a) * r };
+      await walkToPoint(page, at, 0.8, 8000);
+      // Face the spot: step toward it a little.
+      await walkTo(page, async () => spot.bed, r - 1.2, 3000);
+      await page.waitForTimeout(250);
+      const clear = await page.evaluate(() => {
+        const g = (window as any).__game;
+        const b = g.world().beaver;
+        return g.nearestTree(b.x, b.z, 3.2) === null;
+      });
+      if (!clear) continue;
+      await tap(page, 'KeyE');
+      await page.waitForTimeout(300);
+      const haul = (await world(page)).haul;
+      if (haul) return haul.kind;
+    }
+  }
+  return null;
+}

@@ -167,3 +167,41 @@ export async function enterLodgeAndRest(page: Page): Promise<void> {
   await page.waitForFunction(() => (window as any).__game.world().inLodge, null, { polling: 100, timeout: 5000 });
   await walkToPoint(page, { x: lodge.x + NEST.x, z: lodge.z + NEST.z }, 0.6, 15_000);
 }
+
+/** The nearest floating lily pad within `radius` metres of the beaver, or null. Needs the `lilyPadsNear` hook. */
+export async function nearestPad(page: Page, radius = 80): Promise<{ id: string; x: number; z: number } | null> {
+  return page.evaluate((r) => {
+    const g = (window as any).__game;
+    const b = g.world().beaver;
+    const pads = g.lilyPadsNear(r) as { id: string; x: number; z: number }[];
+    return pads.sort((p, q) => Math.hypot(p.x - b.x, p.z - b.z) - Math.hypot(q.x - b.x, q.z - b.z))[0] ?? null;
+  }, radius);
+}
+
+/** Swim up to the pad and gnaw it into the mouth. Returns the id of the pad picked, which is the nearest one in reach, not always this one. */
+export async function pickPad(page: Page, pad: { id: string; x: number; z: number }): Promise<string> {
+  const before = Object.keys((await world(page)).picked);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await walkToPoint(page, pad, 0.8 + attempt * 0.2, 40_000);
+    await page.waitForTimeout(300);
+    await tap(page, 'KeyE');
+    const got = await page.waitForFunction(() => (window as any).__game.world().carry === 'lily', null, { polling: 100, timeout: 3000 }).then(() => true, () => false);
+    if (got) return Object.keys((await world(page)).picked).find((id) => !before.includes(id))!;
+  }
+  throw new Error(`could not pick lily pad ${pad.id}`);
+}
+
+/** Swim to the food store beside the lodge door and press build: the stash screen opens. */
+export async function openStash(page: Page): Promise<void> {
+  const lodge = (await world(page)).lodge;
+  // The store lies at STORE_DISTANCE (src/sim/food.ts) from the lodge centre along the door; the beaver reaches 3.5 m.
+  const spot = doorPoint(lodge, DOOR_DISTANCE + 1.5 + 0.2);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await walkToPoint(page, spot, 1.2, 40_000);
+    await page.waitForTimeout(300);
+    await tap(page, 'KeyB');
+    const open = await page.waitForFunction(() => (window as any).__game.world().stashOpen === true, null, { polling: 100, timeout: 2000 }).then(() => true, () => false);
+    if (open) return;
+  }
+  throw new Error('the stash screen did not open at the store');
+}

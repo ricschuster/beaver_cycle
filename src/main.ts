@@ -29,6 +29,7 @@ import { createFlyButtons } from './ui/flyButtons';
 import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
 import { lodgeGround, pondsOf, withPonds } from './sim/pond';
+import { lilyPadsNear } from './sim/lily';
 import { withNewSpots } from './sim/newSpots';
 import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
@@ -425,6 +426,7 @@ async function start(): Promise<void> {
     stats: () => renderer.terrain?.stats() ?? null,
     // Where a playtest can find things to work on: the nearest standing tree, and the nearest spot a lodge could start.
     nearestTree: (x: number, z: number, reach: number) => trees.nearest(x, z, reach, new Set(world.felled)),
+    lilyPadsNear: (radius: number) => lilyPadsNear(terrain, world.beaver.x, world.beaver.z, radius, world.clock, world.picked),
     lodgeSite: (radius: number) => findSite(lodgeGround(terrain, world.ponds), world.beaver.x, world.beaver.z, radius),
   };
 }

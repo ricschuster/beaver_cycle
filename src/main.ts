@@ -403,6 +403,7 @@ async function start(): Promise<void> {
       const stats = renderer.terrain?.stats() ?? null;
       const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
       menu.setAchievements(achievementLines(world));
+      menu.setInLodge(world.inLodge);
       menu.setReadout({
         fps,
         beaver: {

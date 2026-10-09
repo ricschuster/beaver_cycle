@@ -6,7 +6,9 @@ import { createRenderer } from './render/renderer';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
-import { canSleep, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport } from './sim/state';
+import { canSleep, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage } from './sim/state';
+import { STAGES, lifeAt, type Stage } from './sim/life';
+import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
 import { CHOP_TIME, noTrees, type TreeSource } from './sim/trees';
 import { flatTerrain } from './sim/terrain';
@@ -159,6 +161,9 @@ async function start(): Promise<void> {
   if (query.has('day') || query.has('time')) {
     world = { ...world, clock: (Math.max(0, startDay) + (Number.isFinite(startTime) ? startTime : 0.05)) * DAY_SECONDS };
   }
+  // ?stage=baby|teenager|adult starts the beaver at the start of that life stage (default adult).
+  const stageParam = query.get('stage');
+  if (STAGES.includes(stageParam as Stage)) world = setStage(world, stageParam as Stage);
   // ?age=N makes them N game days old, to try wear and repair: the lodge is worn at 40 and broken at 68, the store at 20 and
   // 34, and a dam the test menu fills in at 10 and 17.
   const ageDays = Math.max(0, Number(query.get('age') ?? 0) || 0);
@@ -194,6 +199,9 @@ async function start(): Promise<void> {
     },
     onTimeOfDay(t) {
       world = setClock(world, withTimeOfDay(world.clock, t));
+    },
+    onStage(stage) {
+      world = setStage(world, stage);
     },
     onSeason(season) {
       world = setClock(world, withSeason(world.clock, season));
@@ -257,6 +265,7 @@ async function start(): Promise<void> {
   const hud = free ? document.createElement('div') : document.body;
   const breathMeter = createBreathMeter(hud);
   const clockHud = createClockHud(hud);
+  const lifeHud = createLifeHud(hud);
   const carryHud = createCarryHud(hud);
   const toast = createToast(hud);
   let wonShown = -1; // set on the first frame, so achievements already won in a loaded game give no toast
@@ -325,6 +334,7 @@ async function start(): Promise<void> {
     }
     breathMeter.set(world.beaver.breath);
     clockHud.set(world.clock);
+    lifeHud.set(lifeAt(world.clock, world.bornAt));
     // While dragging a log with no lodge yet, show where one would start and whether it can.
     const siteGround = lodgeGround(terrain, world.ponds);
     const site = world.drag && !world.lodge && world.beaver.mode !== 'dive' ? checkSite(siteGround, world.beaver.x, world.beaver.z, world.beaver.heading) : null;

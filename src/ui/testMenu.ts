@@ -60,6 +60,8 @@ export interface TestMenu {
   /** The achievements list, one line each (`achievementLines`). */
   setAchievements(lines: string[]): void;
   setSpeed(multiplier: number): void;
+  /** Show whether the beaver is in a lodge, so the lodge button follows the world. */
+  setInLodge(inLodge: boolean): void;
   /** A short note under the readout, such as "Loading..." during a jump. */
   setStatus(text: string): void;
   toggle(): void;
@@ -78,14 +80,14 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   const root = document.createElement('div');
   root.id = 'test-menu';
   root.style.cssText =
-    'position:fixed;top:8px;right:8px;z-index:10;font:14px system-ui,sans-serif;color:#fff;text-align:right';
+    'position:fixed;top:8px;right:8px;z-index:10;display:flex;flex-direction:column;align-items:flex-end;max-height:calc(100vh - 16px);font:14px system-ui,sans-serif;color:#fff;text-align:right';
 
   const toggle = document.createElement('button');
   toggle.textContent = 'Test';
   toggle.setAttribute('aria-label', 'Test menu');
   const panel = document.createElement('div');
   panel.style.cssText =
-    'display:none;margin-top:6px;padding:8px;background:rgba(0,0,0,.65);border-radius:8px;text-align:left;min-width:190px;max-height:calc(100vh - 70px);overflow-y:auto';
+    'display:none;margin-top:6px;padding:8px;background:rgba(0,0,0,.65);border-radius:8px;text-align:left;min-width:190px;min-height:0;overflow-y:auto';
 
   const style = (b: HTMLButtonElement): void => {
     b.style.cssText = 'min-width:44px;min-height:44px;margin:2px;padding:4px 8px;font:inherit;border-radius:6px;border:1px solid #888;background:#2b3a2b;color:#fff';
@@ -306,6 +308,11 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     },
     setSpeed(multiplier) {
       for (const [m, b] of speedButtons) b.style.background = m === multiplier ? '#4f8a4f' : '#2b3a2b';
+    },
+    setInLodge(value) {
+      if (value === inLodge) return;
+      inLodge = value;
+      showLodge();
     },
     setStatus(text) {
       status.textContent = text;

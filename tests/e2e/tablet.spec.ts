@@ -59,8 +59,7 @@ for (const size of SIZES) {
       await shot(page, `tablet-${size.name}-menu`);
     });
 
-    // Found by this test: the panel (max-height 100vh - 70px) starts about 78 px down, so its bottom ends 8 px past the screen.
-    test.fixme('the test menu panel ends inside the screen', async ({ page }) => {
+    test('the test menu panel ends inside the screen', async ({ page }) => {
       await open(page);
       await page.getByRole('button', { name: 'Test menu' }).click();
       const panel = page.locator('button[data-speed="1"]').locator('xpath=ancestor::div[contains(@style,"overflow-y")][1]');

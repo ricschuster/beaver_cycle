@@ -89,7 +89,8 @@ The grown beaver stays in the world, and the next baby is its child:
 - Nudges so the player meets a partner in time: the nearest lone beaver is always
   the first one seeded (120 m or more from home), an unmet beaver slaps its tail
   every 20 game seconds while the player is within 150 m, with a toast the first
-  time, and a toast at the start of winter says kits are born on the first day of
+  time. Out of earshot a toast names the compass direction and distance of the nearest lone beaver, every 45 s of play
+  (`partnerCue`, #254). A toast at the start of winter says kits are born on the first day of
   spring when no partner lives in the lodge yet. Missing a spring only moves the kit to the next one.
 - "New baby" in the test menu is the same without a partner: a kit of the
   current parents' coats.

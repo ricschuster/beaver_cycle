@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FOLLOW_GAP, MEET_DISTANCE, PARTNER_COUNT, PARTNER_MIN_APART, PARTNER_MIN_FROM_HOME, follower, mateOf, moveIn, seedPartners, stepPartners } from './partners';
+import { FOLLOW_GAP, MEET_DISTANCE, PARTNER_COUNT, PARTNER_MIN_APART, PARTNER_MIN_FROM_HOME, follower, mateOf, moveIn, partnerCue, seedPartners, stepPartners } from './partners';
 import type { DamSpot } from './damSpots';
 
 const spot = (id: string, x: number, z: number): DamSpot => ({ id, bed: { x, z }, bedY: 0, flow: { x: 0, z: 1 }, maxCrest: 1 }) as DamSpot;
@@ -70,5 +70,21 @@ describe('meeting', () => {
     expect(mateOf(next)?.id).toBe(first.id);
     expect(mateOf(next)?.homeAt).toBe(99);
     expect(follower(next)).toBeNull();
+  });
+});
+
+describe('the cue to a lone beaver', () => {
+  const alone = (id: string, x: number, z: number) => ({ id, x, z, heading: 0, coat: 0, shade: 0, state: 'alone' as const, metAt: null, homeAt: null });
+  it('names the direction (north is -z) and the distance of the nearest', () => {
+    const cue = partnerCue([alone('a', 1200, 0), alone('b', 0, -1060)], { x: 0, z: 0 });
+    expect(cue).toEqual({ direction: 'north', metres: 1050 });
+    expect(partnerCue([alone('a', 700, 700)], { x: 0, z: 0 })).toEqual({ direction: 'south-east', metres: 1000 });
+    expect(partnerCue([alone('a', -300, 0)], { x: 0, z: 0 })?.direction).toBe('west');
+  });
+  it('is silent with no lone beaver, a follower, or a mate', () => {
+    expect(partnerCue([], { x: 0, z: 0 })).toBeNull();
+    const a = alone('a', 500, 0);
+    expect(partnerCue([{ ...a, state: 'following' }, alone('b', 900, 0)], { x: 0, z: 0 })).toBeNull();
+    expect(partnerCue([{ ...a, state: 'home' }], { x: 0, z: 0 })).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 // Simulation layer: game state and rules. No DOM, no three.js, no input, so
 // another device can later drive or mirror it (ADR 0007).
 import { START_CLOCK, nextDawn, nextSeasonStart, nextSpringStart, isNight } from './clock';
-import { FIRST_PARENTS, coatOf, kitCoat, type Coat } from './family';
+import { FIRST_PARENTS, coatOf, kitCoat, type Coat, type FormerHome } from './family';
 import { bornAtFor, growUpDawn, stageAt, type Stage } from './life';
 import { emptyStock, type Food, type Stock } from './food';
 import { DOOR_DISTANCE, NEST, atNest, doorPoint, lodgeComplete, type Lodge } from './lodge';
@@ -63,7 +63,7 @@ export interface WorldState {
   /** The lodge, once its first log is placed, or null. One for now. */
   lodge: Lodge | null;
   /** Lodges the family has left (docs/design/23_leaving_and_next_baby.md). They stay solid, get old, and cannot be used. */
-  formerHomes: Lodge[];
+  formerHomes: FormerHome[];
   /** Lone beavers about the valley, once the player beaver has left home (`partners.ts`). One may follow the player, and one live in the lodge. */
   partners: Partner[];
   /** Felled trees lying where they fell, and in water floating. */
@@ -246,7 +246,7 @@ export function leaveHome(world: WorldState): WorldState {
   const b = world.beaver;
   // Out of the room, at the entrance, if the leaving came while the beaver was asleep inside.
   const out = world.inLodge ? { ...b, ...doorPoint(world.lodge, DOOR_DISTANCE), y: world.lodge.base, mode: 'walk' as const } : b;
-  return { ...world, formerHomes: [...world.formerHomes, world.lodge], lodge: null, store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out };
+  return { ...world, formerHomes: [...world.formerHomes, { ...world.lodge, parents: world.parentCoats }], lodge: null, store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out };
 }
 
 /** The lone beavers of the valley, put at the dam spots when the player beaver has left home. */

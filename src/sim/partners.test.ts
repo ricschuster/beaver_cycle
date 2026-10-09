@@ -15,6 +15,12 @@ describe('lone beavers', () => {
     expect(new Set(ps.map((p) => p.id)).size).toBe(PARTNER_COUNT);
   });
 
+  it('has one within a short search of the home, the nearest far enough', () => {
+    const nearest = Math.min(...spots.map((s) => Math.hypot(s.bed.x - home.x, s.bed.z - home.z)).filter((d) => d >= PARTNER_MIN_FROM_HOME));
+    const ps = seedPartners(spots, home);
+    expect(Math.min(...ps.map((p) => Math.hypot(p.x - home.x, p.z - home.z)))).toBeCloseTo(nearest);
+  });
+
   it('are the same on every start, and each has a coat and a shade', () => {
     expect(seedPartners(spots, home)).toEqual(seedPartners(spots, home));
     for (const p of seedPartners(spots, home)) {

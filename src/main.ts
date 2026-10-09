@@ -5,11 +5,11 @@ import { fly as flyStep, flyTarget, glide, look as lookAround, pickGround, zoomF
 import { createRenderer } from './render/renderer';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
-import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
+import { DAY_SECONDS, dateAt, withSeason, withTimeOfDay } from './sim/clock';
 import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
-import { parentsAt } from './sim/family';
-import { follower } from './sim/partners';
+import { formerParentsAt, parentsAt } from './sim/family';
+import { HEARD_DISTANCE, follower, mateOf } from './sim/partners';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
 import { CHOP_TIME, noTrees, type TreeSource } from './sim/trees';
@@ -283,6 +283,8 @@ async function start(): Promise<void> {
   let lastStage: Stage | null = null;
   let lastFollower: string | null = null;
   let lastGeneration = 0;
+  let lastSeason = dateAt(world.clock).season;
+  const heardBefore = new Set<string>();
   let wonShown = -1; // set on the first frame, so achievements already won in a loaded game give no toast
   // Taps on the stash screen wait here until the next step takes them.
   let stashTap: number | undefined;
@@ -373,6 +375,16 @@ async function start(): Promise<void> {
     const following = follower(world.partners)?.id ?? null;
     if (following && following !== lastFollower) toast.show('A beaver slaps its tail and follows you');
     lastFollower = following;
+    // Nudges toward a partner: a tail slap in the distance, and a word at the start of winter that kits come in spring.
+    for (const p of world.partners) {
+      if (p.state === 'alone' && !heardBefore.has(p.id) && Math.hypot(p.x - world.beaver.x, p.z - world.beaver.z) <= HEARD_DISTANCE) {
+        heardBefore.add(p.id);
+        toast.show('A tail slaps in the distance. A lone beaver?');
+      }
+    }
+    const season = dateAt(world.clock).season;
+    if (season === 'winter' && lastSeason !== 'winter' && world.partners.length > 0 && !mateOf(world.partners)) toast.show('Kits are born on the first day of spring. Find a partner and a lodge');
+    lastSeason = season;
     if (world.generation > lastGeneration) toast.show('A kit is born');
     lastGeneration = world.generation;
     // A toast for each achievement won since the last frame.
@@ -383,7 +395,8 @@ async function start(): Promise<void> {
     const rest = canRest(world);
     const stage = lifeAt(world.clock, world.bornAt).stage;
     sleepPrompt.set({ night: canSleep(world), rest, grow: rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null });
-    renderer.draw(world, rig.view, parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds), world.parentCoats));
+    const ponded = withPonds(terrain, world.ponds);
+    renderer.draw(world, rig.view, [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)]);
     if (now - lastReadout > 500) {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;

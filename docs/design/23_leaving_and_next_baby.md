@@ -55,8 +55,11 @@ The grown beaver stays in the world, and the next baby is its child:
    one of the two parents the family module draws, and the partner is the
    other. A parent's sex is only a name for the first form (Mama or Papa follows
    which of the two it is, and is not tied to the player's old gender).
-6. **The first lodge and its family** stay and get old (Q63). A teenager who
-   left can be met again, in another part of the pond (Q60).
+6. **The first lodge and its family** stay and get old (Q63) (built). Mama and
+   Papa stay at the former home with the coats they had, and swim about its pond
+   like the parents of a young player (`formerParentsAt`, Q60, Q61), so a
+   grown player can swim back and meet them. Their pond may not be one the player
+   can swim to when the lodge stood on a lake edge; it is the same water.
 
 ## What this changes in the code
 
@@ -81,8 +84,13 @@ The grown beaver stays in the world, and the next baby is its child:
   Papa in their coats, the baby has the coat of one of them in a shade up to 0.5
   away, is born in the lodge on its nest (`intoLodge`), and the lone beavers are
   done. `generation` counts the lives, and the game shows a toast.
-- A partner who moves in on day 39 gives a kit the next morning. This is the
-  rule as written ("first day of spring"); the wait may want a minimum.
+- A partner who moves in on day 39 gives a kit the next morning. The author said
+  there is no minimum wait: the first day of spring it is.
+- Nudges so the player meets a partner in time: the nearest lone beaver is always
+  the first one seeded (120 m or more from home), an unmet beaver slaps its tail
+  every 20 game seconds while the player is within 150 m, with a toast the first
+  time, and a toast at the start of winter says kits are born on the first day of
+  spring when no partner lives in the lodge yet. Missing a spring only moves the kit to the next one.
 - "New baby" in the test menu is the same without a partner: a kit of the
   current parents' coats.
 

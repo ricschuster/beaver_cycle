@@ -7,7 +7,8 @@ import { NEST_SPOTS, SOLID_RADIUS, lodgeComplete, type Lodge } from './lodge';
 import { stageAt } from './life';
 import type { Terrain } from './terrain';
 
-export type ParentId = 'mama' | 'papa';
+/** 'mama' and 'papa' for the home family; those of a lodge the family left carry its place, such as 'mama@120,40'. */
+export type ParentId = string;
 
 /** Coats within beaver browns (Q59, Q14). An index into the renderer's palette, so the sim keeps plain data. */
 export const COAT_COUNT = 5;
@@ -85,8 +86,26 @@ export function pondParts(lodge: Lodge, terrain: Terrain): { x: number; z: numbe
 
 /** The two parents' places at a clock value, or none while the player beaver is grown or the lodge is not whole. */
 export function parentsAt(lodge: Lodge | null, bornAt: number, clock: number, inLodge: boolean, terrain: Terrain, coats: readonly [Coat, Coat] = FIRST_PARENTS): Parent[] {
-  if (!lodgeComplete(lodge) || stageAt(clock, bornAt) === 'adult') return [];
-  const ids: ParentId[] = ['mama', 'papa'];
+  if (stageAt(clock, bornAt) === 'adult') return [];
+  return familyAt(lodge, clock, inLodge, terrain, coats, ['mama', 'papa']);
+}
+
+/**
+ * The parents of a lodge the family left (Q60, Q61). They stay in the pond, and are met again outside, moving about
+ * it like the parents of a young player.
+ */
+export function formerParentsAt(homes: readonly FormerHome[], clock: number, terrain: Terrain): Parent[] {
+  return homes.flatMap((h) => familyAt(h, clock, false, terrain, h.parents, [`mama@${Math.round(h.x)},${Math.round(h.z)}`, `papa@${Math.round(h.x)},${Math.round(h.z)}`]));
+}
+
+/** A lodge the family has left, and who still lives in the pond: the coats of the two parents. */
+export interface FormerHome extends Lodge {
+  parents: readonly [Coat, Coat];
+}
+
+/** The two parents of a whole lodge, wherever they are at a clock value. */
+function familyAt(lodge: Lodge | null, clock: number, inLodge: boolean, terrain: Terrain, coats: readonly [Coat, Coat], ids: [ParentId, ParentId]): Parent[] {
+  if (!lodgeComplete(lodge)) return [];
   if (inLodge) {
     return ids.map((id, i) => {
       const nest = NEST_SPOTS[i + 1]!;

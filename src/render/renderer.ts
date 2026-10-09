@@ -12,7 +12,8 @@ import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
 import { STAGE_RULES, stageAt } from '../sim/life';
 import { createBeaverModel, type BeaverModel } from './beaverModel';
-import { FIRST_PARENTS, type Parent, type ParentId } from '../sim/family';
+import { HEARD_DISTANCE, SLAP_EVERY } from '../sim/partners';
+import type { Parent, ParentId } from '../sim/family';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
 import { lookDir } from './flyCam';
@@ -203,15 +204,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       }
     });
   prepareBeaver(beaver);
-  // Mama and Papa, each in a coat of their own, drawn in the world or in the room with the player.
+  // Mama and Papa, and the parents of lodges the family left, each in a coat of their own, made when first seen. They are
+  // drawn where the player is: in the room while the player is in, else in the world.
   const parentModels = new Map<ParentId, { model: BeaverModel; pace: number; coat: string }>();
-  for (const id of ['mama', 'papa'] as const) {
-    const model = createBeaverModel(FIRST_PARENTS[id === 'mama' ? 0 : 1].coat);
-    model.group.visible = false;
-    scene.add(model.group);
-    prepareBeaver(model.group);
-    parentModels.set(id, { model, pace: 0, coat: '' });
-  }
   // The lone beavers of the valley, one model each, made when first seen.
   const partnerModels = new Map<string, { model: BeaverModel; pace: number; x: number; z: number }>();
   let coatShown = '';
@@ -354,12 +349,19 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         coatShown = coat;
         beaverModel.setCoat(world.coat.coat, world.coat.shade);
       }
-      for (const [id, entry] of parentModels) {
-        const p = parents.find((q) => q.id === id);
+      for (const entry of parentModels.values()) entry.model.group.visible = false;
+      for (const p of parents) {
+        let entry = parentModels.get(p.id);
+        if (!entry) {
+          const model = createBeaverModel(p.coat.coat);
+          scene.add(model.group);
+          prepareBeaver(model.group);
+          entry = { model, pace: 0, coat: '' };
+          parentModels.set(p.id, entry);
+        }
         const g = entry.model.group;
-        // Mama and Papa are drawn where the player is: in the room while the player is in, else in the world.
-        g.visible = !bare && p !== undefined && p.inside === inside;
-        if (!p) continue;
+        g.visible = !bare && p.inside === inside;
+        if (!g.visible) continue;
         if (g.parent !== drawn) drawn.add(g);
         const parentCoat = `${p.coat.coat}:${p.coat.shade}`;
         if (parentCoat !== entry.coat) {
@@ -395,7 +397,11 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         entry.x = at.x;
         entry.z = at.z;
         entry.pace += ((moved > 0.001 && moved < 5 ? 1 : 0) - entry.pace) * 0.2;
-        entry.model.update(now, entry.pace, swim ? 'swim' : 'walk', 0, p.metAt === null ? null : world.time - p.metAt);
+        // One the player has not met slaps its tail now and then while the player is within earshot, which is the nudge to go and look.
+        const heard = p.state === 'alone' && Math.hypot(p.x - b.x, p.z - b.z) <= HEARD_DISTANCE;
+        const phase = (p.id.length * 7 + p.id.charCodeAt(p.id.length - 1)) % SLAP_EVERY;
+        const slapAge = heard ? (world.time + phase) % SLAP_EVERY : p.metAt === null ? null : world.time - p.metAt;
+        entry.model.update(now, entry.pace, swim ? 'swim' : 'walk', 0, slapAge);
         const wanted = home && world.lodge ? Math.atan2(-nest.x, -nest.z) : p.heading;
         if (g.parent !== drawn) drawn.add(g);
         g.position.set(at.x, at.y, at.z);

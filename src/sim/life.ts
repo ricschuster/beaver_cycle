@@ -52,14 +52,16 @@ export interface StageRules {
   works: boolean;
   /** How far from the lodge the beaver may go, in metres, or Infinity. A baby stays in the pond. */
   range: number;
+  /** The beaver keeps to the water: it swims, and does not go ashore. A baby plays in the pond. */
+  waterOnly: boolean;
   /** Size of the model against an adult. */
   scale: number;
 }
 
 export const STAGE_RULES: Record<Stage, StageRules> = {
-  baby: { speed: 0.5, works: false, range: 60, scale: 0.45 },
-  teenager: { speed: 0.85, works: true, range: Infinity, scale: 0.75 },
-  adult: { speed: 1, works: true, range: Infinity, scale: 1 },
+  baby: { speed: 0.5, works: false, range: 60, waterOnly: true, scale: 0.45 },
+  teenager: { speed: 0.85, works: true, range: Infinity, waterOnly: false, scale: 0.75 },
+  adult: { speed: 1, works: true, range: Infinity, waterOnly: false, scale: 1 },
 };
 
 /** The dawn on or after the day the beaver grows into its next stage, or null for an adult. Sleeping until then is the skip (Q47). */

@@ -97,6 +97,9 @@ this slice. It belongs to the family slice (Q59).
   stop and a toast says "Mama calls you back". There are no parent beavers yet,
   so it is only the voice. The range is still a distance from the lodge, not
   the pond shape.
+- Water only: a baby in the water does not go ashore. The step is stopped and
+  slides along the shore. A baby that already stands on land can walk, so it
+  can reach the water (a new game with `?stage=baby` starts on the shore).
 
 ## Not in this slice
 

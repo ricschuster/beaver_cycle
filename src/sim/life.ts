@@ -70,3 +70,23 @@ export function growUpDawn(clock: number, bornAt: number): number | null {
   const day = dateAt(end).day;
   return (end > day * DAY_SECONDS ? day + 1 : day) * DAY_SECONDS;
 }
+
+/** A young beaver slows down over the last metres before its range, as the parents call it back. */
+export const CALL_BAND = 12;
+
+/** True while the beaver is within the calling band of its range or past it. Not for a beaver with no range. */
+export function isCalledBack(distance: number, range: number): boolean {
+  return Number.isFinite(range) && distance > range - CALL_BAND;
+}
+
+/**
+ * The distance from home after a step, given the one before. Outward steps shrink to nothing across the calling band, so
+ * the edge is soft; steps toward home are not touched. Never past the range.
+ */
+export function softEdge(before: number, after: number, range: number): number {
+  if (!Number.isFinite(range) || after <= before) return after;
+  const start = range - CALL_BAND;
+  if (after <= start) return after;
+  const room = Math.max(0, Math.min(1, (range - Math.max(before, start)) / CALL_BAND));
+  return Math.min(range, Math.max(before, start) + (after - Math.max(before, start)) * room);
+}

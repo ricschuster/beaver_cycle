@@ -5,9 +5,14 @@ import * as THREE from 'three';
 import type { BeaverMode } from '../sim/state';
 import type { Food } from '../sim/food';
 
-const FUR = 0x8b5a2b;
-const DARK_FUR = 0x5a3a1c;
-const BELLY = 0xa8794a;
+/** Coats within beaver browns (Q59), indexed by `coatOf` in the sim. Fur, dark fur for legs and ears, and belly. */
+export const COATS = [
+  { fur: 0x8b5a2b, dark: 0x5a3a1c, belly: 0xa8794a },
+  { fur: 0xa5733d, dark: 0x6e4a26, belly: 0xc29a66 },
+  { fur: 0x6e4527, dark: 0x45291a, belly: 0x8c6340 },
+  { fur: 0x5b3b22, dark: 0x33200f, belly: 0x7a5736 },
+  { fur: 0x9a6a3a, dark: 0x4f3a2a, belly: 0xb88b55 },
+] as const;
 const TAIL = 0x3b2a1a;
 const TEETH = 0xf2ead0;
 
@@ -36,6 +41,8 @@ export function slapPose(age: number): { tail: number | null; dip: number } {
 
 export interface BeaverModel {
   group: THREE.Group;
+  /** Change the coat, an index into `COATS`. A new baby has its own colour. */
+  setCoat(coat: number): void;
   /**
    * Poses the model. `time` is seconds, `speed01` is 0 standing and 1 at full pace,
    * `mode` picks the pose, `tilt` (-1 rising to 1 sinking) pitches a diver's nose, and
@@ -56,15 +63,16 @@ function ellipsoid(rx: number, ry: number, rz: number, color: number, x: number,
   return m;
 }
 
-function leg(x: number, z: number, length: number, foot: number): THREE.Group {
+function leg(x: number, z: number, length: number, foot: number, dark: number): THREE.Group {
   const g = new THREE.Group();
   g.position.set(x, length, z);
-  g.add(part(new THREE.CapsuleGeometry(0.07, length - 0.14, 4, 8), DARK_FUR, 0, -length / 2, 0));
-  g.add(ellipsoid(0.09, 0.04, foot, DARK_FUR, 0, -length + 0.04, foot * 0.4));
+  g.add(part(new THREE.CapsuleGeometry(0.07, length - 0.14, 4, 8), dark, 0, -length / 2, 0));
+  g.add(ellipsoid(0.09, 0.04, foot, dark, 0, -length + 0.04, foot * 0.4));
   return g;
 }
 
-export function createBeaverModel(): BeaverModel {
+export function createBeaverModel(coat = 0): BeaverModel {
+  const { fur: FUR, dark: DARK_FUR, belly: BELLY } = COATS[coat % COATS.length]!;
   const group = new THREE.Group();
 
   // Everything but the feet rides on the body group so a walk can bob it.
@@ -126,8 +134,18 @@ export function createBeaverModel(): BeaverModel {
   body.add(tail);
   tail.add(ellipsoid(0.21, 0.03, 0.34, TAIL, 0, 0, -0.32));
 
-  const legs = [leg(-0.17, 0.25, 0.2, 0.1), leg(0.17, 0.25, 0.2, 0.1), leg(-0.19, -0.3, 0.22, 0.17), leg(0.19, -0.3, 0.22, 0.17)];
+  const legs = [leg(-0.17, 0.25, 0.2, 0.1, DARK_FUR), leg(0.17, 0.25, 0.2, 0.1, DARK_FUR), leg(-0.19, -0.3, 0.22, 0.17, DARK_FUR), leg(0.19, -0.3, 0.22, 0.17, DARK_FUR)];
   group.add(...legs);
+
+  // The parts that take the coat's colours, found by their colour, so setCoat can paint them again.
+  const painted: Record<'fur' | 'dark' | 'belly', THREE.MeshLambertMaterial[]> = { fur: [], dark: [], belly: [] };
+  group.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    const hex = o.material.color.getHex();
+    if (hex === FUR) painted.fur.push(o.material);
+    else if (hex === DARK_FUR) painted.dark.push(o.material);
+    else if (hex === BELLY) painted.belly.push(o.material);
+  });
 
   // 0 walking, 1 swimming or diving. Eases so the pose changes over a fraction of a second.
   let swim = 0;
@@ -137,6 +155,12 @@ export function createBeaverModel(): BeaverModel {
 
   return {
     group,
+    setCoat(index) {
+      const c = COATS[index % COATS.length]!;
+      for (const m of painted.fur) m.color.setHex(c.fur);
+      for (const m of painted.dark) m.color.setHex(c.dark);
+      for (const m of painted.belly) m.color.setHex(c.belly);
+    },
     update(time, speed01, mode = 'walk', tilt = 0, slapAge = null, carry = null) {
       branch.visible = carry === 'branch';
       lily.visible = carry === 'lily';

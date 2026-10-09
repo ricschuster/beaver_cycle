@@ -8,6 +8,7 @@ import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from '
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
 import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
+import { parentsAt } from './sim/family';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
 import { CHOP_TIME, noTrees, type TreeSource } from './sim/trees';
@@ -365,7 +366,7 @@ async function start(): Promise<void> {
     const rest = canRest(world);
     const stage = lifeAt(world.clock, world.bornAt).stage;
     sleepPrompt.set({ night: canSleep(world), rest, grow: rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null });
-    renderer.draw(world, rig.view);
+    renderer.draw(world, rig.view, parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds)));
     if (now - lastReadout > 500) {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;

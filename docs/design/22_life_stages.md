@@ -1,8 +1,8 @@
 # Life stages (M6, first slice)
 
-Status: draft for the author's review. Nothing here is built. It covers only the
-age of the player beaver. Family beavers, the handover to the next baby, and
-other beavers (`13_milestone_plan.md`, M6) come after this slice.
+Status: first slices built (see Built so far). The age of the player beaver, then
+Mama and Papa. Leaving, the handover to the next baby, kits, and other beavers
+(`13_milestone_plan.md`, M6) come after.
 
 ## What the author has said
 
@@ -94,8 +94,8 @@ this slice. It belongs to the family slice (Q59).
   born and who its family are, is the next slice.
 - Small gaps: the camera follows a young beaver closer and lower (the square
   root of its size). Over the last 12 m before the range the baby slows to a
-  stop and a toast says "Mama calls you back". There are no parent beavers yet,
-  so it is only the voice. The range is still a distance from the lodge, not
+  stop and a toast says "Mama calls you back". The voice is still only a toast,
+  though the parents are drawn (see below). The range is still a distance from the lodge, not
   the pond shape.
 - Water only: a baby in the water does not go ashore. The step is stopped and
   slides along the shore. A baby that already stands on land can walk, so it
@@ -103,9 +103,17 @@ this slice. It belongs to the family slice (Q59).
   the test menu Baby button, and New baby all start inside, when a whole lodge
   stands).
 
+- Mama and Papa (`src/sim/family.ts`): two adult beavers, drawn while the player is a baby or a teenager and the lodge is
+  whole, and gone when it is grown (the leaving itself is not built). Where they are is a pure function of the clock, so
+  nothing is saved: outside they swim about the deep water within 30 m of the lodge, and every 3 game hours each goes
+  to another part of the pond (Q60, Q61). Inside the lodge they lie on their own nests. Coats (`COATS` in
+  `beaverModel.ts`, five browns): Mama and Papa have one each, and each new baby gets its own from its birth time
+  (`coatOf`, Q59). The parents swim a straight line between parts, so a line may cross the lodge or a spit. They do not
+  yet react to the baby, and "Mama calls you back" is still a toast.
+
 ## Not in this slice
 
-- Mama, papa, and siblings, and their colours (Q58 to Q61).
+- Siblings and kits (Q58).
 - Leaving, the mate, kits, and the new pond (Q63, Q64).
 - Other beavers (Q62).
 

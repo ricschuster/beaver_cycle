@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { SLAP_DURATION, createBeaverModel, slapPose } from './beaverModel';
+import { COATS, SLAP_DURATION, createBeaverModel, slapPose } from './beaverModel';
 
 /** The box of what is drawn: hidden parts do not count. */
 function visibleBox(group: THREE.Object3D): THREE.Box3 {
@@ -13,6 +13,22 @@ function visibleBox(group: THREE.Object3D): THREE.Box3 {
 }
 
 describe('createBeaverModel', () => {
+  it('paints the body in the coat, and again when the coat changes', () => {
+    const m = createBeaverModel(2);
+    const colors = (): Set<number> => {
+      const set = new Set<number>();
+      m.group.traverse((o) => {
+        if (o instanceof THREE.Mesh) set.add((o.material as THREE.MeshLambertMaterial).color.getHex());
+      });
+      return set;
+    };
+    expect(colors().has(COATS[2].fur)).toBe(true);
+    m.setCoat(4);
+    expect(colors().has(COATS[4].fur)).toBe(true);
+    expect(colors().has(COATS[2].fur)).toBe(false);
+    expect(colors().has(COATS[4].dark)).toBe(true);
+  });
+
   it('shows a branch in the mouth only while carrying one', () => {
     const m = createBeaverModel();
     m.update(0.1, 0);

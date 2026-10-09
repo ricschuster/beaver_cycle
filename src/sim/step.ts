@@ -13,7 +13,7 @@ import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, neare
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
 import { tally } from './achievements';
-import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
+import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
 /** The longest stretch of a move, in metres, checked for bumps in one go. */
 const SWEEP_STEP = 0.4;
@@ -73,6 +73,12 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     const d = Math.hypot(dx, dz);
     const kept = softEdge(Math.hypot(b.x - world.lodge.x, b.z - world.lodge.z), d, rules.range);
     if (kept < d) p = { x: world.lodge.x + (dx / d) * kept, z: world.lodge.z + (dz / d) * kept };
+  }
+  // A baby in the water stays in it: a step ashore is stopped, and slides along the shore on the axis that stays wet.
+  // (One that already stands on land may walk, so it can reach the water.)
+  if (rules.waterOnly && !housed && b.mode !== 'walk') {
+    const wet = (q: { x: number; z: number }): boolean => terrain.waterDepth(q.x, q.z) >= SWIM_EXIT_DEPTH;
+    if (!wet(p)) p = [{ x: p.x, z: b.z }, { x: b.x, z: p.z }].find(wet) ?? { x: b.x, z: b.z };
   }
   const { x: nx, z: nz } = p;
   const time = world.time + dt;

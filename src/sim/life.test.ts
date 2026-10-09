@@ -154,3 +154,26 @@ describe('the soft edge', () => {
     expect(isCalledBack(1000, Infinity)).toBe(false);
   });
 });
+
+describe('a baby keeps to the water', () => {
+  // Water north of z = 10 (a metre deep), dry land south of it.
+  const shore = { heightAt: (_x: number, z: number) => (z < 10 ? -1 : 0), isWater: (_x: number, z: number) => z < 10, waterDepth: (_x: number, z: number) => (z < 10 ? 1 : 0) };
+  const swimmer = (stage: 'baby' | 'teenager') => setStage(createWorld(shore, 0, 0), stage);
+  const go = (w: ReturnType<typeof createWorld>, move: { x: number; z: number }) => {
+    for (let i = 0; i < 100; i++) w = step(w, { ...noActions(), move }, 0.1, shore);
+    return w;
+  };
+
+  it('stops at the shore, where a teenager walks ashore', () => {
+    expect(swimmer('baby').beaver.mode).toBe('swim');
+    expect(go(swimmer('baby'), { x: 0, z: 1 }).beaver.z).toBeLessThan(10);
+    expect(go(swimmer('teenager'), { x: 0, z: 1 }).beaver.z).toBeGreaterThan(10);
+  });
+
+  it('slides along the shore', () => {
+    const w = go(swimmer('baby'), { x: 1, z: 1 });
+    expect(w.beaver.x).toBeGreaterThan(5);
+    expect(w.beaver.z).toBeLessThan(10);
+    expect(w.beaver.mode).toBe('swim');
+  });
+});

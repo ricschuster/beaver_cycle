@@ -1,6 +1,8 @@
+import { FOOD_ROT, MUD_DRY } from './haul';
 import { describe, expect, it } from 'vitest';
 import { noActions, type Actions } from '../actions/actions';
 import { STORE_CAPACITY, STORE_DISTANCE, branchesOf, emptyStock, lilyShare, stockMeals, stockOf, stockTotal, storeFill, storeSpot, tapped, trimmed, type Food, type Stock } from './food';
+import { LOG_ROT } from './logs';
 import { LODGE_WOOD } from './lodge';
 import type { Log } from './logs';
 import { createWorld, type WorldState } from './state';
@@ -99,9 +101,38 @@ describe('stripping branches', () => {
     expect(step(drag, press({ chop: true }), 0.1, shore).carry).toBeNull();
   });
 
-  it('does not take hold of a log while a piece is in the mouth', () => {
+  it('does not take hold of a log while a piece is in the mouth, but puts the piece down', () => {
     const w = step({ ...world(), carry: 'branch' }, press({ grab: true }), 0.1, shore);
     expect(w.drag).toBeNull();
+    expect(w.carry).toBeNull();
+    expect(w.dropped).toMatchObject([{ kind: 'branch' }]);
+  });
+
+  it('picks a dropped piece up again with Gnaw', () => {
+    const down = step({ ...world(), carry: 'lily' }, press({ grab: true }), 0.1, shore);
+    const up = step(down, press({ chop: true }), 0.1, shore);
+    expect(up.carry).toBe('lily');
+    expect(up.dropped).toEqual([]);
+  });
+
+  it('rots away after two days, mud dries after four, and a rock stays', () => {
+    const at = world().clock;
+    const lying = (kind: 'branch' | 'mud' | 'rock') => ({ id: kind, kind, at, x: 50, z: 50 });
+    const w = { ...world(), dropped: [lying('branch'), lying('mud'), lying('rock')] };
+    const kinds = (clock: number) => step({ ...w, clock }, press({}), 0.1, shore).dropped.map((d) => d.kind);
+    expect(kinds(at + FOOD_ROT - 1)).toEqual(['branch', 'mud', 'rock']);
+    expect(kinds(at + FOOD_ROT)).toEqual(['mud', 'rock']);
+    expect(kinds(at + MUD_DRY)).toEqual(['rock']);
+  });
+});
+
+describe('a log', () => {
+  it('rots away a year after it fell, unless it is being dragged', () => {
+    const old = { ...log('a', 4), at: 0 };
+    const w = { ...world(), logs: [old], clock: LOG_ROT - 1 };
+    expect(step(w, press({}), 0.1, shore).logs).toHaveLength(1);
+    expect(step({ ...w, clock: LOG_ROT }, press({}), 0.1, shore).logs).toHaveLength(0);
+    expect(step({ ...w, clock: LOG_ROT, drag: 'a' }, press({}), 0.1, shore).logs).toHaveLength(1);
   });
 });
 

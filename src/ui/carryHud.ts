@@ -39,12 +39,14 @@ export interface FoodInfo {
   dam: { percent: number; wood: number; mud: number; rock: number; whole: boolean; canAdd: boolean; level: number; raise: boolean; top: boolean } | null;
   /** The lodge or store within reach that needs repair: its condition in percent and the wood units still needed. */
   repair: { what: 'lodge' | 'store' | 'dam'; percent: number; wood: number; broken: boolean } | null;
-  hint: 'pick' | 'strip' | 'rock' | 'mud' | 'store' | 'eat' | null;
+  hint: 'pick' | 'strip' | 'branch' | 'lily' | 'rock' | 'mud' | 'store' | 'eat' | null;
 }
 
 const HINT_TEXT: Record<NonNullable<FoodInfo['hint']>, string> = {
   pick: 'press Gnaw to pick a lily pad',
   strip: 'press Gnaw to strip a branch',
+  branch: 'press Gnaw to pick up the branch',
+  lily: 'press Gnaw to pick up the lily pad',
   rock: 'press Gnaw to pick up a rock',
   mud: 'press Gnaw to scoop mud',
   store: 'press Build to open the store',
@@ -105,14 +107,14 @@ export function foodInfoOf(world: WorldState, terrain: Terrain, ground: Terrain 
     if (carry) hint = 'eat';
   } else if (whole && atStore(lodge, b.x, b.z) && !world.drag && !haul) {
     hint = 'store';
+  } else if (!carry && !haul && !world.drag && !world.chop && b.mode === 'walk' && reachableDropped(world.dropped, b.x, b.z)) {
+    hint = reachableDropped(world.dropped, b.x, b.z)!.kind;
   } else if (!carry && !haul && !world.drag && !world.chop && b.mode !== 'dive' && reachablePad(ground, b.x, b.z, world.clock, world.picked)) {
     hint = 'pick';
   } else if (!carry && !haul && !world.drag && !world.chop && b.mode !== 'dive' && strippable(world.logs, world.stripped, b.x, b.z)) {
     hint = 'strip';
   } else if (!carry && !haul && !world.drag && !world.chop && b.mode === 'walk') {
-    const piece = reachableDropped(world.dropped, b.x, b.z);
-    if (piece) hint = piece.kind;
-    else if (reachableRock(terrain, b.x, b.z, world.rocksTaken)) hint = 'rock';
+    if (reachableRock(terrain, b.x, b.z, world.rocksTaken)) hint = 'rock';
     else if (canScoopMud(terrain, b.x, b.z, b.heading)) hint = 'mud';
   }
   const lodgeRepair = whole && !world.inLodge ? repairInfoOf(world) : null;

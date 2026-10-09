@@ -2,6 +2,8 @@
 // mouth, like food. Mud is scooped from the wet bank or the shallows. Rocks are not stored in the world: each is worked
 // out from a grid cell and the terrain, as the lily pads are, so the same rocks lie in the same places every time. A
 // rock taken is noted by id. Plain data and pure functions, no three.js (ADR 0007).
+import { DAY_SECONDS } from './clock';
+import type { Food } from './food';
 import { COVER_MEADOW, type Terrain } from './terrain';
 
 /** What the beaver holds in its mouth besides food: mud, or a rock. */
@@ -9,10 +11,12 @@ export interface Haul {
   kind: 'mud' | 'rock';
 }
 
-/** Mud or a rock the beaver put down: it lies where it was dropped, and can be picked up again. */
+/** Mud, a rock, or a piece of food the beaver put down: it lies where it was dropped, and can be picked up again. */
 export interface Dropped {
   id: string;
-  kind: 'mud' | 'rock';
+  kind: 'mud' | 'rock' | Food;
+  /** The game clock when it was put down, for rotting. */
+  at: number;
   x: number;
   z: number;
 }
@@ -20,9 +24,16 @@ export interface Dropped {
 /** How far ahead of the beaver, in metres, a piece is put down: in front of its mouth. */
 export const DROP_AHEAD = 0.8;
 
-/** The piece put down by a beaver at (x, z) facing `heading`, with an id made from the game time. */
-export function putDown(haul: Haul, x: number, z: number, heading: number, time: number): Dropped {
-  return { id: `drop:${time.toFixed(3)}`, kind: haul.kind, x: x + Math.sin(heading) * DROP_AHEAD, z: z + Math.cos(heading) * DROP_AHEAD };
+/** Food put down rots away after this many game seconds, and mud dries and crumbles after its own. Rocks stay. Tuning numbers. */
+export const FOOD_ROT = 2 * DAY_SECONDS;
+export const MUD_DRY = 4 * DAY_SECONDS;
+
+/** True once a put down piece has rotted or dried away by `clock`. Rocks never do. */
+export const rotted = (d: Dropped, clock: number): boolean => d.kind !== 'rock' && clock - d.at >= (d.kind === 'mud' ? MUD_DRY : FOOD_ROT);
+
+/** The piece put down by a beaver at (x, z) facing `heading`, with an id made from the game time and the clock it was put down at. */
+export function putDown(haul: Haul | { kind: Food }, x: number, z: number, heading: number, time: number, clock: number): Dropped {
+  return { id: `drop:${time.toFixed(3)}`, kind: haul.kind, at: clock, x: x + Math.sin(heading) * DROP_AHEAD, z: z + Math.cos(heading) * DROP_AHEAD };
 }
 
 /** The nearest put down piece within reach of a point, or null. */

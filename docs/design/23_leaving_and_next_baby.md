@@ -61,13 +61,23 @@ The grown beaver stays in the world, and the next baby is its child:
   "current home" idea.
 - The partner is a plain data beaver with a place and a coat, like a parent.
 
-## Questions for the author
+## Answers (the author)
 
-1. Is one partner far away right, or are several beavers about, so the player
-   can choose? One is far simpler.
-2. Does the partner live in a lodge already (so the player moves in or builds
-   next door), or is it a lone beaver without a home?
-3. Is the kit's coat the player's or the partner's, picked by chance? Or a mix?
-4. How long between the lodge being whole and the kit: one season (10 days)?
-5. Can the player move house, or is the first lodge the only one the new baby
-   knows? The note assumes the new lodge is the baby's home.
+1. **Several partners.** Lone beavers live in different ponds, and the player
+   picks one. Each has its own coat.
+2. **A lone beaver, with no home.** It moves into the lodge the player builds.
+3. **The kit's coat is a slightly different shade at random** of the parents'
+   coats, so a family keeps a look and no two kits are the same. `COATS` as five
+   fixed browns is not enough for this: a coat becomes a base colour and a
+   random shade (`coatOf` gives a colour, not an index).
+4. **Kits are born on the first day of spring** after the lodge is whole.
+5. **The new lodge is the baby's only home,** and the baby is restricted as
+   before (a 60 m range, water only, the lodge as the centre).
+
+## A way to build it
+
+One lodge stays "the home": `world.lodge`, which everything already reads. When
+the kit is born, the home becomes the new lodge, and the old one moves to
+`world.formerHomes`, where it is drawn, solid, and wears, but cannot be used (no
+sleeping, no store, no range). That keeps the refactor small. The old store goes
+with its lodge.

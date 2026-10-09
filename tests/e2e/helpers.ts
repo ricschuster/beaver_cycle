@@ -205,3 +205,21 @@ export async function openStash(page: Page): Promise<void> {
   }
   throw new Error('the stash screen did not open at the store');
 }
+
+/** Record every message the toast shows (it holds one at a time, so a later one hides an earlier). Call before the game acts. */
+export async function collectToasts(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const w = window as any;
+    w.__toasts = [];
+    const el = document.getElementById('toast')!;
+    new MutationObserver(() => {
+      if (el.textContent) w.__toasts.push(el.textContent);
+    }).observe(el, { childList: true, characterData: true, subtree: true });
+  });
+}
+
+/** Every message recorded by `collectToasts` so far. */
+export const toasts = (page: Page): Promise<string[]> => page.evaluate(() => (window as any).__toasts as string[]);
+
+/** Open or close the test menu panel (it is a toggle). */
+export const toggleMenu = (page: Page): Promise<void> => page.getByRole('button', { name: 'Test menu' }).click();

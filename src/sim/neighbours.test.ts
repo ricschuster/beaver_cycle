@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS, DAYS_PER_YEAR } from './clock';
-import type { DamSpot } from './damSpots';
 import { lodgeComplete } from './lodge';
-import { neighboursAt, seedNeighbours } from './neighbours';
+import { growNeighbours, neighboursAt, type Neighbour } from './neighbours';
 import { flatTerrain, type Terrain } from './terrain';
 
 /** A lake east of x = 300 that deepens 0.2 m per metre to 6 m. */
@@ -11,36 +10,48 @@ const lake: Terrain = {
   isWater: (x) => x > 300,
   waterDepth: (x) => (x <= 300 ? 0 : Math.min(6, (x - 300) * 0.2)),
 };
-const spot = (id: string, x: number, z: number): DamSpot => ({ id, bed: { x, z } }) as DamSpot;
-const spots = [spot('a', 310, 0), spot('b', 330, 400)];
+/** The families found by walking along the shore, every 100 m. */
+const seed = (ground: Terrain = lake, avoid: readonly Neighbour[] = []): Neighbour[] => {
+  const tried = new Set<string>();
+  let families: readonly Neighbour[] = avoid;
+  for (let z = -4000; z <= 4000; z += 100) families = growNeighbours(families, ground, { x: 300, z }, home, tried);
+  return families.filter((f) => !avoid.includes(f));
+};
 const home = { x: 0, z: 0 };
 const day = DAY_SECONDS;
 const noon = day * 0.3;
 
 describe('neighbour families', () => {
-  it('put one family at a pond far from home, with a whole lodge', () => {
-    const [n, ...rest] = seedNeighbours(spots, home, lake);
-    expect(rest).toEqual([]);
-    expect(lodgeComplete(n!.lodge)).toBe(true);
-    expect(Math.hypot(n!.lodge.x - home.x, n!.lodge.z - home.z)).toBeGreaterThanOrEqual(120);
+  it('find families at ponds as the player passes, each with a whole lodge far from home', () => {
+    const found = seed();
+    expect(found.length).toBeGreaterThan(2);
+    for (const n of found) {
+      expect(lodgeComplete(n.lodge)).toBe(true);
+      expect(Math.hypot(n.lodge.x - home.x, n.lodge.z - home.z)).toBeGreaterThanOrEqual(120);
+    }
   });
 
   it('are the same every time', () => {
-    expect(seedNeighbours(spots, home, lake)).toEqual(seedNeighbours(spots, home, lake));
+    expect(seed()).toEqual(seed());
   });
 
-  it('need water to live in', () => {
-    expect(seedNeighbours(spots, home, flatTerrain(0))).toEqual([]);
+  it('find nothing where there is no water', () => {
+    expect(seed(flatTerrain(0))).toEqual([]);
   });
 
-  it('keep away from lodges to avoid', () => {
-    const [n] = seedNeighbours(spots, home, lake);
-    const other = seedNeighbours(spots, home, lake, 1, [n!.lodge]);
-    expect(other.every((o) => Math.hypot(o.lodge.x - n!.lodge.x, o.lodge.z - n!.lodge.z) >= 150)).toBe(true);
+  it('look at each cell once', () => {
+    const tried = new Set<string>();
+    const first = growNeighbours([], lake, { x: 300, z: 1000 }, home, tried);
+    expect(growNeighbours(first, lake, { x: 300, z: 1000 }, home, tried)).toBe(first);
+  });
+
+  it('keep 150 m from each other', () => {
+    const found = seed();
+    for (const a of found) for (const b of found) if (a !== b) expect(Math.hypot(a.lodge.x - b.lodge.x, a.lodge.z - b.lodge.z)).toBeGreaterThanOrEqual(150);
   });
 
   it('swim in the pond by day with a mama, a papa, and kits', () => {
-    const families = seedNeighbours(spots, home, lake);
+    const families = seed().slice(0, 1);
     const all = neighboursAt(families, noon + day * 5, lake);
     expect(all.filter((b) => b.role === 'mama')).toHaveLength(1);
     expect(all.filter((b) => b.role === 'papa')).toHaveLength(1);
@@ -49,11 +60,11 @@ describe('neighbour families', () => {
   });
 
   it('sleep in the lodge at night', () => {
-    expect(neighboursAt(seedNeighbours(spots, home, lake), day * 0.8, lake)).toEqual([]);
+    expect(neighboursAt(seed(), day * 0.8, lake)).toEqual([]);
   });
 
   it('grow the kits on the clock, and let them go when grown', () => {
-    const families = seedNeighbours(spots, home, lake);
+    const families = seed().slice(0, 1);
     const kits = (clock: number) => neighboursAt(families, clock, lake).filter((b) => b.role === 'kit');
     // The litter of the year before is still teenagers in the first days of the year; this year's is newborn.
     const young = kits(noon + day * 2).filter((k) => k.id.includes(':kit:0:'));
@@ -70,7 +81,7 @@ describe('neighbour families', () => {
   });
 
   it('give the same beavers for the same clock', () => {
-    const families = seedNeighbours(spots, home, lake);
+    const families = seed().slice(0, 1);
     expect(neighboursAt(families, noon + 1000, lake)).toEqual(neighboursAt(families, noon + 1000, lake));
   });
 });

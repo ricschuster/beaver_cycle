@@ -10,7 +10,7 @@ import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLod
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { formerParentsAt, parentsAt } from './sim/family';
 import { AnimalField, capFor } from './sim/animals';
-import { neighboursAt, seedNeighbours } from './sim/neighbours';
+import { growNeighbours, neighboursAt } from './sim/neighbours';
 import { CUE_EVERY, HEARD_DISTANCE, follower, mateOf, partnerCue } from './sim/partners';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
@@ -185,8 +185,6 @@ async function start(): Promise<void> {
       world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear }, storeWear: wear, achievements: [...world.achievements, 'home'] };
     }
   }
-  // Another family lives at a pond far from the start (note 24).
-  world = { ...world, neighbours: seedNeighbours(world.spots, world.lodge ?? world.beaver, terrain, 1, world.lodge ? [world.lodge] : []) };
   // ?stage=baby|teenager|adult starts the beaver at the start of that life stage (default adult). A baby starts in the lodge.
   const stageParam = query.get('stage');
   if (STAGES.includes(stageParam as Stage)) world = startStage(world, stageParam as Stage);
@@ -312,6 +310,9 @@ async function start(): Promise<void> {
   let fps = 60;
   let lastReadout = 0;
   let animalsAt = 0;
+  // Other families are found as the player comes near their ponds (note 24); cells already looked at are kept here.
+  let familiesAt = 0;
+  const familiesTried = new Set<string>();
   const animalField = new AnimalField();
 
   function frame(now: number): void {
@@ -418,6 +419,11 @@ async function start(): Promise<void> {
     if (now - animalsAt > 100) {
       animalsAt = now;
       animalField.trim(world.beaver.x, world.beaver.z);
+    }
+    if (now - familiesAt > 3000) {
+      familiesAt = now;
+      const grown = growNeighbours(world.neighbours, terrain, world.beaver, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver, familiesTried);
+      if (grown !== world.neighbours) world = { ...world, neighbours: [...grown] };
     }
     const animals = animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps));
     renderer.draw(world, rig.view, [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)], animals, neighboursAt(world.neighbours, world.clock, ponded));

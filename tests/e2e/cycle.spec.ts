@@ -1,55 +1,13 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { buildLodge, enterLodgeAndRest, setSpeed, shot, startGame, walkTo, world } from './helpers';
 // A playtest of the family cycle (docs/design/23_leaving_and_next_baby.md) in the real game, driven by the keys and the test menu.
 // Run it with PLAYTEST_SHOTS=dir to keep screenshots of the key moments.
 
-const SHOTS = process.env.PLAYTEST_SHOTS;
-const shot = async (page: Page, name: string): Promise<void> => {
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png` });
-};
-const world = (page: Page) => page.evaluate(() => JSON.parse(JSON.stringify((window as any).__game.world())));
-
-/** Hold the keys that head best toward a point on the ground until the beaver is near it, as a player would. */
-async function walkTo(page: Page, target: () => Promise<{ x: number; z: number }>, near: number, maxMs: number): Promise<boolean> {
-  const keys = [
-    { codes: ['KeyW'], m: { x: 0, z: 1 } }, { codes: ['KeyW', 'KeyA'], m: { x: 1, z: 1 } }, { codes: ['KeyA'], m: { x: 1, z: 0 } },
-    { codes: ['KeyS', 'KeyA'], m: { x: 1, z: -1 } }, { codes: ['KeyS'], m: { x: 0, z: -1 } }, { codes: ['KeyS', 'KeyD'], m: { x: -1, z: -1 } },
-    { codes: ['KeyD'], m: { x: -1, z: 0 } }, { codes: ['KeyW', 'KeyD'], m: { x: -1, z: 1 } },
-  ];
-  let held: string[] = [];
-  const deadline = Date.now() + maxMs;
-  try {
-    while (Date.now() < deadline) {
-      const s = await page.evaluate(() => {
-        const g = (window as any).__game;
-        return { b: g.world().beaver, yaw: g.view().yaw as number };
-      });
-      const t = await target();
-      const dx = t.x - s.b.x;
-      const dz = t.z - s.b.z;
-      const d = Math.hypot(dx, dz);
-      if (d <= near) return true;
-      // relativeToView in src/actions/actions.ts, written out.
-      const a = s.yaw - Math.PI;
-      const best = keys
-        .map((k) => ({ k, w: { x: k.m.x * Math.cos(a) + k.m.z * Math.sin(a), z: -k.m.x * Math.sin(a) + k.m.z * Math.cos(a) } }))
-        .sort((p, q) => q.w.x * dx + q.w.z * dz - (p.w.x * dx + p.w.z * dz))[0]!.k;
-      for (const c of held) if (!best.codes.includes(c)) await page.keyboard.up(c);
-      for (const c of best.codes) if (!held.includes(c)) await page.keyboard.down(c);
-      held = best.codes;
-      await page.waitForTimeout(100);
-    }
-    return false;
-  } finally {
-    for (const c of held) await page.keyboard.up(c);
-  }
-}
-
 test('the family cycle: leave home, hear and find a partner', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(1_800_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/?shadows=0&stage=teenager');
-  await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+  await startGame(page, 'stage=teenager');
   // The real valley is needed (the lone beavers sit at its dam spots); the CI build has only the flat fallback.
   test.skip(await page.evaluate(() => (window as any).__game.stats() === null), 'needs the tiles built locally');
   await page.waitForTimeout(1500);
@@ -85,5 +43,33 @@ test('the family cycle: leave home, hear and find a partner', async ({ page }) =
   await shot(page, '03-met-partner');
   expect(w.partners.find((p: any) => p.id === nearest.id).state).toBe('following');
   await expect(page.locator('#toast')).toContainText('slaps its tail and follows');
+
+  // The meeting place has no water for a lodge within 300 m, so lead it back to the lake by the old home (fast, then at normal
+  // speed so the beaver does not overshoot its work).
+  await walkTo(page, async () => home, 40, 120_000);
+  await setSpeed(page, 1);
+  await buildLodge(page);
+  w = await world(page);
+  expect(w.lodge.wood).toBeGreaterThanOrEqual(10);
+  // The new lodge does not stand on the old one.
+  expect(Math.hypot(w.lodge.x - home.x, w.lodge.z - home.z)).toBeGreaterThan(6);
+  const mate = w.partners.find((p: any) => p.state === 'home');
+  expect(mate, 'the partner moves into the whole lodge').toBeTruthy();
+  await shot(page, '04-new-lodge');
+
+  // Rest in the lodge, and sleep through winter to the first day of spring: a kit is born.
+  await enterLodgeAndRest(page);
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator('button[data-season="winter"]').click();
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator('button[data-action="sleep-season"]').click();
+  await page.waitForFunction(() => (window as any).__game.world().generation === 1, null, { polling: 200, timeout: 30_000 });
+  w = await world(page);
+  expect(w.inLodge).toBe(true);
+  expect(w.partners).toEqual([]);
+  expect(w.achievements).toEqual([]);
+  await expect(page.locator('#life-hud')).toContainText(/baby/i);
+  await page.waitForTimeout(3000); // the screen fades back from sleep
+  await shot(page, '05-kit-born');
   expect(errors).toEqual([]);
 });

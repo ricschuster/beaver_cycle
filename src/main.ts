@@ -423,6 +423,9 @@ async function start(): Promise<void> {
     world: () => world,
     view: () => rig.view,
     stats: () => renderer.terrain?.stats() ?? null,
+    // Where a playtest can find things to work on: the nearest standing tree, and the nearest spot a lodge could start.
+    nearestTree: (x: number, z: number, reach: number) => trees.nearest(x, z, reach, new Set(world.felled)),
+    lodgeSite: (radius: number) => findSite(lodgeGround(terrain, world.ponds), world.beaver.x, world.beaver.z, radius),
   };
 }
 

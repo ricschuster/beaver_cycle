@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
-import { createWorld, setClock, setStage, setInLodge, sleep } from './state';
+import { createWorld, setClock, setStage, setInLodge, sleep, sleepUntil } from './state';
 import { flatTerrain } from './terrain';
 import { step } from './step';
 import { noActions } from '../actions/actions';
-import { BABY_DAYS, STAGE_RULES, TEENAGER_DAYS, bornAtFor, lifeAt, stageAt, stageStart } from './life';
+import { nextSeasonStart } from './clock';
+import { BABY_DAYS, growUpDawn, STAGE_RULES, TEENAGER_DAYS, bornAtFor, lifeAt, stageAt, stageStart } from './life';
 
 const d = (days: number) => days * DAY_SECONDS;
 
@@ -96,5 +97,37 @@ describe('stage rules', () => {
     expect(Math.hypot(w.beaver.x, w.beaver.z)).toBeLessThanOrEqual(STAGE_RULES.baby.range + 1e-6);
     const adult = run({ ...createWorld(flat), lodge }, fwd, 30);
     expect(Math.hypot(adult.beaver.x, adult.beaver.z)).toBeGreaterThan(STAGE_RULES.baby.range);
+  });
+});
+
+describe('sleeping ahead', () => {
+  const home = (stage: 'baby' | 'teenager' | 'adult') => setInLodge(setStage({ ...createWorld(flatTerrain(0)), clock: d(3.3) }, stage), true);
+
+  it('a baby sleeps until the dawn it grows up, and wakes a teenager', () => {
+    const w = sleepUntil(home('baby'), 'grow');
+    expect(w.clock % DAY_SECONDS).toBe(0);
+    expect(w.clock).toBeGreaterThanOrEqual(stageStart(w.bornAt, 'teenager'));
+    expect(w.clock - stageStart(w.bornAt, 'teenager')).toBeLessThan(DAY_SECONDS);
+    expect(stageAt(w.clock, w.bornAt)).toBe('teenager');
+  });
+
+  it('a teenager sleeps until adult, and an adult has no growing up to sleep to', () => {
+    const t = sleepUntil(home('teenager'), 'grow');
+    expect(stageAt(t.clock, t.bornAt)).toBe('adult');
+    const a = home('adult');
+    expect(sleepUntil(a, 'grow')).toBe(a);
+    expect(growUpDawn(a.clock, a.bornAt)).toBeNull();
+  });
+
+  it('sleeps until the next season at dawn, at any hour', () => {
+    const w = home('adult');
+    const next = sleepUntil(w, 'season');
+    expect(next.clock).toBe(nextSeasonStart(w.clock));
+    expect(next.clock).toBe(d(10));
+  });
+
+  it('does nothing outside the lodge', () => {
+    const out = setInLodge(home('baby'), false);
+    expect(sleepUntil(out, 'season')).toBe(out);
   });
 });

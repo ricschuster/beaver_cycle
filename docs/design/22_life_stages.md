@@ -87,6 +87,10 @@ this slice. It belongs to the family slice (Q59).
   stays within 60 m of its lodge (a hard stop for now, the parents calling it
   back comes later). Model scale is 0.45, 0.75, and 1. The camera distance does
   not follow the scale yet.
+- Step 4: sleeping ahead. In the lodge on the nest, at any hour, a panel offers
+  "Sleep until next season" and, for a baby or teenager, "Sleep until
+  teenager" or "adult". Both wake at dawn. At night the old morning and dream
+  choices stay. `sleepUntil` in `state.ts`, `growUpDawn` in `life.ts`.
 
 ## Not in this slice
 

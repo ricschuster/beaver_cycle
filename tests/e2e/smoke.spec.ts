@@ -82,10 +82,12 @@ test('at night in the lodge the bedtime panel offers sleep and the dream, and bo
   await expect(page.locator('#sleep-prompt')).toBeVisible();
   await page.locator('button[data-action="sleep-skip"]').click();
   await expect(page.locator('#clock-hud')).toContainText('day 2, morning');
-  await expect(page.locator('#sleep-prompt')).toBeHidden();
+  // By day only the long sleeps are offered: to the next season, not to morning or the dream.
+  await expect(page.locator('button[data-action="sleep-skip"]')).toBeHidden();
+  await expect(page.locator('button[data-action="sleep-season"]')).toBeVisible();
   // The dream is a placeholder: a dark screen with a wake button.
   await page.locator('button[data-time="night"]').click();
-  await expect(page.locator('#sleep-prompt')).toBeVisible();
+  await expect(page.locator('button[data-action="sleep-dream"]')).toBeVisible();
   await page.locator('button[data-action="sleep-dream"]').click();
   await expect(page.locator('#sleep-dark')).toContainText('dreams');
   await page.locator('button[data-action="sleep-wake"]').click();

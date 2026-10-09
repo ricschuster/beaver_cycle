@@ -5,14 +5,25 @@
 /** Milliseconds of each fade to or from black. */
 export const FADE_MS = 700;
 
+export type SleepGoal = 'night' | 'season' | 'grow';
+
+export interface SleepChoices {
+  /** It is night: offer sleeping until morning and the dream. */
+  night: boolean;
+  /** The beaver rests on its nest: offer sleeping ahead to the next season. */
+  rest: boolean;
+  /** Offer sleeping until growing up, or null for an adult. The text names the next stage. */
+  grow: string | null;
+}
+
 export interface SleepPrompt {
-  /** Show the bedtime panel while the beaver can sleep, hide it otherwise. */
-  setAvailable(available: boolean): void;
+  /** Show the panel with the choices that apply, hide it when none do. */
+  set(choices: SleepChoices): void;
 }
 
 export interface SleepPromptOptions {
-  /** Called in the dark, once, when the beaver wakes: move the clock to dawn. */
-  onWake(): void;
+  /** Called in the dark, once, when the beaver wakes: move the clock to dawn, the next season, or growing up. */
+  onWake(goal: SleepGoal): void;
 }
 
 const BUTTON =
@@ -33,7 +44,14 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   dreamButton.textContent = 'Dream';
   dreamButton.dataset.action = 'sleep-dream';
   dreamButton.style.cssText = BUTTON;
-  panel.append(skipButton, dreamButton);
+  const seasonButton = document.createElement('button');
+  seasonButton.textContent = 'Sleep until next season';
+  seasonButton.dataset.action = 'sleep-season';
+  seasonButton.style.cssText = BUTTON;
+  const growButton = document.createElement('button');
+  growButton.dataset.action = 'sleep-grow';
+  growButton.style.cssText = BUTTON;
+  panel.append(skipButton, dreamButton, seasonButton, growButton);
 
   const dark = document.createElement('div');
   dark.id = 'sleep-dark';
@@ -53,9 +71,14 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   parent.append(panel, dark);
 
   let busy = false;
-  let available = false;
+  let choices: SleepChoices = { night: false, rest: false, grow: null };
+  let goal: SleepGoal = 'night';
   const refresh = (): void => {
-    panel.style.display = !available || busy ? 'none' : 'flex';
+    skipButton.hidden = dreamButton.hidden = !choices.night;
+    seasonButton.hidden = !choices.rest;
+    growButton.hidden = choices.grow === null;
+    if (choices.grow !== null) growButton.textContent = `Sleep until ${choices.grow}`;
+    panel.style.display = busy || (!choices.night && !choices.rest && choices.grow === null) ? 'none' : 'flex';
   };
 
   const fadeTo = (opacity: number): void => {
@@ -67,7 +90,7 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   const wake = (): void => {
     dreamText.hidden = true;
     wakeButton.hidden = true;
-    opts.onWake();
+    opts.onWake(goal);
     setTimeout(() => {
       fadeTo(0);
       setTimeout(() => {
@@ -77,15 +100,20 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
     }, 300);
   };
 
-  skipButton.onclick = () => {
+  const sleepTo = (next: SleepGoal) => () => {
     if (busy) return;
+    goal = next;
     busy = true;
     refresh();
     fadeTo(1);
     setTimeout(wake, FADE_MS);
   };
+  skipButton.onclick = sleepTo('night');
+  seasonButton.onclick = sleepTo('season');
+  growButton.onclick = sleepTo('grow');
   dreamButton.onclick = () => {
     if (busy) return;
+    goal = 'night';
     busy = true;
     refresh();
     fadeTo(1);
@@ -97,8 +125,8 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   wakeButton.onclick = wake;
 
   return {
-    setAvailable(value) {
-      available = value;
+    set(value) {
+      choices = value;
       refresh();
     },
   };

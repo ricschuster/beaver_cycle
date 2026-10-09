@@ -6,7 +6,7 @@ import { createRenderer } from './render/renderer';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
-import { canSleep, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage } from './sim/state';
+import { canRest, canSleep, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage } from './sim/state';
 import { STAGES, lifeAt, type Stage } from './sim/life';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
@@ -282,8 +282,8 @@ async function start(): Promise<void> {
   });
   const trees: TreeSource = renderer.terrain ? { nearest: (x, z, reach, felled) => renderer.terrain!.nearestTree(x, z, reach, felled), trunksNear: (x, z, reach, felled) => renderer.terrain!.trunksNear(x, z, reach, felled) } : noTrees;
   const sleepPrompt = createSleepPrompt(hud, {
-    onWake() {
-      world = sleep(world);
+    onWake(goal) {
+      world = goal === 'night' ? sleep(world) : sleepUntil(world, goal);
     },
   });
   let fps = 60;
@@ -347,7 +347,9 @@ async function start(): Promise<void> {
     for (const id of world.achievements.slice(wonShown)) toast.show(ACHIEVEMENT_TEXT[id]);
     wonShown = world.achievements.length;
     stashPanel.set(world.stashOpen, world.store, world.carry, storeCapacity(storeCondition(world.storeWear, world.clock)));
-    sleepPrompt.setAvailable(canSleep(world));
+    const rest = canRest(world);
+    const stage = lifeAt(world.clock, world.bornAt).stage;
+    sleepPrompt.set({ night: canSleep(world), rest, grow: rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null });
     renderer.draw(world, rig.view);
     if (now - lastReadout > 500) {
       lastReadout = now;

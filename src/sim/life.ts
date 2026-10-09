@@ -1,7 +1,7 @@
 // Life stages of the player beaver (docs/design/22_life_stages.md).
 // The stage is a pure function of the clock and the birth time, like dateAt, so there is no second counter.
 
-import { DAY_SECONDS } from './clock';
+import { DAY_SECONDS, dateAt } from './clock';
 
 export const STAGES = ['baby', 'teenager', 'adult'] as const;
 export type Stage = (typeof STAGES)[number];
@@ -61,3 +61,12 @@ export const STAGE_RULES: Record<Stage, StageRules> = {
   teenager: { speed: 0.85, works: true, range: Infinity, scale: 0.75 },
   adult: { speed: 1, works: true, range: Infinity, scale: 1 },
 };
+
+/** The dawn on or after the day the beaver grows into its next stage, or null for an adult. Sleeping until then is the skip (Q47). */
+export function growUpDawn(clock: number, bornAt: number): number | null {
+  const { stage } = lifeAt(clock, bornAt);
+  if (stage === 'adult') return null;
+  const end = stageStart(bornAt, stage === 'baby' ? 'teenager' : 'adult');
+  const day = dateAt(end).day;
+  return (end > day * DAY_SECONDS ? day + 1 : day) * DAY_SECONDS;
+}

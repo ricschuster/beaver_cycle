@@ -1,7 +1,7 @@
 // Simulation layer: game state and rules. No DOM, no three.js, no input, so
 // another device can later drive or mirror it (ADR 0007).
-import { START_CLOCK, nextDawn, isNight } from './clock';
-import { bornAtFor, type Stage } from './life';
+import { START_CLOCK, nextDawn, nextSeasonStart, isNight } from './clock';
+import { bornAtFor, growUpDawn, type Stage } from './life';
 import { emptyStock, type Food, type Stock } from './food';
 import { atNest, type Lodge } from './lodge';
 import type { AchievementId } from './achievements';
@@ -165,7 +165,22 @@ export function setInLodge(world: WorldState, inLodge: boolean): WorldState {
 
 /** The beaver can go to sleep only in its lodge, on the nest, and at night. */
 export function canSleep(world: WorldState): boolean {
-  return world.inLodge && isNight(world.clock) && (!world.lodge || atNest(world.lodge, world.beaver.x, world.beaver.z));
+  return canRest(world) && isNight(world.clock);
+}
+
+/** The beaver can rest in its lodge, on the nest, at any hour. Resting lets it sleep ahead to a season or to growing up. */
+export function canRest(world: WorldState): boolean {
+  return world.inLodge && (!world.lodge || atNest(world.lodge, world.beaver.x, world.beaver.z));
+}
+
+/** Where a long sleep can end: the next season, or growing up (null for an adult, who has no next stage). */
+export type SleepGoal = 'season' | 'grow';
+
+/** Sleep ahead in the lodge to the dawn of a season or of growing up (Q47). Anything else leaves the world alone. */
+export function sleepUntil(world: WorldState, goal: SleepGoal): WorldState {
+  if (!canRest(world)) return world;
+  const target = goal === 'season' ? nextSeasonStart(world.clock) : growUpDawn(world.clock, world.bornAt);
+  return target !== null && target > world.clock ? { ...world, clock: target } : world;
 }
 
 /**

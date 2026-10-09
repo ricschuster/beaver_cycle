@@ -63,6 +63,12 @@ export function nextDawn(clock: number): number {
   return (dateAt(clock).day + 1) * DAY_SECONDS;
 }
 
+/** The clock value of the dawn that starts the next season. */
+export function nextSeasonStart(clock: number): number {
+  const d = dateAt(clock);
+  return (d.day - (d.dayOfYear % DAYS_PER_SEASON) + DAYS_PER_SEASON) * DAY_SECONDS;
+}
+
 /** The same day with the clock moved to this part of the day (0 dawn up to 1). Used by the test menu. */
 export function withTimeOfDay(clock: number, timeOfDay: number): number {
   return (dateAt(clock).day + Math.min(0.999, Math.max(0, timeOfDay))) * DAY_SECONDS;

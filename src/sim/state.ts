@@ -1,6 +1,7 @@
 // Simulation layer: game state and rules. No DOM, no three.js, no input, so
 // another device can later drive or mirror it (ADR 0007).
 import { START_CLOCK, nextDawn, isNight } from './clock';
+import { bornAtFor, type Stage } from './life';
 import { emptyStock, type Food, type Stock } from './food';
 import { atNest, type Lodge } from './lodge';
 import type { AchievementId } from './achievements';
@@ -38,6 +39,8 @@ export interface WorldState {
   time: number;
   /** Game clock in seconds from day 0 dawn. Runs at half rate in the lodge, and sleep skips it ahead. */
   clock: number;
+  /** Clock value the player beaver was born at. Its life stage follows from the clock (`lifeAt`). */
+  bornAt: number;
   /** True while the beaver is in its lodge. Set by the build action near a whole lodge, and by the test toggle. */
   inLodge: boolean;
   beaver: BeaverState;
@@ -143,7 +146,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {
@@ -176,5 +179,11 @@ export function sleep(world: WorldState): WorldState {
 
 /** Set the game clock directly. A test tool, like the speed multiplier. */
 export function setClock(world: WorldState, clock: number): WorldState {
-  return { ...world, clock };
+  // Age moves with the clock, so a test jump to another season or time does not make the beaver older or younger.
+  return { ...world, clock, bornAt: world.bornAt + (clock - world.clock) };
+}
+
+/** Make the beaver just reach this life stage now. A test tool, and the ?stage= start. */
+export function setStage(world: WorldState, stage: Stage): WorldState {
+  return { ...world, bornAt: bornAtFor(world.clock, stage) };
 }

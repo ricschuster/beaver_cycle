@@ -3,6 +3,7 @@
 // memory (M2, issue #52). DOM only; it asks the game to act through callbacks.
 
 import { DAY_FRACTION, SEASONS, type Season } from '../sim/clock';
+import { STAGES, type Stage } from '../sim/life';
 
 export interface MenuLocation {
   id: string;
@@ -38,6 +39,8 @@ export interface TestMenuOptions {
   /** Jump to a part of the day, 0 dawn to 1. */
   onTimeOfDay(timeOfDay: number): void;
   onSeason(season: Season): void;
+  /** Make the beaver just reach a life stage now (baby, teenager, adult). */
+  onStage(stage: Stage): void;
   /** False when the game started without shadows (?shadows=0); the toggle is greyed out. */
   shadowsAvailable: boolean;
   onShadows(on: boolean): void;
@@ -148,6 +151,15 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     style(b);
     b.onclick = () => opts.onSeason(season);
     seasonRow.appendChild(b);
+  }
+  const stageRow = row('Life stage');
+  for (const stage of STAGES) {
+    const b = document.createElement('button');
+    b.textContent = stage[0]!.toUpperCase() + stage.slice(1);
+    b.dataset.stage = stage;
+    style(b);
+    b.onclick = () => opts.onStage(stage);
+    stageRow.appendChild(b);
   }
   const viewRow = row('View');
   const views: [FlyMode, string][] = [

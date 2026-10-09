@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
+import { createWorld, setClock, setStage, setInLodge, sleep } from './state';
+import { flatTerrain } from './terrain';
 import { BABY_DAYS, TEENAGER_DAYS, bornAtFor, lifeAt, stageAt, stageStart } from './life';
 
 const d = (days: number) => days * DAY_SECONDS;
@@ -34,5 +36,32 @@ describe('life stages', () => {
       expect(stageAt(clock, bornAt)).toBe(stage);
       expect(stageStart(bornAt, stage)).toBe(clock);
     }
+  });
+});
+
+describe('life in the world', () => {
+  const world = createWorld(flatTerrain(0));
+
+  it('starts a new game as an adult', () => {
+    expect(lifeAt(world.clock, world.bornAt).stage).toBe('adult');
+  });
+
+  it('setStage puts the beaver at the start of a stage', () => {
+    const baby = setStage(world, 'baby');
+    expect(lifeAt(baby.clock, baby.bornAt)).toMatchObject({ stage: 'baby', ageDays: 0 });
+    expect(lifeAt(setStage(world, 'teenager').clock, setStage(world, 'teenager').bornAt).stage).toBe('teenager');
+  });
+
+  it('a test jump of the clock does not change the age', () => {
+    const baby = setStage(world, 'baby');
+    const jumped = setClock(baby, baby.clock + d(100));
+    expect(lifeAt(jumped.clock, jumped.bornAt).stage).toBe('baby');
+  });
+
+  it('sleeping through the night ages the beaver', () => {
+    const night = { ...setInLodge(setStage(world, 'baby'), true), clock: 0.8 * DAY_SECONDS };
+    const woke = sleep(night);
+    expect(woke.clock).toBeGreaterThan(night.clock);
+    expect(lifeAt(woke.clock, woke.bornAt).progress).toBeGreaterThan(lifeAt(night.clock, night.bornAt).progress);
   });
 });

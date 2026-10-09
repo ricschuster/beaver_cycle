@@ -63,6 +63,9 @@ The grown beaver stays in the world, and the next baby is its child:
    Beavers who are present keep their home up (the author, session 54): Mama and Papa mend the lodge and keep the store full,
    so a former home with them in it never wears or breaks, and its store is drawn full. Q63 wear applies to what nobody
    lives by, such as an abandoned dam. Built: `leaveHome` drops the lodge's wear, and `keptStock` is the store drawn.
+   The same goes for the partner who lives in the player's lodge: it mends the lodge and the store as they wear, and brings
+   a branch to the store 8 times a day (`partnerKeepsUp` in `src/sim/upkeep.ts`, untuned). The dam is still the player's work.
+   Before the partner moves in, all of it is the player's work as before.
 
 ## What this changes in the code
 

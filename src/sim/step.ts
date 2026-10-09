@@ -1,3 +1,4 @@
+import { partnerKeepsUp } from './upkeep';
 import { LODGE_CLOCK_RATE } from './clock';
 import { noActions, type Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
@@ -146,7 +147,8 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   // On the first day of spring after the partner moved in, a kit is born and the player plays it.
   // The birth comes after the tally, so the new life starts with an empty list and counters instead of the old ones.
   const counted = tally(world, next);
-  return kitDue(counted) ? birth(counted) : counted;
+  const kept = partnerKeepsUp(world, counted);
+  return kitDue(kept) ? birth(kept) : kept;
 }
 
 /**

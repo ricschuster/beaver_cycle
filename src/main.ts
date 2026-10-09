@@ -429,6 +429,7 @@ async function start(): Promise<void> {
     lilyPadsNear: (radius: number) => lilyPadsNear(terrain, world.beaver.x, world.beaver.z, radius, world.clock, world.picked),
     // Mama and Papa as drawn now: of the player's lodge while young, and of every lodge the family has left.
     parents: () => [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds), world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds))],
+    formerParents: () => formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds)),
     lodgeSite: (radius: number) => findSite(lodgeGround(terrain, world.ponds), world.beaver.x, world.beaver.z, radius),
   };
 }

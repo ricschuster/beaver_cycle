@@ -294,3 +294,15 @@ export async function leaveLodgeByHole(page: Page): Promise<void> {
   await tap(page, 'KeyB');
   await page.waitForFunction(() => !(window as any).__game.world().inLodge, null, { polling: 100, timeout: 5000 });
 }
+
+/** The text of the carry line at the top left, where the repair and store lines show. */
+export const hudText = (page: Page): Promise<string> => page.locator('#carry-hud').innerText();
+
+/** Walk to the food store beside the lodge door, where both the lodge and the store are in reach. */
+export async function walkToStore(page: Page): Promise<void> {
+  const lodge = (await world(page)).lodge;
+  expect(lodge, 'a lodge with a store').toBeTruthy();
+  // STORE_DISTANCE in src/sim/food.ts: the door point 1.5 m beyond the door distance.
+  await walkToPoint(page, doorPoint(lodge, DOOR_DISTANCE + 1.5), 0.8, 40_000);
+  await page.waitForTimeout(300);
+}

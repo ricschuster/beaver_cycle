@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
-import { LODGE_WOOD, NEST, SOLID_RADIUS } from './lodge';
+import { LODGE_WOOD, NEST, SOLID_RADIUS, lodgeCondition } from './lodge';
+import { newWear } from './wear';
 import { createWorld, type WorldState, intoLodge, leaveHome, birth, kitDue, setClock, setStage, setInLodge, sleep, sleepUntil } from './state';
 import { flatTerrain } from './terrain';
 import { step } from './step';
@@ -205,6 +206,13 @@ describe('leaving home', () => {
     expect(w.formerHomes).toEqual([{ ...home, parents: w.parentCoats }]);
     expect(w.store).toEqual(createWorld(flatTerrain(0)).store);
     expect(w.storeWear).toBeUndefined();
+  });
+
+  it('leaves the old lodge kept up by the parents who live there, however worn it was', () => {
+    const worn = { ...home, wear: newWear(-200 * DAY_SECONDS) };
+    const w = leaveHome({ ...createWorld(flatTerrain(0)), lodge: worn });
+    expect(w.formerHomes[0]?.wear).toBeUndefined();
+    expect(lodgeCondition(w.formerHomes[0]!, 1000 * DAY_SECONDS)).toBe(1);
   });
 
   it('puts a sleeper out at the door', () => {

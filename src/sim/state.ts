@@ -247,7 +247,7 @@ export function leaveHome(world: WorldState): WorldState {
   const b = world.beaver;
   // Out of the room, at the entrance, if the leaving came while the beaver was asleep inside.
   const out = world.inLodge ? { ...b, ...doorPoint(world.lodge, DOOR_DISTANCE), y: world.lodge.base, mode: 'walk' as const } : b;
-  return { ...world, formerHomes: [...world.formerHomes, { ...world.lodge, parents: world.parentCoats }], lodge: null, store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out, journey: { ...world.journey, inherited: world.journey.inherited.filter((i) => i !== 'lodge' && i !== 'store') } };
+  return { ...world, formerHomes: [...world.formerHomes, { ...world.lodge, wear: undefined, parents: world.parentCoats }], lodge: null, store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out, journey: { ...world.journey, inherited: world.journey.inherited.filter((i) => i !== 'lodge' && i !== 'store') } };
 }
 
 /** The lone beavers of the valley, put at the dam spots when the player beaver has left home. */

@@ -20,6 +20,8 @@ export const MEALS: Record<Food, number> = { branch: 2, lily: 1 };
 export const STORE_CAPACITY = 40;
 
 export const emptyStock = (): Stock => Array.from({ length: STORE_CAPACITY }, () => null);
+/** The store of a lodge the family left: Mama and Papa still live there and keep it full and whole. */
+export const keptStock = (): Stock => Array.from({ length: STORE_CAPACITY }, () => 'branch' as const);
 /** A worn store holds this share of the capacity, a broken one nothing until it is rebuilt (15_build_and_repair.md). */
 export const WORN_CAPACITY_SHARE = 0.6;
 /** How far from the lodge's centre the store lies: past the door, on the way out along the deep run. */

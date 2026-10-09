@@ -85,6 +85,8 @@ the buildings, so a quiet year does not freeze them.
   (Q49). It teaches carry and place.
 - **Other beavers** are free to help later (Q62), not needed for the first
   version.
+  Beavers who live in a home keep it up: the parents of a lodge the family left
+  keep its lodge and store whole and full, so only unattended things wear to broken.
 
 Because teenagers help, a growing family trades chore time for risk of wear,
 which is the variety the author wanted.

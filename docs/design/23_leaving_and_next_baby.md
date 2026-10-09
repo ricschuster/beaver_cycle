@@ -60,6 +60,9 @@ The grown beaver stays in the world, and the next baby is its child:
    like the parents of a young player (`formerParentsAt`, Q60, Q61), so a
    grown player can swim back and meet them. Their pond may not be one the player
    can swim to when the lodge stood on a lake edge; it is the same water.
+   Beavers who are present keep their home up (the author, session 54): Mama and Papa mend the lodge and keep the store full,
+   so a former home with them in it never wears or breaks, and its store is drawn full. Q63 wear applies to what nobody
+   lives by, such as an abandoned dam. Built: `leaveHome` drops the lodge's wear, and `keptStock` is the store drawn.
 
 ## What this changes in the code
 

@@ -19,14 +19,14 @@ import type { ViewState } from './cameraRig';
 import { lookDir } from './flyCam';
 import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
 import { INTERIOR_RADIUS, NEST_SPOTS, lodgeCondition } from '../sim/lodge';
-import { storeCondition } from '../sim/food';
+import { keptStock, storeCondition } from '../sim/food';
 import { createLodgeView, type LodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
 import { createLogView } from './logView';
 import { createDamView } from './damView';
 import { createPondView } from './pondView';
 import { createRockView } from './rockView';
-import { createStoreView } from './storeView';
+import { createStoreView, type StoreView } from './storeView';
 import type { DamSite } from './damSites';
 import { createDamSiteView } from './damSites';
 import { createSpotRings, type SpotRings } from './spotRing';
@@ -186,6 +186,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const logView = createLogView(scene, shadows, prepare);
   const lodgeView = createLodgeView(scene, shadows, prepare);
   const storeView = createStoreView(scene, shadows, prepare);
+  const formerStoreViews: StoreView[] = [];
+  const kept = keptStock();
   // The lodges the family has left, one view each, made when first needed.
   const formerViews: LodgeView[] = [];
   const lilyView = createLilyView(scene, prepare);
@@ -534,9 +536,12 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       pondView.update(world.ponds);
       if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z), world.clock, world.ponds);
       while (formerViews.length < world.formerHomes.length) formerViews.push(createLodgeView(scene, shadows, prepare, false));
+      while (formerStoreViews.length < world.formerHomes.length) formerStoreViews.push(createStoreView(scene, shadows, prepare));
       formerViews.forEach((view, i) => {
         const old = world.formerHomes[i];
         view.update(bare || !old ? null : old, old ? lodgeCondition(old, world.clock) : 1);
+        // The parents who live there keep the lodge whole and its store full.
+        formerStoreViews[i]?.update(bare || !old ? null : old, kept, (x, z) => (source ? source.store.heightAt(x, z) : 0), 1);
       });
       lodgeView.update(inside || bare ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside || bare ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));

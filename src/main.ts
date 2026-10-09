@@ -9,7 +9,7 @@ import { DAY_SECONDS, dateAt, withSeason, withTimeOfDay } from './sim/clock';
 import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { formerParentsAt, parentsAt } from './sim/family';
-import { HEARD_DISTANCE, follower, mateOf } from './sim/partners';
+import { CUE_EVERY, HEARD_DISTANCE, follower, mateOf, partnerCue } from './sim/partners';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
 import { CHOP_TIME, noTrees, type TreeSource } from './sim/trees';
@@ -286,6 +286,7 @@ async function start(): Promise<void> {
   let lastGeneration = 0;
   let lastSeason = dateAt(world.clock).season;
   const heardBefore = new Set<string>();
+  let cueIn = 0; // seconds until the next word on where a lone beaver is
   let wonShown = -1; // set on the first frame, so achievements already won in a loaded game give no toast
   // Taps on the stash screen wait here until the next step takes them.
   let stashTap: number | undefined;
@@ -381,6 +382,15 @@ async function start(): Promise<void> {
       if (p.state === 'alone' && !heardBefore.has(p.id) && Math.hypot(p.x - world.beaver.x, p.z - world.beaver.z) <= HEARD_DISTANCE) {
         heardBefore.add(p.id);
         toast.show('A tail slaps in the distance. A lone beaver?');
+      }
+    }
+    // Out of earshot, now and then a word on which way the nearest lone beaver is (#254).
+    cueIn -= dt;
+    if (cueIn <= 0 && world.partners.length > 0) {
+      const cue = partnerCue(world.partners, world.beaver);
+      if (cue && cue.metres > HEARD_DISTANCE) {
+        cueIn = CUE_EVERY;
+        toast.show(`A lone beaver lives far to the ${cue.direction}, about ${cue.metres} m`);
       }
     }
     const season = dateAt(world.clock).season;

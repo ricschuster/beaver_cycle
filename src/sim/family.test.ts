@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
-import { COAT_COUNT, FIRST_PARENTS, STAY, kitCoat, coatOf, parentsAt, pondParts } from './family';
+import { COAT_COUNT, FIRST_PARENTS, STAY, formerParentsAt, kitCoat, coatOf, parentsAt, pondParts } from './family';
 import { BABY_DAYS, TEENAGER_DAYS } from './life';
 import { LODGE_WOOD, NEST_SPOTS, SOLID_RADIUS, type Lodge } from './lodge';
 import type { Terrain } from './terrain';
@@ -48,6 +48,24 @@ describe('a kit coat', () => {
     const kits = Array.from({ length: 60 }, (_, i) => kitCoat(parents, i * 977));
     expect(new Set(kits.map((k) => k.coat)).size).toBe(2);
     expect(new Set(kits.map((k) => k.shade.toFixed(2))).size).toBeGreaterThan(10);
+  });
+});
+
+describe('the parents of a former home', () => {
+  const former = { ...lodge, x: 10, parents: [{ coat: 0, shade: 0 }, { coat: 2, shade: 0.3 }] as const };
+
+  it('stay in their pond after the player is grown, each with its own id and coat', () => {
+    const ps = formerParentsAt([former], d(500), lake);
+    expect(ps).toHaveLength(2);
+    expect(ps.map((p) => p.coat)).toEqual([...former.parents]);
+    expect(new Set(ps.map((p) => p.id)).size).toBe(2);
+    expect(ps.every((p) => !p.inside && lake.waterDepth(p.x, p.z) > 0)).toBe(true);
+  });
+
+  it('are none without a former home, and do not share ids between homes', () => {
+    expect(formerParentsAt([], d(500), lake)).toEqual([]);
+    const ids = formerParentsAt([former, { ...former, x: -10 }], d(500), lake).map((p) => p.id);
+    expect(new Set(ids).size).toBe(4);
   });
 });
 

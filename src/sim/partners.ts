@@ -27,6 +27,10 @@ export const MEET_DISTANCE = 8;
 /** A follower keeps this far behind the player, in metres, and swims at this share of the swim speed. */
 export const FOLLOW_GAP = 4;
 export const FOLLOW_SPEED = 14;
+/** A lone beaver slaps its tail now and then, and is heard from this far (metres). The nudge to look for a partner. */
+export const HEARD_DISTANCE = 150;
+export const SLAP_EVERY = 20;
+
 /** How many lone beavers there are, and how far at least from the home they left (metres), and from each other. */
 export const PARTNER_COUNT = 3;
 export const PARTNER_MIN_FROM_HOME = 120;
@@ -45,6 +49,12 @@ export function seedPartners(spots: readonly DamSpot[], home: { x: number; z: nu
     .map((s, i) => ({ s, i, d: Math.hypot(s.bed.x - home.x, s.bed.z - home.z), h: hash(i, key) }))
     .filter((c) => c.d >= PARTNER_MIN_FROM_HOME)
     .sort((a, b) => a.h - b.h);
+  // The nearest comes first, so one is always within reach of a short search.
+  const nearest = far.reduce<(typeof far)[number] | null>((m, c) => (m === null || c.d < m.d ? c : m), null);
+  if (nearest) {
+    far.splice(far.indexOf(nearest), 1);
+    far.unshift(nearest);
+  }
   const chosen: typeof far = [];
   for (const c of far) {
     if (chosen.length >= PARTNER_COUNT) break;

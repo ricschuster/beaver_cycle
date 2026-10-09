@@ -202,7 +202,7 @@ describe('leaving home', () => {
   it('moves the lodge to the former homes and empties the store', () => {
     const w = leaveHome({ ...createWorld(flatTerrain(0)), lodge: home });
     expect(w.lodge).toBeNull();
-    expect(w.formerHomes).toEqual([home]);
+    expect(w.formerHomes).toEqual([{ ...home, parents: w.parentCoats }]);
     expect(w.store).toEqual(createWorld(flatTerrain(0)).store);
     expect(w.storeWear).toBeUndefined();
   });

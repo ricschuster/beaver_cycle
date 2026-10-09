@@ -160,7 +160,7 @@ export class Streamer {
     return true;
   }
 
-  /** Resolves once the tile under a point is loaded at its wanted level, or after a timeout. */
+  /** Resolves once the tile under a point and every tile of the inner ring around it are loaded, or after a timeout. */
   async ready(x: number, z: number, timeoutMs: number): Promise<boolean> {
     const size = this.store.size;
     const tx = Math.floor(x / size);
@@ -169,7 +169,7 @@ export class Streamer {
     for (;;) {
       this.update(x, z);
       const fineOk = !this.wantsFine(tx, tz) || this.store.has(tx, tz, LEVEL_FINE);
-      if (fineOk && this.store.has(tx, tz, this.desiredLevel(tx, tz))) return true;
+      if (fineOk && this.store.has(tx, tz, this.desiredLevel(tx, tz)) && this.settled(x, z)) return true;
       if (performance.now() > end) return false;
       await new Promise((r) => setTimeout(r, 30));
     }

@@ -3,12 +3,13 @@ import { collectToasts, hasTiles, setSpeed, shot, startGame, toasts, toggleMenu,
 // Time in the real game: the seasons, sleeping in the lodge, the half speed clock in the lodge, night, the full year achievement, and
 // the nudges toward a partner. All need the valley tiles (the test lodge), so they skip in CI.
 
-/**
- * The menu's lodge button keeps its own flag, which starts at "Outside" even when the game starts in the lodge (?stage=baby), so
- * its first click sets "in the lodge" again and changes nothing. Click until the world is outside.
- */
+/** The menu's lodge button follows the world (it says "In lodge" on a ?stage=baby start), so one click goes outside. */
 async function leaveLodgeByMenu(page: Page): Promise<void> {
-  for (let i = 0; i < 2 && (await world(page)).inLodge; i++) await page.locator('button[data-action="lodge"]').click();
+  const button = page.locator('button[data-action="lodge"]');
+  if ((await world(page)).inLodge) {
+    await expect(button).toContainText('In lodge', { timeout: 3000 });
+    await button.click();
+  }
 }
 
 test('the test menu reaches each season and each time of day, and the clock HUD says so', async ({ page }) => {
@@ -135,9 +136,7 @@ test('a tail in the distance is heard within 150 m, the beaver follows when met,
   expect(errors).toEqual([]);
 });
 
-// Found by this file: the toast shows one message at a time, so when two come in the same frame the first is lost. Sleeping through
-// the first year in the lodge leaves home and wins "A full year" in one frame, and only the achievement is ever shown.
-test.fixme('the message about leaving home is not lost when an achievement comes in the same frame', async ({ page }) => {
+test('the message about leaving home is not lost when an achievement comes in the same frame', async ({ page }) => {
   await startGame(page, 'stage=baby');
   test.skip(!(await hasTiles(page)), 'needs the tiles built locally');
   await collectToasts(page);
@@ -145,5 +144,6 @@ test.fixme('the message about leaving home is not lost when an achievement comes
   await expect(page.locator('#life-hud')).toContainText(/teenager/i, { timeout: 10_000 });
   await page.locator('button[data-action="sleep-grow"]').click();
   await page.waitForFunction(() => (window as any).__game.world().formerHomes.length === 1, null, { polling: 200, timeout: 10_000 });
-  expect(await toasts(page)).toContain('Mama and Papa say it is time to start a family of your own');
+  // The messages show in turn, the achievement first, so wait for the second.
+  await expect.poll(() => toasts(page), { timeout: 10_000 }).toContain('Mama and Papa say it is time to start a family of your own');
 });

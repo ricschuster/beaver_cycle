@@ -82,10 +82,7 @@ test('sleeping to the next stage wakes at dawn: baby to teenager, then out of th
   expect(errors).toEqual([]);
 });
 
-// Known bug: sleeping through the whole teenager year also wins "A full year" in the same frame, and that toast replaces the
-// family's message, so the player never reads that it is time to start a family. Found by the test above, which saw only
-// ["A full year achievement: all four seasons"] on the toast. main.ts shows both in one frame, and `toast.show` keeps one text.
-test.fixme('the message that it is time to start a family is not lost under the full year toast', async ({ page }) => {
+test('the message that it is time to start a family is not lost under the full year toast', async ({ page }) => {
   await startGame(page, 'stage=baby');
   await page.evaluate(() => {
     (window as any).__toasts = [];
@@ -96,9 +93,8 @@ test.fixme('the message that it is time to start a family is not lost under the 
     await page.locator('button[data-action="sleep-grow"]').click();
   }
   await page.waitForFunction(() => (window as any).__game.world().formerHomes.length === 1, null, { polling: 200, timeout: 20_000 });
-  await page.waitForTimeout(1000);
-  const toasts: string[] = await page.evaluate(() => (window as any).__toasts);
-  expect(toasts.some((t) => t.includes('time to start a family of your own'))).toBe(true);
+  // The messages show in turn, so the family's message comes after the achievement.
+  await page.waitForFunction(() => ((window as any).__toasts as string[]).some((t) => t.includes('time to start a family of your own')), null, { timeout: 10_000 });
 });
 
 test('the old parents stay at the former home, in the coats they had', async ({ page }) => {

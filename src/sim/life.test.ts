@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
-import { createWorld, setClock, setStage, setInLodge, sleep, sleepUntil } from './state';
+import { LODGE_WOOD, NEST } from './lodge';
+import { createWorld, intoLodge, setClock, setStage, setInLodge, sleep, sleepUntil } from './state';
 import { flatTerrain } from './terrain';
 import { step } from './step';
 import { noActions } from '../actions/actions';
@@ -175,5 +176,22 @@ describe('a baby keeps to the water', () => {
     expect(w.beaver.x).toBeGreaterThan(5);
     expect(w.beaver.z).toBeLessThan(10);
     expect(w.beaver.mode).toBe('swim');
+  });
+});
+
+describe('a baby is born in the lodge', () => {
+  const lodge = { x: 20, z: 30, base: 2, door: 0, wood: LODGE_WOOD };
+
+  it('puts the beaver on its nest inside', () => {
+    const w = intoLodge({ ...createWorld(flatTerrain(0)), lodge });
+    expect(w.inLodge).toBe(true);
+    expect(w.beaver).toMatchObject({ x: lodge.x + NEST.x, z: lodge.z + NEST.z, y: 2, mode: 'walk' });
+  });
+
+  it('leaves the beaver where it is without a whole lodge', () => {
+    const none = createWorld(flatTerrain(0));
+    expect(intoLodge(none)).toBe(none);
+    const part = { ...none, lodge: { ...lodge, wood: 1 } };
+    expect(intoLodge(part)).toBe(part);
   });
 });

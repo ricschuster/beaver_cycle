@@ -251,8 +251,8 @@ export function leaveHome(world: WorldState): WorldState {
 }
 
 /** The lone beavers of the valley, put at the dam spots when the player beaver has left home. */
-export function withPartners(world: WorldState): WorldState {
-  return { ...world, partners: seedPartners(world.spots, world.formerHomes.at(-1) ?? world.beaver) };
+export function withPartners(world: WorldState, canLive?: (spot: DamSpot) => boolean): WorldState {
+  return { ...world, partners: seedPartners(world.spots, world.formerHomes.at(-1) ?? world.beaver, canLive) };
 }
 
 /** A baby is born in the lodge, on its own nest (Q8, Q34). With no whole lodge the beaver stays where it is. */

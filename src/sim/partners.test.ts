@@ -30,6 +30,17 @@ describe('lone beavers', () => {
     }
   });
 
+  it('keep to spots with room for a lodge, the nearest of them first', () => {
+    const nearestAll = seedPartners(spots, home)[0]!;
+    const canLive = (s: DamSpot): boolean => s.id !== nearestAll.id.replace('partner:', '');
+    const ps = seedPartners(spots, home, canLive);
+    expect(ps.length).toBeGreaterThan(0);
+    for (const p of ps) expect(p.id).not.toBe(nearestAll.id);
+    const livable = spots.filter((s) => canLive(s) && Math.hypot(s.bed.x - home.x, s.bed.z - home.z) >= PARTNER_MIN_FROM_HOME);
+    expect(Math.min(...ps.map((p) => Math.hypot(p.x - home.x, p.z - home.z)))).toBeCloseTo(Math.min(...livable.map((s) => Math.hypot(s.bed.x - home.x, s.bed.z - home.z))));
+    expect(seedPartners(spots, home, () => false)).toHaveLength(0);
+  });
+
   it('are fewer when the valley has few dam spots far enough away', () => {
     expect(seedPartners([spot('near', 10, 10)], home)).toHaveLength(0);
   });

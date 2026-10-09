@@ -42,23 +42,22 @@ function hash(a: number, b: number): number {
   return (h ^ (h >>> 12)) >>> 0;
 }
 
-/** Lone beavers at dam spots far from the old home, in an order fixed by the home's place, so a start always gives the same ones. */
-export function seedPartners(spots: readonly DamSpot[], home: { x: number; z: number }): Partner[] {
+/**
+ * Lone beavers at dam spots far from the old home, in an order fixed by the home's place, so a start always gives the same ones.
+ * `canLive` says a spot has room for a lodge near it (#254), so the player can lead the partner home; it is asked as little as it can be.
+ */
+export function seedPartners(spots: readonly DamSpot[], home: { x: number; z: number }, canLive: (spot: DamSpot) => boolean = () => true): Partner[] {
   const key = Math.round(home.x * 3 + home.z * 7);
   const far = spots
     .map((s, i) => ({ s, i, d: Math.hypot(s.bed.x - home.x, s.bed.z - home.z), h: hash(i, key) }))
-    .filter((c) => c.d >= PARTNER_MIN_FROM_HOME)
-    .sort((a, b) => a.h - b.h);
-  // The nearest comes first, so one is always within reach of a short search.
-  const nearest = far.reduce<(typeof far)[number] | null>((m, c) => (m === null || c.d < m.d ? c : m), null);
-  if (nearest) {
-    far.splice(far.indexOf(nearest), 1);
-    far.unshift(nearest);
-  }
-  const chosen: typeof far = [];
-  for (const c of far) {
+    .filter((c) => c.d >= PARTNER_MIN_FROM_HOME);
+  // The nearest that has room for a lodge comes first, so one is always within reach of a short search.
+  const nearest = [...far].sort((a, b) => a.d - b.d).find((c) => canLive(c.s)) ?? null;
+  const rest = far.filter((c) => c !== nearest).sort((a, b) => a.h - b.h);
+  const chosen: typeof far = nearest ? [nearest] : [];
+  for (const c of rest) {
     if (chosen.length >= PARTNER_COUNT) break;
-    if (chosen.every((o) => Math.hypot(o.s.bed.x - c.s.bed.x, o.s.bed.z - c.s.bed.z) >= PARTNER_MIN_APART)) chosen.push(c);
+    if (chosen.every((o) => Math.hypot(o.s.bed.x - c.s.bed.x, o.s.bed.z - c.s.bed.z) >= PARTNER_MIN_APART) && canLive(c.s)) chosen.push(c);
   }
   return chosen.map((c) => ({
     id: `partner:${c.s.id}`,

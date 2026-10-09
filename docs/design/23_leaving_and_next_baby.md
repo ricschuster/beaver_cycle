@@ -87,7 +87,8 @@ The grown beaver stays in the world, and the next baby is its child:
 - A partner who moves in on day 39 gives a kit the next morning. The author said
   there is no minimum wait: the first day of spring it is.
 - Nudges so the player meets a partner in time: the nearest lone beaver is always
-  the first one seeded (120 m or more from home), an unmet beaver slaps its tail
+  the first one seeded (120 m or more from home), and every lone beaver lives at a spot with a lodge site within 300 m, so the
+  player can lead it to a lake and build there (#254), an unmet beaver slaps its tail
   every 20 game seconds while the player is within 150 m, with a toast the first
   time. Out of earshot a toast names the compass direction and distance of the nearest lone beaver, every 45 s of play
   (`partnerCue`, #254). A toast at the start of winter says kits are born on the first day of

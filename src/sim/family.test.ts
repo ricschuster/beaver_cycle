@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
-import { COAT_COUNT, PARENT_COAT, STAY, coatOf, parentsAt, pondParts } from './family';
+import { COAT_COUNT, FIRST_PARENTS, STAY, kitCoat, coatOf, parentsAt, pondParts } from './family';
 import { BABY_DAYS, TEENAGER_DAYS } from './life';
-import { LODGE_WOOD, NEST_SPOTS, type Lodge } from './lodge';
+import { LODGE_WOOD, NEST_SPOTS, SOLID_RADIUS, type Lodge } from './lodge';
 import type { Terrain } from './terrain';
 
 /** A lake everywhere within 40 m of the origin, 3 m deep, and dry land beyond. */
@@ -26,7 +26,28 @@ describe('coats', () => {
   });
 
   it('gives Mama and Papa different coats', () => {
-    expect(PARENT_COAT.mama).not.toBe(PARENT_COAT.papa);
+    expect(FIRST_PARENTS[0].coat).not.toBe(FIRST_PARENTS[1].coat);
+  });
+});
+
+describe('a kit coat', () => {
+  const parents = [{ coat: 0, shade: 0.2 }, { coat: 3, shade: -0.4 }] as const;
+
+  it('is the coat of one of the parents in a slightly different shade', () => {
+    for (let i = 0; i < 60; i++) {
+      const kit = kitCoat(parents, i * 977);
+      const from = parents.find((p) => p.coat === kit.coat)!;
+      expect(from).toBeDefined();
+      expect(Math.abs(kit.shade - from.shade)).toBeLessThanOrEqual(0.5 + 1e-9);
+      expect(kit.shade).toBeGreaterThanOrEqual(-1);
+      expect(kit.shade).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('comes from both parents and varies', () => {
+    const kits = Array.from({ length: 60 }, (_, i) => kitCoat(parents, i * 977));
+    expect(new Set(kits.map((k) => k.coat)).size).toBe(2);
+    expect(new Set(kits.map((k) => k.shade.toFixed(2))).size).toBeGreaterThan(10);
   });
 });
 
@@ -48,6 +69,14 @@ describe('Mama and Papa', () => {
         expect(p.inside).toBe(false);
         expect(lake.waterDepth(p.x, p.z)).toBeGreaterThan(0);
         expect(Math.hypot(p.x - lodge.x, p.z - lodge.z)).toBeLessThan(30);
+      }
+    }
+  });
+
+  it('never swim through the dome of the lodge', () => {
+    for (let i = 0; i < 400; i++) {
+      for (const p of parentsAt(lodge, 0, d(1) + i * STAY * 0.05, false, lake)) {
+        expect(Math.hypot(p.x - lodge.x, p.z - lodge.z)).toBeGreaterThanOrEqual(SOLID_RADIUS);
       }
     }
   });

@@ -3,7 +3,7 @@
 // or a teenager, and move about the pond from one part to another (Q60, Q61).
 
 import { DAY_SECONDS } from './clock';
-import { NEST_SPOTS, lodgeComplete, type Lodge } from './lodge';
+import { NEST_SPOTS, SOLID_RADIUS, lodgeComplete, type Lodge } from './lodge';
 import { stageAt } from './life';
 import type { Terrain } from './terrain';
 
@@ -23,11 +23,28 @@ export function coatOf(bornAt: number): number {
   return mix(Math.round(bornAt), 1) % COAT_COUNT;
 }
 
-/** The coats of the parents are their own and do not change with the baby; Papa's is always another one than Mama's. */
-export const PARENT_COAT: Record<ParentId, number> = { mama: 1, papa: 3 };
+/** A coat: a base colour from the palette and a shade of it, -1 darker to 1 lighter (note 23, Q59). */
+export interface Coat {
+  coat: number;
+  shade: number;
+}
+
+/** The first family's coats. Papa's is another than Mama's. */
+export const FIRST_PARENTS: readonly [Coat, Coat] = [{ coat: 1, shade: 0 }, { coat: 3, shade: 0 }];
+
+/** The largest step in shade from a parent to its kit. */
+const SHADE_STEP = 0.5;
+
+/** The coat of a kit: that of one of the parents, picked by chance, in a slightly different shade (note 23). */
+export function kitCoat(parents: readonly [Coat, Coat], seed: number): Coat {
+  const from = parents[mix(Math.round(seed), 2) % 2]!;
+  const step = ((mix(Math.round(seed), 3) % 2001) - 1000) / 1000;
+  return { coat: from.coat, shade: Math.max(-1, Math.min(1, from.shade + step * SHADE_STEP)) };
+}
 
 export interface Parent {
   id: ParentId;
+  coat: Coat;
   x: number;
   z: number;
   /** Height of the feet. */
@@ -48,6 +65,8 @@ const TRAVEL = 0.3;
 const NEAR = 6;
 const FAR = 26;
 const MIN_DEPTH = 0.8;
+/** A parent swims at least this far (metres) outside the dome. */
+const CLEAR = 1;
 
 /** Parts of the pond a parent can be in: the deep water round the lodge, found by a fixed look at the ground. */
 export function pondParts(lodge: Lodge, terrain: Terrain): { x: number; z: number }[] {
@@ -65,7 +84,7 @@ export function pondParts(lodge: Lodge, terrain: Terrain): { x: number; z: numbe
 }
 
 /** The two parents' places at a clock value, or none while the player beaver is grown or the lodge is not whole. */
-export function parentsAt(lodge: Lodge | null, bornAt: number, clock: number, inLodge: boolean, terrain: Terrain): Parent[] {
+export function parentsAt(lodge: Lodge | null, bornAt: number, clock: number, inLodge: boolean, terrain: Terrain, coats: readonly [Coat, Coat] = FIRST_PARENTS): Parent[] {
   if (!lodgeComplete(lodge) || stageAt(clock, bornAt) === 'adult') return [];
   const ids: ParentId[] = ['mama', 'papa'];
   if (inLodge) {
@@ -74,7 +93,7 @@ export function parentsAt(lodge: Lodge | null, bornAt: number, clock: number, in
       const x = lodge.x + nest.x;
       const z = lodge.z + nest.z;
       // Lying on the nest with the head toward the middle of the room.
-      return { id, x, z, y: lodge.base, heading: Math.atan2(-nest.x, -nest.z), mode: 'walk' as const, pace: 0, inside: true };
+      return { id, coat: coats[i]!, x, z, y: lodge.base, heading: Math.atan2(-nest.x, -nest.z), mode: 'walk' as const, pace: 0, inside: true };
     });
   }
   const parts = pondParts(lodge, terrain);
@@ -86,11 +105,19 @@ export function parentsAt(lodge: Lodge | null, bornAt: number, clock: number, in
     const to = pick(slot);
     const t = Math.min(1, ((clock / STAY) % 1) / TRAVEL);
     const ease = t * t * (3 - 2 * t);
-    const x = from.x + (to.x - from.x) * ease;
-    const z = from.z + (to.z - from.z) * ease;
+    let x = from.x + (to.x - from.x) * ease;
+    let z = from.z + (to.z - from.z) * ease;
+    // A straight line between two parts may run through the dome, which is solid: swim round it.
+    const away = Math.hypot(x - lodge.x, z - lodge.z);
+    if (away < SOLID_RADIUS + CLEAR) {
+      const dx = away > 1e-6 ? (x - lodge.x) / away : 1;
+      const dz = away > 1e-6 ? (z - lodge.z) / away : 0;
+      x = lodge.x + dx * (SOLID_RADIUS + CLEAR);
+      z = lodge.z + dz * (SOLID_RADIUS + CLEAR);
+    }
     const moving = t < 1 && (from.x !== to.x || from.z !== to.z);
     const heading = moving ? Math.atan2(to.x - from.x, to.z - from.z) : Math.atan2(lodge.x - x, lodge.z - z) + (i === 0 ? 0.6 : -0.6);
     const y = terrain.heightAt(x, z) + terrain.waterDepth(x, z) - 0.2;
-    return { id, x, z, y, heading, mode: 'swim' as const, pace: moving ? 1 : 0, inside: false };
+    return { id, coat: coats[i]!, x, z, y, heading, mode: 'swim' as const, pace: moving ? 1 : 0, inside: false };
   });
 }

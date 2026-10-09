@@ -69,6 +69,11 @@ export function nextSeasonStart(clock: number): number {
   return (d.day - (d.dayOfYear % DAYS_PER_SEASON) + DAYS_PER_SEASON) * DAY_SECONDS;
 }
 
+/** The clock value of the dawn of the first day of spring after this clock value (a year starts with spring). */
+export function nextSpringStart(clock: number): number {
+  return (dateAt(clock).year + 1) * DAYS_PER_YEAR * DAY_SECONDS;
+}
+
 /** The same day with the clock moved to this part of the day (0 dawn up to 1). Used by the test menu. */
 export function withTimeOfDay(clock: number, timeOfDay: number): number {
   return (dateAt(clock).day + Math.min(0.999, Math.max(0, timeOfDay))) * DAY_SECONDS;

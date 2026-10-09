@@ -1,13 +1,15 @@
 // Simulation layer: game state and rules. No DOM, no three.js, no input, so
 // another device can later drive or mirror it (ADR 0007).
-import { START_CLOCK, nextDawn, nextSeasonStart, isNight } from './clock';
-import { bornAtFor, growUpDawn, type Stage } from './life';
+import { START_CLOCK, nextDawn, nextSeasonStart, nextSpringStart, isNight } from './clock';
+import { FIRST_PARENTS, coatOf, kitCoat, type Coat } from './family';
+import { bornAtFor, growUpDawn, stageAt, type Stage } from './life';
 import { emptyStock, type Food, type Stock } from './food';
-import { NEST, atNest, lodgeComplete, type Lodge } from './lodge';
+import { DOOR_DISTANCE, NEST, atNest, doorPoint, lodgeComplete, type Lodge } from './lodge';
 import type { AchievementId } from './achievements';
 import type { Dam } from './dam';
 import type { DamSpot } from './damSpots';
 import type { Dropped, Haul } from './haul';
+import { mateOf, seedPartners, type Partner } from './partners';
 import type { Pond } from './pond';
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
@@ -47,6 +49,12 @@ export interface WorldState {
   clock: number;
   /** Clock value the player beaver was born at. Its life stage follows from the clock (`lifeAt`). */
   bornAt: number;
+  /** The coat of the player beaver, from its parents' (`kitCoat`). */
+  coat: Coat;
+  /** The coats of Mama and Papa: the first family's, then the player beaver's and its partner's once a kit is born. */
+  parentCoats: [Coat, Coat];
+  /** Lives begun so far after the first, which the game announces. */
+  generation: number;
   /** True while the beaver is in its lodge. Set by the build action near a whole lodge, and by the test toggle. */
   inLodge: boolean;
   beaver: BeaverState;
@@ -54,6 +62,10 @@ export interface WorldState {
   lastSlap: Slap | null;
   /** The lodge, once its first log is placed, or null. One for now. */
   lodge: Lodge | null;
+  /** Lodges the family has left (docs/design/23_leaving_and_next_baby.md). They stay solid, get old, and cannot be used. */
+  formerHomes: Lodge[];
+  /** Lone beavers about the valley, once the player beaver has left home (`partners.ts`). One may follow the player, and one live in the lodge. */
+  partners: Partner[];
   /** Felled trees lying where they fell, and in water floating. */
   logs: Log[];
   /** The id of the log the beaver is dragging, or null. One at a time. */
@@ -154,7 +166,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {
@@ -215,6 +227,8 @@ export function newLife(world: WorldState): WorldState {
   return {
     ...world,
     bornAt: world.clock,
+    coat: kitCoat(world.parentCoats, world.clock),
+    generation: world.generation + 1,
     achievements: [],
     journey: { start: world.clock, felled: world.felled.length, inherited },
     padsPicked: 0,
@@ -223,11 +237,45 @@ export function newLife(world: WorldState): WorldState {
   };
 }
 
+/**
+ * The grown beaver leaves home to start a family of its own (Q8, Q50). The lodge it grew up in stays and gets old (Q63),
+ * with its food store, and the beaver has no home until it builds one. Without a lodge nothing changes.
+ */
+export function leaveHome(world: WorldState): WorldState {
+  if (!world.lodge) return world;
+  const b = world.beaver;
+  // Out of the room, at the entrance, if the leaving came while the beaver was asleep inside.
+  const out = world.inLodge ? { ...b, ...doorPoint(world.lodge, DOOR_DISTANCE), y: world.lodge.base, mode: 'walk' as const } : b;
+  return { ...world, formerHomes: [...world.formerHomes, world.lodge], lodge: null, store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out };
+}
+
+/** The lone beavers of the valley, put at the dam spots when the player beaver has left home. */
+export function withPartners(world: WorldState): WorldState {
+  return { ...world, partners: seedPartners(world.spots, world.formerHomes.at(-1) ?? world.beaver) };
+}
+
 /** A baby is born in the lodge, on its own nest (Q8, Q34). With no whole lodge the beaver stays where it is. */
 export function intoLodge(world: WorldState): WorldState {
   const { lodge } = world;
   if (!lodgeComplete(lodge)) return world;
   return { ...world, inLodge: true, beaver: { ...world.beaver, x: lodge.x + NEST.x, z: lodge.z + NEST.z, y: lodge.base, mode: 'walk' } };
+}
+
+/** A kit is due on the first day of spring after the partner moved into a whole lodge (note 23). */
+export function kitDue(world: WorldState): boolean {
+  const mate = mateOf(world.partners);
+  return mate !== null && mate.homeAt !== null && lodgeComplete(world.lodge) && world.clock >= nextSpringStart(mate.homeAt) && stageAt(world.clock, world.bornAt) === 'adult';
+}
+
+/**
+ * A kit is born in the new lodge, and the player plays it (Q34, Q40, note 23). The grown beaver and its partner are now
+ * Mama and Papa, in their own coats, and the kit has a slightly different shade of one of them. The lone beavers are done.
+ */
+export function birth(world: WorldState): WorldState {
+  const mate = mateOf(world.partners);
+  if (!mate) return world;
+  const parents = [world.coat, { coat: mate.coat, shade: mate.shade }] as [Coat, Coat];
+  return setStage(intoLodge(newLife({ ...world, parentCoats: parents, partners: [] })), 'baby');
 }
 
 /** Make the beaver just reach this life stage now. A test tool, and the ?stage= start. */

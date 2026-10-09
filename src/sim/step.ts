@@ -12,8 +12,9 @@ import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
+import { moveIn, stepPartners } from './partners';
 import { tally } from './achievements';
-import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
+import { birth, kitDue, BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
 /** The longest stretch of a move, in metres, checked for bumps in one go. */
 const SWEEP_STEP = 0.4;
@@ -58,7 +59,8 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   // The lodge is solid from outside; inside it the beaver walks the round room, round the water hole, and meets no trees.
   const housed = world.inLodge && world.lodge !== null;
   const near = housed ? [] : trees.trunksNear(b.x + total.x / 2, b.z + total.z / 2, Math.hypot(total.x, total.z) / 2 + 2 * BEAVER_RADIUS + MAX_TRUNK, new Set(world.felled));
-  const trunks = housed ? [holeSolid(world.lodge!)] : world.lodge ? [...near, lodgeSolid(world.lodge)] : near;
+  const former = world.formerHomes.map(lodgeSolid);
+  const trunks = housed ? [holeSolid(world.lodge!)] : world.lodge ? [...near, ...former, lodgeSolid(world.lodge)] : [...near, ...former];
   let p = { x: b.x, z: b.z };
   let pushed = world.logs;
   for (let i = 0; i < n; i++) {
@@ -133,7 +135,14 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     lastSlap,
     beaver,
   };
-  return tally(world, next);
+  // The lone beavers: one the player comes near follows it, and moves into a whole lodge.
+  if (next.partners.length > 0) {
+    let partners = stepPartners(next.partners, beaver, time, dt);
+    if (lodgeComplete(next.lodge)) partners = moveIn(partners, next.clock);
+    next.partners = partners;
+  }
+  // On the first day of spring after the partner moved in, a kit is born and the player plays it.
+  return tally(world, kitDue(next) ? birth(next) : next);
 }
 
 /**

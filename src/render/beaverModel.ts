@@ -16,6 +16,9 @@ export const COATS = [
 const TAIL = 0x3b2a1a;
 const TEETH = 0xf2ead0;
 
+/** How far a shade of 1 moves a coat toward white (or of -1 toward black). */
+const SHADE_STRENGTH = 0.18;
+
 /** Seconds a tail slap takes to play: wind up, slam, settle. */
 export const SLAP_DURATION = 0.7;
 
@@ -42,7 +45,7 @@ export function slapPose(age: number): { tail: number | null; dip: number } {
 export interface BeaverModel {
   group: THREE.Group;
   /** Change the coat, an index into `COATS`. A new baby has its own colour. */
-  setCoat(coat: number): void;
+  setCoat(coat: number, shade?: number): void;
   /**
    * Poses the model. `time` is seconds, `speed01` is 0 standing and 1 at full pace,
    * `mode` picks the pose, `tilt` (-1 rising to 1 sinking) pitches a diver's nose, and
@@ -155,11 +158,13 @@ export function createBeaverModel(coat = 0): BeaverModel {
 
   return {
     group,
-    setCoat(index) {
+    setCoat(index, shade = 0) {
       const c = COATS[index % COATS.length]!;
-      for (const m of painted.fur) m.color.setHex(c.fur);
-      for (const m of painted.dark) m.color.setHex(c.dark);
-      for (const m of painted.belly) m.color.setHex(c.belly);
+      // A shade of -1 to 1 makes the whole coat a little darker or lighter, so no two beavers of a coat look the same.
+      const tint = (hex: number): THREE.Color => new THREE.Color(hex).lerp(new THREE.Color(shade < 0 ? 0x000000 : 0xffffff), Math.abs(shade) * SHADE_STRENGTH);
+      for (const m of painted.fur) m.color.copy(tint(c.fur));
+      for (const m of painted.dark) m.color.copy(tint(c.dark));
+      for (const m of painted.belly) m.color.copy(tint(c.belly));
     },
     update(time, speed01, mode = 'walk', tilt = 0, slapAge = null, carry = null) {
       branch.visible = carry === 'branch';

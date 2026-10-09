@@ -7,19 +7,19 @@ import { seasonLook } from './seasonLook';
 import { moonDirection, nightness, starDirections } from './nightSky';
 import { skyLook } from './skyLook';
 import { sunDirection } from './sunShadow';
-import { DIVE_RATE, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
+import { DIVE_RATE, SWIM_ENTER_DEPTH, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
 import { STAGE_RULES, stageAt } from '../sim/life';
 import { createBeaverModel, type BeaverModel } from './beaverModel';
-import { PARENT_COAT, coatOf, type Parent, type ParentId } from '../sim/family';
+import { FIRST_PARENTS, type Parent, type ParentId } from '../sim/family';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
 import { lookDir } from './flyCam';
 import { INTERIOR_HEIGHT, createLodgeInterior } from './lodgeInterior';
-import { INTERIOR_RADIUS, lodgeCondition } from '../sim/lodge';
+import { INTERIOR_RADIUS, NEST_SPOTS, lodgeCondition } from '../sim/lodge';
 import { storeCondition } from '../sim/food';
-import { createLodgeView } from './lodgeView';
+import { createLodgeView, type LodgeView } from './lodgeView';
 import { createLilyView } from './lilyView';
 import { createLogView } from './logView';
 import { createDamView } from './damView';
@@ -185,6 +185,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const logView = createLogView(scene, shadows, prepare);
   const lodgeView = createLodgeView(scene, shadows, prepare);
   const storeView = createStoreView(scene, shadows, prepare);
+  // The lodges the family has left, one view each, made when first needed.
+  const formerViews: LodgeView[] = [];
   const lilyView = createLilyView(scene, prepare);
   const rockView = createRockView(scene, prepare);
   const damView = createDamView(scene, shadows, prepare);
@@ -202,15 +204,17 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     });
   prepareBeaver(beaver);
   // Mama and Papa, each in a coat of their own, drawn in the world or in the room with the player.
-  const parentModels = new Map<ParentId, { model: BeaverModel; pace: number }>();
+  const parentModels = new Map<ParentId, { model: BeaverModel; pace: number; coat: string }>();
   for (const id of ['mama', 'papa'] as const) {
-    const model = createBeaverModel(PARENT_COAT[id]);
+    const model = createBeaverModel(FIRST_PARENTS[id === 'mama' ? 0 : 1].coat);
     model.group.visible = false;
     scene.add(model.group);
     prepareBeaver(model.group);
-    parentModels.set(id, { model, pace: 0 });
+    parentModels.set(id, { model, pace: 0, coat: '' });
   }
-  let coatShown = -1;
+  // The lone beavers of the valley, one model each, made when first seen.
+  const partnerModels = new Map<string, { model: BeaverModel; pace: number; x: number; z: number }>();
+  let coatShown = '';
 
   // A ring that spreads over the water where the beaver slapped its tail.
   const SPLASH_SECONDS = 0.9;
@@ -345,10 +349,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const inside = world.inLodge && world.lodge !== null;
       const drawn = inside ? interior.scene : scene;
       if (beaver.parent !== drawn) drawn.add(beaver);
-      const coat = coatOf(world.journey.start);
+      const coat = `${world.coat.coat}:${world.coat.shade}`;
       if (coat !== coatShown) {
         coatShown = coat;
-        beaverModel.setCoat(coat);
+        beaverModel.setCoat(world.coat.coat, world.coat.shade);
       }
       for (const [id, entry] of parentModels) {
         const p = parents.find((q) => q.id === id);
@@ -357,10 +361,45 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         g.visible = !bare && p !== undefined && p.inside === inside;
         if (!p) continue;
         if (g.parent !== drawn) drawn.add(g);
+        const parentCoat = `${p.coat.coat}:${p.coat.shade}`;
+        if (parentCoat !== entry.coat) {
+          entry.coat = parentCoat;
+          entry.model.setCoat(p.coat.coat, p.coat.shade);
+        }
         entry.pace += (p.pace - entry.pace) * 0.1;
         entry.model.update(now, entry.pace, p.mode === 'swim' ? 'swim' : 'walk');
         g.position.set(p.x, p.y, p.z);
         g.rotation.y = p.heading;
+      }
+      for (const p of world.partners) {
+        let entry = partnerModels.get(p.id);
+        if (!entry) {
+          const model = createBeaverModel(p.coat);
+          model.setCoat(p.coat, p.shade);
+          scene.add(model.group);
+          prepareBeaver(model.group);
+          entry = { model, pace: 0, x: p.x, z: p.z };
+          partnerModels.set(p.id, entry);
+        }
+        const g = entry.model.group;
+        // One in the lodge is drawn on its nest while the player is in, else it is out of sight.
+        const home = p.state === 'home';
+        g.visible = !bare && (home ? inside : !inside);
+        if (!g.visible) continue;
+        const ground = source ? source.store.heightAt(p.x, p.z) : 0;
+        const depth = source ? source.store.waterDepth(p.x, p.z) : 0;
+        const swim = !home && depth >= SWIM_ENTER_DEPTH;
+        const nest = NEST_SPOTS[1]!;
+        const at = home && world.lodge ? { x: world.lodge.x + nest.x, y: world.lodge.base, z: world.lodge.z + nest.z } : { x: p.x, y: swim ? ground + depth - SWIM_SINK : ground, z: p.z };
+        const moved = Math.hypot(at.x - entry.x, at.z - entry.z);
+        entry.x = at.x;
+        entry.z = at.z;
+        entry.pace += ((moved > 0.001 && moved < 5 ? 1 : 0) - entry.pace) * 0.2;
+        entry.model.update(now, entry.pace, swim ? 'swim' : 'walk', 0, p.metAt === null ? null : world.time - p.metAt);
+        const wanted = home && world.lodge ? Math.atan2(-nest.x, -nest.z) : p.heading;
+        if (g.parent !== drawn) drawn.add(g);
+        g.position.set(at.x, at.y, at.z);
+        g.rotation.y = wanted;
       }
       beaver.visible = !bare;
       beaver.position.set(b.x, b.y, b.z);
@@ -488,6 +527,11 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       spotRings?.update(look.x, look.z, world.dams, world.clock);
       pondView.update(world.ponds);
       if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z), world.clock, world.ponds);
+      while (formerViews.length < world.formerHomes.length) formerViews.push(createLodgeView(scene, shadows, prepare, false));
+      formerViews.forEach((view, i) => {
+        const old = world.formerHomes[i];
+        view.update(bare || !old ? null : old, old ? lodgeCondition(old, world.clock) : 1);
+      });
       lodgeView.update(inside || bare ? null : world.lodge, world.lodge ? lodgeCondition(world.lodge, world.clock) : 1);
       storeView.update(inside || bare ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
       if (source && !bare) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);

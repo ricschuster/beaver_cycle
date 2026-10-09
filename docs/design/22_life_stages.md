@@ -108,7 +108,7 @@ this slice. It belongs to the family slice (Q59).
   nothing is saved: outside they swim about the deep water within 30 m of the lodge, and every 3 game hours each goes
   to another part of the pond (Q60, Q61). Inside the lodge they lie on their own nests. Coats (`COATS` in
   `beaverModel.ts`, five browns): Mama and Papa have one each, and each new baby gets its own from its birth time
-  (`coatOf`, Q59). The parents swim a straight line between parts, so a line may cross the lodge or a spit. They do not
+  (`coatOf`, Q59). The parents swim a straight line between parts, kept outside the dome, so a line may still cross a spit. They do not
   yet react to the baby, and "Mama calls you back" is still a toast.
 
 ## Not in this slice

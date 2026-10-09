@@ -3,7 +3,7 @@
 import { START_CLOCK, nextDawn, nextSeasonStart, isNight } from './clock';
 import { bornAtFor, growUpDawn, type Stage } from './life';
 import { emptyStock, type Food, type Stock } from './food';
-import { atNest, type Lodge } from './lodge';
+import { NEST, atNest, lodgeComplete, type Lodge } from './lodge';
 import type { AchievementId } from './achievements';
 import type { Dam } from './dam';
 import type { DamSpot } from './damSpots';
@@ -221,6 +221,13 @@ export function newLife(world: WorldState): WorldState {
     mended: 0,
     hauled: 0,
   };
+}
+
+/** A baby is born in the lodge, on its own nest (Q8, Q34). With no whole lodge the beaver stays where it is. */
+export function intoLodge(world: WorldState): WorldState {
+  const { lodge } = world;
+  if (!lodgeComplete(lodge)) return world;
+  return { ...world, inLodge: true, beaver: { ...world.beaver, x: lodge.x + NEST.x, z: lodge.z + NEST.z, y: lodge.base, mode: 'walk' } };
 }
 
 /** Make the beaver just reach this life stage now. A test tool, and the ?stage= start. */

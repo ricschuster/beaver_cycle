@@ -6,7 +6,7 @@ import { createRenderer } from './render/renderer';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
 import { DAY_SECONDS, withSeason, withTimeOfDay } from './sim/clock';
-import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage } from './sim/state';
+import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
@@ -45,6 +45,12 @@ const FREE_START_PITCH = 0.3;
 /** The camera's vertical field of view, degrees (renderer.ts), which the tap needs to find the ground under a finger. */
 const CAMERA_FOV = 60;
 import { Streamer, defaultStreamerOptions, httpFetchTile, httpFetchWater } from './terrain/streamer';
+
+/** The beaver at the start of a life stage. A baby is born in the lodge. */
+function startStage(world: WorldState, stage: Stage): WorldState {
+  const staged = setStage(world, stage);
+  return stage === 'baby' ? intoLodge(staged) : staged;
+}
 
 async function start(): Promise<void> {
   // Tiles are built locally (tools/tiles/build_tiles.py); without them the
@@ -161,9 +167,6 @@ async function start(): Promise<void> {
   if (query.has('day') || query.has('time')) {
     world = { ...world, clock: (Math.max(0, startDay) + (Number.isFinite(startTime) ? startTime : 0.05)) * DAY_SECONDS };
   }
-  // ?stage=baby|teenager|adult starts the beaver at the start of that life stage (default adult).
-  const stageParam = query.get('stage');
-  if (STAGES.includes(stageParam as Stage)) world = setStage(world, stageParam as Stage);
   // ?age=N makes them N game days old, to try wear and repair: the lodge is worn at 40 and broken at 68, the store at 20 and
   // 34, and a dam the test menu fills in at 10 and 17.
   const ageDays = Math.max(0, Number(query.get('age') ?? 0) || 0);
@@ -177,6 +180,9 @@ async function start(): Promise<void> {
       world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear }, storeWear: wear, achievements: [...world.achievements, 'home'] };
     }
   }
+  // ?stage=baby|teenager|adult starts the beaver at the start of that life stage (default adult). A baby starts in the lodge.
+  const stageParam = query.get('stage');
+  if (STAGES.includes(stageParam as Stage)) world = startStage(world, stageParam as Stage);
   let last = performance.now();
 
   // A jump holds the beaver while the streamer loads the target, then moves it.
@@ -201,10 +207,10 @@ async function start(): Promise<void> {
       world = setClock(world, withTimeOfDay(world.clock, t));
     },
     onNewLife() {
-      world = setStage(newLife(world), 'baby');
+      world = startStage(newLife(world), 'baby');
     },
     onStage(stage) {
-      world = setStage(world, stage);
+      world = startStage(world, stage);
     },
     onSeason(season) {
       world = setClock(world, withSeason(world.clock, season));

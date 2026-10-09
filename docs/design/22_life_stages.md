@@ -99,7 +99,9 @@ this slice. It belongs to the family slice (Q59).
   the pond shape.
 - Water only: a baby in the water does not go ashore. The step is stopped and
   slides along the shore. A baby that already stands on land can walk, so it
-  can reach the water (a new game with `?stage=baby` starts on the shore).
+  can reach the water (a baby is born in the lodge, on its own nest, so a new game with `?stage=baby`,
+  the test menu Baby button, and New baby all start inside, when a whole lodge
+  stands).
 
 ## Not in this slice
 

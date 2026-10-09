@@ -14,7 +14,7 @@ import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, men
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
 import { moveIn, stepPartners } from './partners';
 import { tally } from './achievements';
-import { BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
+import { birth, kitDue, BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
 /** The longest stretch of a move, in metres, checked for bumps in one go. */
 const SWEEP_STEP = 0.4;
@@ -138,10 +138,11 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   // The lone beavers: one the player comes near follows it, and moves into a whole lodge.
   if (next.partners.length > 0) {
     let partners = stepPartners(next.partners, beaver, time, dt);
-    if (lodgeComplete(next.lodge)) partners = moveIn(partners);
+    if (lodgeComplete(next.lodge)) partners = moveIn(partners, next.clock);
     next.partners = partners;
   }
-  return tally(world, next);
+  // On the first day of spring after the partner moved in, a kit is born and the player plays it.
+  return tally(world, kitDue(next) ? birth(next) : next);
 }
 
 /**

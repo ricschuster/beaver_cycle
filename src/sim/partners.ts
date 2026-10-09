@@ -18,6 +18,8 @@ export interface Partner {
   state: PartnerState;
   /** Game time of the first meeting, for the tail slap it answers with, or null before. */
   metAt: number | null;
+  /** Game clock at which it moved into the lodge, or null. */
+  homeAt: number | null;
 }
 
 /** The player is met within this many metres. */
@@ -57,6 +59,7 @@ export function seedPartners(spots: readonly DamSpot[], home: { x: number; z: nu
     shade: ((hash(c.i, key + 3) % 2001) - 1000) / 1000,
     state: 'alone' as const,
     metAt: null,
+    homeAt: null,
   }));
 }
 
@@ -85,8 +88,8 @@ export function follower(partners: readonly Partner[]): Partner | null {
 }
 
 /** The lodge is whole: the follower moves in. */
-export function moveIn(partners: readonly Partner[]): Partner[] {
-  return partners.map((p) => (p.state === 'following' ? { ...p, state: 'home' as const } : p));
+export function moveIn(partners: readonly Partner[], clock: number): Partner[] {
+  return partners.map((p) => (p.state === 'following' ? { ...p, state: 'home' as const, homeAt: clock } : p));
 }
 
 /** The partner who lives in the lodge, or null. */

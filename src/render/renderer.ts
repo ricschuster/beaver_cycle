@@ -12,7 +12,7 @@ import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
 import { STAGE_RULES, stageAt } from '../sim/life';
 import { createBeaverModel, type BeaverModel } from './beaverModel';
-import { PARENT_COAT, coatOf, type Parent, type ParentId } from '../sim/family';
+import { FIRST_PARENTS, type Parent, type ParentId } from '../sim/family';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
 import { lookDir } from './flyCam';
@@ -204,17 +204,17 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     });
   prepareBeaver(beaver);
   // Mama and Papa, each in a coat of their own, drawn in the world or in the room with the player.
-  const parentModels = new Map<ParentId, { model: BeaverModel; pace: number }>();
+  const parentModels = new Map<ParentId, { model: BeaverModel; pace: number; coat: string }>();
   for (const id of ['mama', 'papa'] as const) {
-    const model = createBeaverModel(PARENT_COAT[id]);
+    const model = createBeaverModel(FIRST_PARENTS[id === 'mama' ? 0 : 1].coat);
     model.group.visible = false;
     scene.add(model.group);
     prepareBeaver(model.group);
-    parentModels.set(id, { model, pace: 0 });
+    parentModels.set(id, { model, pace: 0, coat: '' });
   }
   // The lone beavers of the valley, one model each, made when first seen.
   const partnerModels = new Map<string, { model: BeaverModel; pace: number; x: number; z: number }>();
-  let coatShown = -1;
+  let coatShown = '';
 
   // A ring that spreads over the water where the beaver slapped its tail.
   const SPLASH_SECONDS = 0.9;
@@ -349,10 +349,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const inside = world.inLodge && world.lodge !== null;
       const drawn = inside ? interior.scene : scene;
       if (beaver.parent !== drawn) drawn.add(beaver);
-      const coat = coatOf(world.journey.start);
+      const coat = `${world.coat.coat}:${world.coat.shade}`;
       if (coat !== coatShown) {
         coatShown = coat;
-        beaverModel.setCoat(coat);
+        beaverModel.setCoat(world.coat.coat, world.coat.shade);
       }
       for (const [id, entry] of parentModels) {
         const p = parents.find((q) => q.id === id);
@@ -361,6 +361,11 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         g.visible = !bare && p !== undefined && p.inside === inside;
         if (!p) continue;
         if (g.parent !== drawn) drawn.add(g);
+        const parentCoat = `${p.coat.coat}:${p.coat.shade}`;
+        if (parentCoat !== entry.coat) {
+          entry.coat = parentCoat;
+          entry.model.setCoat(p.coat.coat, p.coat.shade);
+        }
         entry.pace += (p.pace - entry.pace) * 0.1;
         entry.model.update(now, entry.pace, p.mode === 'swim' ? 'swim' : 'walk');
         g.position.set(p.x, p.y, p.z);

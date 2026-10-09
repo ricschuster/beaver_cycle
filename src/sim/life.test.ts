@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
 import { LODGE_WOOD, NEST, SOLID_RADIUS } from './lodge';
-import { createWorld, intoLodge, leaveHome, setClock, setStage, setInLodge, sleep, sleepUntil } from './state';
+import { createWorld, type WorldState, intoLodge, leaveHome, birth, kitDue, setClock, setStage, setInLodge, sleep, sleepUntil } from './state';
 import { flatTerrain } from './terrain';
 import { step } from './step';
 import { noActions } from '../actions/actions';
-import { nextSeasonStart } from './clock';
+import { nextSeasonStart, nextSpringStart } from './clock';
 import { CALL_BAND, isCalledBack, softEdge, BABY_DAYS, growUpDawn, STAGE_RULES, TEENAGER_DAYS, bornAtFor, lifeAt, stageAt, stageStart } from './life';
 
 const d = (days: number) => days * DAY_SECONDS;
@@ -224,5 +224,39 @@ describe('leaving home', () => {
     let s = { ...w, beaver: { ...w.beaver, heading: 0 } };
     for (let i = 0; i < 100; i++) s = step(s, { ...noActions(), move: { x: 0, z: 1 } }, 0.1, flatTerrain(0));
     expect(Math.hypot(s.beaver.x - home.x, s.beaver.z - home.z)).toBeGreaterThanOrEqual(SOLID_RADIUS - 0.01);
+  });
+});
+
+describe('a kit is born', () => {
+  const home = { x: 0, z: 0, base: 0, door: 0, wood: LODGE_WOOD };
+  const mate = { id: 'm', x: 0, z: 0, heading: 0, coat: 2, shade: 0.3, state: 'home' as const, metAt: 1, homeAt: 100 };
+  const grown = (): WorldState => ({ ...createWorld(flatTerrain(0)), lodge: home, partners: [mate], coat: { coat: 0, shade: 0.1 } });
+
+  it('is not due before the first day of spring after the partner moved in', () => {
+    expect(kitDue({ ...grown(), clock: nextSpringStart(100) - 1 })).toBe(false);
+    expect(kitDue({ ...grown(), clock: nextSpringStart(100) })).toBe(true);
+  });
+
+  it('is not due with no partner at home, or no whole lodge', () => {
+    const late = nextSpringStart(100) + 5;
+    expect(kitDue({ ...grown(), clock: late, partners: [{ ...mate, state: 'following' }] })).toBe(false);
+    expect(kitDue({ ...grown(), clock: late, lodge: { ...home, wood: LODGE_WOOD - 1 } })).toBe(false);
+  });
+
+  it('starts a baby in the lodge, whose parents are the player and the partner', () => {
+    const w = birth({ ...grown(), clock: nextSpringStart(100) });
+    expect(stageAt(w.clock, w.bornAt)).toBe('baby');
+    expect(w.inLodge).toBe(true);
+    expect(w.parentCoats).toEqual([{ coat: 0, shade: 0.1 }, { coat: 2, shade: 0.3 }]);
+    expect([0, 2]).toContain(w.coat.coat);
+    expect(w.generation).toBe(1);
+    expect(w.partners).toEqual([]);
+  });
+
+  it('happens in the step on that day', () => {
+    let w = { ...grown(), clock: nextSpringStart(100) - 0.5 };
+    w = step(w, noActions(), 1, flatTerrain(0));
+    expect(w.generation).toBe(1);
+    expect(stageAt(w.clock, w.bornAt)).toBe('baby');
   });
 });

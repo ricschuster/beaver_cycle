@@ -282,6 +282,7 @@ async function start(): Promise<void> {
   let wasCalled = false;
   let lastStage: Stage | null = null;
   let lastFollower: string | null = null;
+  let lastGeneration = 0;
   let wonShown = -1; // set on the first frame, so achievements already won in a loaded game give no toast
   // Taps on the stash screen wait here until the next step takes them.
   let stashTap: number | undefined;
@@ -372,6 +373,8 @@ async function start(): Promise<void> {
     const following = follower(world.partners)?.id ?? null;
     if (following && following !== lastFollower) toast.show('A beaver slaps its tail and follows you');
     lastFollower = following;
+    if (world.generation > lastGeneration) toast.show('A kit is born');
+    lastGeneration = world.generation;
     // A toast for each achievement won since the last frame.
     if (wonShown < 0) wonShown = world.achievements.length;
     for (const id of world.achievements.slice(wonShown)) toast.show(ACHIEVEMENT_TEXT[id]);
@@ -380,7 +383,7 @@ async function start(): Promise<void> {
     const rest = canRest(world);
     const stage = lifeAt(world.clock, world.bornAt).stage;
     sleepPrompt.set({ night: canSleep(world), rest, grow: rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null });
-    renderer.draw(world, rig.view, parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds)));
+    renderer.draw(world, rig.view, parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds), world.parentCoats));
     if (now - lastReadout > 500) {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;

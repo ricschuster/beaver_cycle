@@ -42,16 +42,16 @@ The grown beaver stays in the world, and the next baby is its child:
    another and that one follows instead, and the first stays where it stood. A
    follower moves into the lodge when it is whole. To try it, press Teenager and
    then Adult in the test menu: the lodge becomes a former home and the beavers
-   appear. The shade is drawn; the kit's coat (step 4) is not built.
+   appear. The shade is drawn.
 3. **Build a home.** The player builds a lodge (as now) in a pond near the
    partner, or in the partner's pond. The partner moves in when the lodge is
    whole. The dam, lodge, and store need repair, as now, and the partner helps
    (Q57).
-4. **Kits.** After a season in a whole lodge, a kit is born (Q58). `newLife`
+4. **Kits (built).** After a season in a whole lodge, a kit is born (Q58). `newLife`
    starts for it, in the new lodge on its nest. The kit's coat is the player's or
    the partner's, so the child looks like a child of the beaver (Q59, and
    `coatOf` gets the parents' coats instead of a hash of the birth time).
-5. **The old you is Mama or Papa.** The player beaver is kept, with its coat, as
+5. **The old you is Mama or Papa (built, with step 4).** The player beaver is kept, with its coat, as
    one of the two parents the family module draws, and the partner is the
    other. A parent's sex is only a name for the first form (Mama or Papa follows
    which of the two it is, and is not tied to the player's old gender).
@@ -69,6 +69,22 @@ The grown beaver stays in the world, and the next baby is its child:
   that reads `world.lodge` (the store, wear, the HUD, the sleep rules) needs a
   "current home" idea.
 - The partner is a plain data beaver with a place and a coat, like a parent.
+
+## How kits work in the code (built)
+
+- A coat is a base colour and a shade (`Coat` in `family.ts`). The world has the
+  player's `coat`, and `parentCoats` for Mama and Papa (the first family's, then the
+  player's and the partner's).
+- `kitDue`: the partner is at home, the lodge is whole, the player is an adult,
+  and the clock has reached the first day of spring after the partner moved in.
+  `step` then calls `birth`: the old player and the partner become Mama and
+  Papa in their coats, the baby has the coat of one of them in a shade up to 0.5
+  away, is born in the lodge on its nest (`intoLodge`), and the lone beavers are
+  done. `generation` counts the lives, and the game shows a toast.
+- A partner who moves in on day 39 gives a kit the next morning. This is the
+  rule as written ("first day of spring"); the wait may want a minimum.
+- "New baby" in the test menu is the same without a partner: a kit of the
+  current parents' coats.
 
 ## Answers (the author)
 

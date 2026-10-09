@@ -60,8 +60,9 @@ describe('meeting', () => {
   });
 
   it('moves the follower into the lodge', () => {
-    const next = moveIn(stepPartners(ps, { x: first.x + 3, z: first.z }, 1, 0.1));
+    const next = moveIn(stepPartners(ps, { x: first.x + 3, z: first.z }, 1, 0.1), 99);
     expect(mateOf(next)?.id).toBe(first.id);
+    expect(mateOf(next)?.homeAt).toBe(99);
     expect(follower(next)).toBeNull();
   });
 });

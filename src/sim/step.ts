@@ -7,6 +7,7 @@ import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, at
 import { damAt, placed, spotAt } from './dam';
 import { refineNear, withNewSpots } from './newSpots';
 import { lodgeGround, pondAt, pondsAt, withPonds, type Pond } from './pond';
+import { STAGE_RULES, stageAt } from './life';
 import { canScoopMud, putDown, reachableDropped, reachableRock } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, nearestLog, pushFloating, type Log } from './logs';
 import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, mended, newWear } from './wear';
@@ -48,7 +49,8 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     z /= len;
   }
   const b = world.beaver;
-  const speed = (b.mode === 'dive' ? DIVE_SPEED : b.mode === 'swim' ? SWIM_SPEED : WALK_SPEED) * world.speedMultiplier * (world.drag ? DRAG_SPEED : 1);
+  const rules = STAGE_RULES[stageAt(world.clock, world.bornAt)];
+  const speed = rules.speed * (b.mode === 'dive' ? DIVE_SPEED : b.mode === 'swim' ? SWIM_SPEED : WALK_SPEED) * world.speedMultiplier * (world.drag ? DRAG_SPEED : 1);
   // The move is swept in short steps so a fast beaver cannot jump through a trunk or over a floating log. Trunks
   // stop the beaver, which slides round them, and it shoves floating logs out of its way.
   const total = { x: x * speed * dt, z: z * speed * dt };
@@ -64,6 +66,13 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     pushed = pushFloating(terrain, pushed, p.x, p.z, b.mode === 'dive', world.drag);
   }
   if (housed) p = clampInterior(world.lodge!, p.x, p.z);
+  else if (world.lodge) {
+    // A young beaver stays near home. A gentle limit for now: it does not go past the range (the parents calling it back comes later).
+    const dx = p.x - world.lodge.x;
+    const dz = p.z - world.lodge.z;
+    const d = Math.hypot(dx, dz);
+    if (d > rules.range) p = { x: world.lodge.x + (dx / d) * rules.range, z: world.lodge.z + (dz / d) * rules.range };
+  }
   const { x: nx, z: nz } = p;
   const time = world.time + dt;
   // The tail slaps on land and at the surface, not under water, and not again during the cooldown.
@@ -80,9 +89,11 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   // On land the beaver climbs over a log that lies in its way; in water it pushes floating ones aside.
   const lift = settled.mode === 'walk' ? climbLift(world.logs, nx, nz, world.drag) : 0;
   const after = { ...b, x: nx, z: nz, ...settled, y: settled.y + lift, breath, heading };
-  const { world: built, beaver } = build({ ...world, logs: pushed }, after, actions, { x, z }, terrain, ground);
+  const { world: built, beaver } = build({ ...world, logs: pushed }, after, actions, { x, z }, terrain, ground, rules.works);
   // With a piece in the mouth the beaver cannot grab a log, and in the lodge the gnaw button eats it instead.
   const eating = built.inLodge && world.carry !== null && !!actions.chop;
+  // A baby does not fell, grab, gnaw food, or use the store.
+  if (!rules.works) actions = { ...actions, chop: false, grab: false, build: false };
   // The same goes for mud or a rock in the mouth: it cannot gnaw a tree, and the grab button puts it down instead.
   const full = (world.carry !== null || world.haul !== null) && !world.drag;
   const workActions = { ...actions, chop: actions.chop && !eating && world.haul === null, grab: actions.grab && !full };
@@ -125,7 +136,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
  * build button at the water hole dives out through the entrance. A log that cannot be placed stays in the
  * beaver's mouth.
  */
-function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: number; z: number }, terrain: Terrain, ground: Terrain): { world: WorldState; beaver: BeaverState } {
+function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: number; z: number }, terrain: Terrain, ground: Terrain, works: boolean): { world: WorldState; beaver: BeaverState } {
   let { lodge, logs, drag, inLodge, storeWear, dams, haul, hauled } = world;
   let beaver = b;
   if (inLodge && lodge) {
@@ -138,7 +149,7 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
   } else if (lodgeComplete(lodge) && lodgeCondition(lodge, world.clock) >= BROKEN_BELOW && b.mode === 'dive' && atDoor(lodge, b.x, b.z) && towardDoor(lodge, move.x, move.z) < -0.3) {
     inLodge = true;
     beaver = { ...b, ...doorPoint(lodge, ENTER_DISTANCE), y: lodge.base, mode: 'walk' };
-  } else if (actions.build && b.mode !== 'dive') {
+  } else if (works && actions.build && b.mode !== 'dive') {
     const log = drag ? logs.find((l) => l.id === drag) : undefined;
     const spot = spotAt(world.spots, b.x, b.z);
     if (spot && (haul || log)) {

@@ -10,6 +10,7 @@ import { sunDirection } from './sunShadow';
 import { DIVE_RATE, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
+import { STAGE_RULES, stageAt } from '../sim/life';
 import { createBeaverModel } from './beaverModel';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
@@ -333,6 +334,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       beaver.visible = !bare;
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;
+      beaver.scale.setScalar(STAGE_RULES[stageAt(world.clock, world.bornAt)].scale);
       // The fly view orbits a free point on the ground, or on the water over it, not the beaver.
       const free = view.free && !inside ? view.free : null;
       const fx = view.focus && !inside && !free ? view.focus : null;

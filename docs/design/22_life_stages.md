@@ -78,6 +78,16 @@ this slice. It belongs to the family slice (Q59).
 5. Is the age shown to the player (a small bar or a season count), or only felt
    by the beaver growing?
 
+## Built so far
+
+- Step 1 and 2: `src/sim/life.ts`, `bornAt` in the world, the HUD bar, and the
+  test menu row.
+- Step 3: `STAGE_RULES` in `life.ts`. Speed is 0.5 for a baby and 0.85 for a
+  teenager. A baby cannot fell, grab, gnaw food, build, or use the store, and
+  stays within 60 m of its lodge (a hard stop for now, the parents calling it
+  back comes later). Model scale is 0.45, 0.75, and 1. The camera distance does
+  not follow the scale yet.
+
 ## Not in this slice
 
 - Mama, papa, and siblings, and their colours (Q58 to Q61).

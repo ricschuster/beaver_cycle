@@ -43,3 +43,21 @@ export function lifeAt(clock: number, bornAt: number): LifeInfo {
 export function stageAt(clock: number, bornAt: number): Stage {
   return lifeAt(clock, bornAt).stage;
 }
+
+/** What a stage changes about play (docs/design/22_life_stages.md). First guesses, to tune by playing. */
+export interface StageRules {
+  /** Share of the adult walk, swim, and dive speed. */
+  speed: number;
+  /** Felling, hauling, gnawing food, building, and the stash. A baby only swims, eats, and plays. */
+  works: boolean;
+  /** How far from the lodge the beaver may go, in metres, or Infinity. A baby stays in the pond. */
+  range: number;
+  /** Size of the model against an adult. */
+  scale: number;
+}
+
+export const STAGE_RULES: Record<Stage, StageRules> = {
+  baby: { speed: 0.5, works: false, range: 60, scale: 0.45 },
+  teenager: { speed: 0.85, works: true, range: Infinity, scale: 0.75 },
+  adult: { speed: 1, works: true, range: Infinity, scale: 1 },
+};

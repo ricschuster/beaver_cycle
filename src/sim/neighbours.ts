@@ -3,7 +3,6 @@
 // nothing of theirs wears. Where each beaver is and how old is a pure function of the clock, so a sleep or a long
 // skip needs no catch-up and only the beavers near the player are ever worked out. No three.js and no DOM here.
 import { DAY_SECONDS, DAYS_PER_YEAR, isNight } from './clock';
-import type { DamSpot } from './damSpots';
 import { COAT_COUNT, kitCoat, pondPlace, pondParts, type Coat } from './family';
 import { lifeAt, STAGE_RULES, type Stage } from './life';
 import { LODGE_WOOD, findSite, type Lodge } from './lodge';
@@ -55,31 +54,49 @@ function hash(a: number, b: number): number {
   return (h ^ (h >>> 12)) >>> 0;
 }
 
+/** The ground is cut into cells this wide (metres); a cell may hold one family. */
+export const FAMILY_CELL = 400;
+/** A cell is looked at once the player is within this many metres of its middle, where the fine tiles are loaded (ADR 0006). */
+export const GROW_REACH = 450;
+/** How far from the middle of a cell the lodge may stand (metres). */
+const SITE_RADIUS = 200;
+/** One cell in this many hosts a family. */
+const HOST_ONE_IN = 2;
+
 /**
- * Families at dam spots far from the home, in an order fixed by the home's place. The lodge stands at the nearest place within
- * 300 m of the spot where one can start and the water round it is wide enough to swim in. `count` families at most.
+ * Families on the ponds and shores of the valley, found as the player comes near. Far tiles are not loaded (ADR 0006), so the water
+ * cannot be read from the start; and what is read later is the same every time. A cell hosts a family if its hash says so and a lodge
+ * can stand within 200 m of its middle, with water round it wide enough to swim in, far enough from the home and from the other
+ * families. `tried` holds the cells already looked at, so each is read once. Returns `families` itself when nothing was added.
  */
-export function seedNeighbours(spots: readonly DamSpot[], home: { x: number; z: number }, ground: Terrain, count = 1, avoid: readonly { x: number; z: number }[] = []): Neighbour[] {
+export function growNeighbours(families: readonly Neighbour[], ground: Terrain, at: { x: number; z: number }, home: { x: number; z: number }, tried: Set<string>): readonly Neighbour[] {
+  let out = families;
+  const r = Math.ceil(GROW_REACH / FAMILY_CELL);
+  const c0x = Math.floor(at.x / FAMILY_CELL);
+  const c0z = Math.floor(at.z / FAMILY_CELL);
   const key = Math.round(home.x * 3 + home.z * 7);
-  const far = spots
-    .map((s, i) => ({ s, i, h: hash(i, key + 11), d: Math.hypot(s.bed.x - home.x, s.bed.z - home.z) }))
-    .filter((c) => c.d >= NEIGHBOUR_MIN_FROM_HOME)
-    .sort((a, b) => a.h - b.h);
-  const out: Neighbour[] = [];
-  const taken = [...avoid];
-  for (const c of far) {
-    if (out.length >= count) break;
-    const lodge = findSite(ground, c.s.bed.x, c.s.bed.z, 300);
-    if (!lodge || pondParts(lodge, ground).length < MIN_PARTS) continue;
-    const apart = (o: { x: number; z: number }, min: number): boolean => Math.hypot(o.x - lodge.x, o.z - lodge.z) >= min;
-    if (!apart(home, NEIGHBOUR_MIN_FROM_HOME) || !taken.every((o) => apart(o, NEIGHBOUR_MIN_APART))) continue;
-    taken.push(lodge);
-    out.push({
-      id: `family:${c.s.id}`,
-      lodge: { ...lodge, wood: LODGE_WOOD },
-      parents: [{ coat: hash(c.i, key + 12) % COAT_COUNT, shade: 0 }, { coat: hash(c.i, key + 13) % COAT_COUNT, shade: 0 }],
-      seed: hash(c.i, key + 14),
-    });
+  for (let cz = c0z - r; cz <= c0z + r; cz++) {
+    for (let cx = c0x - r; cx <= c0x + r; cx++) {
+      const id = `${cx}:${cz}`;
+      const mx = (cx + 0.5) * FAMILY_CELL;
+      const mz = (cz + 0.5) * FAMILY_CELL;
+      if (tried.has(id) || Math.hypot(mx - at.x, mz - at.z) > GROW_REACH) continue;
+      tried.add(id);
+      if (hash(cx, cz + key) % HOST_ONE_IN !== 0) continue;
+      const lodge = findSite(ground, mx, mz, SITE_RADIUS);
+      if (!lodge || pondParts(lodge, ground).length < MIN_PARTS) continue;
+      const apart = (o: { x: number; z: number }, min: number): boolean => Math.hypot(o.x - lodge.x, o.z - lodge.z) >= min;
+      if (!apart(home, NEIGHBOUR_MIN_FROM_HOME) || !out.every((o) => apart(o.lodge, NEIGHBOUR_MIN_APART))) continue;
+      out = [
+        ...out,
+        {
+          id: `family:${id}`,
+          lodge: { ...lodge, wood: LODGE_WOOD },
+          parents: [{ coat: hash(cx, cz + key + 12) % COAT_COUNT, shade: 0 }, { coat: hash(cx, cz + key + 13) % COAT_COUNT, shade: 0 }],
+          seed: hash(cx, cz + key + 14),
+        },
+      ];
+    }
   }
   return out;
 }

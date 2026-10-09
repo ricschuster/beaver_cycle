@@ -1,7 +1,7 @@
 # NPCs and animals
 
 Status: draft. The author chose the direction (below); everything marked **Proposal** is mine and waits for the author.
-Nothing here is built. Today the only NPCs are the lone beavers in `src/sim/partners.ts`.
+This is milestone M7 (#279). Nothing here is built. Today the only NPCs are the lone beavers in `src/sim/partners.ts`.
 
 ## What the author has said
 

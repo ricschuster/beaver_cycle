@@ -11,7 +11,8 @@ import { DIVE_RATE, SWIM_SINK, type Slap, type WorldState } from '../sim/state';
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
 import { STAGE_RULES, stageAt } from '../sim/life';
-import { createBeaverModel } from './beaverModel';
+import { createBeaverModel, type BeaverModel } from './beaverModel';
+import { PARENT_COAT, coatOf, type Parent, type ParentId } from '../sim/family';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
 import type { ViewState } from './cameraRig';
 import { lookDir } from './flyCam';
@@ -38,7 +39,8 @@ export interface TerrainSource {
 }
 
 export interface Renderer {
-  draw(world: WorldState, view: ViewState): void;
+  /** Draw the world. `parents` are Mama and Papa from `parentsAt`, none when the player beaver is grown. */
+  draw(world: WorldState, view: ViewState, parents?: readonly Parent[]): void;
   terrain: TerrainView | null;
   /** Turn the sun shadows on or off while running. Does nothing if the game started without them. */
   setShadows(on: boolean): void;
@@ -191,12 +193,24 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const beaverModel = createBeaverModel();
   const beaver = beaverModel.group;
   scene.add(beaver);
-  beaver.traverse((o) => {
-    if (o instanceof THREE.Mesh) {
-      o.castShadow = shadows;
-      prepare(o.material as THREE.Material);
-    }
-  });
+  const prepareBeaver = (group: THREE.Group): void =>
+    group.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        o.castShadow = shadows;
+        prepare(o.material as THREE.Material);
+      }
+    });
+  prepareBeaver(beaver);
+  // Mama and Papa, each in a coat of their own, drawn in the world or in the room with the player.
+  const parentModels = new Map<ParentId, { model: BeaverModel; pace: number }>();
+  for (const id of ['mama', 'papa'] as const) {
+    const model = createBeaverModel(PARENT_COAT[id]);
+    model.group.visible = false;
+    scene.add(model.group);
+    prepareBeaver(model.group);
+    parentModels.set(id, { model, pace: 0 });
+  }
+  let coatShown = -1;
 
   // A ring that spreads over the water where the beaver slapped its tail.
   const SPLASH_SECONDS = 0.9;
@@ -300,7 +314,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     setShadows(on) {
       shadowsOn = on && shadows;
     },
-    draw(world, view) {
+    draw(world, view, parents = []) {
       const b = world.beaver;
       const moved = Math.hypot(b.x - lastX, b.z - lastZ);
       lastX = b.x;
@@ -331,6 +345,23 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const inside = world.inLodge && world.lodge !== null;
       const drawn = inside ? interior.scene : scene;
       if (beaver.parent !== drawn) drawn.add(beaver);
+      const coat = coatOf(world.journey.start);
+      if (coat !== coatShown) {
+        coatShown = coat;
+        beaverModel.setCoat(coat);
+      }
+      for (const [id, entry] of parentModels) {
+        const p = parents.find((q) => q.id === id);
+        const g = entry.model.group;
+        // Mama and Papa are drawn where the player is: in the room while the player is in, else in the world.
+        g.visible = !bare && p !== undefined && p.inside === inside;
+        if (!p) continue;
+        if (g.parent !== drawn) drawn.add(g);
+        entry.pace += (p.pace - entry.pace) * 0.1;
+        entry.model.update(now, entry.pace, p.mode === 'swim' ? 'swim' : 'walk');
+        g.position.set(p.x, p.y, p.z);
+        g.rotation.y = p.heading;
+      }
       beaver.visible = !bare;
       beaver.position.set(b.x, b.y, b.z);
       beaver.rotation.y = b.heading;

@@ -84,6 +84,7 @@ test('sleeping to the next stage wakes at dawn: baby to teenager, then out of th
 
 test('the message that it is time to start a family is not lost under the full year toast', async ({ page }) => {
   await startGame(page, 'stage=baby');
+  test.skip(!(await hasTiles(page)), 'needs the tiles built locally');
   await page.evaluate(() => {
     (window as any).__toasts = [];
     new MutationObserver(() => (window as any).__toasts.push(document.getElementById('toast')?.textContent ?? '')).observe(document.getElementById('toast')!, { childList: true, characterData: true, subtree: true });

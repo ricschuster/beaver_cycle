@@ -239,14 +239,15 @@ export function newLife(world: WorldState): WorldState {
 
 /**
  * The grown beaver leaves home to start a family of its own (Q8, Q50). The lodge it grew up in stays and gets old (Q63),
- * with its food store, and the beaver has no home until it builds one. Without a lodge nothing changes.
+ * with its food store, and the beaver has no home until it builds one. Without a lodge nothing changes. The lodge and store it
+ * builds next are its own, so they stop counting as inherited (the Home and Pantry achievements can be won again).
  */
 export function leaveHome(world: WorldState): WorldState {
   if (!world.lodge) return world;
   const b = world.beaver;
   // Out of the room, at the entrance, if the leaving came while the beaver was asleep inside.
   const out = world.inLodge ? { ...b, ...doorPoint(world.lodge, DOOR_DISTANCE), y: world.lodge.base, mode: 'walk' as const } : b;
-  return { ...world, formerHomes: [...world.formerHomes, { ...world.lodge, parents: world.parentCoats }], lodge: null, store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out };
+  return { ...world, formerHomes: [...world.formerHomes, { ...world.lodge, parents: world.parentCoats }], lodge: null, store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out, journey: { ...world.journey, inherited: world.journey.inherited.filter((i) => i !== 'lodge' && i !== 'store') } };
 }
 
 /** The lone beavers of the valley, put at the dam spots when the player beaver has left home. */

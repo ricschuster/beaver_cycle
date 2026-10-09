@@ -279,6 +279,7 @@ async function start(): Promise<void> {
   const carryHud = createCarryHud(hud);
   const toast = createToast(hud);
   let wasCalled = false;
+  let lastStage: Stage | null = null;
   let wonShown = -1; // set on the first frame, so achievements already won in a loaded game give no toast
   // Taps on the stash screen wait here until the next step takes them.
   let stashTap: number | undefined;
@@ -358,6 +359,10 @@ async function start(): Promise<void> {
     const called = isCalledBack(home, STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].range);
     if (called && !wasCalled) toast.show('Mama calls you back');
     wasCalled = called;
+    // Growing up from a teenager: Mama and Papa say it is time to start a family of one's own (Q8, Q50).
+    const nowStage = lifeAt(world.clock, world.bornAt).stage;
+    if (lastStage === 'teenager' && nowStage === 'adult') toast.show('Mama and Papa say it is time to start a family of your own');
+    lastStage = nowStage;
     // A toast for each achievement won since the last frame.
     if (wonShown < 0) wonShown = world.achievements.length;
     for (const id of world.achievements.slice(wonShown)) toast.show(ACHIEVEMENT_TEXT[id]);

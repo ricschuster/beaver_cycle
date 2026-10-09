@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
 import { COAT_COUNT, PARENT_COAT, STAY, coatOf, parentsAt, pondParts } from './family';
 import { BABY_DAYS, TEENAGER_DAYS } from './life';
-import { LODGE_WOOD, NEST_SPOTS, type Lodge } from './lodge';
+import { LODGE_WOOD, NEST_SPOTS, SOLID_RADIUS, type Lodge } from './lodge';
 import type { Terrain } from './terrain';
 
 /** A lake everywhere within 40 m of the origin, 3 m deep, and dry land beyond. */
@@ -48,6 +48,14 @@ describe('Mama and Papa', () => {
         expect(p.inside).toBe(false);
         expect(lake.waterDepth(p.x, p.z)).toBeGreaterThan(0);
         expect(Math.hypot(p.x - lodge.x, p.z - lodge.z)).toBeLessThan(30);
+      }
+    }
+  });
+
+  it('never swim through the dome of the lodge', () => {
+    for (let i = 0; i < 400; i++) {
+      for (const p of parentsAt(lodge, 0, d(1) + i * STAY * 0.05, false, lake)) {
+        expect(Math.hypot(p.x - lodge.x, p.z - lodge.z)).toBeGreaterThanOrEqual(SOLID_RADIUS);
       }
     }
   });

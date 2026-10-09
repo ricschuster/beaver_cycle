@@ -3,7 +3,7 @@
 // or a teenager, and move about the pond from one part to another (Q60, Q61).
 
 import { DAY_SECONDS } from './clock';
-import { NEST_SPOTS, lodgeComplete, type Lodge } from './lodge';
+import { NEST_SPOTS, SOLID_RADIUS, lodgeComplete, type Lodge } from './lodge';
 import { stageAt } from './life';
 import type { Terrain } from './terrain';
 
@@ -48,6 +48,8 @@ const TRAVEL = 0.3;
 const NEAR = 6;
 const FAR = 26;
 const MIN_DEPTH = 0.8;
+/** A parent swims at least this far (metres) outside the dome. */
+const CLEAR = 1;
 
 /** Parts of the pond a parent can be in: the deep water round the lodge, found by a fixed look at the ground. */
 export function pondParts(lodge: Lodge, terrain: Terrain): { x: number; z: number }[] {
@@ -86,8 +88,16 @@ export function parentsAt(lodge: Lodge | null, bornAt: number, clock: number, in
     const to = pick(slot);
     const t = Math.min(1, ((clock / STAY) % 1) / TRAVEL);
     const ease = t * t * (3 - 2 * t);
-    const x = from.x + (to.x - from.x) * ease;
-    const z = from.z + (to.z - from.z) * ease;
+    let x = from.x + (to.x - from.x) * ease;
+    let z = from.z + (to.z - from.z) * ease;
+    // A straight line between two parts may run through the dome, which is solid: swim round it.
+    const away = Math.hypot(x - lodge.x, z - lodge.z);
+    if (away < SOLID_RADIUS + CLEAR) {
+      const dx = away > 1e-6 ? (x - lodge.x) / away : 1;
+      const dz = away > 1e-6 ? (z - lodge.z) / away : 0;
+      x = lodge.x + dx * (SOLID_RADIUS + CLEAR);
+      z = lodge.z + dz * (SOLID_RADIUS + CLEAR);
+    }
     const moving = t < 1 && (from.x !== to.x || from.z !== to.z);
     const heading = moving ? Math.atan2(to.x - from.x, to.z - from.z) : Math.atan2(lodge.x - x, lodge.z - z) + (i === 0 ? 0.6 : -0.6);
     const y = terrain.heightAt(x, z) + terrain.waterDepth(x, z) - 0.2;

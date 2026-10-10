@@ -44,6 +44,7 @@ import { lilyPadsNear } from './sim/lily';
 import { withNewSpots } from './sim/newSpots';
 import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
+import { drainBuildTimes } from './terrain/buildTimes';
 
 /** The fly view (?fly=1): the farthest zoom (metres), and the pan speed, a base plus a share of the zoom distance (metres per second). */
 const FLY_MAX_DIST = 600;
@@ -599,6 +600,8 @@ async function start(): Promise<void> {
     world: () => world,
     view: () => rig.view,
     stats: () => renderer.terrain?.stats() ?? null,
+    // Per part tile build times since the last call, for the tablet bench.
+    buildTimes: drainBuildTimes,
     // Where a playtest can find things to work on: the nearest standing tree, and the nearest spot a lodge could start.
     nearestTree: (x: number, z: number, reach: number) => trees.nearest(x, z, reach, new Set(world.felled)),
     lilyPadsNear: (radius: number) => lilyPadsNear(terrain, world.beaver.x, world.beaver.z, radius, world.clock, world.picked),

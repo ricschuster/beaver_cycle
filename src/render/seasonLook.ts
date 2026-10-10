@@ -81,6 +81,8 @@ const KEYS: Record<Season, SeasonLook> = {
 
 /** Part of a season, at each end, spent blending into its neighbour. 0.3 is three days of ten. */
 const BLEND = 0.3;
+/** The first whole day of a season (0 is its first day) that shows its own look, past the blend from the season before. */
+export const SEASON_FULL_DAY = Math.ceil(BLEND * DAYS_PER_SEASON);
 
 function mix(a: number, b: number, t: number): number {
   const ch = (shift: number): number => {

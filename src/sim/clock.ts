@@ -79,9 +79,12 @@ export function withTimeOfDay(clock: number, timeOfDay: number): number {
   return (dateAt(clock).day + Math.min(0.999, Math.max(0, timeOfDay))) * DAY_SECONDS;
 }
 
-/** The first day of this season in the same year, keeping the part of the day. Used by the test menu. */
-export function withSeason(clock: number, season: Season): number {
+/**
+ * A day of this season in the same year, `dayIn` whole days after its first (0 is the first), keeping the part of the
+ * day. Used by the test menu.
+ */
+export function withSeason(clock: number, season: Season, dayIn = 0): number {
   const d = dateAt(clock);
-  const day = d.year * DAYS_PER_YEAR + SEASONS.indexOf(season) * DAYS_PER_SEASON;
+  const day = d.year * DAYS_PER_YEAR + SEASONS.indexOf(season) * DAYS_PER_SEASON + Math.min(DAYS_PER_SEASON - 1, Math.max(0, Math.floor(dayIn)));
   return (day + d.timeOfDay) * DAY_SECONDS;
 }

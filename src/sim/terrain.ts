@@ -17,8 +17,8 @@ export interface Terrain {
   isWater(x: number, z: number): boolean;
   /** Metres of water above the ground, 0 on dry land. */
   waterDepth(x: number, z: number): number;
-  /** Metres from a point to the nearest stream centre line, or Infinity with no stream near. Missing where the ground has no streams (a test stand-in). */
-  streamDistance?(x: number, z: number): number;
+  /** Metres from a point to the nearest stream centre line, or Infinity with no stream near. With `upTo`, a line farther than that may go unseen (Infinity or a larger distance comes back), which is quicker. Missing where the ground has no streams (a test stand-in). */
+  streamDistance?(x: number, z: number, upTo?: number): number;
   /** Points every `step` metres along the stream lines within `r` metres of a point, with the unit direction of the line there. Missing where the ground has no streams (a test stand-in). */
   streamPoints?(x: number, z: number, r: number, step: number): StreamPoint[];
   /** The land cover class at a point (the tile classes, `COVER_MEADOW` and so on). Missing where the ground has no land cover (a test stand-in). */

@@ -115,27 +115,38 @@ export class TileStore implements Terrain {
     return level == null ? 0 : Math.max(0, level - sampleHeight(tile, u, v));
   }
 
-  /** Metres to the nearest stream centre line in the tile of the point and the tiles round it, or Infinity. */
-  streamDistance(x: number, z: number): number {
+  /**
+   * Metres to the nearest stream centre line in the tile of the point and the tiles round it, or Infinity. With `upTo`, a
+   * line farther than that may be skipped, so the answer is exact up to `upTo` and Infinity or any larger distance beyond.
+   */
+  streamDistance(x: number, z: number, upTo = Infinity): number {
     const ix = Math.floor(x / this.size);
     const iz = Math.floor(z / this.size);
-    let best = Infinity;
+    let best2 = upTo === Infinity ? Infinity : upTo * upTo;
     for (let tz = iz - 1; tz <= iz + 1; tz++) {
       for (let tx = ix - 1; tx <= ix + 1; tx++) {
         for (const s of this.water.get(tileKey(tx, tz))?.streams ?? []) {
+          const box = streamBox(s);
+          // A stream whose box is farther than the best so far cannot hold a nearer segment.
+          const bx = x < box[0] ? box[0] - x : x > box[2] ? x - box[2] : 0;
+          const bz = z < box[1] ? box[1] - z : z > box[3] ? z - box[3] : 0;
+          if (bx * bx + bz * bz >= best2) continue;
           for (let i = 1; i < s.pts.length; i++) {
             const [ax, az] = s.pts[i - 1]!;
-            const [bx, bz] = s.pts[i]!;
-            const dx = bx - ax;
-            const dz = bz - az;
+            const [bx2, bz2] = s.pts[i]!;
+            const dx = bx2 - ax;
+            const dz = bz2 - az;
             const len2 = dx * dx + dz * dz;
             const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
-            best = Math.min(best, Math.hypot(x - (ax + t * dx), z - (az + t * dz)));
+            const ex = x - (ax + t * dx);
+            const ez = z - (az + t * dz);
+            const d2 = ex * ex + ez * ez;
+            if (d2 < best2) best2 = d2;
           }
         }
       }
     }
-    return best;
+    return best2 === upTo * upTo && upTo !== Infinity ? Infinity : Math.sqrt(best2);
   }
 
   /** Points every `step` metres along the stream lines of the tiles round a point, those within `r` metres of it. */
@@ -165,6 +176,24 @@ export class TileStore implements Terrain {
   isWater(x: number, z: number): boolean {
     return this.waterDepth(x, z) > 0;
   }
+}
+
+const boxes = new WeakMap<object, [number, number, number, number]>();
+
+/** The bounding box (minX, minZ, maxX, maxZ) of a stream line, worked out once. */
+function streamBox(s: { pts: readonly (readonly [number, number])[] }): [number, number, number, number] {
+  let box = boxes.get(s);
+  if (!box) {
+    box = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const [px, pz] of s.pts) {
+      box[0] = Math.min(box[0], px);
+      box[1] = Math.min(box[1], pz);
+      box[2] = Math.max(box[2], px);
+      box[3] = Math.max(box[3], pz);
+    }
+    boxes.set(s, box);
+  }
+  return box;
 }
 
 /** Points every `step` metres along a polyline, with the unit direction of the line there. */

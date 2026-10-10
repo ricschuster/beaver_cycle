@@ -64,10 +64,16 @@ jobs:
       - name: Build
         run: npm run build
 
+  # The browser tests are 76 tests in 18 files, most of the run time, so they
+  # are split in three. Each shard runs its share of the files.
   e2e:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -80,6 +86,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
+          # Same key as warm-cache.yml, which saves it from main so every PR can read it.
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright browser
         if: steps.pw-cache.outputs.cache-hit != 'true'
@@ -88,7 +95,7 @@ jobs:
         if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       - name: Browser smoke test
-        run: npm run test:e2e
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
 
   game:
     needs: [changes, unit, build, e2e]

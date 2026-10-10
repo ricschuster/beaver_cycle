@@ -1,0 +1,40 @@
+name: Warm cache
+
+# GitHub lets a PR read caches saved on main but not caches saved by another
+# PR, and CI only runs on PRs. This saves the Playwright browser and the npm
+# cache from main, so the PR runs in ci.yml find them. The keys must match.
+on:
+  push:
+    branches: [main]
+    paths: [package-lock.json]
+  schedule:
+    # Caches unused for 7 days are dropped.
+    - cron: '17 4 * * 1,4'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium

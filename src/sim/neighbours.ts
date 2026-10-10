@@ -4,9 +4,10 @@
 // skip needs no catch-up and only the beavers near the player are ever worked out. No three.js and no DOM here.
 import { nameOf } from './names';
 import { DAY_SECONDS, DAYS_PER_YEAR, isNight } from './clock';
-import { COAT_COUNT, kitCoat, pondPlace, pondParts, type Coat } from './family';
+import { COAT_COUNT, kitCoat, pondParts, type Coat } from './family';
 import { lifeAt, STAGE_RULES, type Stage } from './life';
 import { LODGE_WOOD, findSite, type Lodge } from './lodge';
+import { routineAt, type RoutineMember } from './routines';
 import type { Terrain } from './terrain';
 
 export interface Neighbour {
@@ -19,8 +20,21 @@ export interface Neighbour {
   seed: number;
 }
 
-/** What a neighbour beaver is doing. Sleep is not listed: a sleeper is in the lodge and not drawn. More tasks come with the next slice. */
-export type NeighbourTask = 'swim' | 'rest';
+/**
+ * What a beaver of a family is doing this moment (`routines.ts`): swimming or walking somewhere, resting, eating, gnawing a
+ * branch on the bank, carrying a load, patting it onto the dam, the lodge or the store, grooming, or playing. Sleep is not
+ * listed: a sleeper is in the lodge and not drawn.
+ */
+export type NeighbourTask = 'swim' | 'rest' | 'eat' | 'gnaw' | 'carry' | 'build' | 'groom' | 'play';
+
+/**
+ * The errand a beaver is on, the reason for its task: mending the dam, filling the winter food store, patting mud on the
+ * lodge, eating, watching or calling the kits (for a kit: keeping by its parent), playing, or resting.
+ */
+export type NeighbourErrand = 'dam' | 'store' | 'lodge' | 'food' | 'kits' | 'play' | 'rest';
+
+/** What a beaver holds in its mouth or paws. */
+export type NeighbourCarry = 'branch' | 'lily' | 'mud' | null;
 
 export interface NeighbourBeaver {
   id: string;
@@ -37,6 +51,11 @@ export interface NeighbourBeaver {
   /** 0 resting, 1 on the move. */
   pace: number;
   task: NeighbourTask;
+  /** The errand the task is part of: its reason. */
+  errand: NeighbourErrand;
+  carry: NeighbourCarry;
+  /** Walking on the bank or swimming. Missing means swimming. */
+  mode?: 'walk' | 'swim';
   /** Size of the model against an adult. */
   scale: number;
 }
@@ -111,30 +130,32 @@ function litter(n: Neighbour, year: number): { id: string; bornAt: number; coat:
   return Array.from({ length: size }, (_, k) => ({ id: `${n.id}:kit:${year}:${k}`, bornAt, coat: kitCoat(n.parents, hash(n.seed, year * 8 + k + 100)) }));
 }
 
-/** The beavers of the families at a clock value: those awake and in the pond. At night everyone sleeps in the lodge. */
+/** The beavers of the families at a clock value: those awake, each on its errand (`routines.ts`). At night everyone sleeps in the lodge. */
 export function neighboursAt(families: readonly Neighbour[], clock: number, ground: Terrain): NeighbourBeaver[] {
   if (families.length === 0 || isNight(clock)) return [];
   const out: NeighbourBeaver[] = [];
   for (const n of families) {
     const parts = pondParts(n.lodge, ground);
     if (parts.length === 0) continue;
-    const place = (i: number) => pondPlace(n.lodge, parts, ground, clock, i);
-    const adult = (role: 'mama' | 'papa', i: number): NeighbourBeaver => {
-      const p = place(i);
-      return { id: `${n.id}:${role}`, name: nameOf(`${n.id}:${role}`), family: n.id, role, stage: 'adult', coat: n.parents[i]!, x: p.x, y: p.y, z: p.z, heading: p.heading, pace: p.pace, task: p.pace > 0 ? 'swim' : 'rest', scale: STAGE_RULES.adult.scale };
-    };
-    out.push(adult('mama', 0), adult('papa', 1));
+    const members: (RoutineMember & { coat: Coat })[] = [
+      { id: `${n.id}:mama`, role: 'mama', stage: 'adult', coat: n.parents[0] },
+      { id: `${n.id}:papa`, role: 'papa', stage: 'adult', coat: n.parents[1] },
+    ];
     const year = Math.floor(clock / (DAYS_PER_YEAR * DAY_SECONDS));
     // The litter of last spring is still young; the one before it has grown up and gone.
-    let slot = 2;
     for (const y of [year - 1, year]) {
       for (const kit of litter(n, y)) {
         const life = lifeAt(clock, kit.bornAt);
         if (kit.bornAt > clock || life.stage === 'adult' || life.ageDays > KIT_SEASON * 2) continue;
-        const p = place(slot++);
-        out.push({ id: kit.id, name: nameOf(kit.id), family: n.id, role: 'kit', stage: life.stage, coat: kit.coat, x: p.x, y: p.y, z: p.z, heading: p.heading, pace: p.pace, task: p.pace > 0 ? 'swim' : 'rest', scale: STAGE_RULES[life.stage].scale });
+        members.push({ id: kit.id, role: 'kit', stage: life.stage, coat: kit.coat });
       }
     }
+    // The family's dam is not on the map, so its papa mends a stretch of the bank, where the dam would be.
+    const doing = routineAt({ lodge: n.lodge, seed: n.seed, parts, dam: 'shore' }, members, clock, ground);
+    members.forEach((m, i) => {
+      const d = doing[i]!;
+      out.push({ id: m.id, name: nameOf(m.id), family: n.id, role: m.role, stage: m.stage, coat: m.coat, x: d.x, y: d.y, z: d.z, heading: d.heading, pace: d.pace, task: d.task, errand: d.errand, carry: d.carry, mode: d.mode, scale: STAGE_RULES[m.stage].scale });
+    });
   }
   return out;
 }

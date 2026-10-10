@@ -10,6 +10,7 @@ import { DAY_SECONDS, dateAt, withSeason, withTimeOfDay } from './sim/clock';
 import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { formerParentsAt, parentsAt } from './sim/family';
+import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
 import { growNeighbours, neighboursAt } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
@@ -646,7 +647,7 @@ async function start(): Promise<void> {
     }
     if (slappedNow) world = startle(world, around);
     // Talking: a press of Build where nothing else wants it starts a talk with the nearest beaver in reach (#344).
-    const parents = [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)];
+    const parents = [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats, homeDam(world.lodge, world.spots, world.dams)), ...formerParentsAt(world.formerHomes, world.clock, ponded)];
     // A baby cannot work, but it talks to its own people from day 1 (Mama and Papa; siblings are not in the game yet).
     const grown = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works;
     const near = buildIsFree(world) ? nearestSpeaker(speakersOf(grown ? familyBeavers : [], parents, grown ? world.partners : [], nameOf), world.beaver) : null;
@@ -763,7 +764,7 @@ async function start(): Promise<void> {
     nearestTree: (x: number, z: number, reach: number) => trees.nearest(x, z, reach, new Set(world.felled)),
     lilyPadsNear: (radius: number) => lilyPadsNear(terrain, world.beaver.x, world.beaver.z, radius, world.clock, world.picked),
     // Mama and Papa as drawn now: of the player's lodge while young, and of every lodge the family has left.
-    parents: () => [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds), world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds))],
+    parents: () => [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds), world.parentCoats, homeDam(world.lodge, world.spots, world.dams)), ...formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds))],
     formerParents: () => formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds)),
     // The beavers of the other families as drawn now.
     neighbours: () => neighboursAt(world.neighbours, world.clock, withPonds(terrain, world.ponds)),

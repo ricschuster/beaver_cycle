@@ -32,10 +32,10 @@ test.describe('a baby at home', () => {
     expect(parents).toHaveLength(2);
     for (const p of parents) {
       expect(p.inside).toBe(false);
-      expect(p.mode).toBe('swim');
-      // In the pond, outside the dome and inside the farthest part.
+      // On an errand (routines.ts): in the pond, or on its bank, outside the dome and within the reach of a shore spot.
+      expect(['swim', 'walk']).toContain(p.mode);
       expect(dist(p, w.lodge)).toBeGreaterThan(2);
-      expect(dist(p, w.lodge)).toBeLessThan(28);
+      expect(dist(p, w.lodge)).toBeLessThan(40);
     }
     await shot(page, 'family-02-baby-in-pond');
     expect(errors).toEqual([]);

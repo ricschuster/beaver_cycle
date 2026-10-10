@@ -62,6 +62,21 @@ The rules that keep this cheap and calm:
 Each slice works without the others: talk and chatter read the errand when it is there and fall back to today's lines when it
 is not. The "As built" parts go in note 24 (routines) and note 27 (talk and chatter).
 
+## As built
+
+- Routines (slice 1, `src/sim/routines.ts`): the day has five errand slots of an eighth of a day each; at night everyone rests
+  by the lodge door (the other families are inside and not drawn). Each slot gives every beaver one errand by role, season,
+  time of day, and a hash, and the errand is a list of moves and stays: swim to a bank spot (on land 0.5 m up from the
+  water's edge, found along 24 rays from the lodge within 36 m), gnaw, carry the branch back, pat it onto the dam, the lodge
+  rim or the store pile; or mud from the bottom; or eat (lily pads in spring and summer, bark or the store in autumn and
+  winter), groom, rest, call the kits, play. An errand starts where the last one ended, so the place is still a pure function
+  of the clock and nothing is saved. Kits often keep by mama (a baby only in water) or a teenager helps papa, kits play in
+  rings round each other or round mama, and in about a third of the slots two of a family meet at one spot. The home
+  family's dam is the player's dam of the lodge's pond (or the nearest within 90 m); another family mends a fixed stretch of
+  its bank. `NeighbourBeaver` and `Parent` carry `task`, `errand` and `carry`, and the renderer draws walk or swim, the load,
+  and the gnaw, build, eat and groom poses. A beaver moved by its family's mood swims and drops the pose but keeps its load.
+  Numbers (errand speed 2.5 m/s, meet chance 0.35, kits' play ring 1.6 m) are first guesses.
+
 ## Open for the author
 
 - Should neighbours ever visit the player's pond, or always stay at their own?

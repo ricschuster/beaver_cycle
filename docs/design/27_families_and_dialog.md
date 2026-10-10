@@ -3,7 +3,7 @@
 Design note, session 74. It answers open question 2 of [24_npcs_and_animals.md](24_npcs_and_animals.md) (#276: how the
 player interacts with other beaver families) and adds dialog between beavers, which the author asked for. Status: the family
 interactions are agreed with the author (greet, gifts, partner framing, rescue later, no shared dams). The dialog is a draft
-proposal; the author answered its open points in session 74 (see "Decided" at the end). Slice 1 is built (see "As built"); the dialog is not.
+proposal; the author answered its open points in session 74 (see "Decided" at the end). All four slices are built (see "As built").
 
 ## Family interactions (agreed)
 
@@ -44,7 +44,14 @@ Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesse
   player (a curious family, or the player's own Mama, Papa and partner) tells; a calm one says to come back later. Overheard talk: once
   in a slot of a twelfth of a game day, if two beavers of a family are within 30 m, one calls the other by name (a toast), about half the
   slots. The same slot gives the same call.
-- Not built: the rescue (#346).
+- The rescue (#346, `src/sim/escort.ts`): in winter, in one winter in two for each family that is not wary (trust 0.3 and up), its mama
+  or papa is stuck in a snowdrift on dry ground 9 to 18 m from its lodge (the same spot each time). A toast tells the player when it
+  comes within 45 m, with the pond's name. Holding Gnaw within 3 m, standing still, for 4 s digs it out: the winter's drift goes into
+  `world.rescued`, the member into `world.guides`, and the family trusts the player 0.3 more. A freed guide swims in its pond again, and
+  talking to it adds the reply "Show me the way". Then `world.escort` (not saved) has it lead at 6 m/s to the nearest lone beaver if the
+  player has no mate, else the nearest free dam spot over 20 m away, else home; it waits when the player is 14 m behind, gives up at
+  70 m, and stays 15 s at the goal. Drawn: a white mound (renderer) with the beaver sunk in it. Q52 also names fighting off predators;
+  only the snow is built. Numbers are first guesses.
 
 ## Dialog between beavers (proposal)
 

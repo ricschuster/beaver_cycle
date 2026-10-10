@@ -128,7 +128,7 @@ Code: `src/sim/moods.ts`, `src/sim/pondGuests.ts`, `src/sim/guides.ts`, drawn by
 | --- | --- | --- |
 | Family: mama, papa, siblings | In the home lodge | Mama and papa exist in the lodge (`22_life_stages.md`) |
 | Partner | A lone beaver, then in your lodge | Built: `partners.ts`, `upkeep.ts` |
-| Stuck guide | Snow or predators, any family | Not built (Q20 to Q22) |
+| Stuck guide | Snow or predators, any family | Snow only, built in session 74 (Q20 to Q22, `27_families_and_dialog.md`) |
 | **Other families** | Their own lodge and dam on a pond of the valley | Not built, new in this note |
 
 ### Other families (the author's new direction)

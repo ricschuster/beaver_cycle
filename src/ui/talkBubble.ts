@@ -4,6 +4,8 @@
 export interface TalkBubble {
   /** Show the prompt for a speaker's name, or nothing when `name` is null. A line on screen is not replaced by a prompt. */
   prompt(name: string | null, key: string): void;
+  /** Show a plain note, such as the digging, or nothing when `text` is null. A line on screen is not replaced. */
+  note(text: string | null): void;
   /** Show what a beaver says, for `seconds`, with reply buttons that call `pick` with the button's id (none for a plain line). */
   say(name: string, text: string, seconds: number, choices?: readonly Choice[], pick?: (id: string) => void): void;
   /** Counts down a line, call each frame. */
@@ -43,6 +45,11 @@ export function createTalkBubble(parent: HTMLElement): TalkBubble {
       if (line) return;
       if (name === null) root.style.display = 'none';
       else show(`<span style="opacity:.7">${esc(promptText(name, key))}</span>`);
+    },
+    note(text) {
+      if (line) return;
+      if (text === null) root.style.display = 'none';
+      else show(`<span style="opacity:.8">${esc(text)}</span>`);
     },
     say(name, text, seconds, choices = [], pick) {
       line = true;

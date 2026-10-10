@@ -9,7 +9,7 @@ const lake: Terrain = { heightAt: () => 0, isWater: () => true, waterDepth: () =
 const dry: Terrain = { heightAt: () => 0, isWater: () => false, waterDepth: () => 0 };
 
 const beaver = (family: string, role: 'mama' | 'papa' | 'kit', x: number, z: number): NeighbourBeaver => ({
-  id: `${family}:${role}`, family, role, stage: role === 'kit' ? 'baby' : 'adult', coat: { coat: 0, shade: 0 }, x, y: 0, z, heading: 0, pace: 0, task: 'rest', scale: 1,
+  id: `${family}:${role}`, name: 'Test', family, role, stage: role === 'kit' ? 'baby' : 'adult', coat: { coat: 0, shade: 0 }, x, y: 0, z, heading: 0, pace: 0, task: 'rest', scale: 1,
 });
 const world = (trust: Record<string, number> = {}): WorldState => ({ ...createWorld(lake, 0, 0), trust });
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }): number => Math.hypot(a.x - b.x, a.z - b.z);

@@ -31,7 +31,8 @@ Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesse
 - A branch or lily pad put down within 12 m of a family's beaver is taken, and trust rises by 0.3. A rock or mud is left.
 - A tail slap within 30 m costs the family 0.25. Trust is kept in `world.trust` under the family id, so it is saved.
 - The first time a family comes within 20 m, a toast greets the player by mood. The manual has a paragraph.
-- Not built: names (#343), any talk (#344), hints (#345), the rescue (#346).
+- Names (#343, `src/sim/names.ts`): each family beaver has a `name`, a pure function of its id from a list of 40 nature names, and a family is called for where its pond lies from the home, such as "north pond" (`pondName`).
+- Not built: any talk (#344), hints (#345), the rescue (#346).
 
 ## Dialog between beavers (proposal)
 

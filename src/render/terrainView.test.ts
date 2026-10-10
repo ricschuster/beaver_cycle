@@ -27,6 +27,16 @@ describe('water geometry', () => {
     expect(p.count).toBe(4 * 6); // the lake cell and its three neighbours
   });
 
+  it('keeps the depth of the water at each vertex, 0 on the shoreline', () => {
+    // the same slope as above: the water is 160 m deep at x = 0 and 0 deep at the shore, x = 160
+    const tile = makeTile(0, 0, 2, (x) => 580 + (x - 160), CLASS_LAKE);
+    const geo = buildLakeGeometry(tile, 320, 580)!;
+    const p = geo.getAttribute('position');
+    const d = geo.getAttribute('waterDepth');
+    expect(d.count).toBe(p.count);
+    for (let k = 0; k < p.count; k++) expect(d.getX(k)).toBeCloseTo(160 - p.getX(k), 3);
+  });
+
   it('draws no lake on a tile without lake cells', () => {
     expect(buildLakeGeometry(makeTile(0, 0, 2, () => 0, 1), 320, 580)).toBeNull();
   });

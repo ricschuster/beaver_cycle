@@ -1,4 +1,4 @@
-// Ground and tree colours by season. Pure numbers (0xRRGGBB and amounts), so it is testable without three.js.
+// Ground, tree, and water colours by season. Pure numbers (0xRRGGBB and amounts), so it is testable without three.js.
 // Summer is the base look of the tiles; the other seasons pull the ground towards a colour.
 import { DAYS_PER_SEASON, SEASONS, type Season } from '../sim/clock';
 
@@ -21,6 +21,15 @@ export interface SeasonLook {
   foliage: number;
   /** How hard the broadleaf trees are dropping leaves, 0 to 1. */
   leafFall: number;
+  /** Snow on the trees, 0 to 1: it settles on the tops of the conifer tiers and the bare branches. */
+  snow: number;
+  /** Colour of the open water of the lake and the streams. */
+  water: number;
+  /**
+   * Ice at the edges of the lake, 0 to 1: 1 freezes the shallows the beaver wades in. The water it swims in stays
+   * open, since the sim lets it swim all winter, and the talk says "the pond is frozen at the edges" (src/sim/talk.ts).
+   */
+  ice: number;
 }
 
 const KEYS: Record<Season, SeasonLook> = {
@@ -31,6 +40,9 @@ const KEYS: Record<Season, SeasonLook> = {
     leaf: 0x86b84e,
     foliage: 1,
     leafFall: 0,
+    snow: 0,
+    water: 0x3f97ad, // snowmelt, a little milky
+    ice: 0,
   },
   summer: {
     grass: { color: 0x9bbf5f, amount: 0 },
@@ -39,6 +51,9 @@ const KEYS: Record<Season, SeasonLook> = {
     leaf: 0x3f7a35,
     foliage: 1,
     leafFall: 0,
+    snow: 0,
+    water: 0x3b8fb0,
+    ice: 0,
   },
   autumn: {
     grass: { color: 0xb59a4a, amount: 0.6 },
@@ -47,6 +62,9 @@ const KEYS: Record<Season, SeasonLook> = {
     leaf: 0xc9782a,
     foliage: 1,
     leafFall: 1,
+    snow: 0,
+    water: 0x2f7896, // deeper and darker under a low sun
+    ice: 0,
   },
   winter: {
     grass: { color: 0xeef2f5, amount: 0.85 },
@@ -55,6 +73,9 @@ const KEYS: Record<Season, SeasonLook> = {
     leaf: 0x6b5a4c,
     foliage: 0,
     leafFall: 0,
+    snow: 1,
+    water: 0x7aa6ba, // cold and grey
+    ice: 1,
   },
 };
 
@@ -82,6 +103,9 @@ function mixLook(a: SeasonLook, b: SeasonLook, t: number): SeasonLook {
     leaf: mix(a.leaf, b.leaf, t),
     foliage: a.foliage + (b.foliage - a.foliage) * t,
     leafFall: a.leafFall + (b.leafFall - a.leafFall) * t,
+    snow: a.snow + (b.snow - a.snow) * t,
+    water: mix(a.water, b.water, t),
+    ice: a.ice + (b.ice - a.ice) * t,
   };
 }
 

@@ -12,7 +12,7 @@ import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
 import { STAGE_RULES, stageAt } from '../sim/life';
 import { SLAP_DURATION, createBeaverModel, type BeaverModel } from './beaverModel';
-import { createActionWatcher, idleGroom, seedOf } from './beaverAction';
+import { createActionWatcher, idleGroom, seedOf, taskAction } from './beaverAction';
 import { HEARD_DISTANCE, SLAP_EVERY } from '../sim/partners';
 import type { Parent, ParentId } from '../sim/family';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
@@ -404,7 +404,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         }
         entry.pace += (p.pace - entry.pace) * 0.1;
         const parentStill = entry.pace < 0.05 && p.mode !== 'swim';
-        entry.model.update(now, entry.pace, p.mode === 'swim' ? 'swim' : 'walk', 0, null, null, idleGroom(world.time, parentStill, seedOf(p.id)));
+        // The pose of the errand's task (routines.ts), else a groom now and then while it stands.
+        const parentAction = taskAction(p.task, world.time, seedOf(p.id)) ?? idleGroom(world.time, parentStill, seedOf(p.id));
+        entry.model.update(now, entry.pace, p.mode === 'swim' ? 'swim' : 'walk', 0, null, p.carry ?? null, parentAction);
         g.position.set(p.x, p.y, p.z);
         g.rotation.y = p.heading;
       }
@@ -439,7 +441,11 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
           entry.model.setCoat(n.coat.coat, n.coat.shade);
         }
         entry.pace += (n.pace - entry.pace) * 0.1;
-        entry.model.update(now, entry.pace, 'swim');
+        // Walking on the bank or swimming, with the load of its errand and the pose of its task (routines.ts).
+        const nMode = n.mode ?? 'swim';
+        const nSeed = seedOf(n.id);
+        const nAction = taskAction(n.task, world.time, nSeed) ?? (n.task === 'rest' ? idleGroom(world.time, entry.pace < 0.05 && nMode === 'walk', nSeed) : null);
+        entry.model.update(now, entry.pace, nMode, 0, null, n.carry, nAction);
         g.position.set(n.x, n.y, n.z);
         g.rotation.y = n.heading;
         g.scale.setScalar(n.scale);

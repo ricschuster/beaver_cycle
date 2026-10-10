@@ -26,14 +26,15 @@ export const familyMood = (world: Pick<WorldState, 'trust'>, family: string): Mo
 
 const inWater = (t: Terrain, x: number, z: number): boolean => t.waterDepth(x, z) >= 0.3;
 
+/** A beaver moved by its family's mood swims off: its errand's pose is dropped, though it keeps what it carries. */
 function placed(n: NeighbourBeaver, x: number, z: number, heading: number, t: Terrain): NeighbourBeaver {
-  return { ...n, x, z, heading, y: t.heightAt(x, z) + t.waterDepth(x, z) - 0.2, pace: 1, task: 'swim' };
+  return { ...n, x, z, heading, y: t.heightAt(x, z) + t.waterDepth(x, z) - 0.2, pace: 1, task: 'swim', mode: 'swim' };
 }
 
 /**
  * The beavers of the families as they stand for this frame given the family's mood. A wary family's beavers keep
  * `FAMILY_KEEP_AWAY` from the beaver, and a curious family's kits swim part of the way to a spot just short of it. A move that
- * would leave the water is not made, so nobody walks on land.
+ * would leave the water is not made, so the mood never sends a beaver onto land. A moved beaver's task becomes 'swim'.
  */
 export function reactFamilies(beavers: readonly NeighbourBeaver[], world: Pick<WorldState, 'trust' | 'beaver'>, t: Terrain): NeighbourBeaver[] {
   const b = world.beaver;

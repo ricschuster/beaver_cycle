@@ -1,0 +1,79 @@
+import { describe, expect, it } from 'vitest';
+import { FAMILY_KEEP_AWAY, FAMILY_START_TRUST, GIFT_REACH, KIT_CLOSE, familyMood, familyTrust, giftFamilies, greetedBy, reactFamilies, startleFamilies } from './familyMoods';
+import { FEED_TRUST, SLAP_TRUST } from './moods';
+import type { NeighbourBeaver } from './neighbours';
+import { createWorld, type WorldState } from './state';
+import type { Terrain } from './terrain';
+
+const lake: Terrain = { heightAt: () => 0, isWater: () => true, waterDepth: () => 2 };
+const dry: Terrain = { heightAt: () => 0, isWater: () => false, waterDepth: () => 0 };
+
+const beaver = (family: string, role: 'mama' | 'papa' | 'kit', x: number, z: number): NeighbourBeaver => ({
+  id: `${family}:${role}`, family, role, stage: role === 'kit' ? 'baby' : 'adult', coat: { coat: 0, shade: 0 }, x, y: 0, z, heading: 0, pace: 0, task: 'rest', scale: 1,
+});
+const world = (trust: Record<string, number> = {}): WorldState => ({ ...createWorld(lake, 0, 0), trust });
+const dist = (a: { x: number; z: number }, b: { x: number; z: number }): number => Math.hypot(a.x - b.x, a.z - b.z);
+
+describe('family trust', () => {
+  it('starts wary, and follows the record', () => {
+    expect(familyTrust(world(), 'f')).toBe(FAMILY_START_TRUST);
+    expect(familyMood(world(), 'f')).toBe('wary');
+    expect(familyMood(world({ f: 0.5 }), 'f')).toBe('calm');
+    expect(familyMood(world({ f: 0.8 }), 'f')).toBe('curious');
+  });
+});
+
+describe('reactFamilies', () => {
+  it('keeps a wary family away from the beaver, in the water only', () => {
+    const w = world();
+    const near = [beaver('f', 'mama', 3, 0)];
+    expect(dist(reactFamilies(near, w, lake)[0]!, w.beaver)).toBeCloseTo(FAMILY_KEEP_AWAY, 5);
+    expect(reactFamilies(near, w, dry)[0]).toEqual(near[0]);
+    const far = [beaver('f', 'mama', 30, 0)];
+    expect(reactFamilies(far, w, lake)[0]).toEqual(far[0]);
+  });
+
+  it('lets a calm family be, and sends the kits of a curious one to look', () => {
+    const calm = world({ f: 0.5 });
+    const list = [beaver('f', 'mama', 8, 0), beaver('f', 'kit', 20, 0)];
+    expect(reactFamilies(list, calm, lake)).toEqual(list);
+    const curious = world({ f: 0.9 });
+    const out = reactFamilies(list, curious, lake);
+    expect(out[0]).toEqual(list[0]);
+    expect(dist(out[1]!, curious.beaver)).toBeLessThan(20);
+    expect(dist(out[1]!, curious.beaver)).toBeGreaterThan(KIT_CLOSE);
+  });
+});
+
+describe('gifts and slaps', () => {
+  const lying = (kind: 'branch' | 'lily' | 'rock', x: number) => ({ id: `d${x}`, kind, at: 0, x, z: 0 });
+  it('takes food put down near a family and trusts more', () => {
+    const w = { ...world(), dropped: [lying('branch', 5), lying('lily', 6)] };
+    const r = giftFamilies(w, [beaver('f', 'mama', 8, 0)]);
+    expect(r.thanked).toEqual(['f', 'f']);
+    expect(r.world.dropped).toEqual([]);
+    expect(familyTrust(r.world, 'f')).toBeCloseTo(FAMILY_START_TRUST + 2 * FEED_TRUST, 5);
+  });
+
+  it('leaves a rock, and food that is too far', () => {
+    const w = { ...world(), dropped: [lying('rock', 5), lying('branch', 8 + GIFT_REACH + 1)] };
+    const r = giftFamilies(w, [beaver('f', 'mama', 8, 0)]);
+    expect(r.thanked).toEqual([]);
+    expect(r.world).toBe(w);
+  });
+
+  it('loses trust to a slap near the family, never below 0', () => {
+    const w = world({ f: 0.5 });
+    expect(familyTrust(startleFamilies(w, [beaver('f', 'mama', 10, 0)]), 'f')).toBeCloseTo(0.5 - SLAP_TRUST, 5);
+    expect(familyTrust(startleFamilies(world({ f: 0.1 }), [beaver('f', 'mama', 10, 0)]), 'f')).toBe(0);
+    expect(startleFamilies(w, [beaver('f', 'mama', 100, 0)])).toBe(w);
+  });
+});
+
+describe('greetedBy', () => {
+  it('names the nearest family within range', () => {
+    const w = world();
+    expect(greetedBy([beaver('a', 'mama', 15, 0), beaver('b', 'mama', 5, 0)], w)).toBe('b');
+    expect(greetedBy([beaver('a', 'mama', 50, 0)], w)).toBeNull();
+  });
+});

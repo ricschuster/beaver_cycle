@@ -3,7 +3,7 @@
 Design note, session 74. It answers open question 2 of [24_npcs_and_animals.md](24_npcs_and_animals.md) (#276: how the
 player interacts with other beaver families) and adds dialog between beavers, which the author asked for. Status: the family
 interactions are agreed with the author (greet, gifts, partner framing, rescue later, no shared dams). The dialog is a draft
-proposal; the author answered its open points in session 74 (see "Decided" at the end). Nothing is built yet.
+proposal; the author answered its open points in session 74 (see "Decided" at the end). Slice 1 is built (see "As built"); the dialog is not.
 
 ## Family interactions (agreed)
 
@@ -21,6 +21,17 @@ Trust is 0 to 1 per family, kept in the same place as the animals' trust (`world
 `moods.ts`). A family starts wary at 0.1. Below 0.3 it keeps its distance (about 14 m), from 0.7 it is curious: the kits come
 to look and the parents stay near. A gift raises trust (first guess +0.3, as for animals), a tail slap within 30 m lowers it
 (-0.25). Nothing is ever lost: a wary family is only shy, never hostile (Q2, no losing).
+
+### As built (session 74, #342)
+
+Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesses to tune on a tablet.
+
+- A family starts at trust 0.1 (wary). `reactFamilies` places the family's beavers for the frame: wary ones keep 12 m from the
+  beaver, and a curious family's kits swim part of the way to 4 m from it (from 25 m). A move that would leave the water is not made.
+- A branch or lily pad put down within 12 m of a family's beaver is taken, and trust rises by 0.3. A rock or mud is left.
+- A tail slap within 30 m costs the family 0.25. Trust is kept in `world.trust` under the family id, so it is saved.
+- The first time a family comes within 20 m, a toast greets the player by mood. The manual has a paragraph.
+- Not built: names (#343), any talk (#344), hints (#345), the rescue (#346).
 
 ## Dialog between beavers (proposal)
 

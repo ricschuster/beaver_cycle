@@ -1,6 +1,6 @@
 // What a beaver can tell the player (docs/design/27_families_and_dialog.md, #345): hints that are true now, read from the
-// world, and the calls the members of a family make to each other that the player can overhear. Pure, no DOM.
-import { dateAt, DAY_SECONDS } from './clock';
+// world. What the beavers say to each other is in chatter.ts. Pure, no DOM.
+import { dateAt } from './clock';
 import { damNeedsRepair } from './dam';
 import { stockMeals } from './food';
 import { lodgeComplete, lodgeCondition } from './lodge';
@@ -46,50 +46,4 @@ export function answerNews(world: WorldState, around: Surroundings, trusting: bo
   if (!trusting) return 'I have nothing to tell yet. Come by again when we know each other better.';
   const news = newsFor(world, around);
   return news.length === 0 ? 'Nothing new on the pond today.' : news[seed % news.length]!;
-}
-
-/** Two members of a family and what the first calls out. */
-export interface Overheard {
-  who: string;
-  text: string;
-}
-
-const CALLS: readonly ((to: string) => string)[] = [
-  (to) => `${to}, come back to the lodge!`,
-  (to) => `${to}, do not swim so far!`,
-  (to) => `Look, ${to}! A fish!`,
-  (to) => `${to}, race you to the dam!`,
-  (to) => `${to}, have you eaten?`,
-];
-
-/** A call is made in a slot of this many clock seconds, and only in some slots. */
-export const CALL_SLOT = DAY_SECONDS / 12;
-const CALL_ONE_IN = 2;
-
-function mix(a: number, b: number): number {
-  let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b ^ 0xc2b2ae35, 0x27d4eb2f);
-  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
-  return (h ^ (h >>> 12)) >>> 0;
-}
-
-/**
- * What a family near the player calls out in this slot of the clock: one beaver of the family, within `hearing` metres, calls to
- * another by name. The same slot gives the same call, and the caller asks once per slot, so a call is heard once. Null when
- * nobody calls, or fewer than two of a family are near.
- */
-export function overheard(beavers: readonly { id: string; name: string; family: string; x: number; z: number }[], at: { x: number; z: number }, clock: number, hearing = 30): Overheard | null {
-  const slot = Math.floor(clock / CALL_SLOT);
-  const near = beavers.filter((n) => Math.hypot(n.x - at.x, n.z - at.z) <= hearing);
-  const families = [...new Set(near.map((n) => n.family))].sort();
-  for (const f of families) {
-    const members = near.filter((n) => n.family === f).sort((a, c) => a.id.localeCompare(c.id));
-    if (members.length < 2) continue;
-    const h = mix(slot, [...f].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 3));
-    if (h % CALL_ONE_IN !== 0) continue;
-    const from = members[h % members.length]!;
-    const to = members[(h >>> 3) % members.length]!;
-    if (from.id === to.id) continue;
-    return { who: from.name, text: CALLS[(h >>> 6) % CALLS.length]!(to.name) };
-  }
-  return null;
 }

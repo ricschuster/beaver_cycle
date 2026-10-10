@@ -5,6 +5,7 @@
 // beaver for the frame from where it would be anyway, so no path is stored. Nothing is ever lost here: a wary family is shy,
 // never hostile (Q2). No three.js and no DOM.
 import { SLAP_STARTLE, SLAP_TRUST, FEED_TRUST, moodOf, withTrust, type Mood } from './moods';
+import type { Food } from './food';
 import type { NeighbourBeaver } from './neighbours';
 import type { Terrain } from './terrain';
 import type { WorldState } from './state';
@@ -75,25 +76,52 @@ export const greetedBy = (beavers: readonly NeighbourBeaver[], world: Pick<World
 
 /**
  * Food the beaver put down (a branch or a lily pad lying on the ground) within `GIFT_REACH` of a family's beaver is taken by that
- * family, which trusts the beaver more. Returns the world and the ids of the families that took a gift.
+ * family, which trusts the beaver more. Returns the world, the ids of the families that took a gift, and each gift with its kind.
  */
-export function giftFamilies(world: WorldState, beavers: readonly NeighbourBeaver[]): { world: WorldState; thanked: string[] } {
+export function giftFamilies(world: WorldState, beavers: readonly NeighbourBeaver[]): { world: WorldState; thanked: string[]; gifts: { family: string; kind: Food }[] } {
   const thanked: string[] = [];
+  const gifts: { family: string; kind: Food }[] = [];
   let next = world;
   const left = [];
   for (const d of world.dropped) {
-    const family = d.kind === 'branch' || d.kind === 'lily' ? familiesNear(beavers, d, GIFT_REACH)[0] : undefined;
-    if (family) {
+    const food = d.kind === 'branch' || d.kind === 'lily' ? d.kind : null;
+    const family = food ? familiesNear(beavers, d, GIFT_REACH)[0] : undefined;
+    if (food && family) {
       thanked.push(family);
+      gifts.push({ family, kind: food });
       next = withTrust(next, family, familyTrust(next, family) + FEED_TRUST);
     } else left.push(d);
   }
-  return thanked.length > 0 ? { world: { ...next, dropped: left }, thanked } : { world, thanked };
+  return thanked.length > 0 ? { world: { ...next, dropped: left }, thanked, gifts } : { world, thanked, gifts };
 }
 
 /** A tail slap this step startles the families with a beaver within `SLAP_STARTLE`: they trust the beaver less. */
 export function startleFamilies(world: WorldState, beavers: readonly NeighbourBeaver[]): WorldState {
   let next = world;
   for (const family of familiesNear(beavers, world.beaver, SLAP_STARTLE)) next = withTrust(next, family, familyTrust(next, family) - SLAP_TRUST);
+  return next;
+}
+
+/** Word of a kind deed gets around: other families gain this share of what the family the player helped gained. */
+export const WORD_SHARE = 1 / 3;
+/** A family hears of it when the player has met it, or when its lodge is within this many metres of the helped family's. */
+export const WORD_RANGE = 600;
+
+/**
+ * Word gets around (reputation): after a gift to, or a rescue of, a member of family `from`, which raised its trust by `gain`,
+ * the other families that have met the player (a trust record, or in `met`, such as the families that greeted the player this
+ * visit) or that live within `WORD_RANGE` of it trust the player `gain * WORD_SHARE` more. It only ever adds, so no family drops
+ * below where it stood (Q2, no losing).
+ */
+export function spreadWord(world: WorldState, from: string, gain: number = FEED_TRUST, met: ReadonlySet<string> = new Set()): WorldState {
+  if (gain <= 0) return world;
+  const source = world.neighbours.find((n) => n.id === from)?.lodge ?? null;
+  let next = world;
+  for (const n of world.neighbours) {
+    if (n.id === from) continue;
+    const near = source !== null && Math.hypot(n.lodge.x - source.x, n.lodge.z - source.z) <= WORD_RANGE;
+    if (world.trust[n.id] === undefined && !met.has(n.id) && !near) continue;
+    next = withTrust(next, n.id, familyTrust(next, n.id) + gain * WORD_SHARE);
+  }
   return next;
 }

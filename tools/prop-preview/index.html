@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Prop preview</title>
+    <style>
+      body { margin: 0; background: #222; color: #eee; font: 13px sans-serif; }
+      #labels { position: absolute; inset: 0; pointer-events: none; display: grid; grid-template-columns: repeat(4, 400px); grid-auto-rows: 400px; }
+      #labels div { padding: 4px 6px; text-shadow: 0 0 3px #000; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view" width="1600" height="1600"></canvas>
+    <div id="labels"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

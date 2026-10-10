@@ -7,6 +7,7 @@ import { POND_CELL, crestOf, type Pond } from '../sim/pond';
 import type { DamSpot } from '../sim/damSpots';
 import { WORN_BELOW, stageOf } from '../sim/wear';
 import { createRepairGlow, type RepairGlow } from './repairGlow';
+import { BARK, PEELED, lump, mergeParts, paintLump, place, propMaterial, seedOf, seeded, stick, vary } from './propShapes';
 
 export interface DamView {
   /** Draw the dams at their spots at game time `clock`. Rebuilds only when what has been placed or the wear shown changes. */
@@ -59,24 +60,34 @@ const ROCK_SPACING = 3.2;
 /** The wall reaches the bank, at most this far each way from the bed point (metres). */
 const MAX_REACH = 40;
 
+const MUD = new THREE.Color(0x5a3f28);
+const WET_MUD = new THREE.Color(0x3a2818);
+const STONE = new THREE.Color(0x8d8f8c);
+const MOSS = new THREE.Color(0x6f7d4a);
+
+/** The pieces of one stick place in the wall, at `at` along it and turned `turn` about the vertical: a thick stick, a thinner one across it, and sometimes one that pokes out of the face. */
+function stickBundle(random: () => number, at: THREE.Vector3, turn: number): THREE.BufferGeometry[] {
+  const parts: THREE.BufferGeometry[] = [];
+  const bark = (): THREE.Color => (random() < 0.35 ? vary(PEELED, random, 0.1) : vary(BARK[Math.floor(random() * BARK.length)]!, random, 0.1));
+  parts.push(place(stick(STICK * (0.85 + 0.3 * random()), 0.13 + 0.05 * random(), 6, bark(), random), at, new THREE.Euler(0, turn, (random() - 0.5) * 0.12)));
+  const across = (random() < 0.5 ? -1 : 1) * (0.2 + 0.35 * random());
+  parts.push(place(stick(1.5 + 0.9 * random(), 0.07 + 0.03 * random(), 5, bark(), random), new THREE.Vector3(at.x + (random() - 0.5), at.y + 0.1, at.z + (random() - 0.5) * 0.3), new THREE.Euler(0, turn + across, (random() - 0.5) * 0.2)));
+  if (random() < 0.3) {
+    // A stick pushed in across the wall, one end standing out of the face.
+    const side = random() < 0.5 ? 0 : Math.PI;
+    parts.push(place(stick(1.2 + 0.6 * random(), 0.06 + 0.03 * random(), 5, bark(), random), new THREE.Vector3(at.x + (random() - 0.5), at.y + 0.1, at.z), new THREE.Euler(0, side + Math.PI / 2 + (random() - 0.5) * 0.8, 0.35 + 0.3 * random())));
+  }
+  return parts;
+}
+
 export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m: THREE.Material) => void): DamView {
-  const wood = new THREE.MeshLambertMaterial({ color: 0x7a5230, flatShading: true });
-  const mud = new THREE.MeshLambertMaterial({ color: 0x5a3f28, flatShading: true });
-  const stone = new THREE.MeshLambertMaterial({ color: 0x8d8f8c, flatShading: true });
-  for (const m of [wood, mud, stone]) prepare(m);
-  const stickGeometry = new THREE.CylinderGeometry(0.14, 0.17, STICK, 6).rotateZ(Math.PI / 2);
-  const moundGeometry = new THREE.SphereGeometry(0.8, 10, 6);
-  const rockGeometry = new THREE.IcosahedronGeometry(0.5, 0);
+  // Each dam is one mesh: its sticks, mud, and rocks merged, coloured by vertex.
+  const material = propMaterial();
+  prepare(material);
   const root = new THREE.Group();
   scene.add(root);
   let shown = '';
   const glows = new Map<string, { glow: RepairGlow; at: { x: number; y: number; z: number } }>();
-  const mesh = (g: THREE.BufferGeometry, m: THREE.Material): THREE.Mesh => {
-    const o = new THREE.Mesh(g, m);
-    o.castShadow = shadows;
-    o.receiveShadow = shadows;
-    return o;
-  };
   return {
     update(dams, spots, heightAt, clock = 0, ponds = []) {
       // The glow pulses every frame, the piles are rebuilt only when what they show changes.
@@ -97,6 +108,7 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
       const key = dams.map((d, i) => `${d.spot}:${d.wood}:${d.mud}:${d.rock}:${d.level ?? 1}:${crests[i]}:${Math.round(shownShare(damCondition(d, clock)) * 20)}:${ponds.find((p) => p.spot === d.spot)?.area ?? 0}`).join('|');
       if (key === shown) return;
       shown = key;
+      for (const o of root.children) if (o instanceof THREE.Mesh) o.geometry.dispose();
       root.clear();
       dams.forEach((dam, di) => {
         const spot = spots.find((s) => s.id === dam.spot);
@@ -116,9 +128,10 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
           while (t < MAX_REACH && heightAt(spot.bed.x + lateral.x * sign * (t + 1), spot.bed.z + lateral.z * sign * (t + 1)) < spot.bedY + top) t++;
           return t + 1;
         };
-        const group = new THREE.Group();
-        group.position.set(spot.bed.x, base, spot.bed.z);
-        group.rotation.y = Math.atan2(-lateral.z, lateral.x);
+        // Every piece has its own seeded draw for its size, turn, and colour, so it looks the same each time the dam is rebuilt.
+        const seed = seedOf(dam.spot);
+        const randomFor = (kind: number, i: number): (() => number) => seeded(seed + kind * 7919 + i * 104729);
+        const parts: THREE.BufferGeometry[] = [];
         const crest = crests[di]!;
         const rows = dam.wood > 0 ? Math.max(1, Math.ceil(crest / ROW_HEIGHT - 1e-9)) : 0;
         let first = { left: 0, right: 0 };
@@ -132,31 +145,35 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
           const n = Math.max(1, Math.ceil((span.left + span.right) / SPACING));
           for (let i = 0; i < n; i++) {
             if (!shows(i + r * 13)) continue;
-            const o = mesh(stickGeometry, wood);
-            o.position.set(-span.left + (i + 0.5) * ((span.left + span.right) / n) + (r % 2) * 0.5, spot.bedY + h - base, ((i * 7) % 3) * 0.08);
-            o.rotation.y = ((i * 5) % 7) * 0.03 - 0.1;
-            group.add(o);
+            const at = new THREE.Vector3(-span.left + (i + 0.5) * ((span.left + span.right) / n) + (r % 2) * 0.5, spot.bedY + h - base, ((i * 7) % 3) * 0.08);
+            parts.push(...stickBundle(randomFor(1, r * 1000 + i), at, ((i * 5) % 7) * 0.03 - 0.1));
           }
         }
         const mounds = Math.max(1, Math.ceil((first.left + first.right) / MOUND_SPACING));
         const mudShare = Math.min(1, dam.mud / costOf(dam).mud);
         for (let i = 0; i < Math.ceil(mounds * mudShare - 1e-9); i++) {
           if (!shows(i + 5)) continue;
-          const o = mesh(moundGeometry, mud);
-          o.position.set(-first.left + (i + 0.5) * ((first.left + first.right) / mounds), spot.bedY + 0.4 - base, 0.35);
-          o.scale.set(1.2, 0.5, 1.1);
-          group.add(o);
+          const random = randomFor(2, i);
+          const size = 0.9 + 0.25 * random();
+          const mound = paintLump(lump(random, 0.12, 1, -0.6), MUD, random, { color: WET_MUD, share: 0.3 });
+          parts.push(place(mound, new THREE.Vector3(-first.left + (i + 0.5) * ((first.left + first.right) / mounds), spot.bedY + 0.4 - base, 0.35), new THREE.Euler(0, random() * Math.PI, 0), new THREE.Vector3(1.05 * size, 0.45 * size, 0.85 * size)));
         }
         const rocks = Math.max(1, Math.ceil((last.left + last.right) / ROCK_SPACING));
         const rockShare = Math.min(1, dam.rock / costOf(dam).rock);
         for (let i = 0; i < Math.ceil(rocks * rockShare - 1e-9); i++) {
           if (!shows(i + 9)) continue;
-          const o = mesh(rockGeometry, stone);
-          o.position.set(-last.left + (i + 0.5) * ((last.left + last.right) / rocks), spot.bedY + Math.max(rows, 1) * ROW_HEIGHT + 0.3 - base, -0.3);
-          o.rotation.set(i, i * 2, 0);
-          group.add(o);
+          const random = randomFor(3, i);
+          const size = 0.45 + 0.15 * random();
+          const rock = paintLump(lump(random, 0.22), STONE, random, { color: MOSS, share: 0.2 });
+          parts.push(place(rock, new THREE.Vector3(-last.left + (i + 0.5) * ((last.left + last.right) / rocks), spot.bedY + Math.max(rows, 1) * ROW_HEIGHT + 0.3 - base, -0.3), new THREE.Euler(0, random() * Math.PI * 2, (random() - 0.5) * 0.4), new THREE.Vector3(size * 1.1, size * 0.8, size)));
         }
-        root.add(group);
+        if (parts.length === 0) return;
+        const o = new THREE.Mesh(mergeParts(parts), material);
+        o.castShadow = shadows;
+        o.receiveShadow = shadows;
+        o.position.set(spot.bed.x, base, spot.bed.z);
+        o.rotation.y = Math.atan2(-lateral.z, lateral.x);
+        root.add(o);
       });
     },
   };

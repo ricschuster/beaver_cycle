@@ -46,14 +46,24 @@ describe('stuckNow', () => {
 
 describe('digging and rescue', () => {
   const stuck = { x: 10, z: 0 };
-  it('grows while gnawing still beside the drift, and starts over otherwise', () => {
+  it('starts with a press, grows while standing still beside the drift, and starts over otherwise', () => {
     const b = { x: 10 - DIG_REACH + 0.5, z: 0 };
+    expect(digging(0, stuck, b, false, false, 0.5)).toBe(0);
+    expect(digging(0, stuck, b, true, false, 0.5)).toBe(0.5);
     expect(digging(1, stuck, b, true, false, 0.5)).toBe(1.5);
-    expect(digging(1, stuck, b, false, false, 0.5)).toBe(0);
+    // The press is one frame; the dig goes on without the button.
+    expect(digging(1, stuck, b, false, false, 0.5)).toBe(1.5);
     expect(digging(1, stuck, b, true, true, 0.5)).toBe(0);
     expect(digging(1, stuck, { x: 0, z: 0 }, true, false, 0.5)).toBe(0);
     expect(digging(1, null, b, true, false, 0.5)).toBe(0);
     expect(DIG_TIME).toBeGreaterThan(0);
+  });
+
+  it('finishes from one press after DIG_TIME of standing still', () => {
+    const b = { x: 10, z: 1 };
+    let dug = digging(0, stuck, b, true, false, 0.1);
+    for (let i = 0; i < 40; i++) dug = digging(dug, stuck, b, false, false, 0.1);
+    expect(dug).toBeGreaterThanOrEqual(DIG_TIME);
   });
 
   it('finds the nearest drift in range', () => {

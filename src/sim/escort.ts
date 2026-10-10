@@ -77,10 +77,13 @@ export function stuckNow(world: Pick<WorldState, 'neighbours' | 'trust' | 'clock
   return out;
 }
 
-/** The digging so far (seconds): it grows while the player gnaws, standing still, next to the drift, and starts over otherwise. */
-export function digging(progress: number, stuck: Pick<Stuck, 'x' | 'z'> | null, b: { x: number; z: number }, gnawing: boolean, moving: boolean, dt: number): number {
-  if (!stuck || !gnawing || moving || Math.hypot(stuck.x - b.x, stuck.z - b.z) > DIG_REACH) return 0;
-  return progress + dt;
+/**
+ * The digging so far (seconds). Like felling, a press of Gnaw next to the drift starts it, and it grows while the player
+ * stands still there. Moving away or walking starts it over. (The button gives a press, not a hold, on touch and keys.)
+ */
+export function digging(progress: number, stuck: Pick<Stuck, 'x' | 'z'> | null, b: { x: number; z: number }, pressed: boolean, moving: boolean, dt: number): number {
+  if (!stuck || moving || Math.hypot(stuck.x - b.x, stuck.z - b.z) > DIG_REACH) return 0;
+  return progress > 0 || pressed ? progress + dt : 0;
 }
 
 /** The nearest stuck beaver within `range` of a point, or null. */

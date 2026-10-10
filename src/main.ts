@@ -444,7 +444,7 @@ async function start(): Promise<void> {
   let buildPressed = false; // the build button went down this frame (a talk may start)
   let talkingTo: Speaker | null = null;
   let talks = 0;
-  let gnawHeld = false; // the gnaw button is held and the player is moving, this frame (the digging)
+  let gnawPressed = false; // the gnaw button went down this frame (a dig may start)
   let movingNow = false;
   let dug = 0;
   const heardStuck = new Set<string>();
@@ -547,7 +547,7 @@ async function start(): Promise<void> {
       stashTap = undefined;
       stashClose = false;
       buildPressed = !!actions.build;
-      gnawHeld = !!actions.chop;
+      gnawPressed = !!actions.chop;
       movingNow = actions.move.x !== 0 || actions.move.z !== 0;
       const move = relativeToView(actions.move, rig.view.yaw);
       if (free && rig.view.free) {
@@ -732,7 +732,7 @@ async function start(): Promise<void> {
       toast.show(`Someone is calling for help in the snow${fam ? ` by the ${pondName(fam.lodge, homeAt)}` : ''}. Gnaw the drift to dig`);
     }
     const drift = nearestStuck(stuckList, world.beaver, DIG_REACH);
-    dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, gnawHeld, movingNow, dt) : 0;
+    dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, gnawPressed, movingNow, dt) : 0;
     if (drift && dug >= DIG_TIME) {
       world = rescue(world, drift);
       dug = 0;

@@ -32,6 +32,8 @@ import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createKeyHints } from './ui/keyHints';
 import { WELCOME_KEY, createHelpPanel, wantsWelcome } from './ui/helpPanel';
 import { COACH_KEY, createCoach, wantsCoach } from './ui/coach';
+import { askContinue } from './ui/continueCard';
+import { AUTOSAVE_EVERY, ago, clearSave, loadSave, wantsSave, writeSave, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { createFlyButtons } from './ui/flyButtons';
@@ -244,6 +246,43 @@ async function start(): Promise<void> {
   const stageParam = query.get('stage');
   const startAs = STAGES.includes(stageParam as Stage) ? (stageParam as Stage) : navigator.webdriver ? 'adult' : 'baby';
   if (startAs !== 'adult') world = startStage(world, startAs);
+  // The saved game (docs/design/26_saving.md): one slot. When there is one, the player continues it or starts over.
+  const storage: SaveStorage | null = (() => {
+    try {
+      return localStorage;
+    } catch {
+      return null;
+    }
+  })();
+  let startNote: string | null = null;
+  const saving = storage !== null && !free && wantsSave(query, navigator.webdriver);
+  if (saving) {
+    const found = loadSave(storage, world);
+    if (found.kind === 'ok') {
+      if ((await askContinue(document.body, ago(found.save.savedAt, Date.now()))) === 'continue') {
+        world = found.save.world;
+        // The coach goes on where it was, or stays off if it was closed.
+        coachPending = false;
+        coachOn = found.save.coach.on;
+        coachStage = found.save.coach.stage;
+        if (coachOn && found.save.coach.state) coach?.resume(world, found.save.coach.state);
+      } else clearSave(storage);
+    } else if (found.kind === 'unreadable') startNote = 'The saved game could not be read, so this is a new game.';
+  }
+  const savedCoach = (): SavedCoach => ({ on: coachOn, stage: coachStage, state: coach?.state() ?? null });
+  let savedAt = performance.now();
+  const saveNow = (): void => {
+    if (!saving || !storage) return;
+    savedAt = performance.now();
+    writeSave(storage, world, savedCoach(), Date.now());
+  };
+  // A tablet may close the game without a word when it is put away: save when the page is hidden.
+  if (saving) {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') saveNow();
+    });
+    window.addEventListener('pagehide', saveNow);
+  }
   let last = performance.now();
 
   // A jump holds the beaver while the streamer loads the target, then moves it.
@@ -338,10 +377,11 @@ async function start(): Promise<void> {
   const lifeHud = createLifeHud(hud);
   const carryHud = createCarryHud(hud);
   const toast = createToast(hud);
+  if (startNote) toast.show(startNote);
   let wasCalled = false;
   let lastStage: Stage | null = null;
   let lastFollower: string | null = null;
-  let lastGeneration = 0;
+  let lastGeneration = world.generation;
   let lastSeason = dateAt(world.clock).season;
   const heardBefore = new Set<string>();
   let cueIn = 0; // seconds until the next word on where a lone beaver is
@@ -438,6 +478,7 @@ async function start(): Promise<void> {
       world = withPartners(leaveHome(world));
       toast.show('Mama and Papa say it is time to start a family of your own');
     }
+    if (lastStage !== null && lastStage !== nowStage) saveNow();
     lastStage = nowStage;
     // The coach, after the leaving above, so the adult's steps see a world with no home. A new stage starts that stage's steps.
     if (coachPending) {
@@ -472,8 +513,10 @@ async function start(): Promise<void> {
     }
     const season = dateAt(world.clock).season;
     if (season === 'winter' && lastSeason !== 'winter' && world.partners.length > 0 && !mateOf(world.partners)) toast.show('Kits are born on the first day of spring. Find a partner and a lodge');
+    if (season !== lastSeason) saveNow();
     lastSeason = season;
     if (world.generation > lastGeneration) toast.show('A kit is born');
+    if (world.generation !== lastGeneration) saveNow();
     lastGeneration = world.generation;
     // A toast for each achievement won since the last frame.
     if (wonShown < 0) wonShown = world.achievements.length;
@@ -546,8 +589,10 @@ async function start(): Promise<void> {
         memoryMb: heap ? heap.usedJSHeapSize / 1048576 : null,
       });
     }
+    if (saving && performance.now() - savedAt > AUTOSAVE_EVERY * 1000) saveNow();
     requestAnimationFrame(frame);
   }
+  saveNow();
   requestAnimationFrame(frame);
   // Read only view for tests and the coming test menu.
   (window as unknown as { __game: unknown }).__game = {

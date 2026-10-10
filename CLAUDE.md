@@ -20,7 +20,8 @@ Playable on the real valley, in milestones M1 to M7 of
 `docs/design/13_milestone_plan.md`. The game has terrain streaming, the beaver
 and its camera, time and seasons, chopping, dams, ponds, lodges, food, wear and
 repair, life stages and the next generation, achievements, ambient animals,
-other families, partners, predators, and the player interacting with animals
+other families, partners, predators, the player interacting with animals,
+and talking to and rescuing beavers of other families (`docs/design/27_families_and_dialog.md`)
 (round 1 to 4 answers are in `docs/design/`). All six play locations have tiles
 and animals; playing and tuning them on a tablet is still to do (#42). What is
 left is mostly tuning on a tablet. Open GitHub issues are the live task tracker, and the

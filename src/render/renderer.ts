@@ -373,8 +373,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         splash.scale.setScalar(0.4 + f * 2.6);
         splashMaterial.opacity = 0.8 * (1 - f);
       }
-      // In the lodge the beaver moves to the room's own scene, which is drawn instead of the world.
-      const inside = world.inLodge && world.lodge !== null;
+      // In the lodge the beaver moves to the room's own scene, which is drawn instead of the world. The fly views always show the
+      // world, even when the beaver is in the lodge (a new game starts there as a baby).
+      const inside = world.inLodge && world.lodge !== null && !view.free && !view.focus;
       const drawn = inside ? interior.scene : scene;
       if (beaver.parent !== drawn) drawn.add(beaver);
       const coat = `${world.coat.coat}:${world.coat.shade}`;
@@ -487,8 +488,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       const size = STAGE_RULES[stageAt(world.clock, world.bornAt)].scale;
       beaver.scale.setScalar(size);
       // The fly view orbits a free point on the ground, or on the water over it, not the beaver.
-      const free = view.free && !inside ? view.free : null;
-      const fx = view.focus && !inside && !free ? view.focus : null;
+      const free = view.free ?? null;
+      const fx = view.focus && !free ? view.focus : null;
       const flyY = fx && source ? source.store.heightAt(fx.x, fx.z) + (source.store.isWater(fx.x, fx.z) ? source.store.waterDepth(fx.x, fx.z) : 0) : 0;
       // A young beaver is small, so the camera follows it closer and lower (the square root of its size, so a baby is not too near).
       const follow = free || fx ? 1 : Math.sqrt(size);

@@ -50,7 +50,7 @@ describe('the coach steps', () => {
       expect(s.touch.length).toBeGreaterThan(0);
       if (s.button) expect(['dive', 'slap', 'chop', 'grab', 'build']).toContain(s.button);
     }
-    expect(COACH_DONE).not.toContain('—');
+    expect(COACH_DONE).not.toContain(String.fromCharCode(0x2014));
   });
 });
 

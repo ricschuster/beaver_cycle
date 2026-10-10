@@ -49,6 +49,15 @@ Repeat them when a milestone adds detail. The stress sweep uses the `?rings=`
 and `?trees=` URL options. The screen caps fps at its refresh rate, so only a
 drop in the sweep shows the real limit.
 
+`profile.mjs` finds what a slow frame spends its time on. `cpu` walks at x5 with a V8 CPU profile and prints the JS self
+time inside the frames over 30 ms. `heap` prints what allocates, which is where garbage collection comes from.
+`PLACE`, `Q` (URL options) and `SECONDS` change the run.
+
+```sh
+node tools/tablet-live/profile.mjs cpu
+node tools/tablet-live/profile.mjs heap
+```
+
 To read frame statistics from the computer, forward the WebView debug socket
 and use `window.__game.stats()`:
 

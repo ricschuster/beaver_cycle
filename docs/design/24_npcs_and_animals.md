@@ -142,7 +142,9 @@ family the player knows, which gives the rescue more weight.
 3. Is the budget of 40 live animals right, and what is the real cost on the tablet? Measure with the first animals.
 4. Should wolf and bear stay, given no source for them in the Almtal? The author chose them, so yes, but it is worth
    keeping them rare.
-5. Do predators change what a pond is worth, so a safe pond matters more than just a good lily pond?
+5. Do predators change what a pond is worth, so a safe pond matters more than just a good lily pond? Decided: no for now
+   (#277). A pond stays safe by rule (Q69) and does not vary in worth. Reopen if the chases make the walk to a pond matter;
+   the cheapest version is a text hint when choosing a lodge site, with no scoring.
 6. Order of work. Proposal: (a) ambient animals in the loaded tiles with the seed rule, (b) NPC beaver tasks and
    one other family, (c) predators with the chase rule, (d) the interactions the author picks.
 

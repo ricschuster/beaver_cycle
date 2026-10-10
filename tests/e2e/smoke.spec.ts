@@ -62,13 +62,14 @@ test('the test menu moves the clock and the season, and sleep needs the lodge', 
   await page.getByRole('button', { name: 'Test menu' }).click();
   await page.locator('button[data-time="night"]').click();
   await expect(page.locator('#clock-hud')).toContainText('night');
+  // A season button jumps to the first day with the season's full look (SEASON_FULL_DAY): day 4.
   await page.locator('button[data-season="winter"]').click();
-  await expect(page.locator('#clock-hud')).toContainText('Winter, day 1');
+  await expect(page.locator('#clock-hud')).toContainText('Winter, day 4');
   await page.locator('button[data-action="sleep"]').click();
-  await expect(page.locator('#clock-hud')).toContainText('Winter, day 1');
+  await expect(page.locator('#clock-hud')).toContainText('Winter, day 4');
   await page.locator('button[data-action="lodge"]').click();
   await page.locator('button[data-action="sleep"]').click();
-  await expect(page.locator('#clock-hud')).toContainText('Winter, day 2, morning');
+  await expect(page.locator('#clock-hud')).toContainText('Winter, day 5, morning');
   await expect(page.locator('button[data-action="shadows"]')).toBeDisabled();
 });
 

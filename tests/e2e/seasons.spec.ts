@@ -17,7 +17,8 @@ test('the test menu reaches each season and each time of day, and the clock HUD 
   await startGame(page);
   test.skip(!(await hasTiles(page)), 'needs the tiles built locally');
   await toggleMenu(page);
-  for (const [season, text] of [['spring', 'Spring, day 1'], ['summer', 'Summer, day 1'], ['autumn', 'Autumn, day 1'], ['winter', 'Winter, day 1']]) {
+  // Each jumps to the first day with the season's full look (SEASON_FULL_DAY): day 4.
+  for (const [season, text] of [['spring', 'Spring, day 4'], ['summer', 'Summer, day 4'], ['autumn', 'Autumn, day 4'], ['winter', 'Winter, day 4']]) {
     await page.locator(`button[data-season="${season}"]`).click();
     await expect(page.locator('#clock-hud')).toContainText(text!);
   }

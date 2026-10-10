@@ -386,6 +386,20 @@ upload), garbage collection, or other work that moves with the beaver. That
 needs a profile on the tablet (Chrome devtools over the same socket the bench
 uses) rather than more guessing.
 
+### The profile of the long frames (session 73)
+
+A Chrome trace with the V8 CPU profiler on the tablet (walking at x5, `shadows=0`, south shore bog, 12 s) found the cause
+in the game's own code, not the GPU. Frames over 35 ms: 11 at the start.
+
+- `streamDistance` took about 33 ms of each 50 to 57 ms frame. The rock view rebuild (every 15 m) asks `wet()` about
+  hundreds of rock spots, and each ask scanned every stream segment of nine tiles. Streams now keep a bounding box and
+  the call takes an `upTo` limit. Frames over 35 ms: 3 to 5.
+- The rest was garbage collection (a heap sampling profile showed 1.28 GB allocated in 12 s). `Streamer.update` ran over
+  all 2733 tiles every frame and built strings and objects for each; it now skips finished far tiles, keeps the tile
+  keys, does not list what it cannot start, and stops while nothing changed. The far chunks are merged in batches of
+  8 tiles, not for each tile that arrives, and the ground colour table is built once. Allocation fell to 0.48 GB, frames
+  over 35 ms to 0 or 1, and the frame count in 12 s rose from about 710 to 910.
+
 ### Options, not yet decided
 
 - Measured (session 72, #109, below). Build the parts apart first.

@@ -25,6 +25,9 @@ export const defaultStreamerOptions: StreamerOptions = {
 
 export const COARSEST = 2;
 
+/** An idle streamer looks again after the beaver moves this many metres. */
+const REPASS_DISTANCE = 2;
+
 /** Detail level for a tile at a distance, keeping the previous level near a ring. */
 export function levelFor(dist: number, prev: number | undefined, o: StreamerOptions): number {
   const base = dist < o.rings[0] ? 0 : dist < o.rings[1] ? 1 : COARSEST;
@@ -63,13 +66,24 @@ export class Streamer {
   private readonly fine = new Set<string>();
   private readonly inFlight = new Set<string>();
   private readonly failed = new Set<string>();
+  private idle = false;
+  private lastX = 0;
+  private lastZ = 0;
+  private lastInFlight = 0;
+  private lastVersion = -1;
+  private readonly keys: string[];
+  /** 1 for a far tile whose coarse ground is loaded: nothing more to do for it. */
+  private readonly farDone: Uint8Array;
 
   constructor(
     private readonly store: TileStore,
     private readonly fetchTile: FetchTile,
     private readonly options: StreamerOptions = defaultStreamerOptions,
     private readonly fetchWater?: FetchWater,
-  ) {}
+  ) {
+    this.keys = store.index.tiles.map((t) => tileKey(t.tx, t.tz));
+    this.farDone = new Uint8Array(this.keys.length);
+  }
 
   desiredLevel(tx: number, tz: number): number {
     return this.desired.get(tileKey(tx, tz)) ?? COARSEST;
@@ -85,40 +99,65 @@ export class Streamer {
   }
 
   update(x: number, z: number): void {
+    // Where the beaver stands matters to the decisions only a little at a time, so a pass that asked for nothing is not
+    // repeated until it moves a couple of metres, a fetch ends, or the tiles held change.
+    if (this.idle && Math.hypot(x - this.lastX, z - this.lastZ) < REPASS_DISTANCE && this.inFlight.size === this.lastInFlight && this.store.version === this.lastVersion) return;
+    this.lastX = x;
+    this.lastZ = z;
     const size = this.store.size;
+    const tiles = this.store.index.tiles;
     const wanted: { tx: number; tz: number; level: number; dist: number }[] = [];
-    for (const t of this.store.index.tiles) {
-      const key = tileKey(t.tx, t.tz);
+    // With every fetch slot busy nothing can start, so the missing tiles are not listed and sorted (thousands, while the far ring loads).
+    const full = this.inFlight.size >= this.options.maxConcurrent;
+    let missing = false;
+    // This runs every frame over every tile, so it builds no strings or arrays for tiles that need nothing.
+    for (let i = 0; i < tiles.length; i++) {
+      const t = tiles[i]!;
+      if (this.farDone[i]) continue;
+      const key = this.keys[i]!;
       const dist = distToTile(x, z, t.tx, t.tz, size);
       const level = t.far ? COARSEST : levelFor(dist, this.desired.get(key), this.options);
       this.desired.set(key, level);
-      for (const l of level === COARSEST ? [COARSEST] : [COARSEST, level]) {
-        if (!this.store.has(t.tx, t.tz, l)) wanted.push({ tx: t.tx, tz: t.tz, level: l, dist });
+      if (level !== COARSEST && !this.store.hasKey(key, COARSEST)) {
+        missing = true;
+        if (!full) wanted.push({ tx: t.tx, tz: t.tz, level: COARSEST, dist });
       }
-      this.evict(t.tx, t.tz, level);
+      if (!this.store.hasKey(key, level)) {
+        missing = true;
+        if (!full) wanted.push({ tx: t.tx, tz: t.tz, level, dist });
+      }
+      this.evict(key, level);
       const fine = !!t.fine && dist < this.options.fineRing + (this.fine.has(key) ? this.options.hysteresis : 0);
       if (fine) {
         this.fine.add(key);
-        if (!this.store.has(t.tx, t.tz, LEVEL_FINE)) wanted.push({ tx: t.tx, tz: t.tz, level: LEVEL_FINE, dist });
+        if (!this.store.hasKey(key, LEVEL_FINE)) {
+          missing = true;
+          if (!full) wanted.push({ tx: t.tx, tz: t.tz, level: LEVEL_FINE, dist });
+        }
       } else {
         this.fine.delete(key);
-        this.store.drop(t.tx, t.tz, LEVEL_FINE);
+        this.store.dropKey(key, LEVEL_FINE);
       }
-      if (t.water && level < COARSEST && !this.store.waterOf(t.tx, t.tz)) this.startWater(t.tx, t.tz);
+      if (t.water && level < COARSEST && !this.store.hasWaterKey(key)) this.startWater(t.tx, t.tz);
+      // a far tile with nothing but its coarse ground has no more to ask for
+      if (t.far && !t.fine && !t.water && this.store.hasKey(key, COARSEST)) this.farDone[i] = 1;
     }
     // nearest first, and the coarse ground of a tile before its fine level
-    wanted.sort((a, b) => a.dist - b.dist || b.level - a.level);
+    if (wanted.length > 1) wanted.sort((a, b) => a.dist - b.dist || b.level - a.level);
     for (const w of wanted) {
       if (this.inFlight.size >= this.options.maxConcurrent) break;
       this.start(w.tx, w.tz, w.level);
     }
+    this.idle = !missing;
+    this.lastInFlight = this.inFlight.size;
+    this.lastVersion = this.store.version;
   }
 
-  private evict(tx: number, tz: number, desired: number): void {
+  private evict(key: string, desired: number): void {
     for (let l = 0; l < COARSEST; l++) {
-      if (l === desired || !this.store.has(tx, tz, l)) continue;
+      if (l === desired || !this.store.hasKey(key, l)) continue;
       // a finer level is no longer wanted; a coarser one stays until the wanted one arrives
-      if (l < desired || this.store.has(tx, tz, desired)) this.store.drop(tx, tz, l);
+      if (l < desired || this.store.hasKey(key, desired)) this.store.dropKey(key, l);
     }
   }
 

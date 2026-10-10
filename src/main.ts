@@ -14,12 +14,13 @@ import { AnimalField, capFor, type Animal } from './sim/animals';
 import { growNeighbours, neighboursAt } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
 import { DIG_REACH, DIG_TIME, HEAR_RANGE, escortBeaver, nearestStuck, rescue, startEscort, stepEscort, stuckBeaver, stuckNow, whereTo, digging } from './sim/escort';
-import { CALL_SLOT, answerNews, overheard, type Surroundings } from './sim/news';
+import { answerNews, type Surroundings } from './sim/news';
+import { CALL_SLOT, deedsFor, giftThanks, greetingFor, overheard, partnerRemark } from './sim/chatter';
 import { BYE_SECONDS, TALK_END, LINE_SECONDS, buildIsFree, choicesFor, factsFor, greeting, nearestSpeaker, noteTalk, replyLine, roleOf, speakersOf, type Reply, type Speaker, type TalkFacts } from './sim/talk';
 import { REPLY_LABEL } from './sim/talkLines';
 import { createTalkBubble } from './ui/talkBubble';
-import { giftFamilies, greetedBy, familyMood, reactFamilies, startleFamilies } from './sim/familyMoods';
-import { banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
+import { giftFamilies, greetedBy, familyMood, familyTrust, reactFamilies, spreadWord, startleFamilies } from './sim/familyMoods';
+import { FEED_TRUST, banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
 import { lead, leaderAnimal } from './sim/guides';
 import { pondGuests, trackPonds } from './sim/pondGuests';
 import { isPredator, meetPredators, predatorAnimals, type PredatorEvent } from './sim/predators';
@@ -495,6 +496,16 @@ async function start(): Promise<void> {
     return fam ? pondName(fam.lodge, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver) : null;
   };
   const greeted = new Set<string>(); // families that have greeted the beaver this visit (#342)
+  const gave = new Set<string>(); // families given a gift this visit, and startled by a slap, for what they say of the player
+  const slapped = new Set<string>();
+  // Word of a gift or a rescue gets around: the other families the player knows trust it a little more too.
+  const spread = (from: string): void => {
+    const before = world;
+    world = spreadWord(world, from, FEED_TRUST, greeted);
+    const homeAt = world.formerHomes.at(-1) ?? world.lodge ?? world.beaver;
+    const warmer = world.neighbours.find((n) => n.id !== from && familyMood(before, n.id) !== familyMood(world, n.id));
+    if (warmer) toast.show(`Word gets around. The ${pondName(warmer.lodge, homeAt)} family trusts you more too`);
+  };
 
   function frame(now: number): void {
     // Cap dt so a paused tab does not teleport the beaver. The first frame timestamp can come before `last`, so dt is never negative.
@@ -635,15 +646,27 @@ async function start(): Promise<void> {
     const stuckList = stuckNow(world, ponded);
     const away = new Set([...stuckList.map((st) => st.member), ...(world.escort ? [world.escort.id] : [])]);
     const familyBeavers = reactFamilies(neighboursAt(world.neighbours, world.clock, ponded), world, ponded).filter((n) => !away.has(n.id));
-    if (slappedNow) world = startleFamilies(world, familyBeavers);
+    if (slappedNow) {
+      const before = world;
+      world = startleFamilies(world, familyBeavers);
+      for (const n of world.neighbours) if (familyTrust(world, n.id) < familyTrust(before, n.id)) slapped.add(n.id);
+    }
     const gifts = giftFamilies(world, familyBeavers);
     world = gifts.world;
-    if (gifts.thanked.length > 0) toast.show('The beavers take it and trust you a little more');
+    // Each gift is thanked for what it is, and word of it gets around (chatter.ts, familyMoods.ts).
+    for (const g of gifts.gifts) {
+      gave.add(g.family);
+      toast.show(giftThanks(g.kind, familyBeavers.filter((n) => n.family === g.family), dateAt(world.clock).day + gave.size));
+      spread(g.family);
+    }
+    const visit = { gifts: gave, slaps: slapped, greeted };
     const hello = greetedBy(familyBeavers, world);
     if (hello && !greeted.has(hello)) {
+      const fam = world.neighbours.find((f) => f.id === hello);
+      const pond = fam ? pondName(fam.lodge, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver) : 'pond';
+      // The deeds are read before the family counts as greeted, so a first meeting is a first meeting.
+      toast.show(greetingFor(deedsFor(world, hello, visit), familyBeavers.filter((n) => n.family === hello), pond, dateAt(world.clock).day));
       greeted.add(hello);
-      const mood = familyMood(world, hello);
-      toast.show(mood === 'wary' ? 'A beaver family. They are shy. Put a branch down near them' : mood === 'calm' ? 'A beaver family says hello' : 'The beaver family is happy to see you');
     }
     if (slappedNow) world = startle(world, around);
     // Talking: a press of Build where nothing else wants it starts a talk with the nearest beaver in reach (#344).
@@ -665,12 +688,19 @@ async function start(): Promise<void> {
       speak(near, said(near, 'greet', text), LINE_SECONDS * 1.5, talkFacts);
     }
     buildPressed = false;
-    // A call between two beavers of a family near the player, once in a slot of the clock (#345).
+    // A call and its reply between two beavers of a family near the player, once in a slot of the clock (#345), and else now and
+    // then a word from the partner. The two lines go into the toast queue together, so the reply follows the call.
     const callSlot = Math.floor(world.clock / CALL_SLOT);
     if (callSlot !== lastCallSlot) {
       lastCallSlot = callSlot;
-      const call = talkBubble.talking() ? null : overheard(familyBeavers, world.beaver, world.clock);
-      if (call) toast.show(`${call.who}: "${call.text}"`);
+      const said = talkBubble.talking() ? null : overheard(familyBeavers, world.beaver, world.clock, (f) => deedsFor(world, f, visit));
+      if (said) {
+        toast.show(`${said.call.who}: "${said.call.text}"`);
+        toast.show(`${said.reply.who}: "${said.reply.text}"`);
+      } else if (!talkBubble.talking()) {
+        const remark = partnerRemark(world, surroundings().pad);
+        if (remark) toast.show(`${remark.who}: "${remark.text}"`);
+      }
     }
     talkBubble.prompt(near?.name ?? null, 'Build');
     talkBubble.tick(dt);
@@ -688,6 +718,7 @@ async function start(): Promise<void> {
       world = rescue(world, drift);
       dug = 0;
       toast.show(`${drift.name} is free! Talk to ${drift.name} and ask to be shown the way`);
+      spread(drift.family);
     } else if (drift && dug > 0) talkBubble.note(`Digging ${Math.min(99, Math.floor((dug / DIG_TIME) * 100))}%`);
     if (world.escort) {
       const led = stepEscort(world, dt);

@@ -136,7 +136,8 @@ export function meetPredators(world: WorldState, animals: readonly Animal[], sla
       // The beaver got away, or the sign is over and the predator comes.
       if (safe || d > rules.notice * 1.5) continue;
       if (age >= rules.warn) predators.push(atEnd(p, { phase: 'chase', since: world.time, heading, lift: p.kind === 'owl' ? OWL_HEIGHT : 0 }));
-      else predators.push(atEnd(p, { heading }));
+      // The owl climbs to its swooping height while it calls, so it does not jump up when the chase begins.
+      else predators.push(atEnd(p, { heading, lift: p.kind === 'owl' ? 0.4 + (OWL_HEIGHT - 0.4) * (age / rules.warn) : 0 }));
       continue;
     }
     // Chase: the beaver in the water or the lodge is out of reach, and the predator gives up after a time.

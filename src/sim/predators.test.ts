@@ -97,6 +97,14 @@ describe('predators', () => {
     expect(predatorAnimals(w.predators, land).map((a) => a.id)).toEqual(['a:1']);
   });
 
+  it('lift the owl gradually during its sign, so it does not jump up when the chase begins', () => {
+    const w1 = run(createWorld(land, 0, 0), [owl(25, 0)], 1).world;
+    const w2 = run(w1, [owl(25, 0)], 1).world;
+    expect(w1.predators[0]!.phase).toBe('warn');
+    expect(w2.predators[0]!.lift).toBeGreaterThan(w1.predators[0]!.lift);
+    expect(w2.predators[0]!.lift).toBeLessThan(7);
+  });
+
   it('put owls in the field only at night', () => {
     const field = new AnimalField();
     const kinds = (clock: number) => new Set(field.near(land, 0, 0, clock, 500, 600).map((a) => a.kind));

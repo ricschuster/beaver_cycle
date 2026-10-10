@@ -1,6 +1,8 @@
 // The first-steps coach (docs/design/25_first_steps_coach.md): the steps, and how the world moves the coach from one to the
 // next. Pure data and functions, no DOM, so the order and the wording are tested. The card that shows them is coach.ts.
 import { damWhole, spotAt } from '../sim/dam';
+import { stockTotal } from '../sim/food';
+import { lodgeComplete } from '../sim/lodge';
 import type { WorldState } from '../sim/state';
 
 /** The touch button a step points at, by its element id suffix (`touch-chop`), or null. */
@@ -14,7 +16,17 @@ export interface CoachState {
   moved: boolean;
   swam: boolean;
   dived: boolean;
+  /** Which run of steps this is: the first dam, or the home (lodge, food, sleep). */
+  chapter: CoachChapter;
+  /** The beaver has been inside its lodge. */
+  entered: boolean;
+  /** The beaver slept: the clock jumped ahead in one frame. */
+  slept: boolean;
+  /** The clock at the last frame, to see a sleep jump. */
+  lastClock: number;
 }
+
+export type CoachChapter = 'dam' | 'home';
 
 export interface CoachStep {
   id: string;
@@ -122,11 +134,82 @@ export const STEPS: readonly CoachStep[] = [
   },
 ];
 
+/** The second run, offered after the dam: the lodge, a meal, a sleep and the food store. Steps already done are skipped, so a beaver beside a ready-made lodge starts at going in. */
+export const HOME_STEPS: readonly CoachStep[] = [
+  {
+    id: 'lodge',
+    title: 'Start a lodge',
+    touch: 'Drag a log to shallow water. Face the water and press Build. A lodge needs about ten pieces of wood, so bring more logs.',
+    keys: 'Drag a log to shallow water. Face the water and press B. A lodge needs about ten pieces of wood, so bring more logs.',
+    button: 'build',
+    done: (w) => w.lodge !== null,
+  },
+  {
+    id: 'lodge-finish',
+    title: 'Finish the lodge',
+    touch: 'Drag more logs to the lodge and press Build next to it. The top left says how much is missing.',
+    keys: 'Drag more logs to the lodge and press B next to it. The top left says how much is missing.',
+    button: 'build',
+    done: (w) => lodgeComplete(w.lodge),
+  },
+  {
+    id: 'enter',
+    title: 'Go inside',
+    touch: 'The door is under water. Swim to the lodge, hold Dive and swim in at the door.',
+    keys: 'The door is under water. Swim to the lodge, hold Space and swim in at the door.',
+    button: 'dive',
+    done: (_w, s) => s.entered,
+  },
+  {
+    id: 'eat',
+    title: 'Have a snack',
+    touch: 'Gnaw a lily pad or strip a branch off a log, carry it in, and press Gnaw inside the lodge to eat it.',
+    keys: 'Press E at a lily pad, or at a log for a branch. Carry it in, and press E inside the lodge to eat it.',
+    button: 'chop',
+    done: (w) => w.eaten > 0,
+  },
+  {
+    id: 'sleep',
+    title: 'Sleep on the nest',
+    touch: 'Walk to the nest, the soft spot in the lodge. A panel comes up. Tap Sleep until next season.',
+    keys: 'Walk to the nest, the soft spot in the lodge. A panel comes up. Pick Sleep until next season.',
+    button: null,
+    done: (_w, s) => s.slept,
+  },
+  {
+    id: 'store',
+    title: 'Fill the food store',
+    touch: 'Swim to the food store by the door and press Build. Tap a place to put your food in. It keeps food for winter.',
+    keys: 'Swim to the food store by the door and press B. Click a place to put your food in. It keeps food for winter.',
+    button: 'build',
+    done: (w) => stockTotal(w.store) > 0,
+  },
+];
+
+/** The steps of a chapter. */
+export const stepsOf = (chapter: CoachChapter): readonly CoachStep[] => (chapter === 'dam' ? STEPS : HOME_STEPS);
+
 /** The closing words, shown when the last step is done. */
 export const COACH_DONE = 'You built a dam and made a pond! Next, build a lodge. Drag a log to shallow water, face the water and press Build. The ? button has more.';
 
-export function newCoach(world: WorldState): CoachState {
-  return { step: 0, start: { x: world.beaver.x, z: world.beaver.z }, moved: false, swam: false, dived: false };
+/** The closing words of the second run. */
+export const COACH_HOME_DONE = 'You have a home! Keep the dam and the lodge mended, and look for a lone beaver to share it. The ? button has more.';
+
+/** A clock jump in one frame bigger than this (game seconds) is a sleep. A frame moves it by a fraction of a second. */
+export const SLEEP_JUMP = 20;
+
+export function newCoach(world: WorldState, chapter: CoachChapter = 'dam'): CoachState {
+  return {
+    step: 0,
+    start: { x: world.beaver.x, z: world.beaver.z },
+    moved: false,
+    swam: false,
+    dived: false,
+    chapter,
+    entered: false,
+    slept: false,
+    lastClock: world.clock,
+  };
 }
 
 /** The coach after one frame: it notes what the beaver did, and moves past every step that is now done. */
@@ -137,8 +220,12 @@ export function coachNext(world: WorldState, state: CoachState): CoachState {
     moved: state.moved || Math.hypot(b.x - state.start.x, b.z - state.start.z) >= MOVE_DONE,
     swam: state.swam || b.mode === 'swim' || b.mode === 'dive',
     dived: state.dived || b.mode === 'dive',
+    entered: state.entered || world.inLodge,
+    slept: state.slept || world.clock - state.lastClock > SLEEP_JUMP,
+    lastClock: world.clock,
   };
-  while (next.step < STEPS.length && STEPS[next.step]!.done(world, next)) next.step += 1;
+  const steps = stepsOf(next.chapter);
+  while (next.step < steps.length && steps[next.step]!.done(world, next)) next.step += 1;
   return next;
 }
 

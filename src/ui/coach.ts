@@ -1,6 +1,6 @@
 // The first-steps coach (docs/design/25_first_steps_coach.md): a small card at the top left, under the status line, that gives one step at
 // a time and points at the button to press. DOM only. The steps and their order are in coachSteps.ts.
-import { COACH_DONE, STEPS, coachNext, newCoach, stepText, type CoachState } from './coachSteps';
+import { COACH_DONE, COACH_HOME_DONE, coachNext, newCoach, stepText, stepsOf, type CoachChapter, type CoachState } from './coachSteps';
 import type { WorldState } from '../sim/state';
 
 /** The key that remembers the coach was finished or skipped. */
@@ -15,8 +15,8 @@ export function wantsCoach(done: boolean, query: URLSearchParams, automated: boo
 }
 
 export interface Coach {
-  /** Start the steps from the beginning at the beaver's place now. */
-  start(world: WorldState): void;
+  /** Start the steps of a chapter (the dam by default) from the beginning at the beaver's place now. */
+  start(world: WorldState, chapter?: CoachChapter): void;
   /** Called every frame with the world: moves to the next step and redraws when something changed. */
   update(world: WorldState): void;
   active(): boolean;
@@ -55,12 +55,17 @@ export function createCoach(parent: HTMLElement, opts: CoachOptions): Coach {
   skip.dataset.action = 'coach-skip';
   skip.textContent = 'Skip the tips';
   skip.style.cssText = `${BUTTON}background:#e3d6b0;color:#2a1f0e;`;
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.dataset.action = 'coach-home';
+  more.textContent = 'Show me the lodge';
+  more.style.cssText = `${BUTTON}background:#e3d6b0;color:#2a1f0e;display:none;`;
   const ok = document.createElement('button');
   ok.type = 'button';
   ok.dataset.action = 'coach-ok';
   ok.textContent = 'Got it';
   ok.style.cssText = `${BUTTON}background:#2f6a30;color:#fff;display:none;`;
-  row.append(skip, ok);
+  row.append(skip, more, ok);
   root.append(head, text, row);
   parent.append(style, root);
 
@@ -83,31 +88,42 @@ export function createCoach(parent: HTMLElement, opts: CoachOptions): Coach {
   skip.addEventListener('click', end);
   ok.addEventListener('click', end);
 
-  return {
-    start(world) {
-      state = newCoach(world);
+  let latest: WorldState | null = null;
+  const coach: Coach = {
+    start(world, chapter = 'dam') {
+      state = newCoach(world, chapter);
       shown = '';
       ok.style.display = 'none';
+      more.style.display = 'none';
       skip.style.display = '';
       root.style.display = 'block';
       this.update(world);
     },
     update(world) {
+      latest = world;
       if (!state) return;
       state = coachNext(world, state);
-      const finished = state.step >= STEPS.length;
-      const step = finished ? null : STEPS[state.step]!;
-      const line = step ? stepText(step, opts.touch, world) : COACH_DONE;
+      const steps = stepsOf(state.chapter);
+      const finished = state.step >= steps.length;
+      const step = finished ? null : steps[state.step]!;
+      const dam = state.chapter === 'dam';
+      const line = step ? stepText(step, opts.touch, world) : dam ? COACH_DONE : COACH_HOME_DONE;
       // Redraw only when the words change, as the other readouts do. The ring step's distance changes the words as the beaver walks.
       if (line === shown) return;
       shown = line;
       title.textContent = step ? step.title : 'Well done!';
-      count.textContent = step ? `${state.step + 1} of ${STEPS.length}` : '';
+      count.textContent = step ? `${state.step + 1} of ${steps.length}` : '';
       text.textContent = line;
       ok.style.display = step ? 'none' : '';
+      // The dam's closing card offers the second run; the home's is the end.
+      more.style.display = !step && dam ? '' : 'none';
       skip.style.display = step ? '' : 'none';
       point(step && opts.touch ? step.button : null);
     },
     active: () => state !== null,
   };
+  more.addEventListener('click', () => {
+    if (latest) coach.start(latest, 'home');
+  });
+  return coach;
 }

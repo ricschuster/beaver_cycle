@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { flatTerrain } from '../sim/terrain';
 import { createWorld, type WorldState } from '../sim/state';
-import { COACH_DONE, MOVE_DONE, STEPS, coachNext, nearestRing, newCoach, stepText } from './coachSteps';
+import { COACH_DONE, COACH_HOME_DONE, HOME_STEPS, MOVE_DONE, SLEEP_JUMP, STEPS, coachNext, nearestRing, newCoach, stepText } from './coachSteps';
 import { wantsCoach } from './coach';
 import { KEY_HINTS } from './keyHints';
 
@@ -51,6 +51,51 @@ describe('the coach steps', () => {
       if (s.button) expect(['dive', 'slap', 'chop', 'grab', 'build']).toContain(s.button);
     }
     expect(COACH_DONE).not.toContain(String.fromCharCode(0x2014));
+  });
+});
+
+describe('the home steps', () => {
+  const lodge = (wood: number): WorldState['lodge'] => ({ wood }) as unknown as WorldState['lodge'];
+  const id = (c: ReturnType<typeof newCoach>): string | undefined => HOME_STEPS[c.step]?.id;
+
+  it('go from the lodge to the store as the world changes', () => {
+    let w = world();
+    let c = newCoach(w, 'home');
+    expect(id(c)).toBe('lodge');
+    w = { ...w, lodge: lodge(3) };
+    c = coachNext(w, c);
+    expect(id(c)).toBe('lodge-finish');
+    w = { ...w, lodge: lodge(10) };
+    c = coachNext(w, c);
+    expect(id(c)).toBe('enter');
+    w = { ...w, inLodge: true };
+    c = coachNext(w, c);
+    expect(id(c)).toBe('eat');
+    w = { ...w, eaten: 1 };
+    c = coachNext(w, c);
+    expect(id(c)).toBe('sleep');
+    c = coachNext({ ...w, clock: w.clock + 0.5 }, c);
+    expect(id(c)).toBe('sleep');
+    c = coachNext({ ...w, clock: w.clock + SLEEP_JUMP + 1 }, c);
+    expect(id(c)).toBe('store');
+    c = coachNext({ ...w, store: ['lily'] } as unknown as WorldState, c);
+    expect(c.step).toBe(HOME_STEPS.length);
+  });
+
+  it('remember that the beaver went in, even after it comes out', () => {
+    let w = { ...world(), lodge: lodge(10), inLodge: true };
+    let c = coachNext(w, newCoach(w, 'home'));
+    w = { ...w, inLodge: false };
+    c = coachNext(w, c);
+    expect(id(c)).toBe('eat');
+  });
+
+  it('use the real buttons and keep the closing words plain', () => {
+    for (const s of HOME_STEPS) {
+      expect(s.touch.length).toBeGreaterThan(0);
+      if (s.button) expect(['dive', 'slap', 'chop', 'grab', 'build']).toContain(s.button);
+    }
+    expect(COACH_HOME_DONE).not.toContain(String.fromCharCode(0x2014));
   });
 });
 

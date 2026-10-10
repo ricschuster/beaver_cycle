@@ -32,7 +32,13 @@ Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesse
 - A tail slap within 30 m costs the family 0.25. Trust is kept in `world.trust` under the family id, so it is saved.
 - The first time a family comes within 20 m, a toast greets the player by mood. The manual has a paragraph.
 - Names (#343, `src/sim/names.ts`): each family beaver has a `name`, a pure function of its id from a list of 40 nature names, and a family is called for where its pond lies from the home, such as "north pond" (`pondName`).
-- Not built: any talk (#344), hints (#345), the rescue (#346).
+- Talk (#344, `src/sim/talk.ts`, `src/ui/talkBubble.ts`): within 6 m of a beaver (a neighbour, the player's Mama or Papa outside the
+  lodge, or a partner that is not alone), a card at the bottom says "Press Build to talk to Willow". Build starts the talk when
+  `buildIsFree` (not in the lodge, no log or load, not at the store, not at a dam spot). The beaver says one line for 7 s, picked by
+  `pickLine` from its kind, feeling (a neighbour's mood, always curious for the player's own), season, night and a counter. A wary
+  neighbour only warns. The card is fixed at the bottom, not a bubble over the head, since the renderer gives no screen position yet.
+  Walking 12 m away ends it. A baby cannot talk, as it cannot use Build.
+- Not built: choices, hints and overheard talk (#345), the rescue (#346).
 
 ## Dialog between beavers (proposal)
 

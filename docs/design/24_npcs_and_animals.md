@@ -1,6 +1,6 @@
 # NPCs and animals
 
-Status: draft. Slice 3 (predators, #274) is built for the fox and the owl: `src/sim/predators.ts`. An ambient fox, or an owl at night in the forest, that is within its notice range (fox 22 m, owl 30 m) of a beaver on land gives a sign (a toast; the owl hoots for 2.5 s, the fox freezes for 0.8 s), then chases (fox 10 m/s, up to 10 s; owl swoops at 20 m/s from 7 m up, up to 5 s). A beaver in deep water or in its lodge is out of reach and the chase ends. A tail slap within 30 m scares either off. If caught, the beaver drops what it carries or drags, is *hurt* (60% speed, `world.hurtAt`), and the predator walks off and does not come again. Eating a lily pad in the lodge heals; with none, the hurt ends by itself after one game day (my safety valve, so a beaver with no lodge is not slow for ever). Seen on screen in session 61: the fox and the owl both warn, chase, catch, and go off as written; the owl is drawn at twice life size, as at its true size it was a speck in the dark forest, and it climbs to its swooping height during its call. Predator toasts show at once over the one on screen, as the queue made a warning arrive after the chase was over. The lynx and the bear are built too, in the forest. The lynx is out from mid-afternoon through the night, notices at 26 m, and stalks: it creeps closer for 3 s, then rushes at 16 m/s (faster than a beaver walks) for 4 s, so only water saves the beaver, and a slap scares it only at the water's edge (within 4 m of water). The bear is out from spring to autumn (it sleeps the winter), notices at 20 m, and walks at 5 m/s, so it cannot catch a beaver that keeps moving; a slap scares it off. Both are rare, about one cell in 170 each (the owl, the usual one, is about one in 60, down from one in 26 before they came). Not built: wolf, the owl's shadow, a sound, and predators stealing food. Slice 2 (one other family, #273) is built: `src/sim/neighbours.ts`. Families live in whole lodges on ponds and shores of the valley, found as the player comes near (far tiles are not loaded, and dam spots are on streams with no lake, so they are placed from a 400 m grid of cells, one cell in two hosting a family), with a mama, a papa, and the kits of the last two springs, who grow on the clock and leave when grown. By day they swim the pond, at night they sleep in the lodge and are not drawn. Tasks beyond swim, rest, and sleep (eat, carry, repair, wander ashore) are not built. Slice 1 (ambient animals, #272) is built: `src/sim/animals.ts` and `src/render/animalView.ts`. The author agreed the order of work (open question 6), the cap of 40 to start, simple shapes, and deer, duck, heron, and fox. The author chose the direction (below); everything marked **Proposal** is mine and waits for the author.
+Status: draft. Slice 4 for animals (#306 to #310) is built, see "Interaction with animals". Slice 3 (predators, #274) is built for the fox and the owl: `src/sim/predators.ts`. An ambient fox, or an owl at night in the forest, that is within its notice range (fox 22 m, owl 30 m) of a beaver on land gives a sign (a toast; the owl hoots for 2.5 s, the fox freezes for 0.8 s), then chases (fox 10 m/s, up to 10 s; owl swoops at 20 m/s from 7 m up, up to 5 s). A beaver in deep water or in its lodge is out of reach and the chase ends. A tail slap within 30 m scares either off. If caught, the beaver drops what it carries or drags, is *hurt* (60% speed, `world.hurtAt`), and the predator walks off and does not come again. Eating a lily pad in the lodge heals; with none, the hurt ends by itself after one game day (my safety valve, so a beaver with no lodge is not slow for ever). Seen on screen in session 61: the fox and the owl both warn, chase, catch, and go off as written; the owl is drawn at twice life size, as at its true size it was a speck in the dark forest, and it climbs to its swooping height during its call. Predator toasts show at once over the one on screen, as the queue made a warning arrive after the chase was over. The lynx and the bear are built too, in the forest. The lynx is out from mid-afternoon through the night, notices at 26 m, and stalks: it creeps closer for 3 s, then rushes at 16 m/s (faster than a beaver walks) for 4 s, so only water saves the beaver, and a slap scares it only at the water's edge (within 4 m of water). The bear is out from spring to autumn (it sleeps the winter), notices at 20 m, and walks at 5 m/s, so it cannot catch a beaver that keeps moving; a slap scares it off. Both are rare, about one cell in 170 each (the owl, the usual one, is about one in 60, down from one in 26 before they came). Not built: wolf, the owl's shadow, a sound, and predators stealing food. Slice 2 (one other family, #273) is built: `src/sim/neighbours.ts`. Families live in whole lodges on ponds and shores of the valley, found as the player comes near (far tiles are not loaded, and dam spots are on streams with no lake, so they are placed from a 400 m grid of cells, one cell in two hosting a family), with a mama, a papa, and the kits of the last two springs, who grow on the clock and leave when grown. By day they swim the pond, at night they sleep in the lodge and are not drawn. Tasks beyond swim, rest, and sleep (eat, carry, repair, wander ashore) are not built. Slice 1 (ambient animals, #272) is built: `src/sim/animals.ts` and `src/render/animalView.ts`. The author agreed the order of work (open question 6), the cap of 40 to start, simple shapes, and deer, duck, heron, and fox. The author chose the direction (below); everything marked **Proposal** is mine and waits for the author.
 This is milestone M7 (#279). Today the only NPCs are the lone beavers in `src/sim/partners.ts`.
 
 ## What the author has said
@@ -85,18 +85,40 @@ The author liked this one when asked in session 55.
 - **Not in the first slice.** The first version has no predators (doc 20). The pond rule is kept, and predators come
   after ambient animals.
 
-## Interaction with animals (open)
+## Interaction with animals
 
-The author wants the player to interact with animals and will decide how later. Ideas to choose from:
+Decided by the author in session 64 (#275): all five kinds of interaction are in, and a mood has a visible effect.
 
-- **Follow** a kingfisher or an otter to a good fishing spot.
-- **Feed** a deer or a duck, with a branch or a lily pad, and be trusted by it over time.
-- **Scare** a fox off the store with a slap.
-- **Read** the animals: deer that bolt mean a predator is near.
-- **Share a pond** with ducks and frogs, which only come once the pond is mature.
+- **Read.** Deer that bolt mean a predator is near. This comes first, as the sim already holds both.
+- **Scare.** A tail slap scares a fox off the store (predators already flee a slap, see slice 3).
+- **Share a pond.** Ducks and frogs come only once the pond is mature.
+- **Feed.** Give a deer or a duck a branch or a lily pad, and it trusts the beaver more over time.
+- **Follow.** A kingfisher or an otter leads the beaver to a good food spot (a lily patch or young willow). There is no
+  fishing in the game and beavers do not eat fish, so the original "fishing spot" is dropped. **Proposal**, the author
+  has not yet confirmed this change.
 
-The sim should leave room for this: an animal has a *mood* toward the player (wary, calm, curious) and the
-interaction sets it. That is a small piece of state, and no kind of interaction is fixed yet.
+Each animal has a *mood* toward the player: wary, calm, or curious. Feeding and a calm approach raise it, a slap or a
+chase lowers it. The mood is visible: a wary animal keeps its distance and bolts early, a calm one lets the beaver come
+close, a curious one comes to look. That is a small piece of state, held only for animals the player has met.
+
+### As built (session 64)
+
+Code: `src/sim/moods.ts`, `src/sim/pondGuests.ts`, `src/sim/guides.ts`, drawn by `src/render/animalView.ts`. Numbers are first guesses to tune on a tablet.
+
+- **Mood** (#306). Trust 0 to 1 per animal id in `world.trust`: a deer or a heron starts at 0.1 (wary), a duck at 0.35 and a frog at 0.5 (calm).
+  Below 0.3 is wary, 0.7 and up is curious. A wary deer keeps 14 m from the beaver, a duck 9 m, a heron 18 m; a calm one does not move
+  away; a curious deer or duck comes to look, down to 5 m. It is a stateless placement for the frame, so no path is stored.
+- **Read** (#306). A deer within 32 m of a predator bolts to 36 m from it. The game says so once ("The deer bolt. Something is near").
+- **Feed** (#307). Put a branch (deer) or a lily pad (deer or duck) down within 16 m of the animal with the drag button while
+  carrying it; the animal eats it and trusts the beaver 0.3 more. A tail slap within 30 m costs 0.25 trust.
+- **Scare** (#308). A fox sniffs at a stocked store on some nights (about 6 in 10, from the fox's cell and the day) when its home is
+  within 120 m. It does not steal; stealing is still not built. A slap scares it off, and it does not come back (its trust is set to 0).
+  Predators have no mood, so a slap lowers only the mood of deer, ducks, herons, and frogs.
+- **Share a pond** (#309). A pond that has held water for 2 game days (`world.pondSince`) gets 1 to 4 ducks and 2 to 5 frogs, placed from
+  the pond's shape. Frogs sleep through the winter. New kind: the frog.
+- **Follow** (#310). New kinds: the otter (in the water) and the kingfisher (by day, perched on the bank). One water cell in 14 holds
+  one in place of a duck or heron. Within 8 m of one, it leads the beaver to the nearest lily pads within 90 m, waits when the beaver is
+  14 m behind, gives up at 70 m, and leads again after a game day. No pads, as in winter, no lead. Young willow is not a lead target yet.
 
 ## NPC beavers
 
@@ -137,7 +159,7 @@ family the player knows, which gives the rescue more weight.
 
 ## Open questions
 
-1. How should the player interact with animals (see the list above)? The author said later.
+1. How should the player interact with animals? Decided in session 64, see "Interaction with animals".
 2. How do the player and the other families interact (see above)? The author said later.
 3. Is the budget of 40 live animals right, and what is the real cost on the tablet? Measure with the first animals.
 4. Should wolf and bear stay, given no source for them in the Almtal? The author chose them, so yes, but it is worth
@@ -154,6 +176,6 @@ family the player knows, which gives the rescue more weight.
    `src/render/`. No threat, no interaction.
 2. **Other families.** One family at one pond, with tasks and the clock. Reuse `partners.ts` for the placement.
 3. **Predators.** The notice, chase, caught, and hurt rules, starting with the fox and the owl.
-4. **Interactions.** Whatever the author picks.
+4. **Interactions.** Built for animals (#306 to #310), see "Interaction with animals" and "As built" there. Interactions with other families wait for the author (#276).
 
 Each slice gets its own issue once the author agrees, and the note is updated as the author decides.

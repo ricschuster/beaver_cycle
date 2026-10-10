@@ -15,10 +15,10 @@ export const COATS = [
   { fur: 0x5b3b22, dark: 0x33200f, belly: 0x7a5736 },
   { fur: 0x9a6a3a, dark: 0x4f3a2a, belly: 0xb88b55 },
 ] as const;
-const TAIL = 0x3b2a1a;
+export const TAIL = 0x3b2a1a;
 /** Beaver teeth are orange, from the iron in them. */
-const TEETH = 0xe0904a;
-const NOSE = 0x1a1210;
+export const TEETH = 0xe0904a;
+export const NOSE = 0x1a1210;
 const EYE = 0x0d0a08;
 
 /** How far a shade of 1 moves a coat toward white (or of -1 toward black). */
@@ -98,10 +98,21 @@ export function actionPose(kind: ActionKind, age: number): ActionPose {
 /** The hip the body rears up about when it sits, in the model's frame. */
 const HIP = { y: 0.28, z: -0.3 };
 
+/** The colours of a coat: fur, dark fur for legs and ears, and belly. */
+export interface CoatColours {
+  fur: THREE.ColorRepresentation;
+  dark: THREE.ColorRepresentation;
+  belly: THREE.ColorRepresentation;
+}
+
 export interface BeaverModel {
   group: THREE.Group;
+  /** The head, which nods and turns with the poses, to add things to it (the dream's blush). */
+  head: THREE.Group;
   /** Change the coat, an index into `COATS`. A new baby has its own colour. */
   setCoat(coat: number, shade?: number): void;
+  /** Paint the coat in any colours, such as the dream's pastel marshmallow beavers. */
+  setColours(colours: CoatColours): void;
   /**
    * Poses the model. `time` is seconds, `speed01` is 0 standing and 1 at full pace,
    * `mode` picks the pose, `tilt` (-1 rising to 1 sinking) pitches a diver's nose,
@@ -344,17 +355,23 @@ export function createBeaverModel(coat = 0): BeaverModel {
   let doing: ActionPose | null = null;
   let weight = 0;
 
+  const setColours = ({ fur, dark, belly }: CoatColours): void => {
+    for (const m of painted.fur) m.color.set(fur);
+    for (const m of painted.dark) m.color.set(dark);
+    for (const m of painted.belly) m.color.set(belly);
+    torso.paint(new THREE.Color(fur), new THREE.Color(belly));
+  };
+
   return {
     group,
+    head,
     setCoat(index, shade = 0) {
       const c = COATS[index % COATS.length]!;
       // A shade of -1 to 1 makes the whole coat a little darker or lighter, so no two beavers of a coat look the same.
       const tint = (hex: number): THREE.Color => new THREE.Color(hex).lerp(new THREE.Color(shade < 0 ? 0x000000 : 0xffffff), Math.abs(shade) * SHADE_STRENGTH);
-      for (const m of painted.fur) m.color.copy(tint(c.fur));
-      for (const m of painted.dark) m.color.copy(tint(c.dark));
-      for (const m of painted.belly) m.color.copy(tint(c.belly));
-      torso.paint(tint(c.fur), tint(c.belly));
+      setColours({ fur: tint(c.fur), dark: tint(c.dark), belly: tint(c.belly) });
     },
+    setColours,
     update(time, speed01, mode = 'walk', tilt = 0, slapAge = null, carry = null, action = null) {
       branch.visible = carry === 'branch';
       lily.visible = carry === 'lily';

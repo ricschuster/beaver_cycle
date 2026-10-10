@@ -30,6 +30,33 @@ describe('createBeaverModel', () => {
     expect(colors().has(COATS[4].dark)).toBe(true);
   });
 
+  it('paints any colours, such as a pastel coat, the same way as a coat', () => {
+    const m = createBeaverModel(1);
+    const colors = (): Set<number> => {
+      const set = new Set<number>();
+      m.group.traverse((o) => {
+        if (o instanceof THREE.Mesh) set.add((o.material as THREE.MeshLambertMaterial).color.getHex());
+      });
+      return set;
+    };
+    m.setColours({ fur: 0xf7c6d9, dark: 0xe79ab8, belly: 0xfde6ee });
+    expect(colors().has(0xf7c6d9)).toBe(true);
+    expect(colors().has(0xe79ab8)).toBe(true);
+    expect(colors().has(0xfde6ee)).toBe(true);
+    expect(colors().has(COATS[1].fur)).toBe(false);
+    // The body is painted in its vertices: fur on top, belly under.
+    const body = new Set<number>();
+    m.group.traverse((o) => {
+      const c = o instanceof THREE.Mesh ? o.geometry.getAttribute('color') : undefined;
+      for (let i = 0; c && i < c.count; i++) body.add(new THREE.Color(c.getX(i), c.getY(i), c.getZ(i)).getHex());
+    });
+    expect(body.has(0xf7c6d9)).toBe(true);
+    expect(body.has(0xfde6ee)).toBe(true);
+    m.setCoat(1);
+    expect(colors().has(COATS[1].fur)).toBe(true);
+    expect(colors().has(0xf7c6d9)).toBe(false);
+  });
+
   it('shows a branch in the mouth only while carrying one', () => {
     const m = createBeaverModel();
     m.update(0.1, 0);

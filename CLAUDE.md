@@ -82,6 +82,8 @@ Everyday (gate means CI blocks a merge on it):
   `?kind=fox&moving=1&yaw=90&pitch=15&dist=3&t=2`; kinds as in `src/sim/animals.ts`)
 - `npm run dev`, then open `/tools/prop-preview/` - the props (lodge, dam, logs, rocks, food store, lily pads) side by side with their meshes and
   triangles; `node tools/prop-preview/shoot.mjs out.png` screenshots it from a Vite server on port 5202 (`npx vite --port 5202 --strictPort`)
+- `npm run dev`, then open `/tools/dream-preview/` - the candy land dream scene alone (query `?seed=N&t=2&tag=1&giggle=1`); in the
+  game `?dream=1&seed=N` opens a dream at once, and the test menu has Dream now
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene
 - `python3 scripts/build_question_docx.py QUESTIONS.md OUT.docx TEMPLATE.docx` -
   build a printable handout

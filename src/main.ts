@@ -45,6 +45,7 @@ import { COACH_KEY, createCoach, wantsCoach } from './ui/coach';
 import { askContinue } from './ui/continueCard';
 import { AUTOSAVE_EVERY, ago, clearSave, loadSave, wantsSave, writeSave, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
+import { createDreamScreen } from './ui/dreamScreen';
 import { createTestMenu } from './ui/testMenu';
 import { createFlyButtons } from './ui/flyButtons';
 import { loadDamSites } from './render/damSites';
@@ -368,6 +369,9 @@ async function start(): Promise<void> {
     onSleep() {
       world = sleep(world);
     },
+    onDream() {
+      startDream();
+    },
     onJump(id) {
       const a = anchors.find((l) => l.id === id);
       if (!a || !a.inTiles || !streamer) return;
@@ -417,7 +421,16 @@ async function start(): Promise<void> {
     onWake(goal) {
       world = goal === 'night' ? sleep(world) : sleepUntil(world, goal);
     },
+    onDream: () => startDream(),
   });
+  // The dream (docs/design/29_dream_candy_land.md): candy land over the game, made new each night from the day and the
+  // generation. While it is open the frame loop gives it the input and neither steps nor draws the waking game. Waking goes
+  // through the sleep prompt, which moves the clock to dawn (when the beaver could sleep) and fades the game back in.
+  const dreamScreen = createDreamScreen(document.body, {
+    touch: wantsTouchControls(navigator, query),
+    onWake: () => sleepPrompt.wakeFromDream(),
+  });
+  const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation): void => dreamScreen.start(seed, world.coat);
   let fps = 60;
   let lastReadout = 0;
   let animalsAt = 0;
@@ -513,6 +526,11 @@ async function start(): Promise<void> {
     const dt = Math.max(0, Math.min((now - last) / 1000, 0.1));
     last = now;
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
+    if (dreamScreen.active()) {
+      dreamScreen.frame(dt, mergeActions(readKeyboard(), touch.read()));
+      requestAnimationFrame(frame);
+      return;
+    }
     if (jump && streamer) {
       streamer.update(jump.x, jump.z);
       if (jump.spawn && (streamer.settled(jump.x, jump.z) || now > jump.deadline)) {
@@ -781,6 +799,11 @@ async function start(): Promise<void> {
   }
   saveNow();
   requestAnimationFrame(frame);
+  // ?dream=1 opens a dream at once, to look at it on a tablet and for the browser test; ?seed=N picks the night.
+  if (query.get('dream') === '1') {
+    const seed = Number(query.get('seed'));
+    startDream(query.has('seed') && Number.isFinite(seed) ? Math.floor(seed) : undefined);
+  }
   // Read only view for tests and the coming test menu.
   (window as unknown as { __game: unknown }).__game = {
     world: () => world,
@@ -802,6 +825,8 @@ async function start(): Promise<void> {
     predators: () => world.predators,
     hurtAt: () => world.hurtAt,
     lodgeSite: (radius: number) => findSite(lodgeGround(terrain, world.ponds), world.beaver.x, world.beaver.z, radius),
+    // The dream's state while one is open, else null.
+    dream: () => dreamScreen.state(),
   };
 }
 

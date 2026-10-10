@@ -607,7 +607,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       // Spots found as ponds grow (newSpots.ts) get their rings.
       if (world.spots !== ringSpots && world.spots.length !== ringSpots.length) showRings(world.spots);
       spotRings?.update(look.x, look.z, world.dams, world.clock);
-      pondView.update(world.ponds);
+      pondView.update(world.ponds, world.spots);
       if (source) damView.update(world.dams, world.spots, (x, z) => source.store.heightAt(x, z), world.clock, world.ponds);
       while (formerViews.length < world.formerHomes.length) formerViews.push(createLodgeView(scene, shadows, prepare, false));
       while (formerStoreViews.length < world.formerHomes.length) formerStoreViews.push(createStoreView(scene, shadows, prepare));

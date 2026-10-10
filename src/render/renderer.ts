@@ -35,7 +35,7 @@ import type { DamSite } from './damSites';
 import { createDamSiteView } from './damSites';
 import { createSpotRings, type SpotRings } from './spotRing';
 import type { DamSpot } from '../sim/damSpots';
-import { createTerrainView, type TerrainView } from './terrainView';
+import { clearingsOf, createTerrainView, type Clearing, type TerrainView } from './terrainView';
 
 /** Tiles to draw, when they exist. Without them the game shows a flat plane. */
 export interface TerrainSource {
@@ -269,6 +269,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   scene.add(leafMesh);
   const leafTrees: number[] = [];
   let leafTreesAt = -Infinity;
+  // Patches kept clear of shrubs round the dams and the lodges, worked out again only when one of them changes.
+  let clearingsFrom: unknown[] = [];
+  let clearings: Clearing[] = [];
   const leafMatrix = new THREE.Matrix4();
   const leafEuler = new THREE.Euler();
   const leafQuat = new THREE.Quaternion();
@@ -544,6 +547,14 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       terrain?.setSeason(season);
       pondView.setSeason(season);
       terrain?.setFelled(world.felled);
+      if (terrain) {
+        const from = [world.dams, world.spots, world.lodge, world.formerHomes, world.neighbours];
+        if (from.some((f, i) => f !== clearingsFrom[i])) {
+          clearingsFrom = from;
+          clearings = clearingsOf(world.dams, world.spots, [world.lodge, ...world.formerHomes, ...world.neighbours.map((n) => n.lodge)]);
+        }
+        terrain.setClearings(world.ponds, clearings);
+      }
       logView.update(bare ? [] : world.logs, world.stripped);
       if (terrain && !bare && season.leafFall > 0 && now - leafTreesAt > 1) {
         leafTreesAt = now;

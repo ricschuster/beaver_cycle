@@ -1,6 +1,6 @@
 # Leaving home and the next baby (M6, next slice)
 
-Status: the author chose the shape (below); steps 2 to 5 are not built. It follows
+Status: built (#240, #241), in the shape the author chose (below). It follows
 `22_life_stages.md`, which has the stages, Mama and Papa, and the coats.
 
 ## What the author has said

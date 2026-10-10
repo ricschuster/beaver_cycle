@@ -2,8 +2,8 @@
 
 Status: measured. **Decided for now (session 73): shadows are off by default**, `?shadows=1` turns them on; a plain
 sun light keeps the shading following the sun. The question of a better look at a good cost stays open (below). Written in session 21 after the first
-tablet run of the cascaded shadows (M4, #117). The choice of a default is
-left for later, when more of the look and the budget is known (see "Later").
+tablet run of the cascaded shadows (M4, #117), when the default was two
+cascades (#120, closed).
 
 ## What was measured
 
@@ -51,7 +51,8 @@ These are alternatives, not steps. They trade look against cost.
    fewer triangles in the maps. Needs a second mesh per tile, built and stored,
    so it is the most work. Not tried.
 4. **Shadows off by default**, with a setting. Full speed, flat light. Mostly
-   useful as the lowest tier of a quality setting, if there is one.
+   useful as the lowest tier of a quality setting, if there is one. This is the
+   one chosen in session 73 (#336), with a plain sun light so the light is not flat.
 
 ## Later
 
@@ -60,11 +61,11 @@ alone. The same kind of choice (look against frames on the tablet) shows up in
 the tree count, the tile rings, the fine tile ring (ADR 0008), the water, and
 the seasons. Rather than decide each in turn, collect them in one budget:
 what the tablet can carry, what each feature costs, and what is worth it. Then
-pick the shadow default, and whether to try options 2 and 3, with that table in
-front of us.
+decide whether shadows come back on by default, and whether to try options 2
+and 3, with that table in front of us.
 
-Until then the default stays at two cascades, and the switches in the M4 note
-(`?shadows=0`, `?cascades=1`, `?shadowmap=`) are the way to compare. Repeat the
+Until then shadows stay off by default, and the switches in the M4 note
+(`?shadows=1`, `?cascades=1`, `?shadowmap=`) are the way to compare. Repeat the
 `scenarios` and `lakes` benchmarks when the scene gets heavier, for example
 with seasonal trees (#105 art pass) or a lodge (M5).
 

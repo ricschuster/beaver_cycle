@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildLodge, enterLodgeAndRest, setSpeed, shot, startGame, walkTo, world } from './helpers';
+import { buildLodge, collectToasts, enterLodgeAndRest, setSpeed, shot, startGame, toasts, walkTo, world } from './helpers';
 // A playtest of the family cycle (docs/design/23_leaving_and_next_baby.md) in the real game, driven by the keys and the test menu.
 // Run it with PLAYTEST_SHOTS=dir to keep screenshots of the key moments.
 
@@ -35,6 +35,8 @@ test('the family cycle: leave home, hear and find a partner', async ({ page }) =
   // The walk ends when it is met, which makes the beaver follow (it then trails the player, so it never gets close again).
   const met = async (): Promise<boolean> => (await world(page)).partners.some((p: any) => p.state === 'following');
   const target = async () => (await world(page)).partners.find((p: any) => p.id === nearest.id);
+  // Toasts show one at a time, so record them all.
+  await collectToasts(page);
   let reached = false;
   for (let i = 0; i < 60 && !reached; i++) reached = (await walkTo(page, target, 6, 3000)) || (await met());
   w = await world(page);
@@ -42,7 +44,8 @@ test('the family cycle: leave home, hear and find a partner', async ({ page }) =
   await page.waitForTimeout(300);
   await shot(page, '03-met-partner');
   expect(w.partners.find((p: any) => p.id === nearest.id).state).toBe('following');
-  await expect(page.locator('#toast')).toContainText('slaps its tail and follows');
+  // Toasts queue and each shows for about 4 s of real time, so earlier ones (a fox, tail slaps) can come first.
+  await expect.poll(async () => (await toasts(page)).some((t) => t.includes('slaps its tail and follows')), { timeout: 90_000 }).toBe(true);
 
   // The meeting place has no water for a lodge within 300 m, so lead it back to the lake by the old home (fast, then at normal
   // speed so the beaver does not overshoot its work).

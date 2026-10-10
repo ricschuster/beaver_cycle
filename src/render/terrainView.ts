@@ -7,6 +7,7 @@ import type { TreeRef, Trunk } from '../sim/trees';
 import { BROADLEAF_SHAPE, KIND_BROADLEAF, placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid, treeIdPosition } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
+import { timed } from '../terrain/buildTimes';
 import type { SeasonLook, Tint } from './seasonLook';
 
 const CLASS_COLORS: Record<number, number> = {
@@ -479,17 +480,17 @@ export function createTerrainView(
         const old = meshes.get(key);
         if (old) disposeGroup(scene, old.group);
         const group = new THREE.Group();
-        const ground = own(new THREE.Mesh(buildTileGeometry(tile, size), material));
+        const ground = own(new THREE.Mesh(timed('ground', job.level, () => buildTileGeometry(tile, size)), material));
         // Near tiles take and throw shadows; the far rings (level 2) are too far to matter.
         ground.castShadow = ground.receiveShadow = job.level !== 2;
         group.add(ground);
         const lakeLevel = store.tileInfo(job.tx, job.tz)?.lakeLevel_m;
-        const lake = lakeLevel == null || job.level === 2 ? null : buildLakeGeometry(tile, size, lakeLevel);
+        const lake = lakeLevel == null || job.level === 2 ? null : timed('lake', job.level, () => buildLakeGeometry(tile, size, lakeLevel));
         if (lake) group.add(own(new THREE.Mesh(lake, lakeMaterial)));
         const water = store.waterOf(job.tx, job.tz);
-        const streams = job.level !== 2 && water ? buildStreamGeometry(water, (x, z) => store.heightAt(x, z)) : null;
+        const streams = job.level !== 2 && water ? timed('streams', job.level, () => buildStreamGeometry(water, (x, z) => store.heightAt(x, z))) : null;
         if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
-        const trees = buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds);
+        const trees = timed('trees', job.level, () => buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds));
         if (trees) group.add(...trees.meshes);
         scene.add(group);
         dirty.delete(key);

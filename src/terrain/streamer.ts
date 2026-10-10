@@ -1,3 +1,4 @@
+import { timed } from './buildTimes';
 import { decodeTile, LEVEL_FINE, type DecodedTile, type TileWater } from './format';
 import { tileKey, type TileStore } from './store';
 
@@ -181,7 +182,8 @@ export function httpFetchTile(base: string): FetchTile {
   return async (level, tx, tz) => {
     const res = await fetch(`${base}L${level}/${tx}_${tz}.bin`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return decodeTile(tx, tz, await res.arrayBuffer());
+    const buf = await res.arrayBuffer();
+    return timed('decode', level, () => decodeTile(tx, tz, buf));
   };
 }
 

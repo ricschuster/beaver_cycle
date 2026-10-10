@@ -340,10 +340,30 @@ place, and nothing has been profiled, so the share of the time that goes to
 decoding, the ground, the lake, or the trees is not known. The Almsee shore has
 the largest tile count and lake surface to clip, which may be why it is worst.
 
+### Build times on the tablet (session 72)
+
+`bench.mjs lakes` now prints the time of each build part per tile (the game keeps
+them in `src/terrain/buildTimes.ts`, read with `__game.buildTimes()`). One run on
+the Tab A9+ over the five places, fine tiles (6 to 10 per place), in ms:
+
+| Part | Mean | Slowest |
+| --- | --- | --- |
+| Ground | 12 to 16 | 37 |
+| Lake surface | 9 to 19 | 48 |
+| Trees | 1.5 to 4.6 | 22 |
+| Streams | 0.1 to 0.2 | 0.4 |
+| Decode | 0.1 to 0.2 | 0.3 |
+
+A whole fine tile is therefore about 25 to 35 ms on average and up to about
+90 ms, against a 4 ms budget and an 11 ms frame. Ground and the lake surface are
+nearly all of it; decode and streams do not matter. Level 0 tiles take 2 to 3 ms
+for ground and trees, level 1 under 1 ms. Walking at x5 for 8 s built almost no
+tiles this time, so the walking spikes did not repeat (worst 11 to 22 ms); the
+big frames come when many fine tiles are wanted at once, as after a jump.
+
 ### Options, not yet decided
 
-- Measure first: time each part of a tile build on the tablet and print it in
-  the bench output, so the fix goes where the time is.
+- Measured (session 72, #109, below). Build the parts apart first.
 - Build the parts of one tile on different frames (ground, then lake and
   streams, then trees), so no frame builds the whole tile.
 - Build the ground in typed arrays from the start rather than a number array.

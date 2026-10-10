@@ -6,7 +6,7 @@
 //   node tools/tablet-live/bench.mjs scenarios      each location, walking, x100
 //   node tools/tablet-live/bench.mjs stress         ring and tree density sweep
 //   node tools/tablet-live/bench.mjs soak [minutes] walk and report every ~90 s
-//   node tools/tablet-live/bench.mjs lakes         jump to each fine tile region, still and walking
+//   node tools/tablet-live/bench.mjs lakes         jump to each fine tile region, still and walking, with per part tile build times (#109)
 //   BENCH_QUERY=cascades=1 node ...                 add URL options to every load
 //   node tools/tablet-live/bench.mjs fine          fine tile ring sweep at the shore and the bog (ADR 0008)
 //
@@ -137,12 +137,29 @@ async function stress() {
   }
 }
 
+/** Per part build times (ms) for fine tiles (level 3) and the rest, since the last drain. */
+const buildSummary = () =>
+  page.evaluate(() => {
+    const out = {};
+    for (const t of window.__game.buildTimes()) {
+      const k = `${t.level === 3 ? 'fine' : 'L' + t.level} ${t.part}`;
+      (out[k] ??= []).push(t.ms);
+    }
+    for (const [k, v] of Object.entries(out)) {
+      v.sort((a, b) => a - b);
+      out[k] = { n: v.length, mean: +(v.reduce((a, c) => a + c, 0) / v.length).toFixed(1), p90: v[Math.floor(v.length * 0.9)], max: v[v.length - 1] };
+    }
+    return out;
+  });
+
 async function lakes() {
   await load();
   const places = ['alm-river-outflow', 'almsee', 'south-shore-bog', 'aagbach-inflow', 'east-oedseen'];
   for (const id of places) {
+    await buildSummary(); // empty the log
     const jumpMs = await jump(id);
     await stable();
+    print(`lakes ${id} jump builds`, await buildSummary());
     const still = await sample(5000);
     await speed(5);
     await page.keyboard.down('KeyW');
@@ -150,6 +167,7 @@ async function lakes() {
     await page.keyboard.up('KeyW');
     await speed(1);
     print(`lakes ${id}`, { ...still, jumpMs, moving5: { fps: moving.fps, p99ms: moving.p99ms, worstMs: moving.worstMs, tris: moving.tris, tiles: moving.tiles } });
+    print(`lakes ${id} walk builds`, await buildSummary());
   }
 }
 

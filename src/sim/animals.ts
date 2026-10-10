@@ -1,11 +1,11 @@
 // Ambient animals of the valley (docs/design/24_npcs_and_animals.md, slice 1). Nothing is stored: the ground is cut
 // into square cells, and a cell's animal follows from the cell, so every device and every visit gives the same
 // animals. Where an animal is at a time is a function of the clock (like `wear.ts`), so a sleep needs no catch-up.
-// No threat and no interaction yet. No three.js and no DOM here.
+// The mood of an animal toward the player is in `moods.ts`, and the pond guests are in `pondGuests.ts`. No three.js and no DOM here.
 import { COVER_FOREST, COVER_MEADOW, type Terrain } from './terrain';
 import { dateAt, isNight } from './clock';
 
-export type AnimalKind = 'deer' | 'fox' | 'duck' | 'heron' | 'owl' | 'lynx' | 'bear';
+export type AnimalKind = 'deer' | 'fox' | 'duck' | 'heron' | 'owl' | 'lynx' | 'bear' | 'frog' | 'otter' | 'kingfisher';
 
 export interface Animal {
   /** Stable while the animal is near: the cell it belongs to. */
@@ -39,19 +39,24 @@ const WANDER: Record<AnimalKind, { radius: number; rate: number }> = {
   owl: { radius: 1, rate: 0.02 },
   lynx: { radius: 6, rate: 0.03 },
   bear: { radius: 8, rate: 0.04 },
+  // The frog is a pond guest (`pondGuests.ts`), never an ambient cell animal.
+  frog: { radius: 0.8, rate: 0.05 },
+  // The otter and the kingfisher lead the beaver to lily pads (`guides.ts`).
+  otter: { radius: 6, rate: 0.08 },
+  kingfisher: { radius: 0.5, rate: 0.02 },
 };
 
 /** Chance that a cell holds an animal at all, and the share of those that are each kind, for land and for water cells. */
 const CHANCE = 0.55;
 
-function hash(a: number, b: number, salt: number): number {
+export function hash(a: number, b: number, salt: number): number {
   let h = (Math.imul(a, 374761393) ^ Math.imul(b, 668265263) ^ Math.imul(salt, 2246822519)) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
 /** An animal's fixed side: where it lives and how its path goes. */
-interface Home {
+export interface Home {
   kind: AnimalKind;
   x: number;
   z: number;
@@ -68,7 +73,7 @@ const TRIES = 16;
 /** True when a point suits the kind: deer and fox on dry land (meadow when the ground tells), duck on shallow water, heron on a shore. */
 function suits(kind: AnimalKind, t: Terrain, x: number, z: number): boolean {
   const water = t.isWater(x, z);
-  if (kind === 'duck') {
+  if (kind === 'duck' || kind === 'otter') {
     const d = t.waterDepth(x, z);
     return water && d >= 0.4 && d <= 3;
   }
@@ -78,7 +83,7 @@ function suits(kind: AnimalKind, t: Terrain, x: number, z: number): boolean {
     const cover = t.coverAt?.(x, z);
     return cover === undefined || cover === COVER_FOREST;
   }
-  if (kind === 'heron') {
+  if (kind === 'heron' || kind === 'kingfisher') {
     // On the bank with the water at its feet.
     return [[5, 0], [-5, 0], [0, 5], [0, -5], [3.5, 3.5], [-3.5, 3.5], [3.5, -3.5], [-3.5, -3.5]].some(([dx, dz]) => t.isWater(x + dx!, z + dz!));
   }
@@ -90,7 +95,7 @@ function suits(kind: AnimalKind, t: Terrain, x: number, z: number): boolean {
 function pathSuits(kind: AnimalKind, t: Terrain, x: number, z: number): boolean {
   if (!suits(kind, t, x, z)) return false;
   const r = WANDER[kind].radius;
-  if (kind === 'heron' || kind === 'owl') return true;
+  if (kind === 'heron' || kind === 'owl' || kind === 'kingfisher') return true;
   for (let i = 0; i < RING; i++) {
     const a = (i / RING) * Math.PI * 2;
     if (!suits(kind, t, x + Math.cos(a) * r, z + Math.sin(a) * r)) return false;
@@ -106,7 +111,9 @@ export function homeOf(t: Terrain, cx: number, cz: number): Home | null {
   // The last seventh of cells are the forest's: mostly owls, then lynx, then bears.
   const wood = hash(cx, cz, 5);
   const woodKind: AnimalKind = wood < 0.7 ? 'owl' : wood < 0.85 ? 'lynx' : 'bear';
-  const order: AnimalKind[] = pick < 0.35 ? ['deer', 'fox'] : pick < 0.5 ? ['fox', 'deer'] : pick < 0.8 ? ['duck', 'heron'] : pick < 0.93 ? ['heron', 'duck'] : [woodKind, 'fox'];
+  // One cell in twelve of the water cells holds a guide, an otter or a kingfisher, in place of a duck or a heron.
+  const guide: AnimalKind = hash(cx, cz, 6) < 0.5 ? 'otter' : 'kingfisher';
+  const order: AnimalKind[] = pick >= 0.5 && pick < 0.57 ? [guide, 'duck'] : pick < 0.35 ? ['deer', 'fox'] : pick < 0.5 ? ['fox', 'deer'] : pick < 0.8 ? ['duck', 'heron'] : pick < 0.93 ? ['heron', 'duck'] : [woodKind, 'fox'];
   for (const kind of order) {
     for (let i = 0; i < TRIES; i++) {
       const x = (cx + hash(cx, cz, 10 + i * 2)) * CELL;
@@ -125,16 +132,21 @@ export function isAbout(home: Home, clock: number): boolean {
   const winter = dateAt(clock).season === 'winter';
   if (winter && (home.kind === 'duck' || home.kind === 'heron') && home.luck < 0.6) return false;
   if (winter && home.kind === 'deer' && home.luck < 0.2) return false;
+  // Frogs sleep through the winter.
+  if (home.kind === 'frog') return !winter;
   // The owl is about only at night, the lynx from dusk to dawn, and the bear from spring to autumn (it sleeps the winter through).
   if (home.kind === 'owl') return isNight(clock);
+  // The kingfisher fishes by day.
+  if (home.kind === 'kingfisher') return !isNight(clock);
   if (home.kind === 'lynx') return dateAt(clock).timeOfDay >= LYNX_FROM;
   if (home.kind === 'bear') return !winter;
   if (isNight(clock) && (home.kind === 'duck' || home.kind === 'heron') && home.luck < 0.5) return false;
   return true;
 }
 
-function placeAt(home: Home, clock: number): { x: number; z: number; heading: number; moving: boolean } {
-  const { radius, rate } = WANDER[home.kind];
+/** Where the animal of a home is at a clock time. `radius` overrides how wide it wanders (a pond guest stays on its pond). */
+export function placeAt(home: Home, clock: number, radius = WANDER[home.kind].radius): { x: number; z: number; heading: number; moving: boolean } {
+  const { rate } = WANDER[home.kind];
   const a = clock * rate + home.phase;
   const x = home.x + Math.sin(a) * radius;
   const z = home.z + Math.sin(a * 2) * radius * 0.5;
@@ -142,7 +154,7 @@ function placeAt(home: Home, clock: number): { x: number; z: number; heading: nu
   const dx = Math.cos(a) * radius;
   const dz = Math.cos(a * 2) * radius;
   // A part of each loop is spent grazing or standing, and the heron and owl stand.
-  const moving = home.kind === 'heron' || home.kind === 'owl' ? false : Math.sin(a * 3.1 + home.phase) > -0.2;
+  const moving = home.kind === 'heron' || home.kind === 'owl' || home.kind === 'kingfisher' ? false : Math.sin(a * 3.1 + home.phase) > -0.2;
   return { x, z, heading: Math.atan2(dx, dz), moving };
 }
 
@@ -176,7 +188,7 @@ export class AnimalField {
         const d = Math.hypot(p.x - x, p.z - z);
         if (d > radius) continue;
         const ground = t.heightAt(p.x, p.z);
-        const y = home.kind === 'duck' ? ground + t.waterDepth(p.x, p.z) : ground;
+        const y = home.kind === 'duck' || home.kind === 'otter' ? ground + t.waterDepth(p.x, p.z) : home.kind === 'kingfisher' ? ground + 0.7 : ground;
         found.push({ a: { id: key, kind: home.kind, x: p.x, y, z: p.z, heading: p.heading, moving: p.moving }, d });
       }
     }

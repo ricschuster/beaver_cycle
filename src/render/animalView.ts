@@ -382,7 +382,106 @@ function bearModel(): AnimalModel {
   };
 }
 
-const MAKERS: Record<AnimalKind, () => AnimalModel> = { deer: deerModel, fox: foxModel, duck: duckModel, heron: heronModel, owl: owlModel, lynx: lynxModel, bear: bearModel };
+/** The frog: a small green body with long folded back legs, sitting at the water's edge, throat swelling now and then, and a hop when it moves. */
+function frogModel(): AnimalModel {
+  const GREEN = 0x4f8a3a;
+  const group = new THREE.Group();
+  const body = new THREE.Group();
+  group.add(body);
+  body.add(ellipsoid(0.07, 0.05, 0.09, GREEN, 0, 0.06, 0));
+  body.add(ellipsoid(0.05, 0.02, 0.07, 0xd8e0a0, 0, 0.03, 0.01));
+  body.add(ellipsoid(0.055, 0.04, 0.05, GREEN, 0, 0.08, 0.07));
+  for (const s of [-1, 1]) {
+    body.add(part(new THREE.SphereGeometry(0.02, 8, 6), 0xe0c040, s * 0.035, 0.12, 0.08));
+    body.add(part(new THREE.SphereGeometry(0.01, 6, 6), EYE, s * 0.035, 0.125, 0.095));
+    body.add(ellipsoid(0.02, 0.02, 0.09, 0x3d6e2e, s * 0.07, 0.04, -0.05));
+    body.add(ellipsoid(0.018, 0.012, 0.05, GREEN, s * 0.045, 0.02, 0.09));
+  }
+  const walk = easer();
+  return {
+    group,
+    pose(time, moving, seed) {
+      const w = walk(moving ? 1 : 0, time);
+      // Sitting: the body swells slowly with breath. Moving: a small hop.
+      const hop = Math.max(0, Math.sin(time * 7 + seed)) * 0.06 * w;
+      body.position.y = hop;
+      body.scale.set(1, 1 + Math.sin(time * 2 + seed) * 0.05 * (1 - w), 1);
+    },
+  };
+}
+
+/** The otter: a long, low, dark brown body with a thick tail and a pale throat, swimming at the surface and bobbing. */
+function otterModel(): AnimalModel {
+  const BROWN = 0x5a3e2a;
+  const group = new THREE.Group();
+  const body = new THREE.Group();
+  group.add(body);
+  body.add(ellipsoid(0.12, 0.1, 0.4, BROWN, 0, 0.05, 0));
+  body.add(ellipsoid(0.1, 0.05, 0.25, 0xcdb89a, 0, 0.0, 0.12));
+  const tail = ellipsoid(0.07, 0.05, 0.38, BROWN, 0, 0.04, -0.55);
+  tail.rotation.x = 0.15;
+  body.add(tail);
+  const head = new THREE.Group();
+  head.position.set(0, 0.1, 0.42);
+  body.add(head);
+  head.add(ellipsoid(0.085, 0.07, 0.11, BROWN, 0, 0, 0));
+  head.add(ellipsoid(0.05, 0.035, 0.05, 0xcdb89a, 0, -0.02, 0.09));
+  head.add(part(new THREE.SphereGeometry(0.015, 6, 6), 0x15100c, 0, 0.0, 0.14));
+  eyes(head, 0.05, 0.04, 0.06, 0.014);
+  for (const s of [-1, 1]) head.add(ellipsoid(0.02, 0.02, 0.015, BROWN, s * 0.065, 0.075, 0.0));
+  const walk = easer();
+  return {
+    group,
+    pose(time, moving, seed) {
+      const w = walk(moving ? 1 : 0, time);
+      body.position.y = Math.sin(time * 2.4 + seed) * 0.015 + Math.sin(time * 7 + seed) * 0.02 * w;
+      body.rotation.x = -0.1 * w + Math.sin(time * 1.1 + seed) * 0.05;
+      tail.rotation.y = Math.sin(time * 4 + seed) * 0.3 * w;
+      head.rotation.y = Math.sin(time * 0.9 + seed) * 0.5 * (1 - w);
+    },
+  };
+}
+
+/** The kingfisher: a small bird with a big head and bill, blue back and orange breast, perched, and whirring its wings in flight. */
+function kingfisherModel(): AnimalModel {
+  const BLUE = 0x2a8ec0;
+  const ORANGE = 0xe0803a;
+  const group = new THREE.Group();
+  const body = new THREE.Group();
+  group.add(body);
+  body.add(ellipsoid(0.04, 0.045, 0.07, BLUE, 0, 0.0, 0));
+  body.add(ellipsoid(0.035, 0.035, 0.05, ORANGE, 0, -0.015, 0.02));
+  const tail = ellipsoid(0.02, 0.01, 0.04, BLUE, 0, -0.01, -0.09);
+  body.add(tail);
+  const head = new THREE.Group();
+  head.position.set(0, 0.04, 0.06);
+  body.add(head);
+  head.add(ellipsoid(0.04, 0.04, 0.045, BLUE, 0, 0, 0));
+  head.add(ellipsoid(0.01, 0.01, 0.055, 0x201810, 0, -0.005, 0.07));
+  head.add(part(new THREE.SphereGeometry(0.018, 6, 6), 0xf4f0e8, 0.03, 0, 0.01));
+  eyes(head, 0.032, 0.012, 0.02, 0.008);
+  const wings: THREE.Mesh[] = [];
+  for (const s of [-1, 1]) {
+    const wing = ellipsoid(0.1, 0.008, 0.035, 0x1f6f9a, s * 0.1, 0.02, -0.01);
+    wings.push(wing);
+    body.add(wing);
+  }
+  const walk = easer();
+  return {
+    group,
+    pose(time, moving, seed) {
+      const w = walk(moving ? 1 : 0, time);
+      const beat = Math.sin(time * 40 + seed) * 0.7 * w;
+      wings[0]!.rotation.z = beat;
+      wings[1]!.rotation.z = -beat;
+      // Perched: the head bobs and turns now and then. In flight: level.
+      head.rotation.x = Math.sin(time * 1.6 + seed) * 0.15 * (1 - w);
+      head.rotation.y = Math.sin(time * 0.7 + seed * 2) * 0.6 * (1 - w);
+    },
+  };
+}
+
+const MAKERS: Record<AnimalKind, () => AnimalModel> = { deer: deerModel, fox: foxModel, duck: duckModel, heron: heronModel, owl: owlModel, lynx: lynxModel, bear: bearModel, frog: frogModel, otter: otterModel, kingfisher: kingfisherModel };
 
 /** A number in [0, 7) from an animal's cell id, so animals of a kind do not move in step. */
 function seedOf(id: string): number {
@@ -393,7 +492,7 @@ function seedOf(id: string): number {
 
 export function createAnimalView(scene: THREE.Scene, prepare: (m: THREE.Material) => void): AnimalView {
   // Spare models of each kind, and the ones now in use by animal id.
-  const spare: Record<AnimalKind, AnimalModel[]> = { deer: [], fox: [], duck: [], heron: [], owl: [], lynx: [], bear: [] };
+  const spare: Record<AnimalKind, AnimalModel[]> = { deer: [], fox: [], duck: [], heron: [], owl: [], lynx: [], bear: [], frog: [], otter: [], kingfisher: [] };
   const used = new Map<string, { kind: AnimalKind; model: AnimalModel; seed: number }>();
   const release = (id: string): void => {
     const entry = used.get(id)!;

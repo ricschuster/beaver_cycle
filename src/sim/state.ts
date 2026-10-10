@@ -1,6 +1,7 @@
 // Simulation layer: game state and rules. No DOM, no three.js, no input, so
 // another device can later drive or mirror it (ADR 0007).
 import type { Neighbour } from './neighbours';
+import type { Leader } from './guides';
 import type { Predator } from './predators';
 import { START_CLOCK, nextDawn, nextSeasonStart, nextSpringStart, isNight } from './clock';
 import { FIRST_PARENTS, coatOf, kitCoat, type Coat, type FormerHome } from './family';
@@ -72,6 +73,14 @@ export interface WorldState {
   predators: Predator[];
   /** The clock the beaver was caught by a predator at, or null. It is slower while hurt, until a lily pad is eaten or a day passes. */
   hurtAt: number | null;
+  /** The otter or kingfisher leading the beaver to lily pads, or null (`guides.ts`). */
+  leader: Leader | null;
+  /** The clock each guide last led the beaver at, by animal id, so it does not lead again at once. */
+  ledAt: Record<string, number>;
+  /** How much the animals the beaver has met trust it, 0 to 1, by animal id (`moods.ts`). Missing means the kind's starting trust. */
+  trust: Record<string, number>;
+  /** The clock each pond was first seen at, by dam spot: a pond is mature after a while (`pondGuests.ts`). */
+  pondSince: Record<string, number>;
   /** Lone beavers about the valley, once the player beaver has left home (`partners.ts`). One may follow the player, and one live in the lodge. */
   partners: Partner[];
   /** Felled trees lying where they fell, and in water floating. */
@@ -174,7 +183,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, leader: null, ledAt: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

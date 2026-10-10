@@ -1,6 +1,7 @@
 # Shadow cost on the tablet
 
-Status: measured, **decision open**. Written in session 21 after the first
+Status: measured. **Decided for now (session 73): shadows are off by default**, `?shadows=1` turns them on; a plain
+sun light keeps the shading following the sun. The question of a better look at a good cost stays open (below). Written in session 21 after the first
 tablet run of the cascaded shadows (M4, #117). The choice of a default is
 left for later, when more of the look and the budget is known (see "Later").
 

@@ -3,12 +3,14 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLASS_LAKE, LEVEL_FINE, type DecodedTile, type TileWater } from '../terrain/format';
+import { SWIM_EXIT_DEPTH } from '../sim/state';
 import type { TreeRef, Trunk } from '../sim/trees';
-import { BROADLEAF_SHAPE, KIND_BROADLEAF, placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid, treeIdPosition } from '../terrain/trees';
+import { KIND_BROADLEAF, placeTrees, TREE_FLOATS, TreeGrid, treeIdPosition } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
 import { recordBuildTime, timed } from '../terrain/buildTimes';
 import type { SeasonLook, Tint } from './seasonLook';
+import { broadleafGeometry, coniferGeometry } from './treeModels';
 
 const CLASS_COLORS: Record<number, number> = {
   0: 0x8a9a62, // ground
@@ -150,7 +152,8 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
  * Flat water at the lake level, cut where the ground rises through it. It covers
  * the lake cells and their neighbours, and each ground triangle is clipped to the
  * part below the level, so the shoreline follows the terrain rather than whole
- * cells. Null when the tile has no lake cells.
+ * cells. Each vertex keeps the depth of the water over the ground in a `waterDepth` attribute (0 on the shoreline), so
+ * the shader can freeze the shallows in winter. Null when the tile has no lake cells.
  */
 export function buildLakeGeometry(tile: DecodedTile, size: number, level: number): THREE.BufferGeometry | null {
   const { n, classes, heights: h } = tile;
@@ -165,20 +168,26 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
     return false;
   };
   let pos = new Float32Array(3 * 3 * 1024);
+  let depth = new Float32Array(3 * 1024);
   let used = 0;
-  const emit = (x: number, z: number): void => {
+  const emit = (x: number, z: number, d: number): void => {
     if (used + 3 > pos.length) {
       const bigger = new Float32Array(pos.length * 2);
       bigger.set(pos);
       pos = bigger;
+      const deeper = new Float32Array(depth.length * 2);
+      deeper.set(depth);
+      depth = deeper;
     }
+    depth[used / 3] = d;
     pos[used++] = x;
     pos[used++] = level;
     pos[used++] = z;
   };
-  // the clipped polygon of one triangle: at most 4 points, x and z each
+  // the clipped polygon of one triangle: at most 4 points, x, z, and depth each
   const cx = [0, 0, 0, 0, 0];
   const cz = [0, 0, 0, 0, 0];
+  const cd = [0, 0, 0, 0, 0];
   /** Emits the part of a ground triangle that lies below the level, as a fan. */
   const clip = (x0: number, z0: number, h0: number, x1: number, z1: number, h1: number, x2: number, z2: number, h2: number): void => {
     if (h0 > level && h1 > level && h2 > level) return;
@@ -187,21 +196,23 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
       const aIn = ah <= level;
       if (aIn) {
         cx[m] = ax;
-        cz[m++] = az;
+        cz[m] = az;
+        cd[m++] = level - ah;
       }
       if (aIn !== bh <= level) {
         const t = (level - ah) / (bh - ah);
         cx[m] = ax + (bx - ax) * t;
-        cz[m++] = az + (bz - az) * t;
+        cz[m] = az + (bz - az) * t;
+        cd[m++] = 0;
       }
     };
     edgeTo(x0, z0, h0, x1, z1, h1);
     edgeTo(x1, z1, h1, x2, z2, h2);
     edgeTo(x2, z2, h2, x0, z0, h0);
     for (let k = 1; k + 1 < m; k++) {
-      emit(cx[0]!, cz[0]!);
-      emit(cx[k]!, cz[k]!);
-      emit(cx[k + 1]!, cz[k + 1]!);
+      emit(cx[0]!, cz[0]!, cd[0]!);
+      emit(cx[k]!, cz[k]!, cd[k]!);
+      emit(cx[k + 1]!, cz[k + 1]!, cd[k + 1]!);
     }
   };
   let any = false;
@@ -226,9 +237,19 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
   const up = new Float32Array(used);
   for (let i = 1; i < used; i += 3) up[i] = 1;
   geo.setAttribute('normal', new THREE.BufferAttribute(up, 3));
+  geo.setAttribute('waterDepth', new THREE.BufferAttribute(depth.slice(0, used / 3), 1));
   geo.computeBoundingSphere();
   return geo;
 }
+
+/** Snow on the trees, and the ice at the lake's edges. */
+const SNOW = 0xf2f6f8;
+const ICE = 0xd6e6ee;
+/**
+ * In the depth of winter the lake freezes where it is shallower than this, in metres: only where the beaver wades,
+ * never where it swims (the wavy edge reaches at most a third further), since the sim lets it swim all winter.
+ */
+const ICE_DEPTH = SWIM_EXIT_DEPTH;
 
 const STREAM_HALF_WIDTH = 1.25;
 const STREAM_STEP = 5;
@@ -280,47 +301,15 @@ export function buildStreamGeometry(
   return geo;
 }
 
-// Trees are shared geometry, one per level and kind, never disposed. Level 2 has none.
-const CONIFER_GEOMETRY = [
-  new THREE.ConeGeometry(TREE_SHAPE[0]!.radius, TREE_SHAPE[0]!.height, 6, 1, true).translate(0, 4, 0),
-  new THREE.ConeGeometry(TREE_SHAPE[1]!.radius, TREE_SHAPE[1]!.height, 4, 1, true).translate(0, 4.5, 0),
-];
-
-/**
- * A low crown on a short trunk with a few bare branches. The crown is white and the trunk dark in the vertex
- * colours, so the season's leaf colour (the material colour) tints the crown fully and the wood only a little.
- * The `crown` attribute is 1 and the crown's centre height for crown vertices, so the shader can shrink the
- * crown away in winter, and 0 for the wood.
- */
-function broadleafGeometry(level: number): THREE.BufferGeometry {
-  const { radius, centre } = BROADLEAF_SHAPE[level]!;
-  const crown = new THREE.OctahedronGeometry(radius, 0).scale(1, 0.85, 1).translate(0, centre, 0);
-  const wood: THREE.BufferGeometry[] = [new THREE.CylinderGeometry(0.3, 0.45, centre, 4, 1, true).translate(0, centre / 2, 0).toNonIndexed()];
-  // Three thin branches from the top of the trunk, leaning out in different directions.
-  for (let k = 0; k < 3; k++) {
-    const length = radius * 1.1;
-    const branch = new THREE.CylinderGeometry(0.05, 0.16, length, 3, 1, true).translate(0, length / 2, 0).toNonIndexed();
-    branch.rotateZ(-0.75).rotateY((k * Math.PI * 2) / 3 + 0.4).translate(0, centre * 0.55, 0);
-    wood.push(branch);
-  }
-  const paint = (g: THREE.BufferGeometry, grey: number, isCrown: number): void => {
-    const n = g.getAttribute('position').count;
-    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3).fill(grey), 3));
-    const info = new Float32Array(n * 2);
-    for (let i = 0; i < n; i++) {
-      info[i * 2] = isCrown;
-      info[i * 2 + 1] = centre;
-    }
-    g.setAttribute('crown', new THREE.BufferAttribute(info, 2));
-  };
-  paint(crown, 1, 1);
-  wood.forEach((g) => paint(g, 0.3, 0));
-  const merged = mergeGeometries([crown, ...wood]);
-  crown.dispose();
-  wood.forEach((g) => g.dispose());
-  return merged;
-}
+// Trees are shared geometry, one per level and kind, never disposed (treeModels.ts). Level 2 has none.
+const CONIFER_GEOMETRY = [coniferGeometry(0), coniferGeometry(1)];
 const BROADLEAF_GEOMETRY = [broadleafGeometry(0), broadleafGeometry(1)];
+
+/** A stable turn for the tree at a point, so the trees of a wood do not all face the same way. */
+function treeYaw(x: number, z: number): number {
+  const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+  return (h - Math.floor(h)) * Math.PI * 2;
+}
 
 function instanced(geometry: THREE.BufferGeometry, material: THREE.Material, trees: number[], depth?: THREE.Material) {
   const count = trees.length / TREE_FLOATS;
@@ -328,10 +317,11 @@ function instanced(geometry: THREE.BufferGeometry, material: THREE.Material, tre
   mesh.castShadow = true;
   if (depth) mesh.customDepthMaterial = depth;
   const m = new THREE.Matrix4();
+  const scale = new THREE.Matrix4();
   for (let k = 0; k < count; k++) {
     const o = k * TREE_FLOATS;
     const s = trees[o + 3]!;
-    m.makeScale(s, s, s).setPosition(trees[o]!, trees[o + 1]!, trees[o + 2]!);
+    m.makeRotationY(treeYaw(trees[o]!, trees[o + 2]!)).multiply(scale.makeScale(s, s, s)).setPosition(trees[o]!, trees[o + 1]!, trees[o + 2]!);
     mesh.setMatrixAt(k, m);
   }
   mesh.computeBoundingSphere();
@@ -399,7 +389,7 @@ export interface TerrainView {
   /** Tells the view which trees are felled, given in the order they fell. Tiles that had one are rebuilt without it. */
   setFelled(ids: readonly string[]): void;
   stats(): TerrainStats;
-  /** Sets the seasonal ground and tree colours. Cheap, so it can be called every frame. */
+  /** Sets the seasonal ground, tree, and water look. Cheap, so it can be called every frame. */
   setSeason(look: SeasonLook): void;
 }
 
@@ -420,11 +410,66 @@ export function createTerrainView(
     polygonOffsetUnits: -2,
   });
   const streamMaterial = new THREE.MeshLambertMaterial({ color: 0x3b8fb0, side: THREE.DoubleSide });
-  const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x2f5a2f });
+  // The conifer tiers are open underneath, so both sides are drawn: from below, a tier shows its dark underside.
+  const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x2f5a2f, vertexColors: true, side: THREE.DoubleSide });
   const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x3f7a35, vertexColors: true });
   prepareMaterial(material);
   prepareMaterial(treeMaterial);
   prepareMaterial(leafMaterial);
+  // The trees' wood keeps its bark colour whatever the season's leaf colour, and in winter snow settles on them,
+  // from the spots that hold it best (the `tree` attribute, treeModels.ts) down as the snow grows. The underside of
+  // a conifer tier, drawn from behind, holds none.
+  const snow = { value: 0 };
+  const snowColor = { value: new THREE.Color(SNOW) };
+  const addTreeLook = (material: THREE.Material): void => {
+    const previous = material.onBeforeCompile;
+    material.onBeforeCompile = (shader, renderer) => {
+      previous.call(material, shader, renderer);
+      shader.uniforms.snow = snow;
+      shader.uniforms.snowColor = snowColor;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec2 tree;\nvarying vec2 vTree;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTree = tree;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vTree;\nuniform float snow;\nuniform vec3 snowColor;')
+        .replace(
+          '#include <color_fragment>',
+          `#include <color_fragment>
+          diffuseColor.rgb = mix(diffuseColor.rgb, vColor.rgb, vTree.x);
+          float snowLine = mix(1.1, 0.4, snow);
+          float snowCap = smoothstep(snowLine - 0.03, snowLine + 0.03, vTree.y) * (gl_FrontFacing ? 1.0 : 0.0);
+          diffuseColor.rgb = mix(diffuseColor.rgb, snowColor, snowCap);`,
+        );
+    };
+    const previousKey = material.customProgramCacheKey.bind(material);
+    material.customProgramCacheKey = () => `${previousKey()}|tree`;
+  };
+  addTreeLook(treeMaterial);
+  addTreeLook(leafMaterial);
+  // In winter the shallows of the lake freeze: where the water is shallower than `iceDepth` metres it turns to
+  // pale, nearly opaque ice, with a wavy edge so it does not just copy the depth lines. The water the beaver swims
+  // in stays open.
+  const iceDepth = { value: 0 };
+  const iceColor = { value: new THREE.Color(ICE) };
+  lakeMaterial.onBeforeCompile = (shader) => {
+    shader.uniforms.iceDepth = iceDepth;
+    shader.uniforms.iceColor = iceColor;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float waterDepth;\nvarying float vWaterDepth;\nvarying vec2 vWaterAt;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWaterDepth = waterDepth;\nvWaterAt = position.xz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vWaterDepth;\nvarying vec2 vWaterAt;\nuniform float iceDepth;\nuniform vec3 iceColor;')
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+        if (iceDepth > 0.0) {
+          float wave = sin(vWaterAt.x * 0.21 + 2.0 * sin(vWaterAt.y * 0.13)) * sin(vWaterAt.y * 0.17 + 1.3 + sin(vWaterAt.x * 0.11));
+          float frozen = 1.0 - smoothstep(iceDepth * 0.8, iceDepth, vWaterDepth + wave * iceDepth * 0.35);
+          diffuseColor.rgb = mix(diffuseColor.rgb, iceColor, frozen);
+          diffuseColor.a = mix(diffuseColor.a, 0.95, frozen);
+        }`,
+      );
+  };
   // Broadleaf crowns shrink to nothing as the foliage goes, in the colour pass and in the shadow pass alike.
   const foliage = { value: 1 };
   const leafDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
@@ -584,6 +629,11 @@ export function createTerrainView(
       treeMaterial.color.set(look.tree);
       leafMaterial.color.set(look.leaf);
       foliage.value = look.foliage;
+      snow.value = look.snow;
+      lakeMaterial.color.set(look.water);
+      iceDepth.value = look.ice * ICE_DEPTH;
+      // The streams are shallow, so they whiten all along in a frost.
+      streamMaterial.color.set(look.water).lerp(iceColor.value, 0.5 * look.ice);
     },
     insideTree(x, y, z, margin) {
       return meshes.get(tileKey(Math.floor(x / size), Math.floor(z / size)))?.grid?.hit(x, y, z, margin) ?? false;

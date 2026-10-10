@@ -71,14 +71,20 @@ the quality budget (#120).
   and a pale forest floor, with darker trees. Colours hold through the middle
   of a season and blend over three days at each turn. The ground is tinted in
   the shader by a per vertex weight, so tiles are not rebuilt; rock and lake
-  bed keep their colour. Snow on branches and a seasonal lake are not
-  done; they moved to the art pass (#105). The lake and sky are not tied to the
-  season beyond the sky colour.
+  bed keep their colour. In the art pass (#105) snow settles on the trees in
+  winter, from the tops of the conifer tiers and the upper faces of the bare
+  branches down, and the lake changes colour with the season: milky in
+  spring, darker in autumn, and cold grey in winter, when its shallows freeze.
+  The ice stops where the water is deep enough to swim, since the beaver swims
+  all winter. The streams whiten a little in winter; the beaver's own pond
+  does not change yet.
 - Tree kinds (`src/terrain/trees.ts`): each tree is a conifer or a broadleaf
   tree, picked from its position, in 60 m stands (about three in ten are mostly
   broadleaf, the rest mostly conifer, about a quarter broadleaf overall).
-  Conifers keep their cone and stay green. Broadleaf trees are a low crown on a
-  trunk with a few branches: fresh green in spring, green in summer, orange in
+  Conifers are three tiers of branches on a short trunk and stay green.
+  Broadleaf trees are a lumpy crown, lighter on top, on a trunk with a few
+  branches (`src/render/treeModels.ts`, 21 and 53 triangles near, 12 and 41
+  further out): fresh green in spring, green in summer, orange in
   autumn, and bare in winter (the crown shrinks away over the three day blend,
   in the shadows too). In autumn they drop leaves
   (`src/render/fallingLeaves.ts`): up to 140 drifting leaves near the beaver,

@@ -163,6 +163,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     // Coarser texels need a bigger push along the surface normal against stripes.
     csm.lights.forEach((l, i) => (l.shadow.normalBias = 0.4 + i * 0.8));
   }
+  // Without shadows the sun is a plain directional light, which costs next to nothing, so the shading still follows the sun.
+  const sunLight = csm ? null : new THREE.DirectionalLight(0xffffff, 0);
+  if (sunLight) scene.add(sunLight);
   let shadowsOn = shadows;
   const prepare = (m: THREE.Material): void => csm?.setupMaterial(m);
 
@@ -533,6 +536,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
           l.intensity = sky.sun;
           l.castShadow = shadowsOn && sky.sun > 0.01 && !inside;
         }
+      }
+      if (sunLight) {
+        sunLight.position.copy(toSun);
+        sunLight.intensity = sky.sun;
       }
       // Placed from the camera, not the beaver, so it hangs at the same spot in the sky. Redder and bigger near the horizon.
       const sunAt = camera.far * 0.95;

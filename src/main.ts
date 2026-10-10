@@ -71,7 +71,7 @@ async function start(): Promise<void> {
   // Tiles are built locally (tools/tiles/build_tiles.py); without them the
   // game falls back to a flat plane.
   // Stress knobs for the tablet budgets (#53): ?rings=1000,2000 and ?trees=2.
-  // ?shadows=0 turns the sun shadows off and ?shadowmap=1024 shrinks their map and ?cascades=1 keeps only the near box.
+  // The sun's shadows are off by default (they halve the frame rate on the tablet, docs/design/16_shadow_cost.md); ?shadows=1 turns them on, ?shadowmap=1024 shrinks their map and ?cascades=1 keeps only the near box.
   // ?fine=300 sets how far the fine tiles (ADR 0008) show, 0 turns them off.
   const query = new URLSearchParams(location.search);
   const rings = query.get('rings')?.split(',').map(Number);
@@ -147,7 +147,7 @@ async function start(): Promise<void> {
     else if (wantsCoach(remembered(COACH_KEY), query, navigator.webdriver)) coachPending = true;
   }
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
-    shadows: query.get('shadows') !== '0' && !free,
+    shadows: query.get('shadows') === '1' && !free,
     sunDisc: !free,
     bare: free,
     shadowMap: Number(query.get('shadowmap')) || undefined,
@@ -327,7 +327,7 @@ async function start(): Promise<void> {
         location.assign(location.pathname + (qs ? `?${qs}` : ''));
       },
     },
-    shadowsAvailable: query.get('shadows') !== '0' && !free,
+    shadowsAvailable: query.get('shadows') === '1' && !free,
     onShadows(on) {
       renderer.setShadows(on);
     },

@@ -1,6 +1,6 @@
 import { noActions, type Actions } from './actions';
 
-/** Temporary dev input for the scaffold. Touch controls come in M3. */
+/** Keyboard input for desktop play, next to touch (issue #40). Key hints are in ui/keyHints.ts. */
 export function createKeyboardInput(target: Window): () => Actions {
   const down = new Set<string>();
   // Presses since the last read, so a held key slaps once.

@@ -26,6 +26,7 @@ import { createClockHud } from './ui/clockHud';
 import { createStashPanel } from './ui/stashPanel';
 import { storeCapacity, storeCondition } from './sim/food';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
+import { createKeyHints } from './ui/keyHints';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { createFlyButtons } from './ui/flyButtons';
@@ -90,6 +91,7 @@ async function start(): Promise<void> {
   const free = query.get('fly') === 'free';
   const readKeyboard = createKeyboardInput(window);
   const touch = createTouchControls(document.body, wantsTouchControls(navigator, query));
+  createKeyHints(document.body, window, !wantsTouchControls(navigator, query) && !free);
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
     shadows: query.get('shadows') !== '0' && !free,
     sunDisc: !free,

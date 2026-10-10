@@ -20,6 +20,10 @@ export interface Coach {
   start(world: WorldState, chapter: Stage): void;
   /** Called every frame with the world: moves to the next step and redraws when something changed. */
   update(world: WorldState): void;
+  /** Show the run again from a saved state (`state()`), at the step it was on. */
+  resume(world: WorldState, saved: CoachState): void;
+  /** Where the run is, to save, or null when no card is up. */
+  state(): CoachState | null;
   active(): boolean;
 }
 
@@ -133,6 +137,14 @@ export function createCoach(parent: HTMLElement, opts: CoachOptions): Coach {
       root.style.display = 'block';
       draw(world);
     },
+    resume(world, saved) {
+      latest = world;
+      state = saved;
+      shown = '';
+      root.style.display = 'block';
+      draw(world);
+    },
+    state: () => state,
     update(world) {
       latest = world;
       if (!state) return;

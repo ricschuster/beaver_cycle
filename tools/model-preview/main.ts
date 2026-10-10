@@ -1,8 +1,10 @@
 // A page that shows one beaver model under game-like light, for the art pass (#105).
 // Run `npm run dev` and open /tools/model-preview/. Query: ?mode=walk|swim|dive&speed=0..1&carry=branch|lily|mud|rock
-// &coat=0..4&yaw=degrees&pitch=degrees&dist=metres&t=seconds&slap=seconds. Drag to turn the camera.
+// &coat=0..4&yaw=degrees&pitch=degrees&dist=metres&t=seconds&slap=seconds&action=gnaw|dig|drag|build|eat|pick|groom.
+// Drag to turn the camera.
 import * as THREE from 'three';
 import { createBeaverModel } from '../../src/render/beaverModel';
+import { SHOT_SECONDS, type ActionKind } from '../../src/render/beaverAction';
 import type { BeaverMode } from '../../src/sim/state';
 import type { Food } from '../../src/sim/food';
 
@@ -57,6 +59,10 @@ const speed = num('speed', 0);
 const carry = (q.get('carry') ?? null) as Food | 'mud' | 'rock' | null;
 const frozen = q.has('t');
 const slap = q.has('slap') ? num('slap', 0) : null;
+const act = q.get('action') as ActionKind | null;
+// A one-off action plays over and over, with a short rest between.
+const cycle = act && act in SHOT_SECONDS ? SHOT_SECONDS[act as keyof typeof SHOT_SECONDS] + 0.8 : Infinity;
+const action = (t: number) => (act ? { kind: act, age: t % cycle, food: carry === 'branch' || carry === 'lily' ? carry : null } : null);
 let tris = 0;
 model.group.traverse((o) => {
   if (o instanceof THREE.Mesh) tris += (o.geometry.index?.count ?? o.geometry.attributes.position!.count) / 3;
@@ -67,8 +73,8 @@ const start = performance.now();
 function frame(): void {
   const now = frozen ? num('t', 1) : (performance.now() - start) / 1000;
   // Step up to the frozen time so the eased poses settle.
-  if (frozen) for (let t = 0; t <= now; t += 1 / 30) model.update(t, speed, mode, 0, slap, carry);
-  else model.update(now, speed, mode, 0, slap === null ? null : now % 2, carry);
+  if (frozen) for (let t = 0; t <= now; t += 1 / 30) model.update(t, speed, mode, 0, slap, carry, action(t));
+  else model.update(now, speed, mode, 0, slap === null ? null : now % 2, carry, action(now));
   place();
   renderer.render(scene, camera);
   if (!frozen) requestAnimationFrame(frame);

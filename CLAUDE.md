@@ -78,6 +78,8 @@ Everyday (gate means CI blocks a merge on it):
   sites (writes `public/tiles/dam_sites.json`, 10 s; the test menu toggles them, `?damsites=1` starts with them on); `python3 -m pytest tools/dam-sites` checks it
 - `npm run dev`, then open `/tools/model-preview/` - the beaver model alone, to check the look (query
   `?mode=swim&speed=1&carry=branch&coat=2&yaw=90&t=1`, or `?action=eat&carry=lily`; `t` freezes the time, drag turns the camera)
+- `npm run dev`, then open `/tools/model-preview/animals.html` - one ambient animal alone (query
+  `?kind=fox&moving=1&yaw=90&pitch=15&dist=3&t=2`; kinds as in `src/sim/animals.ts`)
 - `npm run dev`, then open `/tools/prop-preview/` - the props (lodge, dam, logs, rocks, food store, lily pads) side by side with their meshes and
   triangles; `node tools/prop-preview/shoot.mjs out.png` screenshots it from a Vite server on port 5202 (`npx vite --port 5202 --strictPort`)
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene

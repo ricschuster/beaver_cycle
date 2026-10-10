@@ -5,164 +5,224 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Beaver Cycle manual</title>
 <style>
-  :root { --bg: #f6f1e4; --fg: #2a1f0e; --muted: #6b5d44; --card: #fffaf0; --line: #d9ccae; --accent: #2f6a30; --key: #efe3c4; }
+  :root { --bg: #f6f1e4; --fg: #2a1f0e; --muted: #6b5d44; --card: #fffaf0; --line: #d9ccae; --accent: #2f6a30; --key: #efe3c4; --pop: #c2410c; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #1d231e; --fg: #ece6d4; --muted: #b3ab94; --card: #262e27; --line: #3b463d; --accent: #8fe08f; --key: #36423a; }
+    :root { --bg: #1d231e; --fg: #ece6d4; --muted: #b3ab94; --card: #262e27; --line: #3b463d; --accent: #8fe08f; --key: #36423a; --pop: #ffb070; }
   }
   html { background: var(--bg); }
-  body { margin: 0 auto; max-width: 46rem; padding: 16px 16px 64px; background: var(--bg); color: var(--fg); font: 17px/1.55 system-ui, sans-serif; }
-  h1 { font-size: 1.9rem; margin: .6rem 0 .2rem; }
-  h2 { font-size: 1.35rem; margin: 2.2rem 0 .4rem; padding-top: .4rem; border-top: 1px solid var(--line); color: var(--accent); }
-  h3 { font-size: 1.05rem; margin: 1.3rem 0 .2rem; }
-  p, li { margin: .4rem 0; }
+  body { margin: 0 auto; max-width: 46rem; padding: 16px 16px 64px; background: var(--bg); color: var(--fg); font: 20px/1.5 system-ui, sans-serif; }
+  h1 { font-size: 2.1rem; margin: .6rem 0 .2rem; line-height: 1.2; }
+  h2 { font-size: 1.5rem; margin: 2.4rem 0 .5rem; color: var(--accent); }
+  p, li { margin: .5rem 0; }
   .lead { color: var(--muted); margin-top: 0; }
-  nav { margin: 1rem 0; padding: .6rem .9rem; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
-  nav a { display: inline-block; margin: .15rem .8rem .15rem 0; color: var(--accent); }
-  table { border-collapse: collapse; width: 100%; margin: .6rem 0; background: var(--card); }
-  th, td { text-align: left; padding: .45rem .6rem; border: 1px solid var(--line); vertical-align: top; }
-  th { background: var(--key); }
-  kbd { padding: .05rem .4rem; border-radius: 5px; border: 1px solid var(--line); background: var(--key); font: 600 .9em ui-monospace, monospace; white-space: nowrap; }
-  .tip { padding: .6rem .9rem; border-left: 4px solid var(--accent); background: var(--card); border-radius: 0 8px 8px 0; }
-  .scroll { overflow-x: auto; }
   a { color: var(--accent); }
+  kbd { padding: .05rem .45rem; border-radius: 6px; border: 1px solid var(--line); background: var(--key); font: 600 .85em ui-monospace, monospace; white-space: nowrap; }
+  .btn { display: inline-block; padding: .05rem .6rem; border-radius: 999px; border: 2px solid var(--accent); font-weight: 700; white-space: nowrap; }
+
+  /* The quick start: a big number, one short sentence, and a picture. */
+  .steps { list-style: none; padding: 0; margin: 1rem 0; counter-reset: step; }
+  .steps li { counter-increment: step; position: relative; margin: 1.2rem 0; padding: .8rem .9rem .9rem 4.2rem; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+  .steps li::before { content: counter(step); position: absolute; left: .8rem; top: .7rem; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--accent); color: var(--bg); font-weight: 800; font-size: 1.4rem; line-height: 2.5rem; text-align: center; }
+  .steps li > b { display: block; font-size: 1.25rem; }
+  @media (max-width: 520px) { .steps li { padding: 3.6rem .8rem .8rem; } .steps li > b { position: absolute; left: 3.7rem; top: 1rem; } }
+  .steps p { margin: .2rem 0 .6rem; }
+  figure { margin: .5rem 0 0; }
+  figure img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); }
+  figcaption { font-size: .85rem; color: var(--muted); margin-top: .25rem; }
+  .done { text-align: center; padding: 1rem; margin: 1.5rem 0; background: var(--card); border: 2px solid var(--accent); border-radius: 14px; font-size: 1.2rem; font-weight: 700; }
+
+  /* Tap to open: each answer or card is a details box with a big target. */
+  details { margin: .6rem 0; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+  summary { cursor: pointer; padding: .8rem 1rem; min-height: 1.5rem; font-weight: 700; font-size: 1.1rem; list-style: none; display: flex; align-items: center; gap: .6rem; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+"; flex: none; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--key); text-align: center; line-height: 1.7rem; font-weight: 800; color: var(--accent); }
+  details[open] > summary::before { content: "\2212"; }
+  details > :not(summary) { margin-left: 1rem; margin-right: 1rem; }
+  details > :last-child { margin-bottom: 1rem; }
+  details ul { padding-left: 1.3rem; }
+  .help summary { color: var(--pop); }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; background: var(--card); font-size: .95rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--key); }
+  .scroll { overflow-x: auto; }
+  .small { font-size: .9rem; color: var(--muted); }
 </style>
 </head>
 <body>
 <h1>Beaver Cycle: how to play</h1>
-<p class="lead">You are a beaver in the Almsee valley in Austria. Nothing here can kill you and you cannot lose. There is no hurry. Take your time, look around, and build something.</p>
+<p class="lead">You are a beaver in a real valley in Austria. Nothing can hurt you and you cannot lose. There is no hurry. Look around and build something!</p>
 
-<nav aria-label="Contents">
-  <a href="#start">Your first ten minutes</a>
-  <a href="#controls">Controls</a>
-  <a href="#screen">What is on the screen</a>
-  <a href="#build">Dams, ponds and the lodge</a>
-  <a href="#food">Food and the store</a>
-  <a href="#time">Days, seasons and sleep</a>
-  <a href="#life">Growing up and the next generation</a>
-  <a href="#valley">Animals and other beavers</a>
-  <a href="#goals">Achievements</a>
-  <a href="#help">If you are stuck</a>
-</nav>
+<h2 id="start">Your first dam</h2>
+<p>Do these things in this order. The little card at the top left of the game shows them too.</p>
 
-<h2 id="start">Your first ten minutes</h2>
-<p>You start on the south shore of the Almsee, near a lodge. Here is a good way in. Every step is explained below.</p>
-<ol>
-  <li><b>Look around.</b> Move with the stick (or <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>) and drag the empty screen to turn the view. Walk into the water and you swim.</li>
-  <li><b>Try a dive.</b> Hold <b>Dive</b> (<kbd>Space</kbd>) while swimming. A bar at the bottom shows your breath. Come up before it runs out. If it does, you simply float back up.</li>
-  <li><b>Fell a tree.</b> Walk up to a tree on the bank, stand still, and press <b>Gnaw</b> (<kbd>E</kbd>). The top left tells you how far the gnawing has got. The tree falls as a log.</li>
-  <li><b>Drag the log.</b> Stand at the log and press <b>Drag</b> (<kbd>G</kbd>) to take it in your teeth. Press it again to let go.</li>
-  <li><b>Find a dam spot.</b> Near a stream, a white ring appears on the ground. That is a place where a dam can go.</li>
-  <li><b>Build the dam.</b> Drag a log into the ring and press <b>Build</b> (<kbd>B</kbd>). Then bring mud and rocks (gnaw them from the ground, see below). The top left lists what the dam still needs.</li>
-  <li><b>Watch the pond fill.</b> When the dam is whole, the water backs up into a pond. Lily pads grow there. Ponds are safe places.</li>
+<ol class="steps">
+  <li>
+    <b>Walk and swim</b>
+    <p>Push the <b>stick</b> to walk. Drag the empty screen to turn the view. Walk into the water to swim.</p>
+    <figure><img src="manual/screen.jpg" alt="The game on a tablet: the beaver by the lake, the stick at the bottom left and five round buttons at the bottom right" loading="lazy" /><figcaption>The stick is on the left. The buttons are on the right.</figcaption></figure>
+  </li>
+  <li>
+    <b>Gnaw a tree</b>
+    <p>Walk up to a tree and stand still. Press <span class="btn">Gnaw</span> (<kbd>E</kbd>) until it falls.</p>
+    <figure><img src="manual/tree.jpg" alt="The beaver standing beside a big tree on the lake shore" loading="lazy" /><figcaption>Stand close to the tree, and do not move.</figcaption></figure>
+  </li>
+  <li>
+    <b>Take the log</b>
+    <p>The tree is now a log. Stand at the log and press <span class="btn">Drag</span> (<kbd>G</kbd>) to hold it in your teeth. Press it again to let go.</p>
+    <figure><img src="manual/log.jpg" alt="A felled log lying on the shore next to the beaver" loading="lazy" /></figure>
+  </li>
+  <li>
+    <b>Carry it to a white ring</b>
+    <p>Near a stream there is a <b>white ring</b> on the ground. That is a place for a dam. Drag the log into the ring.</p>
+    <figure><img src="manual/drag.jpg" alt="The beaver dragging a log along the shore" loading="lazy" /></figure>
+  </li>
+  <li>
+    <b>Press Build</b>
+    <p>Stand in the ring and press <span class="btn">Build</span> (<kbd>B</kbd>). The dam also needs <b>mud</b> and <b>rocks</b>. Read the top left to see what is missing.</p>
+    <figure><img src="manual/ring.jpg" alt="A white ring on the ground with a log in it, and the top left saying the dam needs wood, mud and rocks" loading="lazy" /><figcaption>The top left tells you what the dam still needs.</figcaption></figure>
+  </li>
+  <li>
+    <b>Mud and rocks</b>
+    <p>Stand in the shallows and press <span class="btn">Gnaw</span> to scoop mud. Walk up to a rock and press <span class="btn">Gnaw</span> to pick it up. Carry it into the ring and press <span class="btn">Build</span>.</p>
+  </li>
+  <li>
+    <b>Watch the pond</b>
+    <p>When the dam is whole, the water backs up into a pond. Lily pads grow there. Ponds are safe places.</p>
+    <figure><img src="manual/pond.jpg" alt="A finished dam of rocks and wood, with the water backed up behind it" loading="lazy" /></figure>
+  </li>
 </ol>
-<p class="tip">The text at the top left always tells you what a button would do right now, for example <i>press Gnaw to pick a lily pad</i>. When you are not sure, read it.</p>
+<p class="done">You made a pond! Next, build a lodge.</p>
 
-<h2 id="controls">Controls</h2>
-<p>On a tablet you get a stick at the bottom left and round buttons at the bottom right. On a computer you use the keyboard and mouse. The keys are also listed at the bottom left of the screen (<kbd>H</kbd> hides them).</p>
+<h2 id="stuck">What do I do now?</h2>
+<p>Tap a question.</p>
+<div class="help">
+  <details><summary>The top left has words. What are they?</summary>
+    <p>They tell you what each button would do <b>right now</b>. For example: <i>press Gnaw to pick a lily pad</i>. When you are not sure, read them.</p>
+  </details>
+  <details><summary>Nothing happens when I press Gnaw</summary>
+    <ul>
+      <li>Stand still. Gnawing does not work while you walk.</li>
+      <li>Your mouth may be full. You can carry one thing. Press <span class="btn">Drag</span> to put it down.</li>
+      <li>Get closer to the tree, rock, lily pad or mud.</li>
+    </ul>
+  </details>
+  <details><summary>I cannot find a white ring</summary>
+    <p>Walk along a stream. The rings show up when you are close. The little card at the top left says which way the nearest ring is.</p>
+  </details>
+  <details><summary>The dam wants more</summary>
+    <p>Read the top left. It lists the wood, mud and rocks that are still missing. Bring them one at a time and press <span class="btn">Build</span> in the ring.</p>
+  </details>
+  <details><summary>I cannot build a lodge</summary>
+    <p>Drag a log to shallow water. Face the water and press <span class="btn">Build</span>. The top left says what is wrong: too deep, no water in front, or no deep water nearby. Try another place.</p>
+  </details>
+  <details><summary>I am a baby and cannot do anything</summary>
+    <p>That is on purpose. Babies stay near Mama and Papa. Go inside the lodge and use the sleep buttons to grow up, or just explore near the pond.</p>
+  </details>
+  <details><summary>I am lost</summary>
+    <p>Look for the lake. The lodge sits at its edge. A grown-up can also use the <b>Test</b> menu to jump to a place.</p>
+  </details>
+  <details><summary>The game is slow</summary>
+    <p>Ask a grown-up to open the <b>Test</b> menu and turn the shadows off.</p>
+  </details>
+  <details><summary>I closed the game and my beaver is gone</summary>
+    <p>The game cannot save yet. When you start it again, you start again.</p>
+  </details>
+</div>
+
+<h2 id="controls">The buttons</h2>
+<p>On a tablet there is a stick at the bottom left and round buttons at the bottom right. On a computer use the keyboard and the mouse. The keys are also listed at the bottom left of the screen (<kbd>H</kbd> hides them).</p>
 <div class="scroll"><table>
-  <tr><th>Action</th><th>Tablet</th><th>Keyboard and mouse</th></tr>
+  <tr><th>What</th><th>Tablet</th><th>Computer</th></tr>
   <tr><td>Walk and swim</td><td>The stick</td><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or the arrow keys</td></tr>
   <tr><td>Turn the view</td><td>Drag the empty screen</td><td>Drag with the mouse</td></tr>
   <tr><td>Zoom</td><td>Pinch</td><td>Mouse wheel</td></tr>
-  <tr><td>Dive (hold)</td><td><b>Dive</b></td><td><kbd>Space</kbd></td></tr>
-  <tr><td>Tail slap</td><td><b>Slap</b></td><td><kbd>T</kbd></td></tr>
-  <tr><td>Gnaw: fell a tree, pick up, eat</td><td><b>Gnaw</b></td><td><kbd>E</kbd></td></tr>
-  <tr><td>Drag a log, or put something down</td><td><b>Drag</b></td><td><kbd>G</kbd></td></tr>
-  <tr><td>Build, place, open the store</td><td><b>Build</b></td><td><kbd>B</kbd></td></tr>
-  <tr><td>Hide the key hints</td><td></td><td><kbd>H</kbd></td></tr>
+  <tr><td>Dive (hold)</td><td><span class="btn">Dive</span></td><td><kbd>Space</kbd></td></tr>
+  <tr><td>Tail slap</td><td><span class="btn">Slap</span></td><td><kbd>T</kbd></td></tr>
+  <tr><td>Gnaw a tree, pick up, eat</td><td><span class="btn">Gnaw</span></td><td><kbd>E</kbd></td></tr>
+  <tr><td>Drag a log, or put something down</td><td><span class="btn">Drag</span></td><td><kbd>G</kbd></td></tr>
+  <tr><td>Build, go in or out of the lodge, open the store</td><td><span class="btn">Build</span></td><td><kbd>B</kbd></td></tr>
 </table></div>
-<p>The tail slap makes a loud smack on the water or the ground. You will use it to scare off a fox and to say hello to other beavers.</p>
+<p>The <b>?</b> button at the top right opens this page. In here, <b>Show the first steps</b> brings the little card back.</p>
 
-<h2 id="screen">What is on the screen</h2>
-<table>
-  <tr><td>Top left, the clock</td><td>The day, the season, and the time of day.</td></tr>
-  <tr><td>Below the clock</td><td>How many trees you have felled, how far the lodge is, what you carry, and what the button would do here. This is the line to read when you are unsure.</td></tr>
-  <tr><td>Top centre</td><td>Your life stage (baby, teenager, adult) and how far along it is.</td></tr>
-  <tr><td>Messages in the middle</td><td>Short notes that fade away: achievements, animals nearby, Mama calling.</td></tr>
-  <tr><td>Bottom centre</td><td>Your breath, when you are under water. At night in the lodge, the sleep buttons.</td></tr>
-  <tr><td>Top right</td><td>The <b>?</b> button opens this manual. <b>Test</b> is a menu for the author to try things (speed up time, jump to other places).</td></tr>
-</table>
-<p>A <b>white ring</b> on the ground marks a free dam spot. A <b>green ring</b> is a dam you have started. A <b>gold glowing ring</b> at a dam, the lodge or the store means it is worn and wants mending.</p>
+<h2 id="more">Read more</h2>
+<p>Tap a title to open it.</p>
 
-<h2 id="build">Dams, ponds and the lodge</h2>
-<h3>Materials</h3>
-<ul>
-  <li><b>Wood.</b> Gnaw a tree until it falls, then drag the log (<b>Drag</b>). A long log counts as two pieces.</li>
-  <li><b>Mud.</b> Stand in the shallows, or at the edge with water right ahead of you, and press <b>Gnaw</b> to scoop a mouthful.</li>
-  <li><b>Rocks.</b> Walk up to a rock and press <b>Gnaw</b> to pick it up.</li>
-</ul>
-<p>You can carry one thing at a time: a dragged log, or one mouthful of mud, a rock, a branch or a lily pad. Press <b>Drag</b> to put a mouthful down. It stays where it lies until you pick it up again, though food rots after a while.</p>
-<h3>A dam</h3>
-<p>Stand in a white ring with a log, mud or a rock and press <b>Build</b>. The top left shows how much the dam still needs. A first dam is small. Once it is whole you can go back and raise it, up to three levels where the stream allows, and each level needs more wood, mud and rocks. A bigger dam makes a bigger pond. A finished dam can open up the next spot nearby.</p>
-<h3>The lodge</h3>
-<p>Drag a log to shallow water, face the water, and press <b>Build</b>. The top left says if the place is no good (too deep, no water in front, no deep water nearby). A lodge needs ten pieces of wood. It sits in the water, and its door is under water: dive at the door to go inside. Inside, you can eat, rest on the nest, and sleep. Press <b>Build</b> at the water hole in the floor to dive back out.</p>
-<h3>Wear and repair</h3>
-<p>Dams, the lodge and the food store wear out as days pass. A worn one shows gaps and a gold ring. If you ignore it, it breaks, and then you build it again. Nothing is lost for good and nobody is hurt. To mend something, stand next to it and bring what the top left asks for, then press <b>Build</b>. A worn piece only needs a top up. A broken one needs the full amount.</p>
+<details><summary>Dams and ponds</summary>
+  <p>A dam needs <b>wood, mud and rocks</b>. A long log counts as two pieces of wood. You can carry one thing at a time.</p>
+  <p>When it is whole, you can go back and make it higher, up to three levels. A higher dam makes a bigger pond. A finished dam can open up the next dam spot nearby.</p>
+  <p>A <b>green ring</b> is a dam you have started. A <b>gold glowing ring</b> means something is worn and wants mending.</p>
+</details>
 
-<h2 id="food">Food and the store</h2>
-<ul>
-  <li><b>Lily pads.</b> Swim next to a floating pad and press <b>Gnaw</b>. They die back in winter and grow back in spring.</li>
-  <li><b>Branches.</b> Press <b>Gnaw</b> at a fallen log with no tree left to strip a branch.</li>
-  <li><b>Eating.</b> Take the piece into the lodge and press <b>Gnaw</b> inside.</li>
-  <li><b>The food store.</b> When the lodge is whole it has a food store in the water beside the door. Swim to it and press <b>Build</b> to open it: a grid of places, with your mouth below. Tap a place to move a piece between the store and your mouth. Close it when you are done.</li>
-</ul>
-<p>The store holds food for the winter, when pads are gone and the valley is quiet. Nothing bad happens if it is empty, but food is then harder to find. A worn store holds less, and a broken one holds nothing until you rebuild it.</p>
+<details><summary>Your lodge</summary>
+  <p>A lodge is made of ten pieces of wood. It sits in the water. Its door is <b>under water</b>: dive at the door to go in.</p>
+  <p>Inside you can eat, rest on the nest and sleep. To go out, stand at the water hole in the floor and press <span class="btn">Build</span>.</p>
+  <p>Dams, the lodge and the food store wear out over time. A worn one shows gaps and a gold ring. Stand next to it, bring what the top left asks for and press <span class="btn">Build</span>. If you wait too long it breaks, and you build it again. Nobody is hurt.</p>
+</details>
 
-<h2 id="time">Days, seasons and sleep</h2>
-<p>A game day is eight real minutes, with a dawn, a bright day and a dark night. A season is ten days and a year is forty, so a year takes a little over five hours. The seasons change the look of the valley: green in spring, bright in summer, colourful in autumn, snow and bare trees in winter. The animals change their habits too.</p>
-<p>Time runs at half speed while you are inside the lodge, so buildings wear slower while you rest.</p>
-<p>Inside the lodge, a panel offers rest:</p>
-<ul>
-  <li><b>Sleep until morning</b> (at night). The screen fades and you wake at dawn.</li>
-  <li><b>Dream.</b> A short dream at night. It is only a placeholder for now.</li>
-  <li><b>Sleep until next season</b>, when you are resting on the nest.</li>
-  <li><b>Sleep until you grow up</b>, for a baby or a teenager. Use it to skip ahead.</li>
-</ul>
+<details><summary>Food and the store</summary>
+  <ul>
+    <li><b>Lily pads:</b> swim next to one and press <span class="btn">Gnaw</span>. They die back in winter and grow back in spring.</li>
+    <li><b>Branches:</b> press <span class="btn">Gnaw</span> at a fallen log to strip a branch.</li>
+    <li><b>Eating:</b> carry the food into the lodge and press <span class="btn">Gnaw</span>.</li>
+    <li><b>The food store:</b> when the lodge is whole, a food store sits in the water by the door. Swim to it and press <span class="btn">Build</span>. Tap a place to move food between the store and your mouth.</li>
+  </ul>
+  <p>The store keeps food for winter. Nothing bad happens if it is empty.</p>
+</details>
 
-<h2 id="life">Growing up and the next generation</h2>
-<p>The game goes on from one generation to the next, and it never ends.</p>
-<ol>
-  <li><b>Baby.</b> A year. You stay near the lodge and pond with Mama and Papa. You cannot fell trees, haul or build yet. If you wander too far, Mama calls you back.</li>
-  <li><b>Teenager.</b> A year. You can do everything an adult does and you help at the pond.</li>
-  <li><b>Adult.</b> Mama and Papa say it is time to start a family of your own. The lodge you grew up in stays where it is, gets old, and Mama and Papa keep it up.</li>
-</ol>
-<p>As an adult you explore for a partner. Listen for a tail slap in the distance, and follow the messages that name a direction. When you swim near a lone beaver far from home, it slaps its tail and follows you. Build a lodge and a dam near a good pond, and your partner moves into the lodge once it is whole. On the first day of spring after a season together, a kit is born, and you play the kit. Your old beaver becomes Mama or Papa in the new lodge. Each life has its own list of achievements, and the old dams and lodges stay in the valley.</p>
-<p class="tip">If the winter comes and you have no partner yet, a message tells you that kits come on the first day of spring. Missing a spring only moves the kit to the next one.</p>
+<details><summary>Day, night and sleep</summary>
+  <p>One game day is eight real minutes. There is a dawn, a bright day and a dark night. A season lasts ten days. The valley is green in spring, bright in summer, colourful in autumn and snowy in winter.</p>
+  <p>In the lodge a panel lets you rest:</p>
+  <ul>
+    <li><b>Sleep until morning</b>, at night.</li>
+    <li><b>Sleep until next season</b>, on the nest.</li>
+    <li><b>Sleep until you grow up</b>, for a baby or a teenager.</li>
+  </ul>
+</details>
 
-<h2 id="valley">Animals and other beavers</h2>
-<p>The valley is full of animals that go about their day: deer, ducks, herons, frogs, foxes, otters, kingfishers and, in the right places, bears, owls and lynx. Some are only there at night or only in the warm months.</p>
-<ul>
-  <li><b>Deer and ducks</b> start shy. Put a lily pad down near one and it will eat it and trust you more. A trusting animal lets you come close, and may even come to look at you. A tail slap startles them.</li>
-  <li><b>Bolting deer</b> mean a predator is near. Take a look around.</li>
-  <li><b>Otters and kingfishers</b> will lead you to lily pads if you come close. Follow them, and they wait if you fall behind.</li>
-  <li><b>Foxes and owls</b> may come for your food store or chase you. Slap your tail to scare them off. They can only frighten you, never hurt you. A pond is a safe place.</li>
-  <li><b>Other beaver families</b> live in ponds around the valley. You find them as you come near their ponds.</li>
-</ul>
+<details><summary>Growing up and the next beaver</summary>
+  <p>The game never ends. Each beaver grows up and then a kit takes over.</p>
+  <ol>
+    <li><b>Baby:</b> stay near the lodge with Mama and Papa. Mama calls you back if you wander. You cannot fell trees or build yet.</li>
+    <li><b>Teenager:</b> you can do everything an adult can, and you help at the pond.</li>
+    <li><b>Adult:</b> Mama and Papa say it is time for a family of your own.</li>
+  </ol>
+  <p>As an adult, look for a lone beaver. Listen for a tail slap far away, and follow the messages that say which way to go. When you swim near it, it slaps its tail and follows you. Build a lodge and a dam in a good place. Your partner moves in when the lodge is whole. On the first day of spring after a season together, a kit is born, and you play the kit.</p>
+</details>
 
-<h2 id="goals">Achievements</h2>
-<p>Each life has its own list. They appear as a message when you win them. The Test menu has a list of them with counts.</p>
-<table>
-  <tr><td><b>Wood</b></td><td>Fell 30 trees.</td></tr>
-  <tr><td><b>Home</b></td><td>Build a lodge of your own.</td></tr>
-  <tr><td><b>First dam</b></td><td>Finish a dam so the stream holds water.</td></tr>
-  <tr><td><b>Higher dam</b></td><td>Raise a dam as high as the spot allows.</td></tr>
-  <tr><td><b>Pioneer</b></td><td>Build a dam at a spot that a pond opened up.</td></tr>
-  <tr><td><b>Pantry</b></td><td>Fill the food store.</td></tr>
-  <tr><td><b>Water gardener</b></td><td>Pick 20 lily pads.</td></tr>
-  <tr><td><b>Handy beaver</b></td><td>Mend something worn until it is as good as new.</td></tr>
-  <tr><td><b>Hauler</b></td><td>Put 30 loads of mud and rock on dams.</td></tr>
-  <tr><td><b>A full year</b></td><td>Live through all four seasons.</td></tr>
-</table>
+<details><summary>Animals and other beavers</summary>
+  <ul>
+    <li><b>Deer and ducks</b> are shy. Put a lily pad down near one and it will eat it and trust you more. A tail slap makes them jump.</li>
+    <li><b>Otters and kingfishers</b> lead you to lily pads. Follow them. They wait if you fall behind.</li>
+    <li><b>Foxes and owls</b> may come for your food or chase you. Slap your tail to scare them away. They can only frighten you, never hurt you. A pond is a safe place.</li>
+    <li><b>Other beaver families</b> live in ponds around the valley.</li>
+  </ul>
+</details>
 
-<h2 id="help">If you are stuck</h2>
-<ul>
-  <li><b>Nothing happens when I press Gnaw.</b> You may be moving, or have your mouth full. Stand still, close to the tree, rock, pad or mud, and read the top left line.</li>
-  <li><b>I cannot build a lodge.</b> Face the water and stand where it is shallow. The top left says if it is too deep or too far.</li>
-  <li><b>The dam wants more.</b> Read the top left: it lists the wood, mud and rocks still missing.</li>
-  <li><b>I am lost.</b> Open the Test menu and jump to one of the six places in the valley.</li>
-  <li><b>I am a baby and cannot do anything.</b> That is on purpose. Use the sleep buttons in the lodge to grow up, or stay and explore.</li>
-  <li><b>It runs slowly.</b> Open the Test menu and turn the shadows off.</li>
-</ul>
-<p>The game is a work in progress, so some things are rough or still missing. Tell the author what confused you: that is how this manual gets better.</p>
+<details><summary>Achievements</summary>
+  <p>Each life has its own list. A message shows when you win one.</p>
+  <ul>
+    <li><b>Wood:</b> fell 30 trees.</li>
+    <li><b>Home:</b> build a lodge of your own.</li>
+    <li><b>First dam:</b> finish a dam so the stream holds water.</li>
+    <li><b>Higher dam:</b> make a dam as high as the spot allows.</li>
+    <li><b>Pioneer:</b> build a dam at a spot that a pond opened up.</li>
+    <li><b>Pantry:</b> fill the food store.</li>
+    <li><b>Water gardener:</b> pick 20 lily pads.</li>
+    <li><b>Handy beaver:</b> mend something worn until it is as good as new.</li>
+    <li><b>Hauler:</b> put 30 loads of mud and rock on dams.</li>
+    <li><b>A full year:</b> live through all four seasons.</li>
+  </ul>
+</details>
+
+<details><summary>For grown-ups</summary>
+  <ul>
+    <li>The <b>Test</b> menu at the top right is for the author: it speeds up time, jumps to the six places in the valley, and turns shadows off if the tablet is slow.</li>
+    <li>The <b>Dream</b> button in the lodge is a placeholder for a mini game.</li>
+    <li>The game cannot save yet. It starts again each time.</li>
+    <li>The game starts with a grown-up beaver beside a ready-made lodge, so a new player can try things at once. The Test menu can start a new life as a baby.</li>
+    <li>If a dive runs out of breath, the beaver floats up. Nothing is lost.</li>
+    <li>The game is a work in progress. Tell the author what confused you. That is how this page gets better.</li>
+  </ul>
+</details>
 </body>
 </html>

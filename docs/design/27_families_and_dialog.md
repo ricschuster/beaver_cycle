@@ -38,7 +38,7 @@ Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesse
   `pickLine` from its kind, feeling (a neighbour's mood, always curious for the player's own), season, night and a counter. A wary
   neighbour only warns. The card is fixed at the bottom, not a bubble over the head, since the renderer gives no screen position yet.
   Walking 12 m away ends it. A baby cannot work, but it talks to Mama and Papa from day 1, in the lodge too (the author's answer; siblings once they exist). Neighbours and partners wait until it can work.
-- Choices, hints, overheard talk (#345, `src/sim/news.ts`): each line comes with two buttons, "Any news?" and "Bye". News is read from the
+- Choices, hints, overheard talk (#345, `src/sim/news.ts`): each line comes with two buttons, "Any news?" and "Bye" (now up to three that fit the moment, see "Natural talk" below). News is read from the
   world and is always true: the nearest lily pads within 90 m (compass and distance to 10 m), a predator within 100 m, a dam or the
   lodge that is worn, a low store (under 10 meals) in autumn and winter, and the nearest lone beaver. Only a beaver that trusts the
   player (a curious family, or the player's own Mama, Papa and partner) tells; a calm one says to come back later. Overheard talk: once
@@ -52,6 +52,22 @@ Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesse
   player has no mate, else the nearest free dam spot over 20 m away, else home; it waits when the player is 14 m behind, gives up at
   70 m, and stays 15 s at the goal. Drawn: a white mound (renderer) with the beaver sunk in it. Q52 also names fighting off predators;
   only the snow is built. Numbers are first guesses.
+- Natural talk (session 77, `src/sim/talk.ts`, all lines in `src/sim/talkLines.ts`): a beaver remembers the player. `world.met`
+  keeps, by speaker id, how many talks and the clock of the last one (saved; an older save starts with none, no version bump; a new
+  life starts with none, as nobody has met the baby). The first time, a neighbour says who it is ("Hello. I am Willow, from the north
+  pond."), after that it is glad to see the player again, and after a season away it says "I have not seen you since the snow". A
+  family that took a gift thanks "you and yours", and a guide remembers the rescue ("You dug me out of the snow!" when this life did
+  it, else "Your family dug me out"). Mama, Papa and the partner speak of the player's life, each line only when true: a baby is told
+  to play, a teenager that a lodge of its own comes soon, a grown beaver is asked about its lodge or praised for it, the first whole
+  dam of this life is praised, and a low store in autumn and winter, a worn lodge or dam is named kindly. After the greeting come at
+  most three replies, "Bye" always last: "What are you doing?" (from the beaver's errand and task, and what it carries, with a reason
+  such as "Winter comes fast"; without an errand it says it is swimming or resting), "Any news?" (as before, in the beaver's voice),
+  "Can I help?" (a family asks for a branch or lily pad put down near it, which `giftFamilies` rewards; a wary one says "Maybe one
+  day"; Mama, Papa and the partner name the most useful true job), and "Show me the way" for a guide. A question is not offered twice,
+  after two questions only "Bye" is left, and "Bye" gets a short goodbye before the card closes (3 s). The same beaver does not say the
+  same line twice in a row. The card shows who the beaver is under its name ("papa of the north pond", "your mama") and fades in and
+  out. The errand and task come from the families' routines when they give them (`task`, `errand`, `carry` on a neighbour beaver), and
+  are left out when not known.
 - Chatter, reputation and partner remarks (`src/sim/chatter.ts`, `spreadWord` in `src/sim/familyMoods.ts`): overheard talk is now a
   call and a reply between two of a family ("Mama Willow" calls "Moss", who answers "Coming, Mama!"), two toasts queued together, in
   about half the slots of a twelfth of a day, none while a talk card is open. The call follows the caller's role (a kit says Mama and

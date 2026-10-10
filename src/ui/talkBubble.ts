@@ -1,13 +1,17 @@
 // The talk card: a prompt when a beaver is close enough to talk to ("Press Build to talk to Willow"), and then the beaver's name
 // and what it says (docs/design/27_families_and_dialog.md, #344). A fixed card at the bottom centre, not a bubble above the
-// head: that needs the screen position of the beaver and the renderer does not give one yet. DOM only.
+// head: that needs the screen position of the beaver and the renderer does not give one yet. Under the name it says who the
+// beaver is ("papa of the north pond"), and the card fades in and out. DOM only.
 export interface TalkBubble {
   /** Show the prompt for a speaker's name, or nothing when `name` is null. A line on screen is not replaced by a prompt. */
   prompt(name: string | null, key: string): void;
   /** Show a plain note, such as the digging, or nothing when `text` is null. A line on screen is not replaced. */
   note(text: string | null): void;
-  /** Show what a beaver says, for `seconds`, with reply buttons that call `pick` with the button's id (none for a plain line). */
-  say(name: string, text: string, seconds: number, choices?: readonly Choice[], pick?: (id: string) => void): void;
+  /**
+   * Show what a beaver says, for `seconds`, with reply buttons that call `pick` with the button's id (none for a plain line), and
+   * who the beaver is (`role`) in small letters under its name.
+   */
+  say(name: string, text: string, seconds: number, choices?: readonly Choice[], pick?: (id: string) => void, role?: string): void;
   /** Counts down a line, call each frame. */
   tick(dt: number): void;
   /** True while a line is on screen. */
@@ -25,39 +29,64 @@ export interface Choice {
 /** The text of the prompt, for a given button name. */
 export const promptText = (name: string, key: string): string => `Press ${key} to talk to ${name}`;
 
+/** Seconds the card takes to fade in and out. */
+const FADE = 0.25;
+
 export function createTalkBubble(parent: HTMLElement): TalkBubble {
   const root = document.createElement('div');
   root.id = 'talk-bubble';
   root.setAttribute('role', 'status');
   root.style.cssText =
     'position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:6;max-width:min(80vw,460px);padding:10px 18px;border-radius:14px;' +
-    'background:rgba(255,250,235,.94);color:#2a2113;font:16px/1.35 system-ui,sans-serif;pointer-events:none;display:none;text-align:center';
+    'background:rgba(255,250,235,.94);color:#2a2113;font:16px/1.35 system-ui,sans-serif;pointer-events:none;display:none;text-align:center;' +
+    `opacity:0;transition:opacity ${FADE}s ease-out`;
   parent.appendChild(root);
   let left = 0;
   let line = false;
+  let hideTimer: ReturnType<typeof setTimeout> | null = null;
+  let shown = false;
   const show = (html: string): void => {
     root.innerHTML = html;
+    if (hideTimer !== null) clearTimeout(hideTimer);
+    hideTimer = null;
+    if (shown) return;
+    shown = true;
     root.style.display = 'block';
+    // Read the layout once so the browser starts the fade from 0.
+    void root.offsetWidth;
+    root.style.opacity = '1';
+  };
+  const hide = (): void => {
+    if (!shown) return;
+    shown = false;
+    root.style.opacity = '0';
+    // A reply fading out cannot be tapped.
+    for (const button of root.querySelectorAll('button')) button.disabled = true;
+    hideTimer = setTimeout(() => {
+      hideTimer = null;
+      if (!shown) root.style.display = 'none';
+    }, FADE * 1000);
   };
   const esc = (t: string): string => t.replace(/[&<>]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'));
   return {
     prompt(name, key) {
       if (line) return;
-      if (name === null) root.style.display = 'none';
+      if (name === null) hide();
       else show(`<span style="opacity:.7">${esc(promptText(name, key))}</span>`);
     },
     note(text) {
       if (line) return;
-      if (text === null) root.style.display = 'none';
+      if (text === null) hide();
       else show(`<span style="opacity:.8">${esc(text)}</span>`);
     },
-    say(name, text, seconds, choices = [], pick) {
+    say(name, text, seconds, choices = [], pick, role) {
       line = true;
       left = seconds;
-      show(`<b>${esc(name)}</b><br>${esc(text)}`);
+      const who = role ? `<div style="font-size:13px;opacity:.65">${esc(role)}</div>` : '';
+      show(`<b>${esc(name)}</b>${who}<div style="margin-top:2px">${esc(text)}</div>`);
       if (choices.length === 0) return;
       const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:10px;justify-content:center;margin-top:8px';
+      row.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px';
       for (const c of choices) {
         const b = document.createElement('button');
         b.textContent = c.label;
@@ -79,7 +108,7 @@ export function createTalkBubble(parent: HTMLElement): TalkBubble {
     hush() {
       line = false;
       left = 0;
-      root.style.display = 'none';
+      hide();
     },
   };
 }

@@ -45,6 +45,15 @@ describe('save', () => {
     expect(back.world.hauled).toBe(7);
   });
 
+  it('keeps what the beavers remember of talks, and an older save without it meets them afresh', () => {
+    const w: WorldState = { ...fresh(), met: { 'family:1:2:mama': { talks: 3, last: 900 } } };
+    expect(decodeSave(encodeSave(w, coachOff, 0), fresh())!.world.met).toEqual(w.met);
+    const old = JSON.parse(encodeSave(fresh(), coachOff, 0)) as { version: number; world: Record<string, unknown> };
+    delete old.world.met;
+    expect(old.version).toBe(SAVE_VERSION);
+    expect(decodeSave(JSON.stringify(old), fresh())!.world.met).toEqual({});
+  });
+
   it('refuses text that is not a usable save', () => {
     expect(decodeSave('not json', fresh())).toBeNull();
     expect(decodeSave('{}', fresh())).toBeNull();

@@ -32,4 +32,14 @@ describe('newsFor', () => {
     const around = { pad: { x: 0, z: -40 }, predator: { x: 30, z: 0, kind: 'fox' } };
     expect(answerNews(w, around, true, 0)).not.toBe(answerNews(w, around, true, 1));
   });
+
+  it('does not give the same hint twice in a row, and speaks in the beaver\'s voice', () => {
+    const around = { pad: { x: 0, z: -40 }, predator: { x: 30, z: 0, kind: 'fox' } };
+    for (let seed = 0; seed < 4; seed++) {
+      const last = answerNews(w, around, true, seed);
+      expect(answerNews(w, around, true, seed, last)).not.toBe(last);
+    }
+    expect(answerNews(w, none, false, 0, '', 'kit')).toContain('secrets');
+    expect(answerNews(w, none, true, 0, '', 'papa')).toContain('All quiet');
+  });
 });

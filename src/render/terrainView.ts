@@ -65,26 +65,39 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
   const weight = new Float32Array(total * 2);
   const at = (i: number, j: number): number => h[Math.min(Math.max(j, 0), n) * w + Math.min(Math.max(i, 0), n)]!;
 
+  // colour and season weight of each class, looked up once rather than once per cell
+  const palette = new Float64Array(256 * 5);
+  for (let c = 0; c < 256; c++) {
+    const color = COLORS.get(c) ?? FALLBACK;
+    const [sg, sf] = SEASON_WEIGHT[c] ?? NO_WEIGHT;
+    palette.set([color.r, color.g, color.b, sg, sf], c * 5);
+  }
   for (let j = 0; j <= n; j++) {
     for (let i = 0; i <= n; i++) {
       const v = j * w + i;
-      pos.set([x0 + i * cell, h[v]!, z0 + j * cell], v * 3);
+      pos[v * 3] = x0 + i * cell;
+      pos[v * 3 + 1] = h[v]!;
+      pos[v * 3 + 2] = z0 + j * cell;
       const dx = (at(i - 1, j) - at(i + 1, j)) / (2 * cell);
       const dz = (at(i, j - 1) - at(i, j + 1)) / (2 * cell);
       const len = Math.hypot(dx, 1, dz);
-      nor.set([dx / len, 1 / len, dz / len], v * 3);
+      nor[v * 3] = dx / len;
+      nor[v * 3 + 1] = 1 / len;
+      nor[v * 3 + 2] = dz / len;
       // average the colours of the (up to four) cells around the vertex
       let r = 0, g = 0, b = 0, wg = 0, wf = 0, count = 0;
       for (let cj = j - 1; cj <= j; cj++) {
         for (let ci = i - 1; ci <= i; ci++) {
           if (ci < 0 || cj < 0 || ci >= n || cj >= n) continue;
-          const c = COLORS.get(classes[cj * n + ci]!) ?? FALLBACK;
-          const [sg, sf] = SEASON_WEIGHT[classes[cj * n + ci]!] ?? NO_WEIGHT;
-          r += c.r; g += c.g; b += c.b; wg += sg; wf += sf; count++;
+          const o = classes[cj * n + ci]! * 5;
+          r += palette[o]!; g += palette[o + 1]!; b += palette[o + 2]!; wg += palette[o + 3]!; wf += palette[o + 4]!; count++;
         }
       }
-      col.set([r / count, g / count, b / count], v * 3);
-      weight.set([wg / count, wf / count], v * 2);
+      col[v * 3] = r / count;
+      col[v * 3 + 1] = g / count;
+      col[v * 3 + 2] = b / count;
+      weight[v * 2] = wg / count;
+      weight[v * 2 + 1] = wf / count;
     }
   }
   edge.forEach((v, k) => {
@@ -95,30 +108,35 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
     weight.copyWithin(s * 2, v * 2, v * 2 + 2);
   });
 
-  const index: number[] = [];
+  // typed from the start: 6 indices per cell and 12 per skirt segment, 16 bit while the vertices fit
+  const index = total < 65536 ? new Uint16Array(n * n * 6 + edge.length * 12) : new Uint32Array(n * n * 6 + edge.length * 12);
+  let ix = 0;
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
       const a = j * w + i;
       const b = a + 1;
       const c = a + w;
       const d = c + 1;
-      index.push(a, c, b, b, c, d); // counter clockwise seen from above
+      // counter clockwise seen from above
+      index[ix++] = a; index[ix++] = c; index[ix++] = b;
+      index[ix++] = b; index[ix++] = c; index[ix++] = d;
     }
   }
   // skirts, in both windings so they show from either side
-  edge.forEach((v, k) => {
+  for (let k = 0; k < edge.length; k++) {
     const next = (k + 1) % edge.length;
-    const p = v, q = edge[next]!;
+    const p = edge[k]!, q = edge[next]!;
     const p2 = nv + k, q2 = nv + next;
-    index.push(p, q, q2, p, q2, p2, p, q2, q, p, p2, q2);
-  });
+    index.set([p, q, q2, p, q2, p2, p, q2, q, p, p2, q2], ix);
+    ix += 12;
+  }
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.setAttribute('seasonWeight', new THREE.BufferAttribute(weight, 2));
-  geo.setIndex(index);
+  geo.setIndex(new THREE.BufferAttribute(index, 1));
   geo.computeBoundingSphere();
   return geo;
 }
@@ -142,23 +160,29 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
     return false;
   };
   const pos: number[] = [];
-  const clipped: [number, number][] = [];
+  // the clipped polygon of one triangle: at most 4 points, x and z each
+  const cx = [0, 0, 0, 0, 0];
+  const cz = [0, 0, 0, 0, 0];
   /** Emits the part of a ground triangle that lies below the level, as a fan. */
-  const clip = (tri: [number, number, number][]): void => {
-    clipped.length = 0;
-    for (let k = 0; k < 3; k++) {
-      const [ax, az, ah] = tri[k]!;
-      const [bx, bz, bh] = tri[(k + 1) % 3]!;
+  const clip = (x0: number, z0: number, h0: number, x1: number, z1: number, h1: number, x2: number, z2: number, h2: number): void => {
+    if (h0 > level && h1 > level && h2 > level) return;
+    let m = 0;
+    const edgeTo = (ax: number, az: number, ah: number, bx: number, bz: number, bh: number): void => {
       const aIn = ah <= level;
-      if (aIn) clipped.push([ax, az]);
+      if (aIn) {
+        cx[m] = ax;
+        cz[m++] = az;
+      }
       if (aIn !== bh <= level) {
         const t = (level - ah) / (bh - ah);
-        clipped.push([ax + (bx - ax) * t, az + (bz - az) * t]);
+        cx[m] = ax + (bx - ax) * t;
+        cz[m++] = az + (bz - az) * t;
       }
-    }
-    for (let k = 1; k + 1 < clipped.length; k++) {
-      for (const [x, z] of [clipped[0]!, clipped[k]!, clipped[k + 1]!]) pos.push(x, level, z);
-    }
+    };
+    edgeTo(x0, z0, h0, x1, z1, h1);
+    edgeTo(x1, z1, h1, x2, z2, h2);
+    edgeTo(x2, z2, h2, x0, z0, h0);
+    for (let k = 1; k + 1 < m; k++) pos.push(cx[0]!, level, cz[0]!, cx[k]!, level, cz[k]!, cx[k + 1]!, level, cz[k + 1]!);
   };
   let any = false;
   for (let j = 0; j < n; j++) {
@@ -167,12 +191,12 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
       else if (!near(i, j)) continue;
       const x = tile.tx * size + i * cell;
       const z = tile.tz * size + j * cell;
-      const a: [number, number, number] = [x, z, h[j * w + i]!];
-      const b: [number, number, number] = [x + cell, z, h[j * w + i + 1]!];
-      const c: [number, number, number] = [x, z + cell, h[(j + 1) * w + i]!];
-      const d: [number, number, number] = [x + cell, z + cell, h[(j + 1) * w + i + 1]!];
-      clip([a, c, b]); // the same split as the ground mesh
-      clip([b, c, d]);
+      const ha = h[j * w + i]!;
+      const hb = h[j * w + i + 1]!;
+      const hc = h[(j + 1) * w + i]!;
+      const hd = h[(j + 1) * w + i + 1]!;
+      clip(x, z, ha, x, z + cell, hc, x + cell, z, hb); // the same split as the ground mesh
+      clip(x + cell, z, hb, x, z + cell, hc, x + cell, z + cell, hd);
     }
   }
   if (!any || pos.length === 0) return null;

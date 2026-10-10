@@ -33,8 +33,12 @@ const EXTRA = process.env.BENCH_QUERY ?? '';
 async function load(query = '') {
   const q = [query, EXTRA].filter(Boolean).join('&');
   await page.goto(URL + (q ? `?${q}` : ''));
+  // A save from an earlier run brings up Welcome back; continue it.
+  const cont = page.getByRole('button', { name: 'Continue' });
+  await Promise.race([cont.waitFor({ timeout: 8000 }).then(() => cont.click()), page.waitForFunction(() => '__game' in window, null, { timeout: 8000 })]).catch(() => {});
   await page.waitForFunction(() => '__game' in window, null, { polling: 200, timeout: 60000 });
   await page.getByRole('button', { name: 'Test menu' }).click();
+  await outside();
 }
 
 /** Frame statistics over ms milliseconds, plus the game's own counters. */
@@ -79,7 +83,15 @@ async function jump(id) {
   while (await page.evaluate(() => document.querySelector('#test-menu')?.textContent?.includes('Loading'))) {
     await page.waitForTimeout(100);
   }
+  await outside();
   return Date.now() - t0 + 500;
+}
+
+/** The beaver starts in the lodge (a saved game, or a baby), where walking goes nowhere and the camera sees the inside. */
+async function outside() {
+  const btn = page.getByRole('button', { name: /^In lodge/ });
+  if (await btn.count()) await btn.click();
+  await page.waitForTimeout(300);
 }
 
 /** Wait until the number of tiles held stops changing. */

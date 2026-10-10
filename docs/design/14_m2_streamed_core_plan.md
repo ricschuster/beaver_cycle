@@ -357,9 +357,22 @@ the Tab A9+ over the five places, fine tiles (6 to 10 per place), in ms:
 A whole fine tile is therefore about 25 to 35 ms on average and up to about
 90 ms, against a 4 ms budget and an 11 ms frame. Ground and the lake surface are
 nearly all of it; decode and streams do not matter. Level 0 tiles take 2 to 3 ms
-for ground and trees, level 1 under 1 ms. Walking at x5 for 8 s built almost no
-tiles this time, so the walking spikes did not repeat (worst 11 to 22 ms); the
-big frames come when many fine tiles are wanted at once, as after a jump.
+for ground and trees, level 1 under 1 ms.
+
+Caveat: that run, and the session 19 style runs before it, had the beaver
+inside the lodge (a saved game starts there). Walking then goes nowhere, so the
+walking part built almost no tiles, and the camera saw the inside of the lodge.
+The bench now clicks "Outside" after each load and jump. With the beaver
+outside and swimming or walking at x5 on the lakes, the same tablet gives only
+33 to 41 fps, p99 45 to 78 ms and worst frames of 78 to 245 ms, at night, with
+shadows on. That is a bigger problem than the tile builds and is not explained
+yet.
+
+After typed arrays and no per cell lookups in the ground builder, and scalar
+clipping in the lake builder (same output, checked against the old code), the
+fine tile ground takes about 4 to 5 ms (was 12 to 16) and the lake surface 5 to
+12 ms, up to 30 (was 9 to 19, up to 48). The lake surface is now the largest
+part, so it is next.
 
 ### Options, not yet decided
 

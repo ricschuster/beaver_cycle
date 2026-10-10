@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { LODGE_RADIUS } from '../../src/sim/lodge';
 import { buildLodge, collectToasts, enterLodgeAndRest, setSpeed, shot, startGame, toasts, walkTo, world } from './helpers';
 // A playtest of the family cycle (docs/design/23_leaving_and_next_baby.md) in the real game, driven by the keys and the test menu.
 // Run it with PLAYTEST_SHOTS=dir to keep screenshots of the key moments.
@@ -54,8 +55,8 @@ test('the family cycle: leave home, hear and find a partner', async ({ page }) =
   await buildLodge(page);
   w = await world(page);
   expect(w.lodge.wood).toBeGreaterThanOrEqual(10);
-  // The new lodge does not stand on the old one.
-  expect(Math.hypot(w.lodge.x - home.x, w.lodge.z - home.z)).toBeGreaterThan(6);
+  // The new lodge does not overlap the old one: their domes (LODGE_RADIUS 2.5 m each) do not touch.
+  expect(Math.hypot(w.lodge.x - home.x, w.lodge.z - home.z)).toBeGreaterThan(2 * LODGE_RADIUS);
   const mate = w.partners.find((p: any) => p.state === 'home');
   expect(mate, 'the partner moves into the whole lodge').toBeTruthy();
   await shot(page, '04-new-lodge');

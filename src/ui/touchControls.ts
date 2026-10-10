@@ -22,14 +22,24 @@ export function wantsTouchControls(nav: Pick<Navigator, 'maxTouchPoints'>, query
 
 const GLASS = 'background:rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.6);color:#fff;font:600 14px sans-serif;';
 
-export function createTouchControls(parent: HTMLElement, visible: boolean): TouchControls {
+/** The beaver's buttons, by the action each one gives. */
+export type TouchButton = 'dive' | 'slap' | 'chop' | 'grab' | 'build';
+
+export interface TouchOptions {
+  /** Other labels for some buttons, or null to leave a button out (the dream shows Dive as Hop and has no Gnaw). */
+  labels?: Partial<Record<TouchButton, string | null>>;
+  /** The start of the element ids, 'touch' by default, so a second set (the dream's) does not repeat the game's ids. */
+  idPrefix?: string;
+}
+
+export function createTouchControls(parent: HTMLElement, visible: boolean, { labels = {}, idPrefix = 'touch' }: TouchOptions = {}): TouchControls {
   const { stickRadius, buttonSize } = touchTuning;
   const root = document.createElement('div');
-  root.id = 'touch-controls';
+  root.id = `${idPrefix}-controls`;
   root.style.cssText = `display:${visible ? 'block' : 'none'};position:fixed;inset:0;pointer-events:none;z-index:4;user-select:none;-webkit-user-select:none;`;
 
   const base = document.createElement('div');
-  base.id = 'touch-stick';
+  base.id = `${idPrefix}-stick`;
   const size = stickRadius * 2;
   base.style.cssText = `${GLASS}position:absolute;left:max(32px,env(safe-area-inset-left));bottom:48px;width:${size}px;height:${size}px;border-radius:50%;pointer-events:auto;touch-action:none;`;
   const knob = document.createElement('div');
@@ -37,21 +47,25 @@ export function createTouchControls(parent: HTMLElement, visible: boolean): Touc
   knob.style.cssText = `position:absolute;left:${stickRadius - knobSize / 2}px;top:${stickRadius - knobSize / 2}px;width:${knobSize}px;height:${knobSize}px;border-radius:50%;background:rgba(255,255,255,.55);`;
   base.appendChild(knob);
 
-  const button = (id: string, label: string, right: string, bottom: string): HTMLButtonElement => {
+  const button = (id: TouchButton, name: string, right: string, bottom: string): HTMLButtonElement => {
     const b = document.createElement('button');
-    b.id = id;
+    const label = labels[id] ?? name;
+    b.id = `${idPrefix}-${id}`;
     b.type = 'button';
     b.textContent = label;
     b.setAttribute('aria-label', label);
     b.style.cssText = `${GLASS}position:absolute;right:${right};bottom:${bottom};width:${buttonSize}px;height:${buttonSize}px;border-radius:50%;pointer-events:auto;touch-action:none;`;
     return b;
   };
-  const dive = button('touch-dive', 'Dive', 'max(32px,env(safe-area-inset-right))', '48px');
-  const slap = button('touch-slap', 'Slap', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, '88px');
-  const chop = button('touch-chop', 'Gnaw', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, `calc(88px + ${buttonSize + 12}px)`);
-  const grab = button('touch-grab', 'Drag', `calc(max(32px,env(safe-area-inset-right)) + ${(buttonSize + 20) * 2}px)`, '88px');
-  const build = button('touch-build', 'Build', `calc(max(32px,env(safe-area-inset-right)) + ${(buttonSize + 20) * 2}px)`, `calc(88px + ${buttonSize + 12}px)`);
-  root.append(base, dive, slap, chop, grab, build);
+  const dive = button('dive', 'Dive', 'max(32px,env(safe-area-inset-right))', '48px');
+  const slap = button('slap', 'Slap', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, '88px');
+  const chop = button('chop', 'Gnaw', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, `calc(88px + ${buttonSize + 12}px)`);
+  const grab = button('grab', 'Drag', `calc(max(32px,env(safe-area-inset-right)) + ${(buttonSize + 20) * 2}px)`, '88px');
+  const build = button('build', 'Build', `calc(max(32px,env(safe-area-inset-right)) + ${(buttonSize + 20) * 2}px)`, `calc(88px + ${buttonSize + 12}px)`);
+  // A button labelled null is made but never shown, so it gives nothing.
+  const buttons = { dive, slap, chop, grab, build };
+  const shown = (Object.keys(buttons) as TouchButton[]).filter((k) => labels[k] !== null).map((k) => buttons[k]);
+  root.append(base, ...shown);
   parent.appendChild(root);
 
   // The stick follows one finger, found by its pointer id, so a second finger
@@ -149,7 +163,7 @@ export function createTouchControls(parent: HTMLElement, visible: boolean): Touc
       root.style.display = v ? 'block' : 'none';
     },
     setActionsVisible(v) {
-      for (const b of [dive, slap, chop, grab, build]) b.style.display = v ? '' : 'none';
+      for (const b of shown) b.style.display = v ? '' : 'none';
     },
   };
 }

@@ -36,6 +36,8 @@ export interface TestMenuOptions {
   onRemoveLodge(): void;
   /** Sleep through the night; only does something in the lodge at night. */
   onSleep(): void;
+  /** Open a dream now, at any time and place (docs/design/29_dream_candy_land.md). */
+  onDream(): void;
   /** Jump to a part of the day, 0 dawn to 1. */
   onTimeOfDay(timeOfDay: number): void;
   onSeason(season: Season): void;
@@ -255,6 +257,11 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   sleepButton.dataset.action = 'sleep';
   style(sleepButton);
   sleepButton.onclick = () => opts.onSleep();
+  const dreamButton = document.createElement('button');
+  dreamButton.textContent = 'Dream now';
+  dreamButton.dataset.action = 'dream';
+  style(dreamButton);
+  dreamButton.onclick = () => opts.onDream();
   const removeButton = document.createElement('button');
   removeButton.textContent = 'Remove lodge';
   removeButton.dataset.action = 'lodge-remove';
@@ -264,7 +271,7 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     showLodge();
     opts.onRemoveLodge();
   };
-  lodgeRow.append(lodgeButton, sleepButton, removeButton);
+  lodgeRow.append(lodgeButton, sleepButton, dreamButton, removeButton);
 
   const jumpRow = row('Jump to');
   for (const loc of opts.locations) {

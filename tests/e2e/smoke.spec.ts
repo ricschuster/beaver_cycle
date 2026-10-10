@@ -88,13 +88,35 @@ test('at night in the lodge the bedtime panel offers sleep and the dream, and bo
   // By day only the long sleeps are offered: to the next season, not to morning or the dream.
   await expect(page.locator('button[data-action="sleep-skip"]')).toBeHidden();
   await expect(page.locator('button[data-action="sleep-season"]')).toBeVisible();
-  // The dream is a placeholder: a dark screen with a wake button.
+  // The dream opens candy land over the game, and its Wake up wakes at dawn.
   await page.locator('button[data-time="night"]').click();
   await expect(page.locator('button[data-action="sleep-dream"]')).toBeVisible();
   await page.locator('button[data-action="sleep-dream"]').click();
-  await expect(page.locator('#sleep-dark')).toContainText('dreams');
-  await page.locator('button[data-action="sleep-wake"]').click();
+  await expect(page.locator('#dream')).toBeVisible();
+  await page.locator('button[data-action="dream-wake"]').click();
+  await expect(page.locator('#dream')).toHaveCount(0);
   await expect(page.locator('#clock-hud')).toContainText('day 3, morning');
+});
+
+test('?dream=1 opens candy land, the keys walk the beaver, and Wake up goes back to the game', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?shadows=0&dream=1&seed=3');
+  await page.waitForFunction(() => (window as any).__game?.dream() != null, null, { polling: 100 });
+  await expect(page.locator('#dream-count')).toContainText('0');
+  // The waking game stands still while the beaver dreams.
+  const clock = await page.evaluate(() => (window as any).__game.world().clock);
+  const start = await page.evaluate(() => ({ ...(window as any).__game.dream().beaver }));
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(600);
+  await page.keyboard.up('KeyW');
+  const end = await page.evaluate(() => ({ ...(window as any).__game.dream().beaver }));
+  expect(Math.hypot(end.x - start.x, end.z - start.z)).toBeGreaterThan(0.3);
+  expect(await page.evaluate(() => (window as any).__game.world().clock)).toBe(clock);
+  await page.locator('button[data-action="dream-wake"]').click();
+  await page.waitForFunction(() => (window as any).__game.dream() === null, null, { polling: 100 });
+  await expect(page.locator('#dream')).toHaveCount(0);
+  expect(errors).toEqual([]);
 });
 
 test('dragging turns the camera and forward still walks away from it', async ({ page }) => {

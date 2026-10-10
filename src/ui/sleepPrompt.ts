@@ -1,9 +1,13 @@
 // Bedtime: when the beaver can sleep (in the lodge, at night) a panel offers
 // two ways (Q65): sleep until morning, or go into the dream. Both fade to black
-// and wake at dawn. The dream is a placeholder for a mini game later. DOM only.
+// and wake at dawn. The dream itself is the dream screen (ui/dreamScreen.ts,
+// docs/design/29_dream_candy_land.md), which opens over the dark and hands back
+// to `wakeFromDream` when the player wakes. DOM only.
 
 /** Milliseconds of each fade to or from black. */
 export const FADE_MS = 700;
+/** Milliseconds the screen stays dark on waking before it fades back in (the dream screen fades out in this time). */
+export const DARK_MS = 300;
 
 export type SleepGoal = 'night' | 'season' | 'grow';
 
@@ -19,11 +23,18 @@ export interface SleepChoices {
 export interface SleepPrompt {
   /** Show the panel with the choices that apply, hide it when none do. */
   set(choices: SleepChoices): void;
+  /**
+   * The dream is over: wake at dawn in the dark and fade the game back in. A dream started without the Dream button (the test
+   * menu, ?dream=1) wakes from the same dark, put up at once under the dream screen. Does nothing while a plain sleep is on.
+   */
+  wakeFromDream(): void;
 }
 
 export interface SleepPromptOptions {
   /** Called in the dark, once, when the beaver wakes: move the clock to dawn, the next season, or growing up. */
   onWake(goal: SleepGoal): void;
+  /** Called in the dark after the Dream button: open the dream, which calls `wakeFromDream` when it ends. */
+  onDream(): void;
 }
 
 const BUTTON =
@@ -56,21 +67,12 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   const dark = document.createElement('div');
   dark.id = 'sleep-dark';
   dark.style.cssText =
-    `position:fixed;inset:0;z-index:20;background:#05060d;opacity:0;pointer-events:none;transition:opacity ${FADE_MS}ms;` +
-    'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;color:#cfd8ff;font:20px system-ui,sans-serif';
-  const dreamText = document.createElement('p');
-  dreamText.textContent = 'The beaver dreams... (a mini game will go here)';
-  dreamText.hidden = true;
-  const wakeButton = document.createElement('button');
-  wakeButton.textContent = 'Wake up';
-  wakeButton.dataset.action = 'sleep-wake';
-  wakeButton.style.cssText = BUTTON;
-  wakeButton.hidden = true;
-  dark.append(dreamText, wakeButton);
+    `position:fixed;inset:0;z-index:20;background:#05060d;opacity:0;pointer-events:none;transition:opacity ${FADE_MS}ms`;
 
   parent.append(panel, dark);
 
   let busy = false;
+  let dreaming = false;
   let choices: SleepChoices = { night: false, rest: false, grow: null };
   let goal: SleepGoal = 'night';
   const refresh = (): void => {
@@ -88,8 +90,7 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
 
   // Fade out, wake in the dark, fade back in.
   const wake = (): void => {
-    dreamText.hidden = true;
-    wakeButton.hidden = true;
+    dreaming = false;
     opts.onWake(goal);
     setTimeout(() => {
       fadeTo(0);
@@ -97,7 +98,7 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
         busy = false;
         refresh();
       }, FADE_MS);
-    }, 300);
+    }, DARK_MS);
   };
 
   const sleepTo = (next: SleepGoal) => () => {
@@ -118,16 +119,29 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
     refresh();
     fadeTo(1);
     setTimeout(() => {
-      dreamText.hidden = false;
-      wakeButton.hidden = false;
+      dreaming = true;
+      opts.onDream();
     }, FADE_MS);
   };
-  wakeButton.onclick = wake;
 
   return {
     set(value) {
       choices = value;
       refresh();
+    },
+    wakeFromDream() {
+      if (busy && !dreaming) return;
+      if (!busy) {
+        busy = true;
+        refresh();
+        dark.style.transition = 'none';
+        fadeTo(1);
+        // Read the layout once so the dark is up before its fade comes back.
+        void dark.offsetWidth;
+        dark.style.transition = `opacity ${FADE_MS}ms`;
+      }
+      goal = 'night';
+      wake();
     },
   };
 }

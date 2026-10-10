@@ -44,7 +44,7 @@ export interface TerrainSource {
 
 export interface Renderer {
   /** Draw the world. `parents` are Mama and Papa from `parentsAt`, none when the player beaver is grown. */
-  draw(world: WorldState, view: ViewState, parents?: readonly Parent[], animals?: readonly Animal[], neighbours?: readonly NeighbourBeaver[]): void;
+  draw(world: WorldState, view: ViewState, parents?: readonly Parent[], animals?: readonly Animal[], neighbours?: readonly NeighbourBeaver[], drifts?: readonly { x: number; y: number; z: number }[]): void;
   terrain: TerrainView | null;
   /** Turn the sun shadows on or off while running. Does nothing if the game started without them. */
   setShadows(on: boolean): void;
@@ -221,6 +221,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   // The beavers of the other families, one model each, made when first seen, and the lodges they live in.
   const neighbourModels = new Map<string, { model: BeaverModel; coat: string; pace: number }>();
   const neighbourViews: LodgeView[] = [];
+  const driftMeshes: THREE.Mesh[] = [];
+  const driftGeometry = new THREE.SphereGeometry(1, 14, 9);
+  const driftMaterial = new THREE.MeshStandardMaterial({ color: 0xf2f6fa, roughness: 1 });
   let coatShown = '';
 
   // A ring that spreads over the water where the beaver slapped its tail.
@@ -325,7 +328,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     setShadows(on) {
       shadowsOn = on && shadows;
     },
-    draw(world, view, parents = [], animals = [], neighbours = []) {
+    draw(world, view, parents = [], animals = [], neighbours = [], drifts = []) {
       const b = world.beaver;
       const moved = Math.hypot(b.x - lastX, b.z - lastZ);
       lastX = b.x;
@@ -385,6 +388,18 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         g.position.set(p.x, p.y, p.z);
         g.rotation.y = p.heading;
       }
+      // The snowdrifts that hold a stuck beaver (escort.ts): white mounds that hide most of it.
+      while (driftMeshes.length < drifts.length) {
+        const m = new THREE.Mesh(driftGeometry, driftMaterial);
+        m.scale.set(1.5, 0.8, 1.5);
+        scene.add(m);
+        driftMeshes.push(m);
+      }
+      driftMeshes.forEach((m, i) => {
+        const d = drifts[i];
+        m.visible = !!d && !bare && !inside;
+        if (d) m.position.set(d.x, d.y + 0.2, d.z);
+      });
       for (const entry of neighbourModels.values()) entry.model.group.visible = false;
       for (const n of neighbours) {
         let entry = neighbourModels.get(n.id);

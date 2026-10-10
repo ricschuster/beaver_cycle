@@ -73,7 +73,7 @@ function reviver(_key: string, value: unknown): unknown {
 
 /** The world as it is kept: what only matters for the moment (a speed test setting, an open stash screen, a meeting with a predator) is left out. */
 export function forSave(world: WorldState): WorldState {
-  return { ...world, speedMultiplier: 1, stashOpen: false, predators: [], leader: null, chop: null, drag: null, carry: null, haul: null };
+  return { ...world, speedMultiplier: 1, stashOpen: false, predators: [], leader: null, escort: null, chop: null, drag: null, carry: null, haul: null };
 }
 
 export function encodeSave(world: WorldState, coach: SavedCoach, now: number): string {

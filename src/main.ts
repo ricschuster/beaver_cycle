@@ -9,16 +9,18 @@ import { DAY_SECONDS, dateAt, withSeason, withTimeOfDay } from './sim/clock';
 import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { formerParentsAt, parentsAt } from './sim/family';
-import { AnimalField, capFor } from './sim/animals';
+import { AnimalField, capFor, type Animal } from './sim/animals';
 import { growNeighbours, neighboursAt } from './sim/neighbours';
-import { nameOf } from './sim/names';
+import { nameOf, pondName } from './sim/names';
+import { DIG_REACH, DIG_TIME, HEAR_RANGE, escortBeaver, nearestStuck, rescue, startEscort, stepEscort, stuckBeaver, stuckNow, whereTo, digging } from './sim/escort';
+import { CALL_SLOT, answerNews, overheard, type Surroundings } from './sim/news';
 import { TALK_END, LINE_SECONDS, buildIsFree, nearestSpeaker, pickLine, speakersOf, type Speaker } from './sim/talk';
 import { createTalkBubble } from './ui/talkBubble';
 import { giftFamilies, greetedBy, familyMood, reactFamilies, startleFamilies } from './sim/familyMoods';
 import { banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
 import { lead, leaderAnimal } from './sim/guides';
 import { pondGuests, trackPonds } from './sim/pondGuests';
-import { meetPredators, predatorAnimals, type PredatorEvent } from './sim/predators';
+import { isPredator, meetPredators, predatorAnimals, type PredatorEvent } from './sim/predators';
 import { CUE_EVERY, HEARD_DISTANCE, follower, mateOf, partnerCue } from './sim/partners';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
@@ -423,6 +425,48 @@ async function start(): Promise<void> {
   let buildPressed = false; // the build button went down this frame (a talk may start)
   let talkingTo: Speaker | null = null;
   let talks = 0;
+  let gnawHeld = false; // the gnaw button is held and the player is moving, this frame (the digging)
+  let movingNow = false;
+  let dug = 0;
+  const heardStuck = new Set<string>();
+  let lastAmbient: readonly Animal[] = [];
+  let lastCallSlot = -1;
+  const surroundings = (): Surroundings => {
+    let pad: { x: number; z: number } | null = null;
+    let padDist = 90;
+    for (const p of lilyPadsNear(terrain, world.beaver.x, world.beaver.z, 90, world.clock, world.picked)) {
+      const d = Math.hypot(p.x - world.beaver.x, p.z - world.beaver.z);
+      if (d < padDist) {
+        pad = p;
+        padDist = d;
+      }
+    }
+    const threat = lastAmbient.filter((a) => isPredator(a.kind) && Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) < 100).sort((a, c) => Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) - Math.hypot(c.x - world.beaver.x, c.z - world.beaver.z))[0];
+    return { pad, predator: threat ? { x: threat.x, z: threat.z, kind: threat.kind } : null };
+  };
+  // The talk: the beaver says a greeting, and the player may ask for news or say bye.
+  const repliesFor = (who: Speaker): readonly { id: string; label: string }[] => [{ id: 'news', label: 'Any news?' }, ...(world.guides.includes(who.id) ? [{ id: 'lead', label: 'Show me the way' }] : []), { id: 'bye', label: 'Bye' }];
+  const answer = (who: Speaker) => (id: string): void => {
+    if (id === 'bye') {
+      talkBubble.hush();
+      talkingTo = null;
+      return;
+    }
+    if (id === 'lead') {
+      const to = whereTo(world);
+      talkBubble.hush();
+      talkingTo = null;
+      if (world.escort) toast.show(`${world.escort.name} is already showing you the way`);
+      else if (!to) toast.show(`${who.name}: I do not know where to take you yet. Build a lodge first`);
+      else {
+        world = { ...world, escort: startEscort({ id: who.id, name: who.name, family: who.family ?? '', x: who.x, z: who.z }, to) };
+        toast.show(`${who.name} leads the way. Follow`);
+      }
+      return;
+    }
+    const trusting = !who.family || familyMood(world, who.family) === 'curious';
+    talkBubble.say(who.name, answerNews(world, surroundings(), trusting, talks++), LINE_SECONDS * 1.5, repliesFor(who), answer(who));
+  };
   const greeted = new Set<string>(); // families that have greeted the beaver this visit (#342)
 
   function frame(now: number): void {
@@ -446,6 +490,8 @@ async function start(): Promise<void> {
       stashTap = undefined;
       stashClose = false;
       buildPressed = !!actions.build;
+      gnawHeld = !!actions.chop;
+      movingNow = actions.move.x !== 0 || actions.move.z !== 0;
       const move = relativeToView(actions.move, rig.view.yaw);
       if (free && rig.view.free) {
         // The drone leaves the beaver, which stands still. Any move or climb cancels a tap's glide; the streamer follows the drone.
@@ -559,7 +605,9 @@ async function start(): Promise<void> {
     const slappedNow = world.lastSlap !== null && world.lastSlap.time === world.time;
     const around = [...animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps)), ...pondGuests(world, world.beaver.x, world.beaver.z)];
     // The families: shy, calm or curious by trust, thanking a gift, hurt by a slap, and greeting the beaver once each (#342).
-    const familyBeavers = reactFamilies(neighboursAt(world.neighbours, world.clock, ponded), world, ponded);
+    const stuckList = stuckNow(world, ponded);
+    const away = new Set([...stuckList.map((st) => st.member), ...(world.escort ? [world.escort.id] : [])]);
+    const familyBeavers = reactFamilies(neighboursAt(world.neighbours, world.clock, ponded), world, ponded).filter((n) => !away.has(n.id));
     if (slappedNow) world = startleFamilies(world, familyBeavers);
     const gifts = giftFamilies(world, familyBeavers);
     world = gifts.world;
@@ -581,12 +629,40 @@ async function start(): Promise<void> {
     if (near && buildPressed) {
       talkingTo = near;
       const feeling = near.family ? familyMood(world, near.family) : 'curious';
-      talkBubble.say(near.name, pickLine(near, { feeling, season: dateAt(world.clock).season, clock: world.clock, seed: talks++ }), LINE_SECONDS);
+      talkBubble.say(near.name, pickLine(near, { feeling, season: dateAt(world.clock).season, clock: world.clock, seed: talks++ }), LINE_SECONDS * 1.5, repliesFor(near), answer(near));
     }
     buildPressed = false;
+    // A call between two beavers of a family near the player, once in a slot of the clock (#345).
+    const callSlot = Math.floor(world.clock / CALL_SLOT);
+    if (callSlot !== lastCallSlot) {
+      lastCallSlot = callSlot;
+      const call = talkBubble.talking() ? null : overheard(familyBeavers, world.beaver, world.clock);
+      if (call) toast.show(`${call.who}: "${call.text}"`);
+    }
     talkBubble.prompt(near?.name ?? null, 'Build');
     talkBubble.tick(dt);
+    // Winter: a beaver stuck in a drift calls for help, the player digs it out by gnawing beside it, and it becomes a guide (#346).
+    const homeAt = world.formerHomes.at(-1) ?? world.lodge ?? world.beaver;
+    for (const st of stuckList) {
+      if (heardStuck.has(st.id) || Math.hypot(st.x - world.beaver.x, st.z - world.beaver.z) > HEAR_RANGE) continue;
+      heardStuck.add(st.id);
+      const fam = world.neighbours.find((f) => f.id === st.family);
+      toast.show(`Someone is calling for help in the snow${fam ? ` by the ${pondName(fam.lodge, homeAt)}` : ''}. Gnaw the drift to dig`);
+    }
+    const drift = nearestStuck(stuckList, world.beaver, DIG_REACH);
+    dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, gnawHeld, movingNow, dt) : 0;
+    if (drift && dug >= DIG_TIME) {
+      world = rescue(world, drift);
+      dug = 0;
+      toast.show(`${drift.name} is free! Talk to ${drift.name} and ask to be shown the way`);
+    } else if (drift && dug > 0) talkBubble.note(`Digging ${Math.min(99, Math.floor((dug / DIG_TIME) * 100))}%`);
+    if (world.escort) {
+      const led = stepEscort(world, dt);
+      world = led.world;
+      for (const e of led.events) toast.show(e.what === 'arrived' ? `${e.name}: Here we are` : `You lost ${e.name}`);
+    }
     const ambient = foxesAtStore(react(around, world, ponded), world, ponded);
+    lastAmbient = ambient;
     const led = lead(world, ambient, dt, ponded);
     world = led.world;
     for (const e of led.events) toast.show(GUIDE_TEXT[e.what](e.kind));
@@ -614,7 +690,8 @@ async function start(): Promise<void> {
     const engaged = new Set(world.predators.map((p) => p.id));
     if (world.leader) engaged.add(world.leader.id);
     const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded), ...(world.leader ? [leaderAnimal(world.leader, ponded, world)] : [])];
-    renderer.draw(world, rig.view, parents, animals, familyBeavers);
+    const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : [])];
+    renderer.draw(world, rig.view, parents, animals, drawnFamily, stuckList.map((st) => ({ x: st.x, y: ponded.heightAt(st.x, st.z), z: st.z })));
     if (now - lastReadout > 500) {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;

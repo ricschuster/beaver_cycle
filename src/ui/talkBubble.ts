@@ -4,14 +4,22 @@
 export interface TalkBubble {
   /** Show the prompt for a speaker's name, or nothing when `name` is null. A line on screen is not replaced by a prompt. */
   prompt(name: string | null, key: string): void;
-  /** Show what a beaver says, for `seconds`. */
-  say(name: string, text: string, seconds: number): void;
+  /** Show a plain note, such as the digging, or nothing when `text` is null. A line on screen is not replaced. */
+  note(text: string | null): void;
+  /** Show what a beaver says, for `seconds`, with reply buttons that call `pick` with the button's id (none for a plain line). */
+  say(name: string, text: string, seconds: number, choices?: readonly Choice[], pick?: (id: string) => void): void;
   /** Counts down a line, call each frame. */
   tick(dt: number): void;
   /** True while a line is on screen. */
   talking(): boolean;
   /** Take a line off the screen at once. */
   hush(): void;
+}
+
+/** A reply the player can tap. */
+export interface Choice {
+  id: string;
+  label: string;
 }
 
 /** The text of the prompt, for a given button name. */
@@ -38,10 +46,29 @@ export function createTalkBubble(parent: HTMLElement): TalkBubble {
       if (name === null) root.style.display = 'none';
       else show(`<span style="opacity:.7">${esc(promptText(name, key))}</span>`);
     },
-    say(name, text, seconds) {
+    note(text) {
+      if (line) return;
+      if (text === null) root.style.display = 'none';
+      else show(`<span style="opacity:.8">${esc(text)}</span>`);
+    },
+    say(name, text, seconds, choices = [], pick) {
       line = true;
       left = seconds;
       show(`<b>${esc(name)}</b><br>${esc(text)}`);
+      if (choices.length === 0) return;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:10px;justify-content:center;margin-top:8px';
+      for (const c of choices) {
+        const b = document.createElement('button');
+        b.textContent = c.label;
+        b.style.cssText = 'pointer-events:auto;padding:10px 18px;min-height:44px;border:0;border-radius:10px;background:#7a4b22;color:#fff;font:16px system-ui,sans-serif;cursor:pointer';
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          pick?.(c.id);
+        });
+        row.appendChild(b);
+      }
+      root.appendChild(row);
     },
     tick(dt) {
       if (!line) return;

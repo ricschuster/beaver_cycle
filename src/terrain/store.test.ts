@@ -105,6 +105,8 @@ describe('streamDistance', () => {
     expect(s.streamDistance(150, 103)).toBeCloseTo(3);
     expect(s.streamDistance(330, 100)).toBeCloseTo(30);
     expect(s.streamDistance(150, 1000)).toBeGreaterThan(800);
+    expect(s.streamDistance(150, 101, 1.5)).toBeCloseTo(1);
+    expect(s.streamDistance(150, 110, 1.5)).toBe(Infinity);
   });
 });
 

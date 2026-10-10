@@ -86,7 +86,7 @@ function hash(cx: number, cz: number, salt: number): number {
 }
 
 /** Wet ground: shallow lake water, or in a stream. */
-const wet = (terrain: Terrain, x: number, z: number): boolean => terrain.waterDepth(x, z) > WET || (terrain.streamDistance?.(x, z) ?? Infinity) <= STREAM_HALF_WIDTH;
+const wet = (terrain: Terrain, x: number, z: number): boolean => terrain.waterDepth(x, z) > WET || (terrain.streamDistance?.(x, z, STREAM_HALF_WIDTH) ?? Infinity) <= STREAM_HALF_WIDTH;
 
 /** True where a rock makes sense (Q76): on a stream bed or a bank, or on steep stony ground. Not on a lake floor, not on flat open ground, and not on a dry meadow (the stream bed itself may cross one). */
 export function rockGround(terrain: Terrain, x: number, z: number): boolean {

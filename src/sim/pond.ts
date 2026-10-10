@@ -168,7 +168,7 @@ export function withPonds(terrain: Terrain, ponds: readonly Pond[]): Terrain {
     heightAt: (x, z) => terrain.heightAt(x, z),
     waterDepth,
     isWater: (x, z) => waterDepth(x, z) > 0,
-    streamDistance: terrain.streamDistance ? (x, z) => terrain.streamDistance!(x, z) : undefined,
+    streamDistance: terrain.streamDistance ? (x, z, upTo) => terrain.streamDistance!(x, z, upTo) : undefined,
     streamPoints: terrain.streamPoints ? (x, z, r, step) => terrain.streamPoints!(x, z, r, step) : undefined,
     coverAt: terrain.coverAt ? (x, z) => terrain.coverAt!(x, z) : undefined,
   };

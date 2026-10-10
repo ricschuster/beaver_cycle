@@ -366,8 +366,8 @@ async function start(): Promise<void> {
   const sniffed = new Set<string>();
 
   function frame(now: number): void {
-    // Cap dt so a paused tab does not teleport the beaver.
-    const dt = Math.min((now - last) / 1000, 0.1);
+    // Cap dt so a paused tab does not teleport the beaver. The first frame timestamp can come before `last`, so dt is never negative.
+    const dt = Math.max(0, Math.min((now - last) / 1000, 0.1));
     last = now;
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
     if (jump && streamer) {

@@ -73,6 +73,8 @@ test('the test menu moves the clock and the season, and sleep needs the lodge', 
 });
 
 test('at night in the lodge the bedtime panel offers sleep and the dream, and both wake at dawn', async ({ page }) => {
+  // Two fades and a page load take about 35 s on a busy machine, over the 30 s default.
+  test.setTimeout(90_000);
   await page.goto('/?shadows=0&lodge=0');
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
   await page.getByRole('button', { name: 'Test menu' }).click();

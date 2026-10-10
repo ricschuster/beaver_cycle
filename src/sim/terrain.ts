@@ -27,6 +27,8 @@ export interface Terrain {
 
 /** The land cover class of meadow in the tiles (tools/tiles/build_tiles.py CLASSES). */
 export const COVER_MEADOW = 1;
+/** The land cover class of forest in the tiles. */
+export const COVER_FOREST = 2;
 
 export function flatTerrain(height = 0): Terrain {
   return {

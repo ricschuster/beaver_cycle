@@ -21,7 +21,7 @@ const shore: Terrain = {
   waterDepth: (_x, z) => Math.max(0, z * 0.5),
 };
 
-const spot = (id: string, x: number, z: number): DamSpot => ({ id, bed: { x, z }, bedY: 0, flow: { x: 0, z: 1 }, maxCrest: 1, pondM2: 100 }) as DamSpot;
+const spot = (id: string, x: number, z: number): DamSpot => ({ id, bed: { x, z }, bedY: 0, flow: { x: 0, z: 1 }, maxCrest: 2, pondM2: 100 }) as DamSpot;
 /** Dam spots on the land north of the shore, so lone beavers have somewhere to be. */
 const spots = Array.from({ length: 20 }, (_, i) => spot(`s${i}`, (i % 5) * 220 - 440, -150 - Math.floor(i / 5) * 220));
 

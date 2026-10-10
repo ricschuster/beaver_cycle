@@ -73,6 +73,10 @@ export interface WorldState {
   predators: Predator[];
   /** The clock the beaver was caught by a predator at, or null. It is slower while hurt, until a lily pad is eaten or a day passes. */
   hurtAt: number | null;
+  /** The clock the beaver last ate a lily pad at, or null: it swims faster for a minute (`food.ts`). */
+  padAt: number | null;
+  /** The clock the beaver last ate a branch at, or null: it fells trees faster for a game day (`food.ts`). */
+  branchAt: number | null;
   /** The otter or kingfisher leading the beaver to lily pads, or null (`guides.ts`). */
   leader: Leader | null;
   /** The clock each guide last led the beaver at, by animal id, so it does not lead again at once. */
@@ -183,7 +187,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, leader: null, ledAt: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, padAt: null, branchAt: null, leader: null, ledAt: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

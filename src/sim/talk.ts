@@ -5,6 +5,7 @@ import { isNight, type Season } from './clock';
 import { atStore } from './food';
 import type { Mood } from './moods';
 import { spotAt } from './dam';
+import { atHole } from './lodge';
 import type { WorldState } from './state';
 
 /** Who a speaker is: a member of another family by role, the player's own mama or papa, or the partner. */
@@ -139,20 +140,20 @@ interface NeighbourLike {
   z: number;
 }
 
-/** Everybody the player could talk to now. Beavers asleep in a lodge are not drawn and are not here. */
+/** Everybody the player could talk to now. Parents in the lodge are here too, when the player is inside with them. */
 export function speakersOf(neighbours: readonly NeighbourLike[], parents: readonly ParentLike[], partners: readonly PartnerLike[], nameOf: (id: string) => string): Speaker[] {
   return [
     ...neighbours.map((n): Speaker => ({ id: n.id, name: n.name, kind: n.role, family: n.family, x: n.x, z: n.z })),
-    ...parents.filter((p) => !p.inside).map((p): Speaker => (p.id.startsWith('mama') ? { id: p.id, name: 'Mama', kind: 'home-mama', family: null, x: p.x, z: p.z } : { id: p.id, name: 'Papa', kind: 'home-papa', family: null, x: p.x, z: p.z })),
+    ...parents.map((p): Speaker => (p.id.startsWith('mama') ? { id: p.id, name: 'Mama', kind: 'home-mama', family: null, x: p.x, z: p.z } : { id: p.id, name: 'Papa', kind: 'home-papa', family: null, x: p.x, z: p.z })),
     ...partners.filter((p) => p.state !== 'alone').map((p): Speaker => ({ id: p.id, name: nameOf(p.id), kind: 'partner', family: null, x: p.x, z: p.z })),
   ];
 }
 
 /**
- * True when the Build button has no other job where the player stands, so a press may start a talk: not inside the lodge (the water
- * hole), not with a log or load in hand (it goes on the lodge or dam), not at the food store (the stash), and not at a dam spot.
+ * True when the Build button has no other job where the player stands, so a press may start a talk: not the water hole of the lodge (it
+ * leads out), not with a log or load in hand (it goes on the lodge or dam), not at the food store (the stash), and not at a dam spot.
  */
 export function buildIsFree(world: Pick<WorldState, 'inLodge' | 'drag' | 'haul' | 'lodge' | 'spots' | 'beaver' | 'stashOpen'>): boolean {
   const b = world.beaver;
-  return !world.inLodge && !world.drag && !world.haul && !world.stashOpen && !atStore(world.lodge, b.x, b.z) && !spotAt(world.spots, b.x, b.z);
+  return !(world.inLodge && world.lodge && atHole(world.lodge, b.x, b.z)) && !world.drag && !world.haul && !world.stashOpen && !atStore(world.lodge, b.x, b.z) && !spotAt(world.spots, b.x, b.z);
 }

@@ -9,16 +9,17 @@ import { DAY_SECONDS, dateAt, withSeason, withTimeOfDay } from './sim/clock';
 import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { formerParentsAt, parentsAt } from './sim/family';
-import { AnimalField, capFor } from './sim/animals';
+import { AnimalField, capFor, type Animal } from './sim/animals';
 import { growNeighbours, neighboursAt } from './sim/neighbours';
 import { nameOf } from './sim/names';
+import { CALL_SLOT, answerNews, overheard, type Surroundings } from './sim/news';
 import { TALK_END, LINE_SECONDS, buildIsFree, nearestSpeaker, pickLine, speakersOf, type Speaker } from './sim/talk';
 import { createTalkBubble } from './ui/talkBubble';
 import { giftFamilies, greetedBy, familyMood, reactFamilies, startleFamilies } from './sim/familyMoods';
 import { banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
 import { lead, leaderAnimal } from './sim/guides';
 import { pondGuests, trackPonds } from './sim/pondGuests';
-import { meetPredators, predatorAnimals, type PredatorEvent } from './sim/predators';
+import { isPredator, meetPredators, predatorAnimals, type PredatorEvent } from './sim/predators';
 import { CUE_EVERY, HEARD_DISTANCE, follower, mateOf, partnerCue } from './sim/partners';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
@@ -423,6 +424,32 @@ async function start(): Promise<void> {
   let buildPressed = false; // the build button went down this frame (a talk may start)
   let talkingTo: Speaker | null = null;
   let talks = 0;
+  let lastAmbient: readonly Animal[] = [];
+  let lastCallSlot = -1;
+  const surroundings = (): Surroundings => {
+    let pad: { x: number; z: number } | null = null;
+    let padDist = 90;
+    for (const p of lilyPadsNear(terrain, world.beaver.x, world.beaver.z, 90, world.clock, world.picked)) {
+      const d = Math.hypot(p.x - world.beaver.x, p.z - world.beaver.z);
+      if (d < padDist) {
+        pad = p;
+        padDist = d;
+      }
+    }
+    const threat = lastAmbient.filter((a) => isPredator(a.kind) && Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) < 100).sort((a, c) => Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) - Math.hypot(c.x - world.beaver.x, c.z - world.beaver.z))[0];
+    return { pad, predator: threat ? { x: threat.x, z: threat.z, kind: threat.kind } : null };
+  };
+  // The talk: the beaver says a greeting, and the player may ask for news or say bye.
+  const replies = [{ id: 'news', label: 'Any news?' }, { id: 'bye', label: 'Bye' }] as const;
+  const answer = (who: Speaker) => (id: string): void => {
+    if (id === 'bye') {
+      talkBubble.hush();
+      talkingTo = null;
+      return;
+    }
+    const trusting = !who.family || familyMood(world, who.family) === 'curious';
+    talkBubble.say(who.name, answerNews(world, surroundings(), trusting, talks++), LINE_SECONDS * 1.5, replies, answer(who));
+  };
   const greeted = new Set<string>(); // families that have greeted the beaver this visit (#342)
 
   function frame(now: number): void {
@@ -581,12 +608,20 @@ async function start(): Promise<void> {
     if (near && buildPressed) {
       talkingTo = near;
       const feeling = near.family ? familyMood(world, near.family) : 'curious';
-      talkBubble.say(near.name, pickLine(near, { feeling, season: dateAt(world.clock).season, clock: world.clock, seed: talks++ }), LINE_SECONDS);
+      talkBubble.say(near.name, pickLine(near, { feeling, season: dateAt(world.clock).season, clock: world.clock, seed: talks++ }), LINE_SECONDS * 1.5, replies, answer(near));
     }
     buildPressed = false;
+    // A call between two beavers of a family near the player, once in a slot of the clock (#345).
+    const callSlot = Math.floor(world.clock / CALL_SLOT);
+    if (callSlot !== lastCallSlot) {
+      lastCallSlot = callSlot;
+      const call = talkBubble.talking() ? null : overheard(familyBeavers, world.beaver, world.clock);
+      if (call) toast.show(`${call.who}: "${call.text}"`);
+    }
     talkBubble.prompt(near?.name ?? null, 'Build');
     talkBubble.tick(dt);
     const ambient = foxesAtStore(react(around, world, ponded), world, ponded);
+    lastAmbient = ambient;
     const led = lead(world, ambient, dt, ponded);
     world = led.world;
     for (const e of led.events) toast.show(GUIDE_TEXT[e.what](e.kind));

@@ -386,6 +386,8 @@ async function start(): Promise<void> {
   let lastSeason = dateAt(world.clock).season;
   const heardBefore = new Set<string>();
   let cueIn = 0; // seconds until the next word on where a lone beaver is
+  let padSeen: number | null | undefined; // undefined until the first frame
+  let branchSeen: number | null | undefined;
   let wonShown = -1; // set on the first frame, so achievements already won in a loaded game give no toast
   // Taps on the stash screen wait here until the next step takes them.
   let stashTap: number | undefined;
@@ -520,6 +522,11 @@ async function start(): Promise<void> {
     if (world.generation !== lastGeneration) saveNow();
     lastGeneration = world.generation;
     // A toast for each achievement won since the last frame.
+    // A meal gives a lift for a while: a pad for swimming, a branch for felling. A loaded game gives no toast.
+    if (world.padAt !== padSeen && padSeen !== undefined && world.padAt !== null) toast.show('Tasty! You swim faster for a minute');
+    if (world.branchAt !== branchSeen && branchSeen !== undefined && world.branchAt !== null) toast.show('Well fed! You fell trees faster today');
+    padSeen = world.padAt;
+    branchSeen = world.branchAt;
     if (wonShown < 0) wonShown = world.achievements.length;
     for (const id of world.achievements.slice(wonShown)) toast.show(ACHIEVEMENT_TEXT[id]);
     wonShown = world.achievements.length;

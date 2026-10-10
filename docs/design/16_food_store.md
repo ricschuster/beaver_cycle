@@ -133,12 +133,23 @@ Decided by the author:
 - The world is paused to the extent that the beaver does not move while the panel is
   open, but time is not stopped, since the world keeps its clock (Q17).
 
+### The two effects (session 74, #155 and #171, the author chose option C)
+
+Eating is still never needed (Q17), but each food gives a small, optional lift, so
+the player has a reason to pick one from the stash. No penalty for skipping them.
+
+| Food | Meals | Effect when eaten in the lodge | Lasts |
+| --- | --- | --- | --- |
+| Lily pad | 1 | Heals a hurt beaver (Q12), and swims and dives 1.3 times as fast | 60 s |
+| Branch | 2 | "Well fed": fells a tree 1.25 times as fast | one game day |
+
+Pads die in winter and branches keep, so the autumn stash is a real choice. The
+numbers (`PAD_BOOST`, `BRANCH_BOOST` in `src/sim/food.ts`) are first guesses to tune on
+the tablet. State: `WorldState.padAt` and `branchAt` (the clock of the last meal).
+Not built: feeding kits and adults differently (needs a winter need).
+
 ### Not decided
 
-- **The two effects.** Nothing eats from the store yet, so there is nothing to
-  attach them to. A starting idea, to confirm: a branch is a full meal, and a pad
-  is a light one with a small extra, such as a short burst of swim speed. Needs the
-  author's call when eating gets an effect.
 - When a worn store loses places, what happens to the pieces in them. Consistency
   with a broken store says they are lost. A gentler choice keeps them locked until
   the store is mended.

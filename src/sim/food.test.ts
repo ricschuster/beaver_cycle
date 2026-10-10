@@ -1,7 +1,7 @@
 import { FOOD_ROT, MUD_DRY } from './haul';
 import { describe, expect, it } from 'vitest';
 import { noActions, type Actions } from '../actions/actions';
-import { STORE_CAPACITY, STORE_DISTANCE, branchesOf, emptyStock, lilyShare, stockMeals, stockOf, stockTotal, storeFill, storeSpot, tapped, trimmed, type Food, type Stock } from './food';
+import { BRANCH_BOOST, BRANCH_BOOST_TIME, PAD_BOOST, PAD_BOOST_TIME, STORE_CAPACITY, STORE_DISTANCE, branchFactor, branchesOf, emptyStock, lilyShare, padFactor, stockMeals, stockOf, stockTotal, storeFill, storeSpot, tapped, trimmed, type Food, type Stock } from './food';
 import { LOG_ROT } from './logs';
 import { LODGE_WOOD } from './lodge';
 import type { Log } from './logs';
@@ -179,6 +179,30 @@ describe('eating', () => {
     const inside = step({ ...w, inLodge: true, beaver: { ...w.beaver, x: 0, z: 2 + 3 } }, press({ chop: true }), 0.1, shore);
     expect(inside.carry).toBeNull();
     expect(inside.eaten).toBe(1);
+  });
+
+  it('gives a pad a swim boost and a branch a felling boost, which wear off', () => {
+    const inLodge = (carry: 'branch' | 'lily') => ({ ...world(), carry, inLodge: true, clock: 1000, beaver: { ...world().beaver, x: 0, z: 5 } });
+    const pad = step(inLodge('lily'), press({ chop: true }), 0.1, shore);
+    expect(pad.padAt).toBe(1000);
+    expect(pad.branchAt).toBeNull();
+    const branch = step(inLodge('branch'), press({ chop: true }), 0.1, shore);
+    expect(branch.branchAt).toBe(1000);
+    expect(branch.padAt).toBeNull();
+    expect(padFactor(1000, 1000 + PAD_BOOST_TIME - 1)).toBe(PAD_BOOST);
+    expect(padFactor(1000, 1000 + PAD_BOOST_TIME)).toBe(1);
+    expect(padFactor(null, 1000)).toBe(1);
+    expect(branchFactor(1000, 1000 + BRANCH_BOOST_TIME - 1)).toBe(BRANCH_BOOST);
+    expect(branchFactor(1000, 1000 + BRANCH_BOOST_TIME)).toBe(1);
+  });
+
+  it('swims faster for a minute after a pad, but walks at the same speed', () => {
+    const go = (padAt: number | null, z: number): number => {
+      const w = { ...world(), padAt, clock: 1000, beaver: { ...world().beaver, x: 0, z, mode: z >= 0 ? ('swim' as const) : ('walk' as const) } };
+      return step(w, press({ move: { x: 1, z: 0 } }), 1, shore).beaver.x;
+    };
+    expect(go(1000, 5)).toBeCloseTo(go(null, 5) * PAD_BOOST, 5);
+    expect(go(1000, -5)).toBeCloseTo(go(null, -5), 5);
   });
 
   it('carries the piece into the lodge', () => {

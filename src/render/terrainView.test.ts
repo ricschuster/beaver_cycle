@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { CLASS_LAKE } from '../terrain/format';
 import { makeTile } from '../terrain/testing';
-import { buildLakeGeometry, buildStreamGeometry, buildTileGeometry, farChunkKey } from './terrainView';
+import type { Pond } from '../sim/pond';
+import type { DamSpot } from '../sim/damSpots';
+import { buildLakeGeometry, buildStreamGeometry, buildTileGeometry, clearingsOf, farChunkKey, shrubHidden } from './terrainView';
+import { DETAIL } from './groundDetail';
 
 describe('water geometry', () => {
   it('covers lake cells with flat quads at the lake level', () => {
@@ -79,5 +82,35 @@ describe('ground geometry', () => {
   it('leaves rock without a seasonal tint', () => {
     const rock = buildTileGeometry(makeTile(0, 0, 2, () => 0, 4), 320).getAttribute('seasonWeight');
     expect([rock.getX(0), rock.getY(0)]).toEqual([0, 0]);
+  });
+});
+
+describe('ground detail in the geometry', () => {
+  it('gives each vertex the detail of its land cover, rock the most', () => {
+    const detailOf = (cls: number): number => buildTileGeometry(makeTile(0, 0, 2, () => 0, cls), 320).getAttribute('detail').getX(0);
+    expect(detailOf(4)).toBeCloseTo(DETAIL[4]!, 5);
+    expect(detailOf(1)).toBeCloseTo(DETAIL[1]!, 5);
+    expect(detailOf(4)).toBeGreaterThan(detailOf(1));
+  });
+});
+
+describe('shrub clearings', () => {
+  const spot = { id: 's1', bed: { x: 100, z: 50 }, bedY: 600, flow: { x: 1, z: 0 }, maxCrest: 2, pondM2: 900, widths: [8, 12, null] } as DamSpot;
+
+  it('keeps the ground round a dam and a lodge clear', () => {
+    const clear = clearingsOf([{ spot: 's1', wood: 3, mud: 0, rock: 0 }], [spot], [{ x: 0, z: 0, base: 600, door: 0, wood: 10 }, null]);
+    expect(clear).toHaveLength(2);
+    expect(clear[0]).toMatchObject({ x: 100, z: 50 });
+    expect(clear[0]!.r).toBeGreaterThan(6); // half the longest wall, and some
+    expect(shrubHidden([], clear, 1, 600, 1)).toBe(true);
+    expect(shrubHidden([], clear, 30, 600, 30)).toBe(false);
+  });
+
+  it('hides a shrub under a pond, and not one on the bank above it', () => {
+    const n = 5;
+    const pond = { spot: 's1', crest: 1, level: 601, n, x0: 0, z0: 0, heights: new Float32Array(n * n).fill(600), flooded: new Uint8Array(n * n).fill(1), area: 64 } as Pond;
+    expect(shrubHidden([pond], [], 3, 600.5, 3)).toBe(true);
+    expect(shrubHidden([pond], [], 3, 601.5, 3)).toBe(false);
+    expect(shrubHidden([pond], [], 30, 600, 30)).toBe(false);
   });
 });

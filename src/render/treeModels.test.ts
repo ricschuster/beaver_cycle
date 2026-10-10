@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type * as THREE from 'three';
 import { BROADLEAF_SHAPE, TREE_SHAPE } from '../terrain/trees';
-import { broadleafGeometry, coniferGeometry } from './treeModels';
+import { broadleafGeometry, coniferGeometry, SHRUB_BARE_SHRINK, shrubGeometry } from './treeModels';
 
 const triangles = (g: THREE.BufferGeometry): number => g.getAttribute('position').count / 3;
 
@@ -92,5 +92,48 @@ describe('tree models', () => {
     const n = g.getAttribute('normal');
     // the tiers and the trunk are round the y axis, so their faces look away from it
     for (let i = 0; i < p.count; i++) expect(p.getX(i) * n.getX(i) + p.getZ(i) * n.getZ(i)).toBeGreaterThanOrEqual(-1e-6);
+  });
+});
+
+describe('shrub model', () => {
+  it('stays cheap, since a scrub slope has thousands', () => {
+    expect(triangles(shrubGeometry())).toBe(20);
+  });
+
+  it('is low and wider than it is tall, and sits in the ground with no faces under it', () => {
+    const g = shrubGeometry();
+    g.computeBoundingBox();
+    const box = g.boundingBox!;
+    expect(box.max.y).toBeGreaterThan(0.6);
+    expect(box.max.y).toBeLessThan(1.1);
+    expect(box.min.y).toBeLessThan(0); // the foot is below the ground, so it never floats
+    expect(box.max.x - box.min.x).toBeGreaterThan(box.max.y);
+    const n = g.getAttribute('normal');
+    for (let i = 0; i < n.count; i++) expect(n.getY(i)).toBeGreaterThan(-0.5);
+  });
+
+  it('is all leaves, shrinking a little towards its foot when bare', () => {
+    const g = shrubGeometry();
+    const t = g.getAttribute('tree');
+    const crown = g.getAttribute('crown');
+    for (let i = 0; i < t.count; i++) {
+      expect(t.getX(i)).toBe(0);
+      expect(crown.getX(i)).toBeCloseTo(SHRUB_BARE_SHRINK, 6);
+      expect(crown.getY(i)).toBe(0);
+    }
+  });
+
+  it('holds snow on its top and none low down', () => {
+    const g = shrubGeometry();
+    const p = g.getAttribute('position');
+    const t = g.getAttribute('tree');
+    let top = { y: -Infinity, snow: 0 };
+    let low = { y: Infinity, snow: 0 };
+    for (let i = 0; i < p.count; i++) {
+      if (p.getY(i) > top.y) top = { y: p.getY(i), snow: t.getY(i) };
+      if (p.getY(i) < low.y) low = { y: p.getY(i), snow: t.getY(i) };
+    }
+    expect(top.snow).toBeGreaterThan(0.6);
+    expect(low.snow).toBeLessThan(0.3);
   });
 });

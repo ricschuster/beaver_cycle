@@ -147,16 +147,28 @@ function hash3(p: Vec): number {
 
 /**
  * A blob of leaves: a polyhedron round `at`, each corner pushed in or out a little so the crown is lumpy, lighter
- * on top and darker underneath.
+ * on top and darker underneath. Faces whose middle is lower than `cut` (on the unit shape) are left out, for a blob
+ * that sits in the ground; `snowAt` says how well a corner holds snow from its height on the unit shape.
  */
-function blob(b: TreeBuilder, part: Part, shape: THREE.BufferGeometry, at: Vec, r: number, squash: number, shadeAt: (y: number) => number): void {
+function blob(
+  b: TreeBuilder,
+  part: Part,
+  shape: THREE.BufferGeometry,
+  at: Vec,
+  r: number,
+  squash: number,
+  shadeAt: (y: number) => number,
+  cut = -Infinity,
+  snowAt: (unitY: number) => number = () => 0,
+): void {
   const p = shape.getAttribute('position');
   for (let i = 0; i < p.count; i += 3) {
+    if ((p.getY(i) + p.getY(i + 1) + p.getY(i + 2)) / 3 < cut) continue;
     const v: Vert[] = [0, 1, 2].map((k) => {
       const unit: Vec = [p.getX(i + k), p.getY(i + k), p.getZ(i + k)];
       const len = r * (0.88 + 0.24 * hash3(unit));
       const q: Vec = [at[0] + unit[0] * len, at[1] + unit[1] * len * squash, at[2] + unit[2] * len];
-      return { p: q, shade: shadeAt(q[1]), snow: 0 };
+      return { p: q, shade: shadeAt(q[1]), snow: snowAt(unit[1]) };
     });
     b.tri(part, v[0]!, v[1]!, v[2]!, at);
   }
@@ -208,5 +220,25 @@ export function broadleafGeometry(level: number): THREE.BufferGeometry {
       b.tri(bark, { p: a, shade: 0.9, snow }, { p: c, shade: 0.9, snow }, { p: tip, shade: 1, snow }, inside);
     }
   }
+  return b.build(true);
+}
+
+/** Share of its size a shrub loses in winter, when its leaves are gone: the shader shrinks it towards its foot. */
+export const SHRUB_BARE_SHRINK = 0.15;
+
+/**
+ * A shrub: a lumpy dome with a smaller dome beside it, both sitting in the ground, so no faces underneath. About
+ * a metre and a half across and under a metre tall at scale 1. The tops hold a little snow in winter, and the
+ * whole shrub shrinks by `SHRUB_BARE_SHRINK` as the foliage goes, the bare twigs left. 20 triangles, for the near
+ * levels only.
+ */
+export function shrubGeometry(): THREE.BufferGeometry {
+  const b = new TreeBuilder(0);
+  const leaves: Part = { rgb: LEAF, wood: 0, crown: SHRUB_BARE_SHRINK };
+  const shadeAt = (y: number): number => 0.62 + 0.55 * Math.min(1, Math.max(0, y / 0.9));
+  // the upper part holds snow: the catch passes the season's snow line (0.4 in deep winter) a third of the way down
+  const snowAt = (unitY: number): number => Math.min(1, Math.max(0, (unitY + 0.1) / 0.9));
+  blob(b, leaves, ICOSAHEDRON, [0, 0.22, 0], 0.66, 0.9, shadeAt, -0.2, snowAt);
+  blob(b, leaves, ICOSAHEDRON, [0.5, 0.05, 0.3], 0.48, 0.9, shadeAt, 0.2, snowAt);
   return b.build(true);
 }

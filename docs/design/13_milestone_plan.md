@@ -91,6 +91,18 @@ the quality budget (#120).
   starting from the crowns of broadleaf trees within 45 m, ramping in and out
   over the three day blends. Tree kinds change which trees stand where, so the
   numbers are a first guess to look at on the tablet.
+- Shrubs and ground (art pass, #105): low shrubs of 20 triangles
+  (`src/terrain/shrubs.ts`, `src/render/treeModels.ts`) stand on scrub, along
+  the edges of the woods, and here and there on wetland and meadow, on the near
+  levels only. They are decoration: the sim never sees them, none stands in the
+  lake or by a stream, and they hide under a pond and round a dam or a lodge. A
+  shrub the beaver walks into is pressed down, so it never hides the beaver.
+  They are green, russet in autumn, and bare brown with snow on top in winter.
+  They add about 35,000 triangles at the start and 116,000 at the Oedseen, the
+  most scrub. The ground has a soft noise in its shader
+  (`src/render/groundDetail.ts`): lighter and darker patches and a fine grain,
+  more on rock and bare ground than on meadow and snow, and steep faces turn to
+  rock, also under the snow.
 - Night sky (`src/render/nightSky.ts`): a moon that rises in the east and sets
   in the west over the night, 700 fixed stars, both fading in as the light goes,
   and a dark underwater colour at night.

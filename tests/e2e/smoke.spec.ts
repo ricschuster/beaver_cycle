@@ -217,3 +217,24 @@ test('the test menu switches to the drone and the map view and back, keeping the
   await page.waitForURL((u) => !u.search.includes('fly'));
   expect(page.url()).toContain('lodge=0');
 });
+
+test('the ? button opens the manual and the welcome card shows when asked for', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?shadows=0&welcome=1');
+  await expect(page.locator('#welcome')).toBeVisible();
+  await page.click('[data-action=welcome-go]');
+  await expect(page.locator('#welcome')).toBeHidden();
+  await page.click('#help-button');
+  await expect(page.locator('#manual')).toBeVisible();
+  await expect(page.frameLocator('#manual iframe').locator('h1')).toContainText('how to play');
+  await page.click('[data-action=manual-close]');
+  await expect(page.locator('#manual')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('the welcome card stays away in an automated browser', async ({ page }) => {
+  await page.goto('/?shadows=0');
+  await expect(page.locator('#help-button')).toBeVisible();
+  await expect(page.locator('#welcome')).toBeHidden();
+});

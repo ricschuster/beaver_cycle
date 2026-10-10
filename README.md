@@ -10,6 +10,13 @@ It is not a beaver simulation. The terrain is real (BEV elevation data and
 OpenStreetMap), but time runs faster than life and the look is stylized, not
 photoreal.
 
+## How to play
+
+The manual is [`public/manual.html`](public/manual.html). It is a plain page that
+the game shows over itself: a **?** button at the top right opens it, and the
+first start shows a short welcome card with a link to it. Keep it in step with
+the controls (`src/ui/keyHints.ts`, the touch buttons) when they change.
+
 ## What you can do today
 
 - Walk, swim, and dive in a world streamed in tiles around you, across six

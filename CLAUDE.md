@@ -87,6 +87,8 @@ Everyday (gate means CI blocks a merge on it):
 - `tools/area-editor/` - browser editor for the play area and its data build.
 - `tools/tiles/` - cuts terrain, land cover, and water into game tiles.
 - `tools/tablet-live/` - Capacitor shell that loads the dev server on a tablet.
+- `public/manual.html` - the player manual, shown in the game by the ? button (`src/ui/helpPanel.ts`). Update it when
+  controls, HUD text, or rules change.
 - `src/` - the game. `sim/` is state and rules (no DOM, no three.js, no
   input; the ground comes in through its `Terrain` interface), `terrain/` is
   tile decoding, the tile store, and the streamer (no three.js), `actions/` is what the player wants as plain data plus the input

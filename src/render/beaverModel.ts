@@ -1,4 +1,4 @@
-// A simple beaver built from three.js shapes, until the model pipeline exists.
+// A stylized beaver built from three.js shapes, so its parts can be posed in code.
 // Origin at the feet, facing +z, about one metre long without the tail. Parts
 // that later poses move (tail, legs) sit in their own groups.
 import * as THREE from 'three';
@@ -14,7 +14,10 @@ export const COATS = [
   { fur: 0x9a6a3a, dark: 0x4f3a2a, belly: 0xb88b55 },
 ] as const;
 const TAIL = 0x3b2a1a;
-const TEETH = 0xf2ead0;
+/** Beaver teeth are orange, from the iron in them. */
+const TEETH = 0xe0904a;
+const NOSE = 0x1a1210;
+const EYE = 0x0d0a08;
 
 /** How far a shade of 1 moves a coat toward white (or of -1 toward black). */
 const SHADE_STRENGTH = 0.18;
@@ -66,11 +69,154 @@ export function ellipsoid(rx: number, ry: number, rz: number, color: number, x: 
   return m;
 }
 
-function leg(x: number, z: number, length: number, foot: number, dark: number): THREE.Group {
+/** A small number from 0 to 1 that is always the same for the same two whole numbers. */
+function hash(a: number, b: number): number {
+  const h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+  return h - Math.floor(h);
+}
+
+/** Make a grey pattern texture, `size` texels square, from a brightness (0 to 1) per texel. */
+function patternTexture(size: number, repeatU: number, repeatV: number, shade: (x: number, y: number) => number): THREE.DataTexture {
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const v = Math.round(255 * shade(x, y));
+      data.set([v, v, v, 255], (y * size + x) * 4);
+    }
+  }
+  const tex = new THREE.DataTexture(data, size, size);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeatU, repeatV);
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+/** Fur grain: thin streaks of slightly lighter and darker hair that run along the body. Shared by every beaver. */
+let furTexture: THREE.DataTexture | null = null;
+function furGrain(): THREE.DataTexture {
+  furTexture ??= patternTexture(64, 3, 2, (x, y) => {
+    const strand = Math.floor((y + hash(x, 7) * 8) / 8);
+    return 0.87 + 0.13 * hash(x, strand);
+  });
+  return furTexture;
+}
+
+/** The criss-cross scales on the tail. Shared by every beaver. */
+let scaleTexture: THREE.DataTexture | null = null;
+function tailScales(): THREE.DataTexture {
+  scaleTexture ??= patternTexture(32, 14, 14, (x, y) => {
+    const a = (x + y) % 16;
+    const b = (x - y + 32) % 16;
+    return a < 2 || b < 2 ? 0.6 : 0.95 + 0.05 * hash(x, y);
+  });
+  return scaleTexture;
+}
+
+/** Give a fur part the fur grain. */
+function furry(mesh: THREE.Mesh): THREE.Mesh {
+  (mesh.material as THREE.MeshLambertMaterial).map = furGrain();
+  return mesh;
+}
+
+function smoothstep(a: number, b: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * The body: a round shape along z from the rump to the neck, higher at the hips than at the
+ * shoulders, as a beaver sits hunched. Its colour is in the vertices (fur on top, belly under),
+ * which `paint` sets, so the material stays white.
+ */
+function bodyShape(): { mesh: THREE.Mesh; paint: (fur: THREE.Color, belly: THREE.Color) => void } {
+  // Radius (x) along the length (y, later z), rump first.
+  const outline = new THREE.SplineCurve([
+    new THREE.Vector2(0.0, -0.6),
+    new THREE.Vector2(0.15, -0.56),
+    new THREE.Vector2(0.25, -0.46),
+    new THREE.Vector2(0.31, -0.3),
+    new THREE.Vector2(0.31, -0.1),
+    new THREE.Vector2(0.27, 0.08),
+    new THREE.Vector2(0.21, 0.24),
+    new THREE.Vector2(0.17, 0.36),
+    new THREE.Vector2(0.12, 0.46),
+    new THREE.Vector2(0.0, 0.5),
+  ]).getPoints(22);
+  const geo = new THREE.LatheGeometry(outline, 18).rotateX(Math.PI / 2);
+  // rotateX turned +y into +z, and the lathe's seam faces down, under the belly.
+  const pos = geo.attributes.position!;
+  const under = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    // Flatter underneath, and the rump lifted.
+    const lift = 0.07 * smoothstep(0.4, -0.35, z);
+    pos.setY(i, (y < 0 ? y * 0.78 : y) + lift);
+    under[i] = smoothstep(0.02, -0.18, y);
+  }
+  geo.computeVertexNormals();
+  const colors = new THREE.BufferAttribute(new Float32Array(pos.count * 3), 3);
+  geo.setAttribute('color', colors);
+  const mesh = furry(part(geo, 0xffffff, 0, 0.36, -0.05));
+  (mesh.material as THREE.MeshLambertMaterial).vertexColors = true;
+  const c = new THREE.Color();
+  return {
+    mesh,
+    paint(fur, belly) {
+      for (let i = 0; i < pos.count; i++) {
+        c.copy(fur).lerp(belly, under[i]!);
+        colors.setXYZ(i, c.r, c.g, c.b);
+      }
+      colors.needsUpdate = true;
+    },
+  };
+}
+
+/** The tail: a flat paddle, narrow at the rump and round at the tip, lying along -z from its hinge. */
+function tailShape(): THREE.Mesh {
+  const s = new THREE.Shape();
+  s.moveTo(-0.06, 0);
+  s.bezierCurveTo(-0.13, 0.06, -0.19, 0.15, -0.19, 0.28);
+  s.bezierCurveTo(-0.19, 0.43, -0.08, 0.5, 0, 0.5);
+  s.bezierCurveTo(0.08, 0.5, 0.19, 0.43, 0.19, 0.28);
+  s.bezierCurveTo(0.19, 0.15, 0.13, 0.06, 0.06, 0);
+  s.lineTo(-0.06, 0);
+  const depth = 0.03;
+  const geo = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.015, bevelSegments: 2, curveSegments: 10 });
+  geo.translate(0, 0, -depth / 2).rotateX(-Math.PI / 2);
+  const mesh = part(geo, TAIL, 0, 0, 0);
+  (mesh.material as THREE.MeshLambertMaterial).map = tailScales();
+  return mesh;
+}
+
+/** A webbed hind foot: a fan of five toes, flat on the ground, pointing +z from the heel. */
+function webbedFoot(length: number, width: number): THREE.BufferGeometry {
+  const s = new THREE.Shape();
+  s.moveTo(-width * 0.35, 0);
+  s.lineTo(-width * 0.5, length * 0.75);
+  for (let t = 0; t < 5; t++) {
+    const x0 = -width * 0.5 + (width * t) / 5;
+    const x1 = x0 + width / 5;
+    s.quadraticCurveTo((x0 + x1) / 2, length * 1.08, x1, length * 0.8);
+  }
+  s.lineTo(width * 0.35, 0);
+  s.quadraticCurveTo(0, -length * 0.12, -width * 0.35, 0);
+  const geo = new THREE.ExtrudeGeometry(s, { depth: 0.025, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 1, curveSegments: 4 });
+  // Lie flat: the shape's +y runs forward (+z) and the thickness goes up.
+  return geo.rotateX(Math.PI / 2).translate(0, 0.035, 0);
+}
+
+/** A leg hinged at the hip or shoulder, `length` up from the ground. Hind legs have big webbed feet. */
+function leg(x: number, z: number, length: number, hind: boolean, dark: number): THREE.Group {
   const g = new THREE.Group();
   g.position.set(x, length, z);
-  g.add(part(new THREE.CapsuleGeometry(0.07, length - 0.14, 4, 8), dark, 0, -length / 2, 0));
-  g.add(ellipsoid(0.09, 0.04, foot, dark, 0, -length + 0.04, foot * 0.4));
+  g.add(part(new THREE.CapsuleGeometry(hind ? 0.06 : 0.048, length - 0.1, 4, 8), dark, 0, -length / 2, 0));
+  if (hind) g.add(part(webbedFoot(0.2, 0.17), dark, 0, -length, -0.04));
+  else g.add(ellipsoid(0.065, 0.035, 0.08, dark, 0, -length + 0.035, 0.035));
   return g;
 }
 
@@ -81,24 +227,29 @@ export function createBeaverModel(coat = 0): BeaverModel {
   // Everything but the feet rides on the body group so a walk can bob it.
   const body = new THREE.Group();
   group.add(body);
-  body.add(ellipsoid(0.3, 0.27, 0.5, FUR, 0, 0.36, -0.05));
-  body.add(ellipsoid(0.24, 0.12, 0.4, BELLY, 0, 0.2, 0));
+  const torso = bodyShape();
+  body.add(torso.mesh);
+  // Haunches over the hind legs.
+  for (const s of [-1, 1]) body.add(furry(ellipsoid(0.1, 0.15, 0.17, FUR, s * 0.21, 0.36, -0.3)));
 
   const head = new THREE.Group();
-  head.position.set(0, 0.45, 0.45);
+  head.position.set(0, 0.5, 0.5);
   body.add(head);
-  head.add(ellipsoid(0.19, 0.17, 0.2, FUR, 0, 0, 0));
-  head.add(ellipsoid(0.1, 0.08, 0.1, FUR, 0, -0.05, 0.17));
-  head.add(part(new THREE.SphereGeometry(0.035, 8, 6), 0x1a1210, 0, -0.02, 0.26));
-  head.add(part(new THREE.BoxGeometry(0.07, 0.07, 0.015), TEETH, 0, -0.11, 0.22));
+  head.add(furry(ellipsoid(0.19, 0.165, 0.19, FUR, 0, 0.02, 0)));
   for (const s of [-1, 1]) {
-    head.add(part(new THREE.SphereGeometry(0.03, 8, 6), 0x0d0a08, s * 0.11, 0.06, 0.12));
-    head.add(ellipsoid(0.05, 0.05, 0.02, DARK_FUR, s * 0.12, 0.17, -0.04));
+    // Round cheeks, a small round ear, and a dark eye with a glint.
+    head.add(furry(ellipsoid(0.095, 0.09, 0.095, FUR, s * 0.08, -0.04, 0.11)));
+    head.add(ellipsoid(0.048, 0.048, 0.025, DARK_FUR, s * 0.135, 0.14, -0.05));
+    head.add(part(new THREE.SphereGeometry(0.028, 10, 8), EYE, s * 0.108, 0.065, 0.135));
+    head.add(part(new THREE.SphereGeometry(0.008, 6, 4), 0xffffff, s * 0.106, 0.077, 0.16));
   }
+  head.add(ellipsoid(0.09, 0.068, 0.085, BELLY, 0, -0.06, 0.18));
+  head.add(ellipsoid(0.045, 0.028, 0.03, NOSE, 0, -0.01, 0.262));
+  for (const s of [-1, 1]) head.add(part(new THREE.BoxGeometry(0.03, 0.065, 0.015), TEETH, s * 0.017, -0.122, 0.228));
 
   // A piece held crosswise in the teeth, shown only while the mouth is full.
   const branch = new THREE.Group();
-  branch.position.set(0, -0.1, 0.25);
+  branch.position.set(0, -0.12, 0.25);
   const stick = part(new THREE.CylinderGeometry(0.022, 0.03, 0.8, 6).rotateZ(Math.PI / 2), 0x7a5230, 0, 0, 0);
   branch.add(stick);
   for (const [x, a] of [[-0.18, 0.7], [0.12, -0.8]] as const) {
@@ -110,20 +261,20 @@ export function createBeaverModel(coat = 0): BeaverModel {
   branch.visible = false;
   head.add(branch);
   const lily = new THREE.Group();
-  lily.position.set(0, -0.1, 0.27);
+  lily.position.set(0, -0.12, 0.27);
   lily.add(part(new THREE.CylinderGeometry(0.2, 0.2, 0.015, 14), 0x4f9a46, 0, 0, 0));
   lily.visible = false;
   head.add(lily);
 
   // A lump of mud in the paws and teeth, and a grey rock.
   const mud = new THREE.Group();
-  mud.position.set(0, -0.12, 0.28);
+  mud.position.set(0, -0.14, 0.28);
   mud.add(ellipsoid(0.15, 0.1, 0.13, 0x5a3f28, 0, 0, 0));
   mud.add(ellipsoid(0.07, 0.05, 0.07, 0x6b4c31, 0.07, 0.07, 0.03));
   mud.visible = false;
   head.add(mud);
   const rock = new THREE.Group();
-  rock.position.set(0, -0.1, 0.29);
+  rock.position.set(0, -0.12, 0.29);
   const stone = part(new THREE.IcosahedronGeometry(0.16, 0), 0x8d8f8c, 0, 0, 0);
   stone.scale.set(1, 0.8, 1);
   rock.add(stone);
@@ -132,23 +283,24 @@ export function createBeaverModel(coat = 0): BeaverModel {
 
   // Tail: a flat paddle hinged at the rump. Rotate `tail.rotation.x` to slap.
   const tail = new THREE.Group();
-  tail.position.set(0, 0.28, -0.5);
+  tail.position.set(0, 0.27, -0.58);
   tail.rotation.x = 0.35;
   body.add(tail);
-  tail.add(ellipsoid(0.21, 0.03, 0.34, TAIL, 0, 0, -0.32));
+  tail.add(tailShape());
 
-  const legs = [leg(-0.17, 0.25, 0.2, 0.1, DARK_FUR), leg(0.17, 0.25, 0.2, 0.1, DARK_FUR), leg(-0.19, -0.3, 0.22, 0.17, DARK_FUR), leg(0.19, -0.3, 0.22, 0.17, DARK_FUR)];
+  const legs = [leg(-0.16, 0.27, 0.22, false, DARK_FUR), leg(0.16, 0.27, 0.22, false, DARK_FUR), leg(-0.2, -0.3, 0.24, true, DARK_FUR), leg(0.2, -0.3, 0.24, true, DARK_FUR)];
   group.add(...legs);
 
   // The parts that take the coat's colours, found by their colour, so setCoat can paint them again.
   const painted: Record<'fur' | 'dark' | 'belly', THREE.MeshLambertMaterial[]> = { fur: [], dark: [], belly: [] };
   group.traverse((o) => {
-    if (!(o instanceof THREE.Mesh)) return;
+    if (!(o instanceof THREE.Mesh) || o === torso.mesh) return;
     const hex = o.material.color.getHex();
     if (hex === FUR) painted.fur.push(o.material);
     else if (hex === DARK_FUR) painted.dark.push(o.material);
     else if (hex === BELLY) painted.belly.push(o.material);
   });
+  torso.paint(new THREE.Color(FUR), new THREE.Color(BELLY));
 
   // 0 walking, 1 swimming or diving. Eases so the pose changes over a fraction of a second.
   let swim = 0;
@@ -165,6 +317,7 @@ export function createBeaverModel(coat = 0): BeaverModel {
       for (const m of painted.fur) m.color.copy(tint(c.fur));
       for (const m of painted.dark) m.color.copy(tint(c.dark));
       for (const m of painted.belly) m.color.copy(tint(c.belly));
+      torso.paint(tint(c.fur), tint(c.belly));
     },
     update(time, speed01, mode = 'walk', tilt = 0, slapAge = null, carry = null) {
       branch.visible = carry === 'branch';

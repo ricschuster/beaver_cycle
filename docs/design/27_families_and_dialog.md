@@ -37,7 +37,7 @@ Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesse
   `buildIsFree` (not in the lodge, no log or load, not at the store, not at a dam spot). The beaver says one line for 7 s, picked by
   `pickLine` from its kind, feeling (a neighbour's mood, always curious for the player's own), season, night and a counter. A wary
   neighbour only warns. The card is fixed at the bottom, not a bubble over the head, since the renderer gives no screen position yet.
-  Walking 12 m away ends it. A baby cannot talk, as it cannot use Build.
+  Walking 12 m away ends it. A baby cannot work, but it talks to Mama and Papa from day 1, in the lodge too (the author's answer; siblings once they exist). Neighbours and partners wait until it can work.
 - Choices, hints, overheard talk (#345, `src/sim/news.ts`): each line comes with two buttons, "Any news?" and "Bye". News is read from the
   world and is always true: the nearest lily pads within 90 m (compass and distance to 10 m), a predator within 100 m, a dam or the
   lodge that is worn, a low store (under 10 meals) in autumn and winter, and the nearest lone beaver. Only a beaver that trusts the

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
+import { HOLE } from './lodge';
 import { TALK_RANGE, buildIsFree, nearestSpeaker, pickLine, speakersOf, type Speaker } from './talk';
 import { createWorld } from './state';
 import type { Terrain } from './terrain';
@@ -41,23 +42,26 @@ describe('pickLine', () => {
 });
 
 describe('speakersOf', () => {
-  it('lists neighbours, parents outside the lodge, and partners that are not alone', () => {
+  it('lists neighbours, both parents, and partners that are not alone', () => {
     const n = [{ id: 'f:mama', name: 'Hazel', family: 'f', role: 'mama' as const, x: 1, z: 1 }];
     const parents = [{ id: 'mama', x: 2, z: 2, inside: false }, { id: 'papa', x: 3, z: 3, inside: true }];
     const partners = [{ id: 'p1', x: 4, z: 4, state: 'following' as const }, { id: 'p2', x: 5, z: 5, state: 'alone' as const }];
     const list = speakersOf(n, parents, partners, () => 'Reed');
-    expect(list.map((s) => s.kind)).toEqual(['mama', 'home-mama', 'partner']);
+    expect(list.map((s) => s.kind)).toEqual(['mama', 'home-mama', 'home-papa', 'partner']);
     expect(list[0]!.name).toBe('Hazel');
-    expect(list[2]!.name).toBe('Reed');
+    expect(list[3]!.name).toBe('Reed');
   });
 });
 
 describe('buildIsFree', () => {
-  it('is free in the open and busy with a log, a load, or inside the lodge', () => {
+  it('is free in the open and busy with a log, a load, or at the water hole of the lodge', () => {
     const w = createWorld(land, 0, 0);
     expect(buildIsFree(w)).toBe(true);
     expect(buildIsFree({ ...w, drag: 'log' })).toBe(false);
     expect(buildIsFree({ ...w, haul: { kind: 'mud' } })).toBe(false);
-    expect(buildIsFree({ ...w, inLodge: true })).toBe(false);
+    const lodge = { x: 10, z: 10 } as unknown as NonNullable<typeof w.lodge>;
+    const inside = { ...w, inLodge: true, lodge, beaver: { ...w.beaver, x: 10 + HOLE.x, z: 10 + HOLE.z } };
+    expect(buildIsFree(inside)).toBe(false);
+    expect(buildIsFree({ ...inside, beaver: { ...inside.beaver, x: 10 + 4, z: 10 + 4 } })).toBe(true);
   });
 });

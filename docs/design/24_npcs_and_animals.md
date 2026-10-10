@@ -160,7 +160,7 @@ family the player knows, which gives the rescue more weight.
 ## Open questions
 
 1. How should the player interact with animals? Decided in session 64, see "Interaction with animals".
-2. How do the player and the other families interact (see above)? The author said later.
+2. How do the player and the other families interact (see above)? Decided in session 74, see [27_families_and_dialog.md](27_families_and_dialog.md) (#276).
 3. Is the budget of 40 live animals right, and what is the real cost on the tablet? Measure with the first animals.
 4. Should wolf and bear stay, given no source for them in the Almtal? The author chose them, so yes, but it is worth
    keeping them rare.
@@ -176,6 +176,6 @@ family the player knows, which gives the rescue more weight.
    `src/render/`. No threat, no interaction.
 2. **Other families.** One family at one pond, with tasks and the clock. Reuse `partners.ts` for the placement.
 3. **Predators.** The notice, chase, caught, and hurt rules, starting with the fox and the owl.
-4. **Interactions.** Built for animals (#306 to #310), see "Interaction with animals" and "As built" there. Interactions with other families wait for the author (#276).
+4. **Interactions.** Built for animals (#306 to #310), see "Interaction with animals" and "As built" there. Interactions with other families are decided in [27_families_and_dialog.md](27_families_and_dialog.md) (#276), not built.
 
 Each slice gets its own issue once the author agrees, and the note is updated as the author decides.

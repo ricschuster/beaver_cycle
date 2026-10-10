@@ -2,7 +2,7 @@
 // The log is small and bounded, and nothing in the game reads it.
 
 export interface BuildTime {
-  part: 'decode' | 'ground' | 'lake' | 'streams' | 'trees';
+  part: 'decode' | 'frame' | 'ground' | 'lake' | 'streams' | 'trees';
   level: number;
   ms: number;
 }

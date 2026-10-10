@@ -7,7 +7,7 @@ import type { TreeRef, Trunk } from '../sim/trees';
 import { BROADLEAF_SHAPE, KIND_BROADLEAF, placeTrees, TREE_FLOATS, TREE_SHAPE, TreeGrid, treeIdPosition } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
-import { timed } from '../terrain/buildTimes';
+import { recordBuildTime, timed } from '../terrain/buildTimes';
 import type { SeasonLook, Tint } from './seasonLook';
 
 const CLASS_COLORS: Record<number, number> = {
@@ -159,7 +159,18 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
     }
     return false;
   };
-  const pos: number[] = [];
+  let pos = new Float32Array(3 * 3 * 1024);
+  let used = 0;
+  const emit = (x: number, z: number): void => {
+    if (used + 3 > pos.length) {
+      const bigger = new Float32Array(pos.length * 2);
+      bigger.set(pos);
+      pos = bigger;
+    }
+    pos[used++] = x;
+    pos[used++] = level;
+    pos[used++] = z;
+  };
   // the clipped polygon of one triangle: at most 4 points, x and z each
   const cx = [0, 0, 0, 0, 0];
   const cz = [0, 0, 0, 0, 0];
@@ -182,7 +193,11 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
     edgeTo(x0, z0, h0, x1, z1, h1);
     edgeTo(x1, z1, h1, x2, z2, h2);
     edgeTo(x2, z2, h2, x0, z0, h0);
-    for (let k = 1; k + 1 < m; k++) pos.push(cx[0]!, level, cz[0]!, cx[k]!, level, cz[k]!, cx[k + 1]!, level, cz[k + 1]!);
+    for (let k = 1; k + 1 < m; k++) {
+      emit(cx[0]!, cz[0]!);
+      emit(cx[k]!, cz[k]!);
+      emit(cx[k + 1]!, cz[k + 1]!);
+    }
   };
   let any = false;
   for (let j = 0; j < n; j++) {
@@ -199,10 +214,13 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
       clip(x + cell, z, hb, x, z + cell, hc, x + cell, z + cell, hd);
     }
   }
-  if (!any || pos.length === 0) return null;
+  if (!any || used === 0) return null;
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(pos), 3));
-  geo.computeVertexNormals();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos.slice(0, used), 3));
+  // flat water: every normal points up, so there is nothing to compute
+  const up = new Float32Array(used);
+  for (let i = 1; i < used; i += 3) up[i] = 1;
+  geo.setAttribute('normal', new THREE.BufferAttribute(up, 3));
   geo.computeBoundingSphere();
   return geo;
 }
@@ -450,6 +468,8 @@ export function createTerrainView(
   // Felled trees are left out when a tile's trees are placed; a tile that lost one is rebuilt.
   const felledIds = new Set<string>();
   const dirty = new Set<string>();
+  // Tiles being built a part at a time, not in the scene yet.
+  const building = new Map<string, { level: number; group: THREE.Group; stage: number; tile: DecodedTile }>();
   // The far backdrop never changes level, so its tiles are merged into a mesh per chunk,
   // rebuilt when more of the chunk has loaded. This is a few hundred draw calls fewer.
   const farChunks = new Map<string, { mesh: THREE.Mesh | null; built: number; tiles: { tx: number; tz: number }[] }>();
@@ -498,29 +518,58 @@ export function createTerrainView(
       }
       todo.sort((a, b) => a.dist - b.dist);
       const start = performance.now();
+      const wanted = new Map(todo.map((j) => [tileKey(j.tx, j.tz), j.level]));
+      for (const [key, p] of building) {
+        if (wanted.get(key) !== p.level) {
+          disposeGroup(scene, p.group); // no longer wanted at this level
+          building.delete(key);
+        }
+      }
+      // A tile is built a part at a time, ground, lake, streams, then trees, and the budget is checked
+      // after each part, so a frame no longer carries a whole fine tile. The old tile stays until the
+      // new one is done. At least one part is always built.
       for (const job of todo) {
-        const tile = store.get(job.tx, job.tz, job.level)!;
         const key = tileKey(job.tx, job.tz);
-        const old = meshes.get(key);
-        if (old) disposeGroup(scene, old.group);
-        const group = new THREE.Group();
-        const ground = own(new THREE.Mesh(timed('ground', job.level, () => buildTileGeometry(tile, size)), material));
-        // Near tiles take and throw shadows; the far rings (level 2) are too far to matter.
-        ground.castShadow = ground.receiveShadow = job.level !== 2;
-        group.add(ground);
-        const lakeLevel = store.tileInfo(job.tx, job.tz)?.lakeLevel_m;
-        const lake = lakeLevel == null || job.level === 2 ? null : timed('lake', job.level, () => buildLakeGeometry(tile, size, lakeLevel));
-        if (lake) group.add(own(new THREE.Mesh(lake, lakeMaterial)));
+        let p = building.get(key);
+        if (!p) {
+          p = { level: job.level, group: new THREE.Group(), stage: 0, tile: store.get(job.tx, job.tz, job.level)! };
+          building.set(key, p);
+        }
+        const { tile, group } = p;
         const water = store.waterOf(job.tx, job.tz);
-        const streams = job.level !== 2 && water ? timed('streams', job.level, () => buildStreamGeometry(water, (x, z) => store.heightAt(x, z))) : null;
-        if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
-        const trees = timed('trees', job.level, () => buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds));
-        if (trees) group.add(...trees.meshes);
-        scene.add(group);
-        dirty.delete(key);
-        meshes.set(key, { group, level: job.level, streams: job.level !== 2 && water !== undefined, grid: trees?.grid ?? null });
+        switch (p.stage++) {
+          case 0: {
+            const ground = own(new THREE.Mesh(timed('ground', job.level, () => buildTileGeometry(tile, size)), material));
+            // Near tiles take and throw shadows; the far rings (level 2) are too far to matter.
+            ground.castShadow = ground.receiveShadow = job.level !== 2;
+            group.add(ground);
+            break;
+          }
+          case 1: {
+            const lakeLevel = store.tileInfo(job.tx, job.tz)?.lakeLevel_m;
+            const lake = lakeLevel == null || job.level === 2 ? null : timed('lake', job.level, () => buildLakeGeometry(tile, size, lakeLevel));
+            if (lake) group.add(own(new THREE.Mesh(lake, lakeMaterial)));
+            break;
+          }
+          case 2: {
+            const streams = job.level !== 2 && water ? timed('streams', job.level, () => buildStreamGeometry(water, (x, z) => store.heightAt(x, z))) : null;
+            if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
+            break;
+          }
+          default: {
+            const trees = timed('trees', job.level, () => buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds));
+            if (trees) group.add(...trees.meshes);
+            const old = meshes.get(key);
+            if (old) disposeGroup(scene, old.group);
+            scene.add(group);
+            dirty.delete(key);
+            meshes.set(key, { group, level: job.level, streams: job.level !== 2 && water !== undefined, grid: trees?.grid ?? null });
+            building.delete(key);
+          }
+        }
         if (performance.now() - start > BUILD_BUDGET_MS) break;
       }
+      if (todo.length > 0) recordBuildTime('frame', 0, performance.now() - start);
     },
     setSeason(look) {
       setTint(grassTint, look.grass);

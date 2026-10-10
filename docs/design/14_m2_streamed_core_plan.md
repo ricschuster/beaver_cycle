@@ -362,11 +362,12 @@ for ground and trees, level 1 under 1 ms.
 Caveat: that run, and the session 19 style runs before it, had the beaver
 inside the lodge (a saved game starts there). Walking then goes nowhere, so the
 walking part built almost no tiles, and the camera saw the inside of the lodge.
-The bench now clicks "Outside" after each load and jump. With the beaver
-outside and swimming or walking at x5 on the lakes, the same tablet gives only
-33 to 41 fps, p99 45 to 78 ms and worst frames of 78 to 245 ms, at night, with
-shadows on. That is a bigger problem than the tile builds and is not explained
-yet.
+The bench now clicks "Outside" and "Noon" after each load and jump. With the
+beaver outside on the lakes at noon, the tablet gives 38 to 43 fps with the
+default two shadow cascades, and 77 to 90 fps with `?shadows=0`. That is the
+known shadow cost (`16_shadow_cost.md`, #120), not something new. With shadows
+off, walking at x5 still shows worst frames of 56 to 67 ms, and those are the
+tile builds, so #110 is measured with `BENCH_QUERY=shadows=0`.
 
 After typed arrays and no per cell lookups in the ground builder, and scalar
 clipping in the lake builder (same output, checked against the old code), the

@@ -142,11 +142,12 @@ describe('createBeaverModel', () => {
   });
 
   it('moves the tail during a slap', () => {
-    const tailTip = (age: number | null): number => {
+    // A raised tail swings up over the back, so the back end of the beaver comes forward.
+    const backEnd = (age: number | null): number => {
       const m = createBeaverModel();
       m.update(1, 0, 'walk', 0, age);
-      return visibleBox(m.group).max.y;
+      return visibleBox(m.group).min.z;
     };
-    expect(tailTip(0.28)).toBeGreaterThan(tailTip(null) + 0.1);
+    expect(backEnd(0.28)).toBeGreaterThan(backEnd(null) + 0.1);
   });
 });

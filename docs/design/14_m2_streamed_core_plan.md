@@ -362,24 +362,35 @@ for ground and trees, level 1 under 1 ms.
 Caveat: that run, and the session 19 style runs before it, had the beaver
 inside the lodge (a saved game starts there). Walking then goes nowhere, so the
 walking part built almost no tiles, and the camera saw the inside of the lodge.
-The bench now clicks "Outside" after each load and jump. With the beaver
-outside and swimming or walking at x5 on the lakes, the same tablet gives only
-33 to 41 fps, p99 45 to 78 ms and worst frames of 78 to 245 ms, at night, with
-shadows on. That is a bigger problem than the tile builds and is not explained
-yet.
+The bench now clicks "Outside" and "Noon" after each load and jump. With the
+beaver outside on the lakes at noon, the tablet gives 38 to 43 fps with the
+default two shadow cascades, and 77 to 90 fps with `?shadows=0`. That is the
+known shadow cost (`16_shadow_cost.md`, #120), not something new. With shadows
+off, walking at x5 still shows worst frames of 56 to 67 ms, and those are the
+tile builds, so #110 is measured with `BENCH_QUERY=shadows=0`.
 
 After typed arrays and no per cell lookups in the ground builder, and scalar
-clipping in the lake builder (same output, checked against the old code), the
-fine tile ground takes about 4 to 5 ms (was 12 to 16) and the lake surface 5 to
-12 ms, up to 30 (was 9 to 19, up to 48). The lake surface is now the largest
-part, so it is next.
+clipping with a typed array and constant up normals in the lake builder (same
+ground output, checked against the old code), the fine tile ground takes about
+4 to 5 ms (was 12 to 16), the lake surface about 6 ms, up to 15 (was 9 to 19,
+up to 48), and trees 1.5 to 3 ms. The view now builds a tile one part at a time
+(ground, lake, streams, trees) and checks the 4 ms budget after each part, so
+the old tile stays until the new one is whole and no frame carries all four.
+
+Result with `BENCH_QUERY=shadows=0`: a `terrainView.update` call now takes 2 ms
+on average and 19 ms at most, but the worst walking frames are still 45 to 67 ms
+(before: 56 to 67). They are not the fine tile builds alone: with `fine=0` the
+south shore bog still showed a 56 ms frame, and almsee dropped to 22 ms. The rest
+is not in `update`, so it is probably the first draw of new geometry (GPU
+upload), garbage collection, or other work that moves with the beaver. That
+needs a profile on the tablet (Chrome devtools over the same socket the bench
+uses) rather than more guessing.
 
 ### Options, not yet decided
 
 - Measured (session 72, #109, below). Build the parts apart first.
-- Build the parts of one tile on different frames (ground, then lake and
-  streams, then trees), so no frame builds the whole tile.
-- Build the ground in typed arrays from the start rather than a number array.
+- Done (session 72): build the parts of one tile on different frames, and
+  build the ground in typed arrays.
 - Smaller fine tiles (for example 80 m), as ADR 0008 suggests for 1 m cells.
 - Move decoding and the geometry work to a Web Worker, which is the plan in the
   Risks section above.

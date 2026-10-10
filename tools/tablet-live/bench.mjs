@@ -38,6 +38,7 @@ async function load(query = '') {
   await Promise.race([cont.waitFor({ timeout: 8000 }).then(() => cont.click()), page.waitForFunction(() => '__game' in window, null, { timeout: 8000 })]).catch(() => {});
   await page.waitForFunction(() => '__game' in window, null, { polling: 200, timeout: 60000 });
   await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.getByRole('button', { name: 'Noon', exact: true }).click(); // the same light every run
   await outside();
 }
 
@@ -166,7 +167,7 @@ const buildSummary = () =>
 
 async function lakes() {
   await load();
-  const places = ['alm-river-outflow', 'almsee', 'south-shore-bog', 'aagbach-inflow', 'east-oedseen'];
+  const places = (process.env.BENCH_PLACES ?? 'alm-river-outflow,almsee,south-shore-bog,aagbach-inflow,east-oedseen').split(',');
   for (const id of places) {
     await buildSummary(); // empty the log
     const jumpMs = await jump(id);

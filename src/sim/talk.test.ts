@@ -158,6 +158,19 @@ describe('Mama, Papa and the partner', () => {
     expect([...lines(papa, { ...grown, lodge: lodge(3) })].some((l) => /getting there/.test(l))).toBe(true);
   });
 
+  it('say what errand they are on out in the pond, and rest talk stays about the player', () => {
+    const teen = setStage(world({ lodge: lodge() }), 'teenager');
+    const atDam: Speaker = { ...papa, errand: 'dam', carry: 'branch' };
+    expect(replyLine('doing', atDam, factsFor(teen, atDam), 0)).toMatch(/dam/);
+    const resting: Speaker = { ...papa, errand: 'rest' };
+    expect(replyLine('doing', resting, factsFor(teen, resting), 0)).toBe(replyLine('doing', papa, factsFor(teen, papa), 0));
+  });
+
+  it('get their errand and load from the routine through speakersOf', () => {
+    const [p] = speakersOf([], [{ id: 'papa', x: 0, z: 0, inside: false, task: 'carry', errand: 'store', carry: 'branch' }], [], () => '');
+    expect(p).toMatchObject({ kind: 'home-papa', task: 'carry', errand: 'store', carry: 'branch' });
+  });
+
   it('give a true job for "Can I help?", most useful first', () => {
     expect(homeJob('home-mama', factsFor(setStage(world(), 'baby'), mama))).toBe('baby');
     const autumn = setStage(world({ lodge: lodge(), clock: withSeason(0, 'autumn', 2) }), 'teenager');

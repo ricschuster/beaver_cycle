@@ -299,7 +299,90 @@ function owlModel(): AnimalModel {
   };
 }
 
-const MAKERS: Record<AnimalKind, () => AnimalModel> = { deer: deerModel, fox: foxModel, duck: duckModel, heron: heronModel, owl: owlModel };
+/** The lynx: a big tawny cat with tufted ears, a short black-tipped tail, and long legs. About twice the fox's size. */
+function lynxModel(): AnimalModel {
+  const FUR = 0xb89a68;
+  const PALE = 0xe6dcc4;
+  const DARK = 0x2a2018;
+  const group = new THREE.Group();
+  const body = new THREE.Group();
+  group.add(body);
+  body.add(ellipsoid(0.2, 0.22, 0.55, FUR, 0, 0.68, 0));
+  body.add(ellipsoid(0.16, 0.1, 0.42, PALE, 0, 0.54, 0.04));
+  const head = new THREE.Group();
+  head.position.set(0, 0.8, 0.5);
+  body.add(head);
+  head.add(ellipsoid(0.16, 0.14, 0.15, FUR, 0, 0, 0));
+  head.add(ellipsoid(0.1, 0.07, 0.07, PALE, 0, -0.06, 0.1));
+  head.add(part(new THREE.SphereGeometry(0.025, 8, 6), 0x1a1210, 0, -0.01, 0.15));
+  eyes(head, 0.08, 0.04, 0.11, 0.022);
+  // Ruff of fur at the cheeks, and pointed ears each with a black tuft.
+  for (const s of [-1, 1]) {
+    head.add(ellipsoid(0.05, 0.08, 0.07, PALE, s * 0.14, -0.05, 0.0));
+    const ear = part(new THREE.ConeGeometry(0.06, 0.15, 6), FUR, s * 0.09, 0.15, -0.03);
+    ear.rotation.z = -s * 0.15;
+    head.add(ear);
+    head.add(part(new THREE.ConeGeometry(0.015, 0.1, 5), DARK, s * 0.1, 0.27, -0.03));
+  }
+  const legs = [leg(-0.12, 0.55, 0.32, 0.55, 0.05, FUR, 0.07), leg(0.12, 0.55, 0.32, 0.55, 0.05, FUR, 0.07), leg(-0.12, 0.55, -0.32, 0.55, 0.055, FUR, 0.07), leg(0.12, 0.55, -0.32, 0.55, 0.055, FUR, 0.07)];
+  group.add(...legs);
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.7, -0.52);
+  body.add(tail);
+  tail.add(ellipsoid(0.05, 0.05, 0.1, FUR, 0, 0, -0.08));
+  tail.add(ellipsoid(0.055, 0.055, 0.05, DARK, 0, 0, -0.19));
+  const walk = easer();
+  return {
+    group,
+    pose(time, moving, seed) {
+      const w = walk(moving ? 1 : 0, time);
+      const phase = time * 7 + seed;
+      body.position.y = Math.abs(Math.sin(phase)) * 0.03 * w;
+      legs.forEach((l, i) => (l.rotation.x = Math.sin(phase + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.6 * w));
+      // Still, it watches with the head low; moving, the head is low and level, as in a stalk.
+      head.rotation.y = Math.sin(time * 0.7 + seed) * 0.4 * (1 - w);
+      head.rotation.x = 0.25 * w;
+      tail.rotation.x = Math.sin(time * 1.4 + seed) * 0.15;
+    },
+  };
+}
+
+/** The bear: a large brown bear on four legs, with a hump at the shoulders and small round ears. */
+function bearModel(): AnimalModel {
+  const FUR = 0x4e3624;
+  const SNOUT = 0x8a6a48;
+  const group = new THREE.Group();
+  const body = new THREE.Group();
+  group.add(body);
+  body.add(ellipsoid(0.5, 0.45, 0.85, FUR, 0, 1.0, 0));
+  body.add(ellipsoid(0.36, 0.3, 0.3, FUR, 0, 1.35, 0.4));
+  const head = new THREE.Group();
+  head.position.set(0, 1.2, 0.95);
+  body.add(head);
+  head.add(ellipsoid(0.26, 0.25, 0.28, FUR, 0, 0, 0));
+  head.add(ellipsoid(0.14, 0.12, 0.16, SNOUT, 0, -0.07, 0.24));
+  head.add(part(new THREE.SphereGeometry(0.04, 8, 6), 0x0d0a08, 0, -0.03, 0.4));
+  eyes(head, 0.12, 0.08, 0.18, 0.03);
+  for (const s of [-1, 1]) head.add(ellipsoid(0.07, 0.07, 0.04, FUR, s * 0.17, 0.2, -0.05));
+  const legs = [leg(-0.28, 0.75, 0.55, 0.75, 0.12, FUR, 0.13), leg(0.28, 0.75, 0.55, 0.75, 0.12, FUR, 0.13), leg(-0.28, 0.75, -0.55, 0.75, 0.13, FUR, 0.13), leg(0.28, 0.75, -0.55, 0.75, 0.13, FUR, 0.13)];
+  group.add(...legs);
+  const walk = easer();
+  return {
+    group,
+    pose(time, moving, seed) {
+      const w = walk(moving ? 1 : 0, time);
+      const phase = time * 3.5 + seed;
+      // A heavy rolling walk; standing, the head swings slowly to sniff.
+      body.position.y = Math.abs(Math.sin(phase)) * 0.04 * w;
+      body.rotation.z = Math.sin(phase) * 0.04 * w;
+      legs.forEach((l, i) => (l.rotation.x = Math.sin(phase + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.45 * w));
+      head.rotation.y = Math.sin(time * 0.5 + seed) * 0.5 * (1 - w);
+      head.rotation.x = 0.1 * w + Math.sin(time * 0.8 + seed) * 0.15 * (1 - w);
+    },
+  };
+}
+
+const MAKERS: Record<AnimalKind, () => AnimalModel> = { deer: deerModel, fox: foxModel, duck: duckModel, heron: heronModel, owl: owlModel, lynx: lynxModel, bear: bearModel };
 
 /** A number in [0, 7) from an animal's cell id, so animals of a kind do not move in step. */
 function seedOf(id: string): number {
@@ -310,7 +393,7 @@ function seedOf(id: string): number {
 
 export function createAnimalView(scene: THREE.Scene, prepare: (m: THREE.Material) => void): AnimalView {
   // Spare models of each kind, and the ones now in use by animal id.
-  const spare: Record<AnimalKind, AnimalModel[]> = { deer: [], fox: [], duck: [], heron: [], owl: [] };
+  const spare: Record<AnimalKind, AnimalModel[]> = { deer: [], fox: [], duck: [], heron: [], owl: [], lynx: [], bear: [] };
   const used = new Map<string, { kind: AnimalKind; model: AnimalModel; seed: number }>();
   const release = (id: string): void => {
     const entry = used.get(id)!;

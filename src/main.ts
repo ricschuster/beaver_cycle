@@ -426,7 +426,7 @@ async function start(): Promise<void> {
       if (grown !== world.neighbours) world = { ...world, neighbours: [...grown] };
     }
     const ambient = animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps));
-    // A fox or owl that notices the beaver on land becomes a predator and is drawn from its own state (note 24, slice 3).
+    // A fox, owl, lynx, or bear that notices the beaver on land becomes a predator and is drawn from its own state (note 24, slice 3).
     const met = meetPredators(world, ambient, world.lastSlap !== null && world.lastSlap.time === world.time, dt, ponded);
     world = met.world;
     for (const e of met.events) toast.show(PREDATOR_TEXT(e), true);
@@ -470,7 +470,7 @@ async function start(): Promise<void> {
     neighbours: () => neighboursAt(world.neighbours, world.clock, withPonds(terrain, world.ponds)),
     // The ambient animals around the beaver now.
     animals: () => animalField.near(withPonds(terrain, world.ponds), world.beaver.x, world.beaver.z, world.clock, capFor(fps)),
-    // The foxes and owls in their meeting with the beaver, and when it was hurt.
+    // The predators in their meeting with the beaver, and when it was hurt.
     predators: () => world.predators,
     hurtAt: () => world.hurtAt,
     lodgeSite: (radius: number) => findSite(lodgeGround(terrain, world.ponds), world.beaver.x, world.beaver.z, radius),
@@ -478,9 +478,13 @@ async function start(): Promise<void> {
 }
 
 function PREDATOR_TEXT(e: PredatorEvent): string {
-  if (e.what === 'caught') return e.kind === 'owl' ? 'An owl caught you. You drop what you carry and slow down. Eat a lily pad' : 'A fox caught you. You drop what you carry and slow down. Eat a lily pad';
-  if (e.what === 'scared') return e.kind === 'owl' ? 'Your tail slap scared the owl off' : 'Your tail slap scared the fox off';
-  return e.kind === 'owl' ? 'An owl hoots nearby. Get into the water' : 'A fox has seen you. Get into the water or slap your tail';
+  const name = e.kind;
+  if (e.what === 'caught') return `A ${name} caught you. You drop what you carry and slow down. Eat a lily pad`;
+  if (e.what === 'scared') return `Your tail slap scared the ${name} off`;
+  if (e.kind === 'owl') return 'An owl hoots nearby. Get into the water';
+  if (e.kind === 'lynx') return 'A lynx is stalking you. Get into the water, or slap your tail at the water\'s edge';
+  if (e.kind === 'bear') return 'A bear has seen you. Keep moving or slap your tail';
+  return 'A fox has seen you. Get into the water or slap your tail';
 }
 
 void start();

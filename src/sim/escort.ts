@@ -184,7 +184,7 @@ function drawn(world: Pick<WorldState, 'neighbours'>, member: string, name: stri
   const n = world.neighbours.find((f) => f.id === family);
   if (!n) return null;
   const papa = member.endsWith(':papa');
-  return { id: member, name, family, role: papa ? 'papa' : 'mama', stage: 'adult', coat: n.parents[papa ? 1 : 0], x, y: ground.heightAt(x, z) + ground.waterDepth(x, z) - lower, z, heading, pace, task: pace > 0 ? 'swim' : 'rest', scale };
+  return { id: member, name, family, role: papa ? 'papa' : 'mama', stage: 'adult', coat: n.parents[papa ? 1 : 0], x, y: ground.heightAt(x, z) + ground.waterDepth(x, z) - lower, z, heading, pace, task: pace > 0 ? 'swim' : 'rest', errand: 'rest', carry: null, scale };
 }
 
 /** A stuck beaver as drawn: sunk in its drift, facing the pond. */

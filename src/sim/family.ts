@@ -1,10 +1,11 @@
 // The family: Mama and Papa (docs/design/22_life_stages.md). Like age, where they are is a pure function of the clock and
 // the lodge, so there is no state to save and no second counter. They live in the lodge while the player beaver is a baby
-// or a teenager, and move about the pond from one part to another (Q60, Q61).
+// or a teenager, and go about the pond on their errands (Q60, Q61, `routines.ts`).
 
-import { DAY_SECONDS } from './clock';
-import { NEST_SPOTS, SOLID_RADIUS, lodgeComplete, type Lodge } from './lodge';
+import { NEST_SPOTS, lodgeComplete, type Lodge } from './lodge';
 import { stageAt } from './life';
+import type { NeighbourCarry, NeighbourErrand, NeighbourTask } from './neighbours';
+import { routineAt } from './routines';
 import type { Terrain } from './terrain';
 
 /** 'mama' and 'papa' for the home family; those of a lodge the family left carry its place, such as 'mama@120,40'. */
@@ -56,20 +57,18 @@ export interface Parent {
   /** 0 resting, 1 on the move, for the legs. */
   pace: number;
   inside: boolean;
+  /** What the parent is doing, its errand (the reason), and what it carries (`routines.ts`). Resting on the nest inside. */
+  task?: NeighbourTask;
+  errand?: NeighbourErrand;
+  carry?: NeighbourCarry;
 }
 
-/** Game seconds a parent stays in one part of the pond before moving to another. About 3 hours of a day. */
-export const STAY = DAY_SECONDS / 8;
-/** Share of a stay spent swimming to the next part. */
-const TRAVEL = 0.3;
-/** Parents keep to water between these distances from the lodge, in metres, and at least this deep. */
+/** The pond's parts lie between these distances from the lodge, in metres, in water at least this deep. */
 const NEAR = 6;
 const FAR = 26;
 const MIN_DEPTH = 0.8;
-/** A parent swims at least this far (metres) outside the dome. */
-const CLEAR = 1;
 
-/** Parts of the pond a parent can be in: the deep water round the lodge, found by a fixed look at the ground. */
+/** Parts of the pond a beaver can be in: the deep water round the lodge, found by a fixed look at the ground. */
 export function pondParts(lodge: Lodge, terrain: Terrain): { x: number; z: number }[] {
   const parts: { x: number; z: number }[] = [];
   for (const r of [NEAR + 2, 14, FAR]) {
@@ -84,10 +83,13 @@ export function pondParts(lodge: Lodge, terrain: Terrain): { x: number; z: numbe
   return parts;
 }
 
-/** The two parents' places at a clock value, or none while the player beaver is grown or the lodge is not whole. */
-export function parentsAt(lodge: Lodge | null, bornAt: number, clock: number, inLodge: boolean, terrain: Terrain, coats: readonly [Coat, Coat] = FIRST_PARENTS): Parent[] {
+/**
+ * The two parents' places at a clock value, or none while the player beaver is grown or the lodge is not whole. `dam` is the
+ * home dam (`homeDam`), which Papa then mends now and then.
+ */
+export function parentsAt(lodge: Lodge | null, bornAt: number, clock: number, inLodge: boolean, terrain: Terrain, coats: readonly [Coat, Coat] = FIRST_PARENTS, dam: { x: number; z: number } | null = null): Parent[] {
   if (stageAt(clock, bornAt) === 'adult') return [];
-  return familyAt(lodge, clock, inLodge, terrain, coats, ['mama', 'papa']);
+  return familyAt(lodge, clock, inLodge, terrain, coats, ['mama', 'papa'], dam);
 }
 
 /**
@@ -104,7 +106,7 @@ export interface FormerHome extends Lodge {
 }
 
 /** The two parents of a whole lodge, wherever they are at a clock value. */
-function familyAt(lodge: Lodge | null, clock: number, inLodge: boolean, terrain: Terrain, coats: readonly [Coat, Coat], ids: [ParentId, ParentId]): Parent[] {
+function familyAt(lodge: Lodge | null, clock: number, inLodge: boolean, terrain: Terrain, coats: readonly [Coat, Coat], ids: [ParentId, ParentId], dam: { x: number; z: number } | null = null): Parent[] {
   if (!lodgeComplete(lodge)) return [];
   if (inLodge) {
     return ids.map((id, i) => {
@@ -112,34 +114,14 @@ function familyAt(lodge: Lodge | null, clock: number, inLodge: boolean, terrain:
       const x = lodge.x + nest.x;
       const z = lodge.z + nest.z;
       // Lying on the nest with the head toward the middle of the room.
-      return { id, coat: coats[i]!, x, z, y: lodge.base, heading: Math.atan2(-nest.x, -nest.z), mode: 'walk' as const, pace: 0, inside: true };
+      return { id, coat: coats[i]!, x, z, y: lodge.base, heading: Math.atan2(-nest.x, -nest.z), mode: 'walk' as const, pace: 0, inside: true, task: 'rest' as const, errand: 'rest' as const, carry: null };
     });
   }
   const parts = pondParts(lodge, terrain);
   if (parts.length === 0) return [];
-  return ids.map((id, i) => ({ id, coat: coats[i]!, ...pondPlace(lodge, parts, terrain, clock, i), mode: 'swim' as const, inside: false }));
-}
-
-/** Where beaver number `i` of a lodge's pond is at a clock value: its feet height, heading, and whether it is on the move. */
-export function pondPlace(lodge: Lodge, parts: readonly { x: number; z: number }[], terrain: Terrain, clock: number, i: number): { x: number; y: number; z: number; heading: number; pace: number } {
-  const slot = Math.floor(clock / STAY);
-  const pick = (s: number) => parts[mix(s * 2 + i, Math.round(lodge.x * 7 + lodge.z)) % parts.length]!;
-  const from = pick(slot - 1);
-  const to = pick(slot);
-  const t = Math.min(1, ((clock / STAY) % 1) / TRAVEL);
-  const ease = t * t * (3 - 2 * t);
-  let x = from.x + (to.x - from.x) * ease;
-  let z = from.z + (to.z - from.z) * ease;
-  // A straight line between two parts may run through the dome, which is solid: swim round it.
-  const away = Math.hypot(x - lodge.x, z - lodge.z);
-  if (away < SOLID_RADIUS + CLEAR) {
-    const dx = away > 1e-6 ? (x - lodge.x) / away : 1;
-    const dz = away > 1e-6 ? (z - lodge.z) / away : 0;
-    x = lodge.x + dx * (SOLID_RADIUS + CLEAR);
-    z = lodge.z + dz * (SOLID_RADIUS + CLEAR);
-  }
-  const moving = t < 1 && (from.x !== to.x || from.z !== to.z);
-  const heading = moving ? Math.atan2(to.x - from.x, to.z - from.z) : Math.atan2(lodge.x - x, lodge.z - z) + (i % 2 === 0 ? 0.6 : -0.6);
-  const y = terrain.heightAt(x, z) + terrain.waterDepth(x, z) - 0.2;
-  return { x, y, z, heading, pace: moving ? 1 : 0 };
+  const doing = routineAt({ lodge, seed: Math.round(lodge.x * 7 + lodge.z), parts, dam }, ids.map((id, i) => ({ id, role: i === 0 ? ('mama' as const) : ('papa' as const), stage: 'adult' as const })), clock, terrain);
+  return ids.map((id, i) => {
+    const d = doing[i]!;
+    return { id, coat: coats[i]!, x: d.x, y: d.y, z: d.z, heading: d.heading, mode: d.mode, pace: d.pace, inside: false, task: d.task, errand: d.errand, carry: d.carry };
+  });
 }

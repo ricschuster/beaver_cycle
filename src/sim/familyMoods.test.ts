@@ -9,7 +9,7 @@ const lake: Terrain = { heightAt: () => 0, isWater: () => true, waterDepth: () =
 const dry: Terrain = { heightAt: () => 0, isWater: () => false, waterDepth: () => 0 };
 
 const beaver = (family: string, role: 'mama' | 'papa' | 'kit', x: number, z: number): NeighbourBeaver => ({
-  id: `${family}:${role}`, name: 'Test', family, role, stage: role === 'kit' ? 'baby' : 'adult', coat: { coat: 0, shade: 0 }, x, y: 0, z, heading: 0, pace: 0, task: 'rest', scale: 1,
+  id: `${family}:${role}`, name: 'Test', family, role, stage: role === 'kit' ? 'baby' : 'adult', coat: { coat: 0, shade: 0 }, x, y: 0, z, heading: 0, pace: 0, task: 'rest', errand: 'rest', carry: null, scale: 1,
 });
 const world = (trust: Record<string, number> = {}): WorldState => ({ ...createWorld(lake, 0, 0), trust });
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }): number => Math.hypot(a.x - b.x, a.z - b.z);
@@ -31,6 +31,16 @@ describe('reactFamilies', () => {
     expect(reactFamilies(near, w, dry)[0]).toEqual(near[0]);
     const far = [beaver('f', 'mama', 30, 0)];
     expect(reactFamilies(far, w, lake)[0]).toEqual(far[0]);
+  });
+
+  it('drops the pose of an errand for a beaver it moves, but keeps its load and errand', () => {
+    const w = world();
+    const busy: NeighbourBeaver = { ...beaver('f', 'papa', 3, 0), task: 'build', errand: 'store', carry: 'branch', mode: 'walk' };
+    const moved = reactFamilies([busy], w, lake)[0]!;
+    expect(moved.task).toBe('swim');
+    expect(moved.mode).toBe('swim');
+    expect(moved.carry).toBe('branch');
+    expect(moved.errand).toBe('store');
   });
 
   it('lets a calm family be, and sends the kits of a curious one to look', () => {

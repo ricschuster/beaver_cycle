@@ -114,13 +114,14 @@ test('the old parents stay at the former home, in the coats they had', async ({ 
   const home = w.formerHomes[0];
   expect(parents.map((p) => p.id).sort()).toEqual([`mama@${Math.round(home.x)},${Math.round(home.z)}`, `papa@${Math.round(home.x)},${Math.round(home.z)}`]);
   expect(parents.map((p) => p.coat)).toEqual(coats);
+  // On their errands (routines.ts) they swim in the pond or walk on its bank.
   for (const p of parents) {
-    expect(p.mode).toBe('swim');
-    expect(dist(p, home)).toBeLessThan(28);
+    expect(['swim', 'walk']).toContain(p.mode);
+    expect(dist(p, home)).toBeLessThan(40);
   }
-  // They stay put as the day goes by: later they are still in that pond.
+  // They stay put as the day goes by: later they are still at that pond.
   await menuClick(page, 'button[data-time="evening"]');
-  for (const p of await parentsNow(page)) expect(dist(p, home)).toBeLessThan(28);
+  for (const p of await parentsNow(page)) expect(dist(p, home)).toBeLessThan(40);
   await shot(page, 'family-05-old-parents');
 });
 

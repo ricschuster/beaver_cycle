@@ -50,13 +50,32 @@ describe('neighbour families', () => {
     for (const a of found) for (const b of found) if (a !== b) expect(Math.hypot(a.lodge.x - b.lodge.x, a.lodge.z - b.lodge.z)).toBeGreaterThanOrEqual(150);
   });
 
-  it('swim in the pond by day with a mama, a papa, and kits', () => {
+  it('are out by day with a mama, a papa, and kits, in the pond or on the bank right by it', () => {
     const families = seed().slice(0, 1);
     const all = neighboursAt(families, noon + day * 5, lake);
     expect(all.filter((b) => b.role === 'mama')).toHaveLength(1);
     expect(all.filter((b) => b.role === 'papa')).toHaveLength(1);
     expect(all.filter((b) => b.role === 'kit').length).toBeGreaterThan(0);
-    for (const b of all) expect(lake.isWater(b.x, b.z)).toBe(true);
+    for (let c = day * 20; c < day * 22; c += 7) {
+      for (const b of neighboursAt(families, c, lake)) expect(b.x).toBeGreaterThan(300 - 4);
+    }
+  });
+
+  it('go about errands on the bank too: gnawing on land by the water, and carrying a branch home', () => {
+    const families = seed().slice(0, 1);
+    const seen = new Set<string>();
+    for (let c = day * 20; c < day * 24; c += 3) {
+      for (const b of neighboursAt(families, c, lake)) {
+        seen.add(`${b.task}:${b.carry}`);
+        if (b.task === 'gnaw') {
+          expect(lake.isWater(b.x, b.z)).toBe(false);
+          expect(b.x).toBeGreaterThan(300 - 2.5);
+          expect(b.mode).toBe('walk');
+        }
+      }
+    }
+    expect(seen.has('gnaw:null')).toBe(true);
+    expect(seen.has('carry:branch')).toBe(true);
   });
 
   it('sleep in the lodge at night', () => {

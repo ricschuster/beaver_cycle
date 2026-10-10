@@ -2,6 +2,7 @@
 // or a meal happens in one step, so this watches the world from frame to frame and notices them. It reads the world and
 // never changes it. Plain data, no three.js.
 import type { Food } from '../sim/food';
+import type { NeighbourTask } from '../sim/neighbours';
 import type { WorldState } from '../sim/state';
 
 /** Poses that last as long as the work does, and poses that play once. */
@@ -75,6 +76,22 @@ export function seedOf(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 9973;
   return h;
+}
+
+/** Seconds from one start to the next of a pose a beaver at work repeats: the pose and a short pause. */
+const REPEAT: Record<'build' | 'eat' | 'groom', number> = { build: SHOT_SECONDS.build + 0.5, eat: SHOT_SECONDS.eat + 0.8, groom: SHOT_SECONDS.groom + 1.5 };
+
+/**
+ * The pose for a task of a beaver on an errand (`routines.ts`): gnawing goes on, and patting, eating, and grooming repeat with
+ * a pause between. The time and the seed say where in its own cycle each beaver is, so no memory is needed. Null for a task
+ * with no pose of its own (swimming, carrying, resting, playing).
+ */
+export function taskAction(task: NeighbourTask | undefined, time: number, seed: number): BeaverAction | null {
+  if (task === 'gnaw') return { kind: 'gnaw', age: time + seed };
+  if (task !== 'build' && task !== 'eat' && task !== 'groom') return null;
+  const every = REPEAT[task];
+  const age = (((time + seed * 1.3) % every) + every) % every;
+  return age < SHOT_SECONDS[task] ? { kind: task, age } : null;
 }
 
 /**

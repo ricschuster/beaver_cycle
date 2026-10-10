@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS } from './clock';
-import { COAT_COUNT, FIRST_PARENTS, STAY, formerParentsAt, kitCoat, coatOf, parentsAt, pondParts } from './family';
+import { COAT_COUNT, FIRST_PARENTS, formerParentsAt, kitCoat, coatOf, parentsAt, pondParts } from './family';
 import { BABY_DAYS, TEENAGER_DAYS } from './life';
 import { LODGE_WOOD, NEST_SPOTS, SOLID_RADIUS, type Lodge } from './lodge';
+import { ERRAND_SECONDS } from './routines';
 import type { Terrain } from './terrain';
 
 /** A lake everywhere within 40 m of the origin, 3 m deep, and dry land beyond. */
@@ -83,7 +84,7 @@ describe('Mama and Papa', () => {
 
   it('keep to deep water near the lodge when outside', () => {
     for (let h = 0; h < 40; h++) {
-      for (const p of parentsAt(lodge, 0, d(1) + h * STAY * 0.37, false, lake)) {
+      for (const p of parentsAt(lodge, 0, d(1) + h * ERRAND_SECONDS * 0.37, false, lake)) {
         expect(p.inside).toBe(false);
         expect(lake.waterDepth(p.x, p.z)).toBeGreaterThan(0);
         expect(Math.hypot(p.x - lodge.x, p.z - lodge.z)).toBeLessThan(30);
@@ -93,7 +94,7 @@ describe('Mama and Papa', () => {
 
   it('never swim through the dome of the lodge', () => {
     for (let i = 0; i < 400; i++) {
-      for (const p of parentsAt(lodge, 0, d(1) + i * STAY * 0.05, false, lake)) {
+      for (const p of parentsAt(lodge, 0, d(1) + i * ERRAND_SECONDS * 0.05, false, lake)) {
         expect(Math.hypot(p.x - lodge.x, p.z - lodge.z)).toBeGreaterThanOrEqual(SOLID_RADIUS);
       }
     }
@@ -101,7 +102,7 @@ describe('Mama and Papa', () => {
 
   it('move to another part of the pond over the days', () => {
     const at = (clock: number) => parentsAt(lodge, 0, clock, false, lake).map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`);
-    const seen = new Set(Array.from({ length: 24 }, (_, i) => at(d(1) + i * STAY).join('|')));
+    const seen = new Set(Array.from({ length: 24 }, (_, i) => at(d(1) + i * ERRAND_SECONDS).join('|')));
     expect(seen.size).toBeGreaterThan(3);
   });
 

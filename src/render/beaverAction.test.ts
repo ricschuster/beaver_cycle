@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GROOM_AFTER, GROOM_EVERY, SHOT_SECONDS, createActionWatcher, idleGroom, seedOf, type Watched } from './beaverAction';
+import { GROOM_AFTER, GROOM_EVERY, SHOT_SECONDS, createActionWatcher, idleGroom, seedOf, taskAction, type Watched } from './beaverAction';
 
 const base: Watched = { time: 0, chop: null, drag: null, logs: [], carry: null, haul: null, hauled: 0, eaten: 0 };
 const log = { id: 'L1' } as Watched['logs'][number];
@@ -89,5 +89,21 @@ describe('idleGroom', () => {
     let together = 0;
     for (let t = 0; t < 300; t += 0.1) if (idleGroom(t, true, a) && idleGroom(t, true, b)) together++;
     expect(together).toBeLessThan(100);
+  });
+});
+
+describe('taskAction', () => {
+  it('gnaws on and on, and repeats patting, eating and grooming with a pause between', () => {
+    expect(taskAction('gnaw', 5, 3)?.kind).toBe('gnaw');
+    for (const task of ['build', 'eat', 'groom'] as const) {
+      const shots = Array.from({ length: 200 }, (_, i) => taskAction(task, i * 0.1, 7));
+      expect(shots.some((a) => a?.kind === task)).toBe(true);
+      expect(shots.some((a) => a === null)).toBe(true);
+      for (const a of shots) if (a) expect(a.age).toBeLessThan(SHOT_SECONDS[task]);
+    }
+  });
+
+  it('has no pose of its own for moving, carrying, resting or playing', () => {
+    for (const task of ['swim', 'carry', 'rest', 'play', undefined] as const) expect(taskAction(task, 3, 1)).toBeNull();
   });
 });

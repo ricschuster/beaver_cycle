@@ -52,6 +52,19 @@ Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesse
   player has no mate, else the nearest free dam spot over 20 m away, else home; it waits when the player is 14 m behind, gives up at
   70 m, and stays 15 s at the goal. Drawn: a white mound (renderer) with the beaver sunk in it. Q52 also names fighting off predators;
   only the snow is built. Numbers are first guesses.
+- Chatter, reputation and partner remarks (`src/sim/chatter.ts`, `spreadWord` in `src/sim/familyMoods.ts`): overheard talk is now a
+  call and a reply between two of a family ("Mama Willow" calls "Moss", who answers "Coming, Mama!"), two toasts queued together, in
+  about half the slots of a twelfth of a day, none while a talk card is open. The call follows the caller's role (a kit says Mama and
+  Papa), its errand, task or load when the family has them, and the season (new kits in spring, the store in autumn, the ice in
+  winter). A wary family whispers about the stranger; once a family has met the player (a trust record, or a greeting this visit),
+  some calls are about what the player did: a gift this visit, a member dug out of the snow, a whole dam or lodge within 250 m of
+  its lodge, a tail slap. The greeting toast and the thanks for a gift are picked from tables by mood, by what the player did, by
+  what was given (branch or lily pad) and by the family's errand ("Just what we needed for the store!"). Word gets around: a gift
+  or a rescue also raises the other families the player has met, or that live within 600 m, by a third of the gain, and never
+  lowers anyone (Q2); a toast says so when it changes a family's mood. The partner, while it follows, remarks in about half the
+  slots on a free dam spot within 80 m, lily pads within 60 m, a worn dam, the lodge being built, the nightfall or the season, and
+  once home, when the player is within 40 m of the lodge, on the home (worn, a small or full store, kits in spring). All lines are
+  in tables in `chatter.ts`. Numbers are first guesses.
 
 ## Dialog between beavers (proposal)
 

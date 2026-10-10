@@ -25,6 +25,20 @@ describe('season look', () => {
     expect(new Set([5, 15, 25, 35].map((d) => seasonLook(d).leaf)).size).toBe(4);
   });
 
+  it('turns the shrubs from green to russet to bare brown', () => {
+    const [spring, summer, autumn, winter] = [5, 15, 25, 35].map((d) => seasonLook(d).shrub);
+    const rgb = (c: number): number[] => [(c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff];
+    for (const green of [spring!, summer!]) expect(rgb(green)[1]).toBeGreaterThan(rgb(green)[0]!);
+    const [ar, ag, ab] = rgb(autumn!);
+    expect(ar).toBeGreaterThan(ag! + 40);
+    expect(ag).toBeGreaterThan(ab!);
+    const [wr, wg, wb] = rgb(winter!);
+    expect(wr).toBeGreaterThan(wg!);
+    expect(wg).toBeGreaterThan(wb!);
+    expect(wr! - wb!).toBeLessThan(ar! - ab!); // duller than the autumn russet
+    expect(new Set([spring, summer, autumn, winter]).size).toBe(4);
+  });
+
   it('has full crowns until the autumn ends and bare trees in the middle of winter', () => {
     expect([5, 15, 25].map((d) => seasonLook(d).foliage)).toEqual([1, 1, 1]);
     expect(seasonLook(35).foliage).toBe(0);
@@ -55,6 +69,7 @@ describe('season look', () => {
       const after = seasonLook(edge + 0.001);
       expect(Math.abs(before.grass.amount - after.grass.amount)).toBeLessThan(0.01);
       expect(Math.abs(before.tree - after.tree)).toBeLessThan(0x010101 * 2);
+      for (const shift of [16, 8, 0]) expect(Math.abs(((before.shrub >> shift) & 0xff) - ((after.shrub >> shift) & 0xff))).toBeLessThan(2);
       expect(Math.abs(before.leafFall - after.leafFall)).toBeLessThan(0.01);
       expect(Math.abs(before.foliage - after.foliage)).toBeLessThan(0.01);
       expect(Math.abs(before.snow - after.snow)).toBeLessThan(0.01);

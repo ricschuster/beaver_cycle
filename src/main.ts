@@ -114,13 +114,19 @@ async function start(): Promise<void> {
     }
   };
   // The first-steps coach (docs/design/25_first_steps_coach.md). It starts after the welcome card, from the world as it is
-  // then, and only for an adult: a baby cannot do its steps. The frame loop starts it when `coachPending` is set, since the world exists only there.
+  // then, and again at each new life stage, with that stage's steps, until the player closes it. The frame loop starts it when
+  // `coachPending` is set, since the world exists only there.
   let coachPending = false;
+  let coachOn = false;
+  let coachStage: Stage | null = null;
   const coach = free
     ? null
     : createCoach(document.body, {
         touch: wantsTouchControls(navigator, query),
-        onEnd: () => remember(COACH_KEY),
+        onClose: () => {
+          coachOn = false;
+          remember(COACH_KEY);
+        },
       });
   if (!free) {
     const help = createHelpPanel(document.body, {
@@ -233,9 +239,11 @@ async function start(): Promise<void> {
       world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear }, storeWear: wear, achievements: [...world.achievements, 'home'] };
     }
   }
-  // ?stage=baby|teenager|adult starts the beaver at the start of that life stage (default adult). A baby starts in the lodge.
+  // ?stage=baby|teenager|adult starts the beaver at the start of that life stage. A baby starts in the lodge. A game starts as a
+  // baby (the brief: you grow up in the lodge), except in an automated browser, where the tests and playtests expect an adult.
   const stageParam = query.get('stage');
-  if (STAGES.includes(stageParam as Stage)) world = startStage(world, stageParam as Stage);
+  const startAs = STAGES.includes(stageParam as Stage) ? (stageParam as Stage) : navigator.webdriver ? 'adult' : 'baby';
+  if (startAs !== 'adult') world = startStage(world, startAs);
   let last = performance.now();
 
   // A jump holds the beaver while the streamer loads the target, then moves it.
@@ -408,11 +416,6 @@ async function start(): Promise<void> {
         rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
       }
     }
-    if (coachPending) {
-      coachPending = false;
-      if (lifeAt(world.clock, world.bornAt).stage === 'adult') coach?.start(world);
-    }
-    coach?.update(world);
     breathMeter.set(world.beaver.breath);
     clockHud.set(world.clock);
     lifeHud.set(lifeAt(world.clock, world.bornAt));
@@ -436,6 +439,17 @@ async function start(): Promise<void> {
       toast.show('Mama and Papa say it is time to start a family of your own');
     }
     lastStage = nowStage;
+    // The coach, after the leaving above, so the adult's steps see a world with no home. A new stage starts that stage's steps.
+    if (coachPending) {
+      coachPending = false;
+      coachOn = true;
+      coachStage = null;
+    }
+    if (coachOn && coachStage !== nowStage) {
+      coachStage = nowStage;
+      coach?.start(world, nowStage);
+    }
+    coach?.update(world);
     // A lone beaver the player meets slaps its tail and follows.
     const following = follower(world.partners)?.id ?? null;
     if (following && following !== lastFollower) toast.show('A beaver slaps its tail and follows you');

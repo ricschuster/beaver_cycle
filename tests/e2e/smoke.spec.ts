@@ -239,15 +239,21 @@ test('the welcome card stays away in an automated browser', async ({ page }) => 
   await expect(page.locator('#welcome')).toBeHidden();
 });
 
-test('the coach gives the first step when asked for, and skip ends it', async ({ page }) => {
+test('the coach gives a baby its first step when asked for, and the buttons move and close it', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/?shadows=0&coach=1');
+  await page.goto('/?shadows=0&coach=1&stage=baby');
   // The coach starts on the first frame, which comes late where the browser draws in software (CI): wait until time has moved.
   await page.waitForFunction(() => ((window as unknown as { __game?: { world(): { time: number } } }).__game?.world().time ?? 0) > 0, undefined, { timeout: 60_000 });
   await expect(page.locator('#coach')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('#coach')).toContainText('Walk around');
-  await page.click('[data-action=coach-skip]');
+  // Without the local tiles there is no lodge, so the baby is already outside and the first step, leaving, is done.
+  const first = (await page.locator('#coach').innerText()).includes('Swim out') ? 'Swim out' : 'Go for a swim';
+  await expect(page.locator('#coach')).toContainText(first);
+  await page.click('[data-action=coach-next]');
+  await expect(page.locator('#coach')).not.toContainText(first);
+  await page.click('[data-action=coach-back]');
+  await expect(page.locator('#coach')).toContainText(first);
+  await page.click('[data-action=coach-close]');
   await expect(page.locator('#coach')).toBeHidden();
   expect(errors).toEqual([]);
 });

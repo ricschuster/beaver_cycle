@@ -9,7 +9,7 @@ import { PARTNER_FILL_EVERY, partnerKeepsUp } from './upkeep';
 import { newWear } from './wear';
 
 const old = -300 * DAY_SECONDS;
-const spot = { id: 's', bed: { x: 500, z: 500 }, bedY: 0, flow: { x: 0, z: 1 }, maxCrest: 1 } as never;
+const spot = { id: 's', bed: { x: 500, z: 500 }, bedY: 0, flow: { x: 0, z: 1 }, maxCrest: 2 } as never;
 
 function home(withPartner: boolean): WorldState {
   const w = createWorld(flatTerrain(0));

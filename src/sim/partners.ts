@@ -4,6 +4,7 @@
 
 import { COAT_COUNT } from './family';
 import type { DamSpot } from './damSpots';
+import { LODGE_POND_CREST } from './pond';
 
 export type PartnerState = 'alone' | 'following' | 'home';
 
@@ -43,10 +44,18 @@ function hash(a: number, b: number): number {
 }
 
 /**
- * Lone beavers at dam spots far from the old home, in an order fixed by the home's place, so a start always gives the same ones.
- * `canLive` says a spot has room for a lodge near it (#254), so the player can lead the partner home; it is asked as little as it can be.
+ * A spot has room for a lodge when a dam there can raise a pond deep enough for one (#254, #287). It reads the spot's data, not the
+ * water now, which is only there once the dam is built, and far tiles are not loaded (ADR 0006).
  */
-export function seedPartners(spots: readonly DamSpot[], home: { x: number; z: number }, canLive: (spot: DamSpot) => boolean = () => true): Partner[] {
+export function canHoldLodge(spot: DamSpot): boolean {
+  return spot.maxCrest >= LODGE_POND_CREST - 1e-6;
+}
+
+/**
+ * Lone beavers at dam spots far from the old home, in an order fixed by the home's place, so a start always gives the same ones.
+ * `canLive` says a spot has room for a lodge near it (#254), so the player can lead the partner home and build a dam and lodge there.
+ */
+export function seedPartners(spots: readonly DamSpot[], home: { x: number; z: number }, canLive: (spot: DamSpot) => boolean = canHoldLodge): Partner[] {
   const key = Math.round(home.x * 3 + home.z * 7);
   const far = spots
     .map((s, i) => ({ s, i, d: Math.hypot(s.bed.x - home.x, s.bed.z - home.z), h: hash(i, key) }))

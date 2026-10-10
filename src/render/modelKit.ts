@@ -1,4 +1,4 @@
-// Shared pieces for the stylized animal models (#105), in the look of the beaver in `beaverModel.ts`: generated grain
+// Shared pieces for the stylized animal and beaver models (#105): generated grain
 // textures, a tube swept along a curve with an oval cross-section and colours painted into its vertices, low poly
 // blobs, flat extruded shapes, and an eye with a glint. Everything is made from code and the same every time.
 import * as THREE from 'three';
@@ -15,7 +15,7 @@ export function smoothstep(a: number, b: number, x: number): number {
 }
 
 /** Make a grey pattern texture, `size` texels square, from a brightness (0 to 1) per texel. */
-function patternTexture(size: number, shade: (x: number, y: number) => number): THREE.DataTexture {
+export function patternTexture(size: number, shade: (x: number, y: number) => number): THREE.DataTexture {
   const data = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {

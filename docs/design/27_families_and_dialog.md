@@ -3,7 +3,7 @@
 Design note, session 74. It answers open question 2 of [24_npcs_and_animals.md](24_npcs_and_animals.md) (#276: how the
 player interacts with other beaver families) and adds dialog between beavers, which the author asked for. Status: the family
 interactions are agreed with the author (greet, gifts, partner framing, rescue later, no shared dams). The dialog is a draft
-proposal; the points marked **Open** wait for the author. Nothing is built yet.
+proposal; the author answered its open points in session 74 (see "Decided" at the end). Nothing is built yet.
 
 ## Family interactions (agreed)
 
@@ -38,9 +38,11 @@ optional. It is a few lines in a speech bubble, never a wall of text, and it nev
 
 ### How the player talks
 
-- Walk up to a beaver (within about 3 m). The button hint says what a press does here, like the stash: "press Build to talk"
-  (**Open:** Build is the stash and lodge button, and Gnaw and Drag are taken; a dedicated Talk button is the other choice, but
-  the screen is already full on a tablet).
+- Walk up to a beaver (within about 3 m). The button hint says what a press does here, like the stash: "press Build to talk".
+  Build is the button that does "the thing here" (stash, lodge door, mending), so a talk takes it only when nothing else at that
+  spot wants it, and the lodge, the store and mending come first. Gnaw is for trees, food, rocks and mud, and Drag for logs and for
+  putting a gift down, so a Talk button would crowd the tablet screen. The author wants the buttons looked at as a whole later,
+  as not all make sense and a button can change with the circumstances (#341); a talk follows whatever that gives.
 - The beaver answers with one line in a bubble above its head. The player never types.
 - Where the player may answer, there are **at most 2 or 3 choices** as big buttons, such as "Hello", "Here is a branch", "Bye".
   Most talks need no choice: one line, then the bubble fades after a few seconds.
@@ -62,14 +64,13 @@ pick(speaker, listener trust, season, time of day, news, seed) -> line id
 - **Thanks** after a gift.
 - **Season and day**: snow, a warm evening, the first kits of spring.
 
-Lines are data (ids and text in one table, one place), so they can be translated and the author can edit them. English first
-(**Open:** German as well, since the valley is Austrian and the friends are there).
+Lines are data (ids and text in one table, one place), so the author can edit them and a language could be added. English only.
 
 ### How it is drawn
 
 A DOM bubble in `src/ui/` over the speaker, following it on screen, like the other overlays. The sim stays free of the DOM: it
-gives the current line id and speaker, and the UI turns that into text. A small sound or a short squeak per line is nice but
-optional (**Open**).
+gives the current line id and speaker, and the UI turns that into text. Each line also has a short squeak or call, once the
+game has sound (see "Sound" below).
 
 ### Code shape (when built)
 
@@ -86,10 +87,18 @@ optional (**Open**).
 3. Choices, news-based hints, and overheard talk between beavers.
 4. Stuck family members as guides, with the rescue (with Q20 to Q22).
 
-## Open for the author
+## Sound
 
-- The button that starts a talk (Build or a new Talk button).
-- English only, or German as well.
-- Whether a high-trust family gives hints, or trust is only felt in how they move.
-- Names for family members, so a rescued guide can be "Willow from the north pond".
-- Sound: a squeak per line, or silent text.
+The author wants sound in the game (round 2, Q36: rushing water, animal sounds such as birds, and music), and dialog gets a
+sound per line. The game has no sound yet, no code and no issue until now (#340). It needs its own note: how sound is loaded and
+played in the web stack on a tablet (the browser blocks audio until the first touch), where the files come from and their licence,
+a volume setting, and a budget for the tablet. Until it exists, dialog is silent text.
+
+## Decided (author, session 74)
+
+- The button: recommendation accepted, a talk takes Build when nothing else at that spot wants it. The buttons are to be revisited
+  as a whole (#341).
+- English only.
+- A family with high trust gives hints.
+- Family members get names, so a rescued guide can be "Willow from the north pond".
+- Sound for the lines, which waits for the game to have sound.

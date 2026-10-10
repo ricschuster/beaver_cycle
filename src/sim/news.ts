@@ -6,6 +6,8 @@ import { stockMeals } from './food';
 import { lodgeComplete, lodgeCondition } from './lodge';
 import { compassWord, partnerCue } from './partners';
 import type { WorldState } from './state';
+import type { SpeakerKind } from './talk';
+import { NO_NEWS, NOT_YET } from './talkLines';
 import { needsRepair } from './wear';
 
 /** What the game looks up for the hints: the nearest lily pad, and a predator about. */
@@ -41,11 +43,16 @@ export function newsFor(world: WorldState, around: Surroundings): string[] {
   return out;
 }
 
-/** The answer to "Any news?": a hint by the seed, or a polite nothing. Only a beaver that trusts the player (curious) tells. */
-export function answerNews(world: WorldState, around: Surroundings, trusting: boolean, seed: number): string {
-  if (!trusting) return 'I have nothing to tell yet. Come by again when we know each other better.';
+/**
+ * The answer to "Any news?": a hint by the seed, or a polite nothing in the speaker's voice. Only a beaver that trusts the player
+ * (curious) tells. With two or more hints, the one in `avoid` (said last time) is not given again at once.
+ */
+export function answerNews(world: WorldState, around: Surroundings, trusting: boolean, seed: number, avoid = '', kind: SpeakerKind = 'mama'): string {
+  if (!trusting) return NOT_YET[kind];
   const news = newsFor(world, around);
-  return news.length === 0 ? 'Nothing new on the pond today.' : news[seed % news.length]!;
+  if (news.length === 0) return NO_NEWS[kind];
+  const i = seed % news.length;
+  return news.length > 1 && news[i] === avoid ? news[(i + 1) % news.length]! : news[i]!;
 }
 
 /** Two members of a family and what the first calls out. */

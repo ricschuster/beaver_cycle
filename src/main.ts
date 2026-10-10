@@ -15,7 +15,8 @@ import { growNeighbours, neighboursAt } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
 import { DIG_REACH, DIG_TIME, HEAR_RANGE, escortBeaver, nearestStuck, rescue, startEscort, stepEscort, stuckBeaver, stuckNow, whereTo, digging } from './sim/escort';
 import { CALL_SLOT, answerNews, overheard, type Surroundings } from './sim/news';
-import { TALK_END, LINE_SECONDS, buildIsFree, nearestSpeaker, pickLine, speakersOf, type Speaker } from './sim/talk';
+import { BYE_SECONDS, TALK_END, LINE_SECONDS, buildIsFree, choicesFor, factsFor, greeting, nearestSpeaker, noteTalk, replyLine, roleOf, speakersOf, type Reply, type Speaker, type TalkFacts } from './sim/talk';
+import { REPLY_LABEL } from './sim/talkLines';
 import { createTalkBubble } from './ui/talkBubble';
 import { giftFamilies, greetedBy, familyMood, reactFamilies, startleFamilies } from './sim/familyMoods';
 import { banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
@@ -447,11 +448,25 @@ async function start(): Promise<void> {
     const threat = lastAmbient.filter((a) => isPredator(a.kind) && Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) < 100).sort((a, c) => Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) - Math.hypot(c.x - world.beaver.x, c.z - world.beaver.z))[0];
     return { pad, predator: threat ? { x: threat.x, z: threat.z, kind: threat.kind } : null };
   };
-  // The talk: the beaver says a greeting, and the player may ask for news or say bye.
-  const repliesFor = (who: Speaker): readonly { id: string; label: string }[] => [{ id: 'news', label: 'Any news?' }, ...(world.guides.includes(who.id) ? [{ id: 'lead', label: 'Show me the way' }] : []), { id: 'bye', label: 'Bye' }];
+  // The talk: the beaver greets the player, who may ask what it is doing, for news, for a job, or to be shown the way, at most two
+  // questions, and says bye; the beaver answers each, and says goodbye before the card closes (#344, #345).
+  let asked: Reply[] = [];
+  let talkFacts: TalkFacts | null = null;
+  // What each beaver said last, by speaker and kind of line, so it does not say the same thing twice in a row.
+  const lastSaid = new Map<string, string>();
+  const before = (who: Speaker, part: string): string => lastSaid.get(`${who.id}:${part}`) ?? '';
+  const said = (who: Speaker, part: string, text: string): string => {
+    lastSaid.set(`${who.id}:${part}`, text);
+    return text;
+  };
+  const speak = (who: Speaker, text: string, seconds: number, facts: TalkFacts | null): void => {
+    const choices = facts ? choicesFor(who, facts, asked).map((id) => ({ id, label: REPLY_LABEL[id] })) : [];
+    talkBubble.say(who.name, text, seconds, choices, answer(who), roleOf(who));
+  };
   const answer = (who: Speaker) => (id: string): void => {
+    if (talkingTo?.id !== who.id || !talkFacts) return;
     if (id === 'bye') {
-      talkBubble.hush();
+      speak(who, said(who, 'bye', replyLine('bye', who, talkFacts, talks++, before(who, 'bye'))), BYE_SECONDS, null);
       talkingTo = null;
       return;
     }
@@ -467,8 +482,17 @@ async function start(): Promise<void> {
       }
       return;
     }
+    const reply = id as Exclude<Reply, 'bye' | 'lead'>;
+    asked = [...asked, reply];
+    talkFacts = factsFor(world, who);
     const trusting = !who.family || familyMood(world, who.family) === 'curious';
-    talkBubble.say(who.name, answerNews(world, surroundings(), trusting, talks++), LINE_SECONDS * 1.5, repliesFor(who), answer(who));
+    const text = reply === 'news' ? answerNews(world, surroundings(), trusting, talks++, before(who, 'news'), who.kind) : replyLine(reply, who, talkFacts, talks++, before(who, reply));
+    speak(who, said(who, reply, text), LINE_SECONDS * 1.5, talkFacts);
+  };
+  // A family's pond is named for where it lies from the home, as in the call for help in the snow.
+  const placeOf = (family: string): string | null => {
+    const fam = world.neighbours.find((f) => f.id === family);
+    return fam ? pondName(fam.lodge, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver) : null;
   };
   const greeted = new Set<string>(); // families that have greeted the beaver this visit (#342)
 
@@ -626,15 +650,19 @@ async function start(): Promise<void> {
     const parents = [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)];
     // A baby cannot work, but it talks to its own people from day 1 (Mama and Papa; siblings are not in the game yet).
     const grown = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works;
-    const near = buildIsFree(world) ? nearestSpeaker(speakersOf(grown ? familyBeavers : [], parents, grown ? world.partners : [], nameOf), world.beaver) : null;
+    const near = buildIsFree(world) ? nearestSpeaker(speakersOf(grown ? familyBeavers : [], parents, grown ? world.partners : [], nameOf, placeOf), world.beaver) : null;
     if (talkingTo && Math.hypot(talkingTo.x - world.beaver.x, talkingTo.z - world.beaver.z) > TALK_END) {
       talkBubble.hush();
       talkingTo = null;
     }
-    if (near && buildPressed) {
+    // A press while already talking to this beaver does not start over. The greeting reads what the beaver remembers before this talk.
+    if (near && buildPressed && !(talkBubble.talking() && talkingTo?.id === near.id)) {
       talkingTo = near;
-      const feeling = near.family ? familyMood(world, near.family) : 'curious';
-      talkBubble.say(near.name, pickLine(near, { feeling, season: dateAt(world.clock).season, clock: world.clock, seed: talks++ }), LINE_SECONDS * 1.5, repliesFor(near), answer(near));
+      asked = [];
+      talkFacts = factsFor(world, near);
+      const text = greeting(near, talkFacts, talks++, before(near, 'greet'));
+      world = noteTalk(world, near.id);
+      speak(near, said(near, 'greet', text), LINE_SECONDS * 1.5, talkFacts);
     }
     buildPressed = false;
     // A call between two beavers of a family near the player, once in a slot of the clock (#345).

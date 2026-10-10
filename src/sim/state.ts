@@ -15,6 +15,7 @@ import type { DamSpot } from './damSpots';
 import type { Dropped, Haul } from './haul';
 import { mateOf, seedPartners, type Partner } from './partners';
 import type { Pond } from './pond';
+import type { Met } from './talk';
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
 import type { Wear } from './wear';
@@ -88,6 +89,8 @@ export interface WorldState {
   leader: Leader | null;
   /** The clock each guide last led the beaver at, by animal id, so it does not lead again at once. */
   ledAt: Record<string, number>;
+  /** What each beaver the player has talked to in this life remembers, by speaker id: how many talks, and when the last was (`talk.ts`). */
+  met: Record<string, Met>;
   /** How much the animals the beaver has met trust it, 0 to 1, by animal id (`moods.ts`). Missing means the kind's starting trust. */
   trust: Record<string, number>;
   /** The clock each pond was first seen at, by dam spot: a pond is mature after a while (`pondGuests.ts`). */
@@ -194,7 +197,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, padAt: null, branchAt: null, rescued: [], guides: [], escort: null, leader: null, ledAt: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, padAt: null, branchAt: null, rescued: [], guides: [], escort: null, leader: null, ledAt: {}, met: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {
@@ -248,7 +251,8 @@ export function setClock(world: WorldState, clock: number): WorldState {
 
 /**
  * A new baby begins (Q34, Q40): a new list of achievements and counters, at the clock now. What stands is kept and gets old
- * (Q63), but it was not built in this life, so it wins nothing. Where the baby is born and who its family are come later.
+ * (Q63), but it was not built in this life, so it wins nothing. Where the baby is born and who its family are come later. Nobody
+ * has talked to the baby yet, so the beavers meet it afresh; a family's trust is kept, as it is for the whole family.
  */
 export function newLife(world: WorldState): WorldState {
   const inherited = [...(world.lodge ? ['lodge'] : []), ...(world.storeWear ? ['store'] : []), ...world.dams.map((d) => `dam:${d.spot}`)];
@@ -258,6 +262,7 @@ export function newLife(world: WorldState): WorldState {
     coat: kitCoat(world.parentCoats, world.clock),
     generation: world.generation + 1,
     achievements: [],
+    met: {},
     journey: { start: world.clock, felled: world.felled.length, inherited },
     padsPicked: 0,
     mended: 0,

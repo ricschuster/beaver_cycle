@@ -6,7 +6,7 @@ coach is the short one, and its steps and the manual's quick start say the same 
 
 ## What it does
 
-- A card at the bottom centre shows the step's title, "3 of 9", one or two short sentences, and a **Skip the tips** button.
+- A card at the top left, under the status line, shows the step's title, "3 of 9", one or two short sentences, and a **Skip the tips** button.
 - On touch it also pulses the real button to press (a yellow ring on `#touch-chop` and so on). On a keyboard the line names
   the key.
 - Steps move on by themselves when the world shows the step is done (`coachNext` reads `WorldState`). A step the player

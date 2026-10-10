@@ -1,4 +1,4 @@
-// The first-steps coach (docs/design/25_first_steps_coach.md): a small card at the bottom of the screen that gives one step at
+// The first-steps coach (docs/design/25_first_steps_coach.md): a small card at the top left, under the status line, that gives one step at
 // a time and points at the button to press. DOM only. The steps and their order are in coachSteps.ts.
 import { COACH_DONE, STEPS, coachNext, newCoach, stepText, type CoachState } from './coachSteps';
 import type { WorldState } from '../sim/state';
@@ -38,8 +38,8 @@ export function createCoach(parent: HTMLElement, opts: CoachOptions): Coach {
   root.id = 'coach';
   root.setAttribute('role', 'status');
   root.style.cssText =
-    'display:none;position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:7;box-sizing:border-box;width:min(34rem,60vw);padding:12px 16px;' +
-    'border-radius:14px;background:#f6f1e4;color:#2a1f0e;font:18px/1.4 system-ui,sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.4)';
+    'display:none;position:fixed;left:8px;top:84px;z-index:7;box-sizing:border-box;width:min(20rem,38vw);padding:10px 14px;' +
+    'border-radius:14px;background:#f6f1e4;color:#2a1f0e;font:16px/1.4 system-ui,sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.4)';
   const head = document.createElement('div');
   head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:700;color:#2f6a30';
   const title = document.createElement('span');

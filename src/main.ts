@@ -97,8 +97,7 @@ async function start(): Promise<void> {
   const readKeyboard = createKeyboardInput(window);
   const touch = createTouchControls(document.body, wantsTouchControls(navigator, query));
   createKeyHints(document.body, window, !wantsTouchControls(navigator, query) && !free);
-  // The "?" button opens the manual (public/manual.html), and the first start shows a welcome card. Storage can be
-  // blocked, so a failed read counts as not seen and a failed write is ignored.
+  // The "?" button opens the manual (public/manual.html), and the first start shows a welcome card.
   // Storage can be blocked, so a failed read counts as not seen and a failed write is ignored.
   const remembered = (key: string): boolean => {
     try {

@@ -243,7 +243,9 @@ test('the coach gives the first step when asked for, and skip ends it', async ({
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?shadows=0&coach=1');
-  await expect(page.locator('#coach')).toBeVisible();
+  // The coach starts on the first frame, which comes after the tiles around the start have loaded.
+  await page.waitForFunction(() => !!(window as unknown as { __game?: unknown }).__game, undefined, { timeout: 30_000 });
+  await expect(page.locator('#coach')).toBeVisible({ timeout: 10_000 });
   await expect(page.locator('#coach')).toContainText('Walk around');
   await page.click('[data-action=coach-skip]');
   await expect(page.locator('#coach')).toBeHidden();

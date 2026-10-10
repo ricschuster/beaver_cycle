@@ -107,8 +107,8 @@ export const STEPS: readonly CoachStep[] = [
   {
     id: 'fill',
     title: 'Finish the dam',
-    touch: 'The dam needs mud and rocks too. Gnaw mud at the water edge, gnaw a rock, carry it into the ring and press Build. The text at the top left says what is missing.',
-    keys: 'The dam needs mud and rocks too. Press E at the water edge for mud, E at a rock, carry it into the ring and press B. The text at the top left says what is missing.',
+    touch: 'It needs mud and rocks too. Gnaw mud at the water edge, or a rock, then press Build in the ring. The top left says what is missing.',
+    keys: 'It needs mud and rocks too. Press E at the water edge for mud, or at a rock, then press B in the ring. The top left says what is missing.',
     button: 'build',
     done: (w) => w.dams.some((d) => damWhole(d)),
   },

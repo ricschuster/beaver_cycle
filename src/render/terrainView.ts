@@ -38,10 +38,20 @@ const BUILD_BUDGET_MS = 4;
 
 /** Far backdrop tiles are merged into chunks of this many tiles per side, one draw call each. */
 export const FAR_CHUNK = 8;
+/** A far chunk that is not whole is rebuilt once this many more of its tiles have loaded. */
+const FAR_BATCH = 8;
 
 /** Key of the far chunk a tile belongs to. */
 export function farChunkKey(tx: number, tz: number): string {
   return `${Math.floor(tx / FAR_CHUNK)},${Math.floor(tz / FAR_CHUNK)}`;
+}
+
+/** Colour and season weight of each class (r, g, b, grass, foliage), looked up once rather than once per cell. */
+const PALETTE = new Float64Array(256 * 5);
+for (let c = 0; c < 256; c++) {
+  const color = COLORS.get(c) ?? FALLBACK;
+  const [sg, sf] = SEASON_WEIGHT[c] ?? NO_WEIGHT;
+  PALETTE.set([color.r, color.g, color.b, sg, sf], c * 5);
 }
 
 export function buildTileGeometry(tile: DecodedTile, size: number): THREE.BufferGeometry {
@@ -65,13 +75,6 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
   const weight = new Float32Array(total * 2);
   const at = (i: number, j: number): number => h[Math.min(Math.max(j, 0), n) * w + Math.min(Math.max(i, 0), n)]!;
 
-  // colour and season weight of each class, looked up once rather than once per cell
-  const palette = new Float64Array(256 * 5);
-  for (let c = 0; c < 256; c++) {
-    const color = COLORS.get(c) ?? FALLBACK;
-    const [sg, sf] = SEASON_WEIGHT[c] ?? NO_WEIGHT;
-    palette.set([color.r, color.g, color.b, sg, sf], c * 5);
-  }
   for (let j = 0; j <= n; j++) {
     for (let i = 0; i <= n; i++) {
       const v = j * w + i;
@@ -90,7 +93,7 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
         for (let ci = i - 1; ci <= i; ci++) {
           if (ci < 0 || cj < 0 || ci >= n || cj >= n) continue;
           const o = classes[cj * n + ci]! * 5;
-          r += palette[o]!; g += palette[o + 1]!; b += palette[o + 2]!; wg += palette[o + 3]!; wf += palette[o + 4]!; count++;
+          r += PALETTE[o]!; g += PALETTE[o + 1]!; b += PALETTE[o + 2]!; wg += PALETTE[o + 3]!; wf += PALETTE[o + 4]!; count++;
         }
       }
       col[v * 3] = r / count;
@@ -102,7 +105,9 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
   }
   edge.forEach((v, k) => {
     const s = nv + k;
-    pos.set([pos[v * 3]!, pos[v * 3 + 1]! - drop, pos[v * 3 + 2]!], s * 3);
+    pos[s * 3] = pos[v * 3]!;
+    pos[s * 3 + 1] = pos[v * 3 + 1]! - drop;
+    pos[s * 3 + 2] = pos[v * 3 + 2]!;
     nor.copyWithin(s * 3, v * 3, v * 3 + 3);
     col.copyWithin(s * 3, v * 3, v * 3 + 3);
     weight.copyWithin(s * 2, v * 2, v * 2 + 2);
@@ -484,8 +489,10 @@ export function createTerrainView(
   function updateFar(): void {
     const start = performance.now();
     for (const chunk of farChunks.values()) {
+      if (chunk.built === chunk.tiles.length) continue; // level 2 is never dropped, so a whole chunk is done for good
       const loaded = chunk.tiles.filter((t) => store.has(t.tx, t.tz, 2));
-      if (loaded.length === chunk.built) continue;
+      // While tiles arrive one by one, wait for a handful so the chunk is not merged anew for each.
+      if (loaded.length === chunk.built || (loaded.length < chunk.tiles.length && loaded.length - chunk.built < FAR_BATCH)) continue;
       const geos = loaded.map((t) => buildTileGeometry(store.get(t.tx, t.tz, 2)!, size));
       const merged = mergeGeometries(geos);
       for (const g of geos) g.dispose();

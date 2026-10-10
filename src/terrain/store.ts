@@ -14,6 +14,8 @@ export class TileStore implements Terrain {
   private readonly data = new Map<string, (DecodedTile | undefined)[]>();
   private readonly info = new Map<string, IndexTile>();
   private readonly water = new Map<string, TileWater>();
+  /** Counts changes to the tiles held, so a caller can tell nothing moved since it last looked. */
+  version = 0;
 
   constructor(readonly index: TileIndex) {
     this.size = index.tileSize_m;
@@ -26,6 +28,7 @@ export class TileStore implements Terrain {
 
   putWater(tx: number, tz: number, water: TileWater): void {
     this.water.set(tileKey(tx, tz), water);
+    this.version++;
   }
 
   waterOf(tx: number, tz: number): TileWater | undefined {
@@ -36,16 +39,34 @@ export class TileStore implements Terrain {
     const key = tileKey(tile.tx, tile.tz);
     const levels = this.data.get(key) ?? [];
     levels[tile.level] = tile;
+    this.version++;
     this.data.set(key, levels);
   }
 
   drop(tx: number, tz: number, level: number): void {
-    const levels = this.data.get(tileKey(tx, tz));
-    if (levels) levels[level] = undefined;
+    this.dropKey(tileKey(tx, tz), level);
   }
 
   get(tx: number, tz: number, level: number): DecodedTile | undefined {
     return this.data.get(tileKey(tx, tz))?.[level];
+  }
+
+  /** `has` for a caller that holds the tile key already, which saves building the string every frame. */
+  hasKey(key: string, level: number): boolean {
+    return this.data.get(key)?.[level] !== undefined;
+  }
+
+  /** `drop` for a caller that holds the tile key already. */
+  dropKey(key: string, level: number): void {
+    const levels = this.data.get(key);
+    if (levels?.[level] === undefined) return;
+    levels[level] = undefined;
+    this.version++;
+  }
+
+  /** `waterOf` for a caller that holds the tile key already. */
+  hasWaterKey(key: string): boolean {
+    return this.water.has(key);
   }
 
   has(tx: number, tz: number, level: number): boolean {

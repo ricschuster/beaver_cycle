@@ -11,34 +11,98 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# repo-hygiene is stack-neutral. game checks the TypeScript app.
+# repo-hygiene is stack-neutral. game is the one required check for the
+# TypeScript app: it passes when the parallel jobs below pass or were skipped.
+# A PR that only touches docs and Markdown skips them, so it clears in seconds.
 jobs:
-  game:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')
+          if printf '%s\n' "$files" | grep -qvE '^docs/|\.md$'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  unit:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
-
       - name: Type check
         run: npm run typecheck
-
       - name: Unit tests
         run: npm test
 
+  build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Build
         run: npm run build
 
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
-
+      - name: Install Playwright system libraries
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
       - name: Browser smoke test
         run: npm run test:e2e
+
+  game:
+    needs: [changes, unit, build, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: All game jobs passed or were skipped
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          case "$RESULTS" in
+            *failure*|*cancelled*) exit 1 ;;
+          esac
 
   repo-hygiene:
     runs-on: ubuntu-latest

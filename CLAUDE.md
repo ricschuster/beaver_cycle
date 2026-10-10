@@ -16,12 +16,15 @@ next generation, forever. It is for the author and friends, on tablets. See
 
 ## Project status
 
-Design phase, with a game scaffold (M1) and no gameplay yet. Rounds 1 to 3 of
-the author's questions are answered (round 3 on variety, with a build and repair
-note in `docs/design/15_build_and_repair.md`), and the stack is chosen and
-confirmed on a tablet (ADR 0007, M0 done). The scaffold (M1) is in place, then
-comes a first playable of the core location on a tablet. Open GitHub issues are the live task tracker. A draft
-milestone plan is in `docs/design/13_milestone_plan.md`.
+Playable on the real valley, in milestones M1 to M7 of
+`docs/design/13_milestone_plan.md`. The game has terrain streaming, the beaver
+and its camera, time and seasons, chopping, dams, ponds, lodges, food, wear and
+repair, life stages and the next generation, achievements, ambient animals,
+other families, partners, predators, and the player interacting with animals
+(round 1 to 4 answers are in `docs/design/`). All six play locations have tiles
+and animals; playing and tuning them on a tablet is still to do (#42). What is
+left is mostly tuning on a tablet. Open GitHub issues are the live task tracker, and the
+latest `docs/handoffs/` file says where the last session stopped.
 
 ## Scope
 
@@ -74,9 +77,6 @@ Everyday (gate means CI blocks a merge on it):
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene
 - `python3 scripts/build_question_docx.py QUESTIONS.md OUT.docx TEMPLATE.docx` -
   build a printable handout
-
-Add run, test, and build once the stack is chosen; `CONTRIBUTING.md` Setup
-should match.
 
 ## Repo structure
 

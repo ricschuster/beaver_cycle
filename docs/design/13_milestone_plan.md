@@ -186,8 +186,10 @@ families and animals are interacted with.
   design. Whether saves move between devices is open.
 - **Multiplayer.** Its own ADR, after a spike on Nearby Connections, an
   embedded server on one tablet, or WebRTC (ADR 0007). Single player first.
-- **The other five locations,** one at a time, once the core feels right
-  (ADR 0006).
+- **The other five locations.** Tiles, dam sites, animals, and families already
+  cover all six. What is left is playing and tuning
+  them on a tablet (#42), mainly animal variety in the south and the Springbach
+  valleys (ADR 0006).
 - **Player speed-up,** press and hold, and the beaver never gets tired (Q66).
   The test menu multiplier in M2 is the first form of it.
 - **Travel between locations, and dream side quests.** The dream at night is

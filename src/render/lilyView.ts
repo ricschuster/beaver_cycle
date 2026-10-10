@@ -1,10 +1,11 @@
-// Draws the lily pads near the beaver: bright green discs with a pale flower on some, floating on the water. They are drawn larger than the pick
+// Draws the lily pads near the beaver: bright green pads with a notch, a white flower on some, floating on the water. They are drawn larger than the pick
 // radius and out to a long distance so a bay of them reads from across the lake. Which pads float is worked out by
 // `lilyPadsNear`, so the view only places what the sim would let the beaver pick. Reads state only.
 import * as THREE from 'three';
 import { dateAt } from '../sim/clock';
 import { LILY_RADIUS, lilyInSeason, lilyPadsNear, type Picked } from '../sim/lily';
 import type { Terrain } from '../sim/terrain';
+import { lilyFlower, lilyPad, propMaterial } from './propShapes';
 
 export interface LilyView {
   /** Draw the pads around a point for this clock and these picked pads. Rebuilds when the beaver has moved on or a pad was picked. */
@@ -19,27 +20,31 @@ const MAX_PADS = 1500;
 const DRAW_SCALE = 2.2;
 /** The share of pads that carry a flower. */
 const FLOWER_SHARE = 0.4;
-/** A pad is a thin slab this high in metres, standing a little out of the water, and a flower a smaller one on top of it. */
+/** A pad is a thin slab this high in metres, standing a little out of the water, and a flower this wide (one petal long) on top of it. */
 const PAD_HEIGHT = 0.14;
 const PAD_LIFT = 0.04;
-const FLOWER_HEIGHT = 0.1;
+const FLOWER_SIZE = 0.36;
 
 export function createLilyView(scene: THREE.Scene, prepare: (m: THREE.Material) => void): LilyView {
-  const geometry = new THREE.CylinderGeometry(LILY_RADIUS * DRAW_SCALE * 0.92, LILY_RADIUS * DRAW_SCALE, PAD_HEIGHT, 14);
-  // A little emissive light keeps the pads bright against dark water and in shade.
-  const material = new THREE.MeshLambertMaterial({ color: 0x86d65c, emissive: 0x2c5a1c });
+  // A notched pad, pale in the middle, with a little emissive light that keeps it bright against dark water and in shade.
+  const material = propMaterial({ emissive: 0x24501a });
   prepare(material);
-  const mesh = new THREE.InstancedMesh(geometry, material, MAX_PADS);
+  const mesh = new THREE.InstancedMesh(lilyPad(LILY_RADIUS * DRAW_SCALE, PAD_HEIGHT, 14), material, MAX_PADS);
   mesh.count = 0;
   mesh.frustumCulled = false;
   scene.add(mesh);
-  const flowerGeometry = new THREE.CylinderGeometry(LILY_RADIUS * 0.45, LILY_RADIUS * 0.9, FLOWER_HEIGHT, 8);
-  const flowerMaterial = new THREE.MeshLambertMaterial({ color: 0xffe2ec, emissive: 0x80586a });
+  // A white flower with a yellow heart; its petals are single sheets, so both sides show.
+  const flowerMaterial = propMaterial({ emissive: 0x8a8080, side: THREE.DoubleSide });
   prepare(flowerMaterial);
-  const flowers = new THREE.InstancedMesh(flowerGeometry, flowerMaterial, MAX_PADS);
+  const flowers = new THREE.InstancedMesh(lilyFlower(FLOWER_SIZE), flowerMaterial, MAX_PADS);
   flowers.count = 0;
   flowers.frustumCulled = false;
   scene.add(flowers);
+  const rotation = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
+  const scale = new THREE.Vector3();
+  const at = new THREE.Vector3();
+  const tint = new THREE.Color();
   const matrix = new THREE.Matrix4();
   let lastKey = '';
   let lastX = Infinity;
@@ -59,17 +64,22 @@ export function createLilyView(scene: THREE.Scene, prepare: (m: THREE.Material) 
         // Stand a little out of the water, and vary the size a little by position.
         const surface = terrain.heightAt(pad.x, pad.z) + terrain.waterDepth(pad.x, pad.z);
         const size = 0.8 + 0.4 * ((Math.abs(pad.x * 7 + pad.z * 13) % 1));
-        matrix.makeScale(size, 1, size).setPosition(pad.x, surface + PAD_LIFT, pad.z);
+        // Turn each pad its own way, so the notches do not all point alike, and vary its green a little.
+        rotation.setFromAxisAngle(up, (Math.abs(pad.x * 5 + pad.z * 3) % 1) * Math.PI * 2);
+        matrix.compose(at.set(pad.x, surface + PAD_LIFT, pad.z), rotation, scale.set(size, 1, size));
         mesh.setMatrixAt(i, matrix);
+        const shade = Math.abs(pad.x * 13 + pad.z * 7) % 1;
+        mesh.setColorAt(i, tint.setRGB(0.88 + 0.2 * shade, 0.95 + 0.08 * shade, 0.85 + 0.1 * (1 - shade)));
         if (Math.abs(pad.x * 3 + pad.z * 5) % 1 < FLOWER_SHARE) {
           const dx = ((Math.abs(pad.x * 11) % 1) - 0.5) * 0.5;
           const dz = ((Math.abs(pad.z * 17) % 1) - 0.5) * 0.5;
-          matrix.makeScale(size, 1, size).setPosition(pad.x + dx, surface + PAD_LIFT + (PAD_HEIGHT + FLOWER_HEIGHT) / 2 - 0.02, pad.z + dz);
+          matrix.compose(at.set(pad.x + dx, surface + PAD_LIFT + PAD_HEIGHT / 2, pad.z + dz), rotation, scale.set(size, size, size));
           flowers.setMatrixAt(flowerCount++, matrix);
         }
       });
       mesh.count = pads.length;
       mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       flowers.count = flowerCount;
       flowers.instanceMatrix.needsUpdate = true;
     },

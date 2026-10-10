@@ -57,8 +57,8 @@ Built in session 28. The sim is in `src/sim/food.ts`, the heap is drawn by
   press would do here.
 
 - **Lily pads** (`src/sim/lily.ts`, `src/render/lilyView.ts`; the clusters are
-  the author's call from session 30, the numbers are my defaults): green discs
-  float in patches, like a bay full of them. A patch is 7 to 15 m from its
+  the author's call from session 30, the numbers are my defaults): notched green
+  pads, some with a white flower, float in patches, like a bay full of them. A patch is 7 to 15 m from its
   centre, thick in the middle and thin at the edge. About 7 in 10 cells of 40 m
   hold a patch, but only where the water at its centre is 0.3 to 2.5 m deep, so
   patches lie in shallow bays and not on steep banks. The same places every
@@ -126,7 +126,7 @@ Decided by the author:
   "put the mouth piece in place N" and "take place N". The renderer draws the heap from
   the share of branches and pads.
 - The screen is `src/ui/stashPanel.ts`, the rules are `tapped` and `trimmed` in `src/sim/food.ts`,
-  and the heap (`src/render/storeView.ts`) draws one green disc on top for each pad
+  and the heap (`src/render/storeView.ts`) draws one notched green pad on top for each pad
   and sticks for the branches. A tap that cannot do anything (an empty place with an
   empty mouth, a lost place) does nothing. The store line in the HUD now says "12 of
   40, 18 meals". Not tried on a tablet yet.

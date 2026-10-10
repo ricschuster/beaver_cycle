@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { shownShare, wallSpan } from './damView';
+import * as THREE from 'three';
+import { createDamView, shownShare, wallSpan } from './damView';
 import { POND_CELL, floodPond } from '../sim/pond';
+import type { Dam } from '../sim/dam';
 import type { DamSpot } from '../sim/damSpots';
 
 describe('shownShare', () => {
@@ -29,5 +31,33 @@ describe('wallSpan', () => {
   it('is narrower for a lower row', () => {
     const pond = floodPond(ground as never, spot, 1.0)!;
     expect(wallSpan(pond, spot, 0.3)!.left).toBeLessThan(wallSpan(pond, spot, 1.0)!.left);
+  });
+});
+
+describe('createDamView', () => {
+  const ground = (x: number, z: number): number => (Math.abs(x) > 6 ? (Math.abs(x) - 6) * 0.2 : 0) + (z < -30 ? (-30 - z) * 0.3 : 0);
+  const spot: DamSpot = { id: 's', bed: { x: 0, z: 0 }, bedY: 0, flow: { x: 0, z: 1 }, maxCrest: 2, pondM2: 0 };
+  const drawn = (dam: Dam): THREE.Mesh[] => {
+    const scene = new THREE.Scene();
+    createDamView(scene, false, () => {}).update([dam], [spot], ground);
+    const found: THREE.Mesh[] = [];
+    scene.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.geometry.getAttribute('color')) found.push(o);
+    });
+    return found;
+  };
+  const vertices = (dam: Dam): number => drawn(dam)[0]!.geometry.getAttribute('position').count;
+
+  it('draws a dam as one mesh, the same each time it is built', () => {
+    const dam: Dam = { spot: 's', wood: 8, mud: 4, rock: 2 };
+    const meshes = drawn(dam);
+    expect(meshes).toHaveLength(1);
+    expect(Array.from(drawn(dam)[0]!.geometry.getAttribute('position').array)).toEqual(Array.from(meshes[0]!.geometry.getAttribute('position').array));
+  });
+
+  it('draws fewer pieces for a dam half built or worn', () => {
+    const whole = vertices({ spot: 's', wood: 8, mud: 4, rock: 2 });
+    expect(vertices({ spot: 's', wood: 4, mud: 1, rock: 0 })).toBeLessThan(whole);
+    expect(vertices({ spot: 's', wood: 8, mud: 4, rock: 2, wear: { level: 0.1, since: 0, mend: 0 } })).toBeLessThan(whole);
   });
 });

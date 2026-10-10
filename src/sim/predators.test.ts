@@ -11,6 +11,10 @@ import { flatTerrain, type Terrain } from './terrain';
 const land = flatTerrain(0);
 const fox = (x: number, z: number): Animal => ({ id: 'a:1', kind: 'fox', x, y: 0, z, heading: 0, moving: false });
 const owl = (x: number, z: number): Animal => ({ id: 'a:2', kind: 'owl', x, y: 0, z, heading: 0, moving: false });
+const lynx = (x: number, z: number): Animal => ({ id: 'a:3', kind: 'lynx', x, y: 0, z, heading: 0, moving: false });
+const bear = (x: number, z: number): Animal => ({ id: 'a:4', kind: 'bear', x, y: 0, z, heading: 0, moving: false });
+/** Land from x = -3 up; a pond lies west of that. The beaver at the origin stands about 3 m from the water. */
+const bank: Terrain = { heightAt: () => 0, isWater: (x) => x < -3, waterDepth: (x) => (x < -3 ? 1 : 0) };
 
 /** Runs the meeting for `seconds` in 0.1 s steps, the beaver standing, and returns the world and all events. */
 function run(world: WorldState, animals: Animal[], seconds: number, ground: Terrain = land, slapAt = -1) {
@@ -97,11 +101,57 @@ describe('predators', () => {
     expect(predatorAnimals(w.predators, land).map((a) => a.id)).toEqual(['a:1']);
   });
 
+  it('lift the owl gradually during its sign, so it does not jump up when the chase begins', () => {
+    const w1 = run(createWorld(land, 0, 0), [owl(25, 0)], 1).world;
+    const w2 = run(w1, [owl(25, 0)], 1).world;
+    expect(w1.predators[0]!.phase).toBe('warn');
+    expect(w2.predators[0]!.lift).toBeGreaterThan(w1.predators[0]!.lift);
+    expect(w2.predators[0]!.lift).toBeLessThan(7);
+  });
+
   it('put owls in the field only at night', () => {
     const field = new AnimalField();
     const kinds = (clock: number) => new Set(field.near(land, 0, 0, clock, 500, 600).map((a) => a.kind));
     expect(kinds(DAY_SECONDS * 0.3).has('owl')).toBe(false);
     expect(kinds(DAY_SECONDS * 0.8).has('owl')).toBe(true);
+  });
+});
+
+describe('lynx and bear', () => {
+  it('stalk: the lynx creeps closer during its sign, then rushes faster than a beaver walks', () => {
+    const w = run(createWorld(land, 0, 0), [lynx(24, 0)], 2).world;
+    expect(w.predators[0]!.phase).toBe('warn');
+    expect(w.predators[0]!.x).toBeLessThan(24 - 2);
+    expect(RULES.lynx.chase).toBeGreaterThan(WALK_SPEED);
+    const rush = run(w, [lynx(24, 0)], 2).world;
+    expect(rush.predators[0]!.phase === 'chase' || rush.hurtAt !== null).toBe(true);
+  });
+
+  it('are scared by a slap from the water edge, but the lynx is not scared by one far from the water', () => {
+    const seen = (animal: Animal, ground: Terrain) => {
+      const start = run(createWorld(ground, 0, 0), [animal], 3.2, ground).world;
+      return run(start, [animal], 0.4, ground, 0.2).events;
+    };
+    expect(seen(lynx(14, 0), bank)).toContain('lynx:scared');
+    expect(seen(lynx(14, 0), land)).not.toContain('lynx:scared');
+    // The bear and the fox do not need the water.
+    expect(seen(bear(14, 0), land)).toContain('bear:scared');
+  });
+
+  it('keep the bear too slow to catch a beaver that keeps walking, and the lynx and the bear out of the water', () => {
+    expect(RULES.bear.chase).toBeLessThan(WALK_SPEED * 0.6);
+    let w = run(createWorld(bank, 0, 0), [lynx(14, 0)], 3.2, bank).world;
+    for (let i = 0; i < 20; i++) w = meetPredators({ ...w, time: w.time + 0.1 }, [lynx(14, 0)], false, 0.1, bank).world;
+    expect(w.predators.every((p) => bank.waterDepth(p.x, p.z) < 0.4)).toBe(true);
+  });
+
+  it('put the lynx out from the middle of the afternoon and the bear out from spring to autumn', () => {
+    const field = new AnimalField();
+    const kinds = (clock: number) => new Set(field.near(land, 0, 0, clock, 2000, 1500).map((a) => a.kind));
+    expect(kinds(DAY_SECONDS * 0.3).has('lynx')).toBe(false);
+    expect(kinds(DAY_SECONDS * 0.8).has('lynx')).toBe(true);
+    expect(kinds(DAY_SECONDS * 0.3).has('bear')).toBe(true);
+    expect(kinds(DAY_SECONDS * 35.3).has('bear')).toBe(false);
   });
 });
 

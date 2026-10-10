@@ -11,6 +11,9 @@ import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/lif
 import { formerParentsAt, parentsAt } from './sim/family';
 import { AnimalField, capFor } from './sim/animals';
 import { growNeighbours, neighboursAt } from './sim/neighbours';
+import { banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
+import { lead, leaderAnimal } from './sim/guides';
+import { pondGuests, trackPonds } from './sim/pondGuests';
 import { meetPredators, predatorAnimals, type PredatorEvent } from './sim/predators';
 import { CUE_EVERY, HEARD_DISTANCE, follower, mateOf, partnerCue } from './sim/partners';
 import { createLifeHud } from './ui/lifeHud';
@@ -317,6 +320,8 @@ async function start(): Promise<void> {
   let familiesAt = 0;
   const familiesTried = new Set<string>();
   const animalField = new AnimalField();
+  let readBolt = false;
+  const sniffed = new Set<string>();
 
   function frame(now: number): void {
     // Cap dt so a paused tab does not teleport the beaver.
@@ -427,13 +432,39 @@ async function start(): Promise<void> {
       const grown = growNeighbours(world.neighbours, terrain, world.beaver, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver, familiesTried);
       if (grown !== world.neighbours) world = { ...world, neighbours: [...grown] };
     }
-    const ambient = animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps));
+    world = trackPonds(world);
+    // The animals as they stand for their mood: deer bolt from a predator, wary ones keep away, curious ones come to look, a fox sniffs at the store at night (note 24, "Interaction with animals").
+    const slappedNow = world.lastSlap !== null && world.lastSlap.time === world.time;
+    const around = [...animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps)), ...pondGuests(world, world.beaver.x, world.beaver.z)];
+    if (slappedNow) world = startle(world, around);
+    const ambient = foxesAtStore(react(around, world, ponded), world, ponded);
+    const led = lead(world, ambient, dt, ponded);
+    world = led.world;
+    for (const e of led.events) toast.show(GUIDE_TEXT[e.what](e.kind));
+    const fed = feedAnimals(world, ambient);
+    world = fed.world;
+    for (const a of fed.fed) toast.show(a.kind === 'duck' ? 'The duck eats the lily pad and trusts you a little more' : 'The deer eats it and trusts you a little more');
+    if (!readBolt && boltingDeer(ambient, world)) {
+      readBolt = true;
+      toast.show('The deer bolt. Something is near');
+    }
+    for (const a of ambient) {
+      if (a.kind === 'fox' && !sniffed.has(a.id) && atStore(world, a) && Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) < 50) {
+        sniffed.add(a.id);
+        toast.show('A fox is sniffing at your store. Slap your tail');
+      }
+    }
     // A fox or owl that notices the beaver on land becomes a predator and is drawn from its own state (note 24, slice 3).
-    const met = meetPredators(world, ambient, world.lastSlap !== null && world.lastSlap.time === world.time, dt, ponded);
+    const atTheStore = new Set(world.predators.filter((p) => p.kind === 'fox' && atStore(world, p)).map((p) => p.id));
+    const met = meetPredators(world, ambient, slappedNow, dt, ponded);
     world = met.world;
-    for (const e of met.events) toast.show(PREDATOR_TEXT(e));
+    for (const e of met.events) {
+      toast.show(e.what === 'scared' && e.kind === 'fox' && atTheStore.has(e.id) ? 'You chased the fox off your store' : PREDATOR_TEXT(e));
+      if (e.what === 'scared' && e.kind === 'fox' && atTheStore.has(e.id)) world = banishFox(world, e.id);
+    }
     const engaged = new Set(world.predators.map((p) => p.id));
-    const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded)];
+    if (world.leader) engaged.add(world.leader.id);
+    const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded), ...(world.leader ? [leaderAnimal(world.leader, ponded, world)] : [])];
     renderer.draw(world, rig.view, [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)], animals, neighboursAt(world.neighbours, world.clock, ponded));
     if (now - lastReadout > 500) {
       lastReadout = now;
@@ -472,17 +503,27 @@ async function start(): Promise<void> {
     neighbours: () => neighboursAt(world.neighbours, world.clock, withPonds(terrain, world.ponds)),
     // The ambient animals around the beaver now.
     animals: () => animalField.near(withPonds(terrain, world.ponds), world.beaver.x, world.beaver.z, world.clock, capFor(fps)),
-    // The foxes and owls in their meeting with the beaver, and when it was hurt.
+    // The predators in their meeting with the beaver, and when it was hurt.
     predators: () => world.predators,
     hurtAt: () => world.hurtAt,
     lodgeSite: (radius: number) => findSite(lodgeGround(terrain, world.ponds), world.beaver.x, world.beaver.z, radius),
   };
 }
 
+const GUIDE_TEXT = {
+  called: (kind: string) => `The ${kind} calls you. Follow it to lily pads`,
+  arrived: (kind: string) => `The ${kind} has brought you to lily pads`,
+  lost: (kind: string) => `You lost the ${kind}`,
+};
+
 function PREDATOR_TEXT(e: PredatorEvent): string {
-  if (e.what === 'caught') return e.kind === 'owl' ? 'An owl caught you. You drop what you carry and slow down. Eat a lily pad' : 'A fox caught you. You drop what you carry and slow down. Eat a lily pad';
-  if (e.what === 'scared') return e.kind === 'owl' ? 'Your tail slap scared the owl off' : 'Your tail slap scared the fox off';
-  return e.kind === 'owl' ? 'An owl hoots nearby. Get into the water' : 'A fox has seen you. Get into the water or slap your tail';
+  const name = e.kind;
+  if (e.what === 'caught') return `A ${name} caught you. You drop what you carry and slow down. Eat a lily pad`;
+  if (e.what === 'scared') return `Your tail slap scared the ${name} off`;
+  if (e.kind === 'owl') return 'An owl hoots nearby. Get into the water';
+  if (e.kind === 'lynx') return 'A lynx is stalking you. Get into the water, or slap your tail at the water\'s edge';
+  if (e.kind === 'bear') return 'A bear has seen you. Keep moving or slap your tail';
+  return 'A fox has seen you. Get into the water or slap your tail';
 }
 
 void start();

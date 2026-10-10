@@ -69,7 +69,7 @@ test.describe('a worn lodge and store', () => {
 
   test('the store lets go of the pieces its wear takes away', async ({ page }) => {
     test.setTimeout(420_000);
-    // A new store holds 40 places. Put a branch in the last place, then let thirty days go by: the store is worn and holds 24.
+    // A new store holds 40 places. Put a branch in the last place, then let thirty-three days go by: the store is worn and holds 24.
     await start(page, 'age=0');
     const id = await fellNearestTree(page);
     expect(id).not.toBeNull();
@@ -85,7 +85,7 @@ test.describe('a worn lodge and store', () => {
     await page.locator('#stash-close').click();
     await page.waitForFunction(() => !(window as any).__game.world().stashOpen, null, { polling: 100, timeout: 5000 });
     await shot(page, 'wear-03-stash-full');
-    // Winter starts thirty days in.
+    // The menu jumps to the first day with winter's full look, thirty-three days in (SEASON_FULL_DAY).
     await openMenu(page);
     await page.locator('button[data-season="winter"]').click();
     await openMenu(page);

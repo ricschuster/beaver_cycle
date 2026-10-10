@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DAYS_PER_YEAR } from '../sim/clock';
-import { seasonLook } from './seasonLook';
+import { DAYS_PER_SEASON, DAYS_PER_YEAR, SEASONS } from '../sim/clock';
+import { SEASON_FULL_DAY, seasonLook } from './seasonLook';
 
 describe('season look', () => {
   it('leaves the tile colours alone in the middle of summer', () => {
@@ -65,5 +65,19 @@ describe('season look', () => {
 
   it('repeats every year', () => {
     expect(seasonLook(3)).toEqual(seasonLook(3 + DAYS_PER_YEAR));
+  });
+});
+
+describe('SEASON_FULL_DAY', () => {
+  it('is the first day that shows a season fully, as the test menu jumps there', () => {
+    for (let k = 0; k < SEASONS.length; k++) {
+      const start = k * DAYS_PER_SEASON;
+      // Just past the turn of that day, as the game keeps the time of day (exactly on it is a rounding error short).
+      const full = seasonLook(start + SEASON_FULL_DAY + 0.001);
+      const middle = seasonLook(start + DAYS_PER_SEASON / 2);
+      expect(full).toEqual(middle);
+      expect(seasonLook(start + SEASON_FULL_DAY - 1)).not.toEqual(middle);
+    }
+    expect(seasonLook(3 * DAYS_PER_SEASON + SEASON_FULL_DAY + 0.001).snow).toBe(1);
   });
 });

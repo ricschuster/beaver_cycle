@@ -84,4 +84,9 @@ describe('test menu clock moves', () => {
     expect(dateAt(c)).toMatchObject({ season: 'autumn', dayOfSeason: 1, year: 1 });
     expect(dateAt(c).timeOfDay).toBeCloseTo(0.3);
   });
+
+  it('moves to a day in the middle of a season, and never past its last day', () => {
+    expect(dateAt(withSeason(5.3 * DAY_SECONDS, 'winter', DAYS_PER_SEASON / 2))).toMatchObject({ season: 'winter', dayOfSeason: DAYS_PER_SEASON / 2 + 1 });
+    expect(dateAt(withSeason(5.3 * DAY_SECONDS, 'winter', 99))).toMatchObject({ season: 'winter', dayOfSeason: DAYS_PER_SEASON });
+  });
 });

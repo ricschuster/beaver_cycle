@@ -3,6 +3,7 @@ import { createHeldKeys, createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { fly as flyStep, flyTarget, glide, look as lookAround, pickGround, zoomFree, type FlyTarget } from './render/flyCam';
 import { createRenderer } from './render/renderer';
+import { SEASON_FULL_DAY } from './render/seasonLook';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
 import { DAY_SECONDS, dateAt, withSeason, withTimeOfDay } from './sim/clock';
@@ -320,7 +321,9 @@ async function start(): Promise<void> {
       world = startStage(world, stage);
     },
     onSeason(season) {
-      world = setClock(world, withSeason(world.clock, season));
+      // The first day with the season's own look: its first days blend from the season before (seasonLook.ts), so
+      // the first day of winter would show only half its snow.
+      world = setClock(world, withSeason(world.clock, season, SEASON_FULL_DAY));
     },
     flyMode: {
       current: free ? 'free' : fly ? 'map' : 'off',

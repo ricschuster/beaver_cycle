@@ -85,18 +85,21 @@ The author liked this one when asked in session 55.
 - **Not in the first slice.** The first version has no predators (doc 20). The pond rule is kept, and predators come
   after ambient animals.
 
-## Interaction with animals (open)
+## Interaction with animals
 
-The author wants the player to interact with animals and will decide how later. Ideas to choose from:
+Decided by the author in session 64 (#275): all five kinds of interaction are in, and a mood has a visible effect.
 
-- **Follow** a kingfisher or an otter to a good fishing spot.
-- **Feed** a deer or a duck, with a branch or a lily pad, and be trusted by it over time.
-- **Scare** a fox off the store with a slap.
-- **Read** the animals: deer that bolt mean a predator is near.
-- **Share a pond** with ducks and frogs, which only come once the pond is mature.
+- **Read.** Deer that bolt mean a predator is near. This comes first, as the sim already holds both.
+- **Scare.** A tail slap scares a fox off the store (predators already flee a slap, see slice 3).
+- **Share a pond.** Ducks and frogs come only once the pond is mature.
+- **Feed.** Give a deer or a duck a branch or a lily pad, and it trusts the beaver more over time.
+- **Follow.** A kingfisher or an otter leads the beaver to a good food spot (a lily patch or young willow). There is no
+  fishing in the game and beavers do not eat fish, so the original "fishing spot" is dropped. **Proposal**, the author
+  has not yet confirmed this change.
 
-The sim should leave room for this: an animal has a *mood* toward the player (wary, calm, curious) and the
-interaction sets it. That is a small piece of state, and no kind of interaction is fixed yet.
+Each animal has a *mood* toward the player: wary, calm, or curious. Feeding and a calm approach raise it, a slap or a
+chase lowers it. The mood is visible: a wary animal keeps its distance and bolts early, a calm one lets the beaver come
+close, a curious one comes to look. That is a small piece of state, held only for animals the player has met.
 
 ## NPC beavers
 
@@ -137,7 +140,7 @@ family the player knows, which gives the rescue more weight.
 
 ## Open questions
 
-1. How should the player interact with animals (see the list above)? The author said later.
+1. How should the player interact with animals? Decided in session 64, see "Interaction with animals".
 2. How do the player and the other families interact (see above)? The author said later.
 3. Is the budget of 40 live animals right, and what is the real cost on the tablet? Measure with the first animals.
 4. Should wolf and bear stay, given no source for them in the Almtal? The author chose them, so yes, but it is worth

@@ -1,14 +1,17 @@
 // Draws the ponds of the sim: flat water at the pond level, cut where the ground rises through it, in the lake's look,
 // season by season, with ice in the shallows in winter (waterLook.ts). Each ground triangle next to a flooded point is
-// clipped to the part below the level, as the lake is. The ground does not change (design note 20). Reads state only.
+// clipped to the part below the level, as the lake is, and to the upstream side of the dam wall, so the water ends in a
+// straight line at the dam and not in the steps of the pond grid. The ground does not change (design note 20). Reads
+// state only.
 import * as THREE from 'three';
+import type { DamSpot } from '../sim/damSpots';
 import { POND_CELL, type Pond } from '../sim/pond';
 import type { SeasonLook } from './seasonLook';
 import { createWaterLook } from './waterLook';
 
 export interface PondView {
-  /** Draw the ponds. Rebuilds only when a pond's level or extent changes. */
-  update(ponds: readonly Pond[]): void;
+  /** Draw the ponds, each cut at the wall of its dam spot. Rebuilds only when a pond's level or extent changes. */
+  update(ponds: readonly Pond[], spots: readonly DamSpot[]): void;
   /** Sets the water colour and the ice for a season, as the lake's. */
   setSeason(look: SeasonLook): void;
 }
@@ -17,11 +20,14 @@ export interface PondView {
  * The water of one pond as a mesh geometry, or null when nothing is below the level next to a flooded point. Each vertex
  * keeps the depth of the water over the ground in a `waterDepth` attribute (0 on the shoreline), for the ice.
  */
-export function buildPondGeometry(pond: Pond): THREE.BufferGeometry | null {
+export function buildPondGeometry(pond: Pond, spot?: Pick<DamSpot, 'bed' | 'flow'>): THREE.BufferGeometry | null {
   const { n, x0, z0, heights: h, flooded, level } = pond;
   const pos: number[] = [];
   const depth: number[] = [];
   const clipped: [number, number, number][] = [];
+  const cut: [number, number, number][] = [];
+  // How far upstream of the dam wall a point is: the wall runs across the flow through the bed point (damView.ts).
+  const up = (x: number, z: number): number => (spot ? -((x - spot.bed.x) * spot.flow.x + (z - spot.bed.z) * spot.flow.z) : 1);
   const clip = (tri: [number, number, number][]): void => {
     clipped.length = 0;
     for (let k = 0; k < 3; k++) {
@@ -34,8 +40,21 @@ export function buildPondGeometry(pond: Pond): THREE.BufferGeometry | null {
         clipped.push([ax + (bx - ax) * t, az + (bz - az) * t, 0]);
       }
     }
-    for (let k = 1; k + 1 < clipped.length; k++) {
-      for (const [x, z, d] of [clipped[0]!, clipped[k]!, clipped[k + 1]!]) {
+    // Then keep the part upstream of the wall. The wall is a straight line, so the cut is exact.
+    cut.length = 0;
+    for (let k = 0; k < clipped.length; k++) {
+      const a = clipped[k]!;
+      const b = clipped[(k + 1) % clipped.length]!;
+      const ua = up(a[0], a[1]);
+      const ub = up(b[0], b[1]);
+      if (ua >= 0) cut.push(a);
+      if (ua >= 0 !== ub >= 0) {
+        const t = ua / (ua - ub);
+        cut.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]);
+      }
+    }
+    for (let k = 1; k + 1 < cut.length; k++) {
+      for (const [x, z, d] of [cut[0]!, cut[k]!, cut[k + 1]!]) {
         pos.push(x, level, z);
         depth.push(d);
       }
@@ -79,13 +98,13 @@ export function createPondView(scene: THREE.Scene, prepare: (m: THREE.Material) 
   scene.add(root);
   let shown: readonly Pond[] | null = null;
   return {
-    update(ponds) {
+    update(ponds, spots) {
       if (shown === ponds) return;
       shown = ponds;
       for (const m of root.children) (m as THREE.Mesh).geometry.dispose();
       root.clear();
       for (const pond of ponds) {
-        const geo = buildPondGeometry(pond);
+        const geo = buildPondGeometry(pond, spots.find((s) => s.id === pond.spot));
         if (geo) root.add(new THREE.Mesh(geo, material));
       }
     },

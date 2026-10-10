@@ -1,7 +1,6 @@
 name: Keep PRs up to date
 
-# OPT-IN. Move this file (and auto-merge.yml) into .github/workflows/ to use
-# it; see "Solo-maintainer auto-merge" in README.md.
+# Needs the AUTO_MERGE_TOKEN secret; see "Repo automation" in README.md.
 
 # Branch protection requires a PR to be up to date with main before it
 # merges, so when one PR merges, every other open one sits at BEHIND until

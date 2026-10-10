@@ -1,7 +1,6 @@
 name: Enable auto-merge
 
-# OPT-IN. Move this file (and update-branches.yml) into .github/workflows/ to
-# use it; see "Solo-maintainer auto-merge" in README.md for the one-time setup.
+# Needs the AUTO_MERGE_TOKEN secret; see "Repo automation" in README.md.
 #
 # Arms GitHub's auto-merge on any PR opened by the repository owner, so a PR
 # merges itself as soon as the required checks and branch protection are

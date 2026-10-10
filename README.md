@@ -1,85 +1,113 @@
 # Beaver Cycle
 
-Stack-agnostic project harness for Claude Code workflows: no tech stack baked
-in, just the process scaffolding: docs framework (design notes, ADRs,
-handoffs), issue/PR templates, contribution and security policies, a license,
-and Claude Code working rules (`CLAUDE.md`, `.claude/settings.json`).
+A calm, stylized 3D game in which you play a beaver in the real Almsee valley
+in Austria. You grow up in a lodge, build a dam and a lodge of your own, find a
+mate, raise kits, and then play the next generation, forever. There is no death
+and no losing. It is made for the author and friends to play on Android
+tablets, and it also runs in a desktop browser.
 
-## Using this template
+It is not a beaver simulation. The terrain is real (BEV elevation data and
+OpenStreetMap), but time runs faster than life and the look is stylized, not
+photoreal.
 
-1. Click "Use this template" on GitHub to create a new repo from this one.
-2. Find and replace every `Beaver Cycle` placeholder (README.md,
-   CLAUDE.md) with your project's actual name.
-3. Fill in `docs/design/00_project_brief.md`: replace every `{{...}}`
-   placeholder with real content, or delete sections that do not apply
-   (for example, the "Scope layers" section if the project has a single flat
-   scope).
-4. Fill in the `## Project purpose`, `## Project status`, `## Scope`, and
-   `## Stack` sections of `CLAUDE.md` to match.
-5. Pick a license. `LICENSE` here is all rights reserved; swap it for whatever fits, and
-   update the License section below.
-6. Once a tech stack is chosen:
-   - Fill in the `## Setup` section of `CONTRIBUTING.md` with real local-run
-     commands.
-   - Add your stack's own format/lint/typecheck/test/build job to
-     `.github/workflows/ci.yml`, alongside the existing stack-neutral
-     `repo-hygiene` job (markdown lint, no-em-dash check, docs-structure
-     check, workflow lint). Do not replace that job; add another one next to
-     it.
-   - Add a `package-ecosystem` entry to `.github/dependabot.yml` for your
-     package manager (see the commented example there).
-7. Run `scripts/bootstrap-repo-settings.sh` once (requires the GitHub CLI,
-   authenticated with admin access on the new repo) to set branch protection
-   on `main`, enable auto-merge, and create the starter label set. Templates
-   do not carry repo settings over, only files, so this step is manual.
-   Pass your CI job names as extra arguments (for example
-   `scripts/bootstrap-repo-settings.sh owner/repo repo-hygiene build`) once
-   you have added your stack's job; the default gates on `repo-hygiene` only.
-   Note this only lets a PR *request* auto-merge; someone still has to click
-   it. For a solo-maintainer repo, see "Solo-maintainer auto-merge" below.
-8. Add your first ADR to `docs/decisions/` (see `docs/decisions/README.md`
-   for the format; `docs/decisions/0001-record-architecture-decisions.md` is
-   an example) for the stack choice you just made.
-9. Delete this "Using this template" section once done, and replace it with
-   real project usage instructions (what the project does for a user, how to
-   run it).
+## What you can do today
 
-## Solo-maintainer auto-merge (optional)
+- Walk, swim, and dive in a world streamed in tiles around you, across six
+  play locations (the core by the lake first).
+- Chop trees, eat, and carry logs, then build dams, ponds, a lodge, and a food
+  store. Things wear out and need repair.
+- Live through day and night and four seasons. Winter means food stored ahead.
+- Grow from baby to teenager to adult, meet other beaver families and animals,
+  find a partner, and start the next generation.
+- Earn achievements and follow the guides.
 
-`.github/workflows-optional/` holds two workflows that make the owner's own
-green PRs merge themselves. They are not active until you move them into
-`.github/workflows/`.
+The design is in [`docs/design/`](docs/design/), starting with the brief
+([`00_project_brief.md`](docs/design/00_project_brief.md)). The order of work is
+in [`13_milestone_plan.md`](docs/design/13_milestone_plan.md), and open GitHub
+issues are the live task tracker.
 
-- `auto-merge.yml` arms squash auto-merge on PRs opened by the repository
-  owner (never on anyone else's, Dependabot included) and brings the PR level
-  with `main`.
-- `update-branches.yml` updates every armed PR after each push to `main`, so
-  strict "up to date" branch protection does not leave them stuck BEHIND.
+## Run it
 
-One-time setup: create a fine-grained personal access token for this repo only
-(Contents, Pull requests and Workflows: read/write) and store it as the
-`AUTO_MERGE_TOKEN` secret. `GITHUB_TOKEN` cannot be used because GitHub starts
-no workflows for pushes or merges made with it, so the PR's checks would never
-run on the updated branch. Rotate the PAT before it expires. Then drop the
-`push` trigger from `ci.yml`: with strict protection every PR is tested against
-current `main` before it merges.
+You need Node 22 or newer.
 
-## What's included
+```bash
+npm ci                          # install
+npm run dev                     # dev server, also on the WLAN for a tablet
+```
 
-- `CLAUDE.md`: working rules and durable context, loaded automatically by
-  Claude Code.
-- `.claude/settings.json`: default tool permissions for Claude Code sessions
-  in this repo.
-- `docs/design/`: design notes, starting with a project brief template.
-- `docs/decisions/`: Architecture Decision Records (ADRs).
-- `docs/handoffs/`: session handoff template for continuity between work
-  sessions.
-- `.github/`: issue forms, PR template, Dependabot config, a stack-neutral CI
-  workflow, and optional solo-maintainer auto-merge workflows.
-- `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`.
-- `scripts/bootstrap-repo-settings.sh`: one-time repo settings setup (branch
-  protection, auto-merge, labels) that a template cannot carry over on its
-  own.
+Open the printed URL. On a desktop, the key hints on screen show the controls;
+on a tablet, touch controls are used.
+
+The terrain tiles are not in the repository (they are derived from downloaded
+data). Without `public/tiles/` the game has no valley to load. To build them,
+which needs Python with GDAL, numpy, and Pillow:
+
+```bash
+python3 tools/area-editor/build_data.py   # download and cache data into data/raw/
+python3 tools/tiles/build_tiles.py        # cut the play area into public/tiles/
+```
+
+See `CLAUDE.md` for the full command list, including the tests, the playtests
+that play the real game, and the dam site scan.
+
+## Checks
+
+```bash
+npm run typecheck && npm test && npm run build && npm run test:e2e
+npx markdownlint-cli '**/*.md' --ignore node_modules --ignore LICENSE
+```
+
+CI runs these (see `.github/workflows/ci.yml`). The first e2e run needs
+`npx playwright install chromium`. The long playtests in `tests/e2e/` skip
+without the local tiles, so CI skips them.
+
+## On a tablet
+
+The game ships as a sideloaded Android APK built with Capacitor
+([ADR 0007](docs/decisions/0007-web-stack.md)).
+
+- [`tools/tablet-live/`](tools/tablet-live/README.md) loads the dev server over
+  the WLAN, so a code change needs no APK rebuild. For development.
+- [`tools/standalone-apk/`](tools/standalone-apk/README.md) bundles the built
+  game in an APK that plays with no computer. Debug build, for local testing
+  only: the tiles come from OpenStreetMap data, whose licence is not settled
+  ([ADR 0003](docs/decisions/0003-openstreetmap-data-use.md)).
+
+## Layout
+
+- `src/`: the game. `sim/` is state and rules (no DOM, no three.js, no input),
+  `terrain/` decodes and streams tiles, `actions/` is what the player wants as
+  plain data plus the input devices, `render/` draws sim state with three.js,
+  `ui/` is the DOM overlays such as the test menu.
+- `tests/e2e/`: Playwright smoke test and playtests.
+- `tools/`: Python data tools (`area-editor/`, `tiles/`, `dam-sites/`) and the
+  Capacitor shells for the tablet.
+- `data/areas/`: the play area shapes and travel links. `data/raw/` is
+  downloaded data and untracked.
+- `docs/`: `design/` notes and the author's answers, `decisions/` ADRs,
+  `handoffs/` session handoffs.
+- `prototypes/`: throwaway demos (the camera demo, the M0 tablet test). Not the
+  game.
+- `scripts/`: helpers such as the question handout builder and
+  `bootstrap-repo-settings.sh`.
+
+## Contributing
+
+This is a solo project for now. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the
+workflow and [`CLAUDE.md`](CLAUDE.md) for the working rules used with Claude
+Code.
+
+## Repo automation
+
+PRs opened by the repository owner arm squash auto-merge
+(`.github/workflows/auto-merge.yml`), and `update-branches.yml` brings armed
+PRs level with `main` after each push to it. Both need the `AUTO_MERGE_TOKEN`
+secret: a fine-grained personal access token for this repo only (Contents, Pull
+requests and Workflows: read/write). `GITHUB_TOKEN` cannot be used, because
+GitHub starts no workflows for pushes made with it, so the PR's checks would
+never run on the updated branch. Rotate the token before it expires.
+`scripts/bootstrap-repo-settings.sh` sets branch protection, auto-merge, and
+labels (needs the GitHub CLI with admin access).
 
 ## License
 

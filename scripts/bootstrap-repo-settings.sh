@@ -9,8 +9,8 @@
 # Usage: scripts/bootstrap-repo-settings.sh [owner/repo [check ...]]
 # If owner/repo is omitted, it is inferred from the current git remote.
 # Each check is the name of a CI job that must pass before a PR can merge;
-# the default is "repo-hygiene". Once you add your stack's own job (README.md
-# step 6), re-run with both, e.g.:
+# the default is "repo-hygiene". Once you add your stack's own job (see
+# .github/workflows/ci.yml), re-run with both, e.g.:
 #   scripts/bootstrap-repo-settings.sh owner/repo repo-hygiene build
 
 set -euo pipefail

@@ -30,6 +30,7 @@ import { createStashPanel } from './ui/stashPanel';
 import { storeCapacity, storeCondition } from './sim/food';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createKeyHints } from './ui/keyHints';
+import { WELCOME_KEY, createHelpPanel, wantsWelcome } from './ui/helpPanel';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { createFlyButtons } from './ui/flyButtons';
@@ -95,6 +96,29 @@ async function start(): Promise<void> {
   const readKeyboard = createKeyboardInput(window);
   const touch = createTouchControls(document.body, wantsTouchControls(navigator, query));
   createKeyHints(document.body, window, !wantsTouchControls(navigator, query) && !free);
+  // The "?" button opens the manual (public/manual.html), and the first start shows a welcome card. Storage can be
+  // blocked, so a failed read counts as not seen and a failed write is ignored.
+  if (!free) {
+    const remembered = (): boolean => {
+      try {
+        return localStorage.getItem(WELCOME_KEY) === '1';
+      } catch {
+        return false;
+      }
+    };
+    const help = createHelpPanel(document.body, {
+      manualUrl: `${import.meta.env.BASE_URL}manual.html`,
+      touch: wantsTouchControls(navigator, query),
+      onWelcomed() {
+        try {
+          localStorage.setItem(WELCOME_KEY, '1');
+        } catch {
+          // Not remembered: the card shows again next time.
+        }
+      },
+    });
+    if (wantsWelcome(remembered(), query, navigator.webdriver)) help.showWelcome();
+  }
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
     shadows: query.get('shadows') !== '0' && !free,
     sunDisc: !free,

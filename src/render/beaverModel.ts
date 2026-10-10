@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import type { BeaverMode } from '../sim/state';
 import type { Food } from '../sim/food';
+import { SHOT_SECONDS, type ActionKind, type BeaverAction } from './beaverAction';
 
 /** Coats within beaver browns (Q59), indexed by `coatOf` in the sim. Fur, dark fur for legs and ears, and belly. */
 export const COATS = [
@@ -45,16 +46,68 @@ export function slapPose(age: number): { tail: number | null; dip: number } {
   return { tail: DOWN * (1 - ease), dip: 0.15 * (1 - ease) };
 }
 
+/**
+ * A pose for an action, as changes from the walking pose. Angles are radians. `sit` rears the body up about the hips
+ * (negative lifts the nose), `lean` tips it forward about the feet, `head` nods it down, `turn` turns it, `paws` is the
+ * angle of both front legs from the body (negative reaches forward and up, or null leaves them walking), `split` moves
+ * the left paw up and the right down by that much, and `tail` is the tail's lift from the ground (null leaves it).
+ * `weight` (0 to 1) fades a one-off pose in and out.
+ */
+export interface ActionPose {
+  weight: number;
+  sit: number;
+  lean: number;
+  head: number;
+  turn: number;
+  paws: number | null;
+  split: number;
+  tail: number | null;
+}
+
+/** The pose for an action `age` seconds after it began. */
+export function actionPose(kind: ActionKind, age: number): ActionPose {
+  const still = { weight: 1, sit: 0, lean: 0, head: 0, turn: 0, paws: null, split: 0, tail: null };
+  // One-off poses fade in over a fifth of a second and out over the last third.
+  const fade = (seconds: number): number => smoothstep(0, 0.2, age) * smoothstep(seconds, seconds - 0.3, age);
+  switch (kind) {
+    case 'gnaw':
+      // Up on the hind legs, paws on the trunk, the head working side to side as the teeth bite in.
+      return { ...still, sit: -0.35, head: 0.15 + 0.07 * Math.sin(age * 28), turn: 0.2 * Math.sin(age * 2.2), paws: -1.1, tail: -0.2 };
+    case 'dig':
+      // Nose down at the drift, front paws scraping in turn.
+      return { ...still, lean: 0.18, head: 0.35, turn: 0.1 * Math.sin(age * 3), paws: -0.5, split: 0.8 * Math.sin(age * 14), tail: 0.6 };
+    case 'drag':
+      // Head low, pulling the log along in the teeth.
+      return { ...still, lean: 0.1, head: 0.3, tail: 0.15 };
+    case 'build':
+      // Rear up and pat the piece into place with both paws, twice.
+      return { ...still, weight: fade(SHOT_SECONDS.build), sit: -0.3, head: 0.25, paws: -0.95 + 1.05 * (0.5 - 0.5 * Math.cos((age * Math.PI * 2) / 0.55)) };
+    case 'eat':
+      // Sit up, hold the food in the front paws, and nibble.
+      return { ...still, weight: fade(SHOT_SECONDS.eat), sit: -0.75, head: 0.35 + 0.06 * Math.sin(age * 24), turn: 0.1 * Math.sin(age * 1.5), paws: -1.5, tail: -0.15 };
+    case 'pick':
+      // A quick dip of the head to take something into the mouth.
+      return { ...still, weight: Math.sin((Math.PI * Math.min(age, SHOT_SECONDS.pick)) / SHOT_SECONDS.pick), lean: 0.2, head: 0.45 };
+    case 'groom':
+      // Sit up and comb the face and fur with the front paws.
+      return { ...still, weight: fade(SHOT_SECONDS.groom), sit: -0.7, head: 0.4 + 0.1 * Math.sin(age * 3), turn: 0.25 * Math.sin(age * 2), paws: -1.6, split: 0.5 * Math.sin(age * 9), tail: -0.15 };
+  }
+}
+
+/** The hip the body rears up about when it sits, in the model's frame. */
+const HIP = { y: 0.25, z: -0.3 };
+
 export interface BeaverModel {
   group: THREE.Group;
   /** Change the coat, an index into `COATS`. A new baby has its own colour. */
   setCoat(coat: number, shade?: number): void;
   /**
    * Poses the model. `time` is seconds, `speed01` is 0 standing and 1 at full pace,
-   * `mode` picks the pose, `tilt` (-1 rising to 1 sinking) pitches a diver's nose, and
-   * `slapAge` is the seconds since a tail slap began, or null, and `carry` is the piece held in the mouth.
+   * `mode` picks the pose, `tilt` (-1 rising to 1 sinking) pitches a diver's nose,
+   * `slapAge` is the seconds since a tail slap began, or null, `carry` is the piece held in the mouth, and `action` is
+   * what the beaver is doing (`beaverAction.ts`), or null.
    */
-  update(time: number, speed01: number, mode?: BeaverMode, tilt?: number, slapAge?: number | null, carry?: Food | 'mud' | 'rock' | null): void;
+  update(time: number, speed01: number, mode?: BeaverMode, tilt?: number, slapAge?: number | null, carry?: Food | 'mud' | 'rock' | null, action?: BeaverAction | null): void;
 }
 
 export function part(geometry: THREE.BufferGeometry, color: number, x: number, y: number, z: number): THREE.Mesh {
@@ -307,6 +360,11 @@ export function createBeaverModel(coat = 0): BeaverModel {
   let under = 0;
   let pitch = 0;
   let last = 0;
+  // The action pose and how much of it shows. It eases in and out, and the last pose is held while it fades.
+  let doing: ActionPose | null = null;
+  let weight = 0;
+  const rest = legs.map((l) => l.position.clone());
+  const attach = new THREE.Vector3();
 
   return {
     group,
@@ -319,7 +377,7 @@ export function createBeaverModel(coat = 0): BeaverModel {
       for (const m of painted.belly) m.color.copy(tint(c.belly));
       torso.paint(tint(c.fur), tint(c.belly));
     },
-    update(time, speed01, mode = 'walk', tilt = 0, slapAge = null, carry = null) {
+    update(time, speed01, mode = 'walk', tilt = 0, slapAge = null, carry = null, action = null) {
       branch.visible = carry === 'branch';
       lily.visible = carry === 'lily';
       mud.visible = carry === 'mud';
@@ -340,6 +398,23 @@ export function createBeaverModel(coat = 0): BeaverModel {
       const slapping = slapAge === null ? null : slapPose(slapAge);
       body.rotation.x = -0.12 * swim * speed01 * (1 - under) + pitch * 0.9 * under + (slapping?.dip ?? 0);
       head.rotation.x = -0.15 * swim - pitch * 0.35 * under;
+      head.rotation.y = 0;
+
+      if (action) doing = actionPose(action.kind, action.age);
+      weight += ((action ? doing!.weight : 0) - weight) * Math.min(1, dt * 10);
+      if (!action && weight < 0.001) doing = null;
+      const w = doing ? weight : 0;
+      // Afloat there is nothing to sit on, so the body does not rear up.
+      const sit = (doing?.sit ?? 0) * w * (1 - swim);
+      if (doing) {
+        // Rear up about the hips: turn the body and move it so the hips stay where they are.
+        body.rotation.x += sit + doing.lean * w;
+        body.position.y += HIP.y - (HIP.y * Math.cos(sit) - HIP.z * Math.sin(sit));
+        body.position.z = HIP.z - (HIP.y * Math.sin(sit) + HIP.z * Math.cos(sit));
+        head.rotation.x += doing.head * w;
+        head.rotation.y = doing.turn * w;
+      } else body.position.z = 0;
+      body.updateMatrix();
 
       legs.forEach((l, i) => {
         const front = i < 2;
@@ -347,11 +422,25 @@ export function createBeaverModel(coat = 0): BeaverModel {
         const walkAngle = swing * 0.5 * speed01;
         // Swimming: front legs tuck under the chest, back legs trail and kick.
         const swimAngle = front ? 1.3 : 0.9 + swing * (0.7 + 0.3 * under) * (0.3 + 0.7 * speed01);
-        l.rotation.x = walkAngle * (1 - swim) + swimAngle * swim;
+        let angle = walkAngle * (1 - swim) + swimAngle * swim;
+        l.position.copy(rest[i]!);
+        if (doing && front && doing.paws !== null) {
+          // The front legs go with the chest as it rears up, and the paws reach, pat, or hold.
+          attach.copy(rest[i]!).applyMatrix4(body.matrix);
+          l.position.lerp(attach, w);
+          const paw = body.rotation.x + doing.paws + (i === 0 ? -doing.split : doing.split);
+          angle += (paw - angle) * w;
+        } else if (doing && !front && doing.paws !== null) {
+          // The hind legs stand still under a beaver that works with its paws.
+          angle *= 1 - w;
+        }
+        l.rotation.x = angle;
       });
 
       const walkTail = 0.35 + Math.sin(phase * 0.5) * 0.05 * speed01;
       tail.rotation.x = slapping?.tail ?? walkTail * (1 - swim) + -0.05 * swim;
+      // The tail's lift is measured from the ground, so the body's own tilt is taken off.
+      if (doing && doing.tail !== null && !slapping) tail.rotation.x += (doing.tail - body.rotation.x - tail.rotation.x) * w;
       tail.rotation.y = Math.sin(time * 2.5) * 0.25 * swim * speed01;
     },
   };

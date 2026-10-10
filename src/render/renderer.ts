@@ -11,7 +11,8 @@ import { DIVE_RATE, SWIM_ENTER_DEPTH, SWIM_SINK, type Slap, type WorldState } fr
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
 import { STAGE_RULES, stageAt } from '../sim/life';
-import { createBeaverModel, type BeaverModel } from './beaverModel';
+import { SLAP_DURATION, createBeaverModel, type BeaverModel } from './beaverModel';
+import { createActionWatcher, idleGroom, seedOf } from './beaverAction';
 import { HEARD_DISTANCE, SLAP_EVERY } from '../sim/partners';
 import type { Parent, ParentId } from '../sim/family';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
@@ -44,7 +45,16 @@ export interface TerrainSource {
 
 export interface Renderer {
   /** Draw the world. `parents` are Mama and Papa from `parentsAt`, none when the player beaver is grown. */
-  draw(world: WorldState, view: ViewState, parents?: readonly Parent[], animals?: readonly Animal[], neighbours?: readonly NeighbourBeaver[], drifts?: readonly { x: number; y: number; z: number }[]): void;
+  draw(
+    world: WorldState,
+    view: ViewState,
+    parents?: readonly Parent[],
+    animals?: readonly Animal[],
+    neighbours?: readonly NeighbourBeaver[],
+    drifts?: readonly { x: number; y: number; z: number }[],
+    /** True while the player digs at a snowdrift, which the sim does not keep. */
+    digging?: boolean,
+  ): void;
   terrain: TerrainView | null;
   /** Turn the sun shadows on or off while running. Does nothing if the game started without them. */
   setShadows(on: boolean): void;
@@ -203,6 +213,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const pondView = createPondView(scene, prepare);
   const interior = createLodgeInterior();
   const beaverModel = createBeaverModel();
+  // What the player's beaver is doing, for its poses: the sim keeps no state for most of it.
+  const actions = createActionWatcher();
   const beaver = beaverModel.group;
   scene.add(beaver);
   const prepareBeaver = (group: THREE.Group): void =>
@@ -328,7 +340,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     setShadows(on) {
       shadowsOn = on && shadows;
     },
-    draw(world, view, parents = [], animals = [], neighbours = [], drifts = []) {
+    draw(world, view, parents = [], animals = [], neighbours = [], drifts = [], digging = false) {
       const b = world.beaver;
       const moved = Math.hypot(b.x - lastX, b.z - lastZ);
       lastX = b.x;
@@ -342,7 +354,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       // Only a diver pitches: -1 rising and 1 sinking at the dive rate.
       const tilt = b.mode === 'dive' ? Math.max(-1, Math.min(1, -rate / DIVE_RATE)) : 0;
       const slapAge = world.lastSlap ? world.time - world.lastSlap.time : null;
-      beaverModel.update(now, pace, b.mode, tilt, slapAge, world.carry ?? world.haul?.kind ?? null);
+      const action = actions.next(world, digging, pace < 0.05 && b.mode === 'walk');
+      // While it eats, the food it has just taken from the mouth is still shown in its paws.
+      const held = world.carry ?? world.haul?.kind ?? (action?.kind === 'eat' ? action.food ?? null : null);
+      beaverModel.update(now, pace, b.mode, tilt, slapAge, held, action);
       if (world.lastSlap !== seenSlap) {
         seenSlap = world.lastSlap;
         splashAt = seenSlap && b.mode === 'swim' ? { slap: seenSlap, y: b.y + SWIM_SINK + 0.03 } : null;
@@ -384,7 +399,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
           entry.model.setCoat(p.coat.coat, p.coat.shade);
         }
         entry.pace += (p.pace - entry.pace) * 0.1;
-        entry.model.update(now, entry.pace, p.mode === 'swim' ? 'swim' : 'walk');
+        const parentStill = entry.pace < 0.05 && p.mode !== 'swim';
+        entry.model.update(now, entry.pace, p.mode === 'swim' ? 'swim' : 'walk', 0, null, null, idleGroom(world.time, parentStill, seedOf(p.id)));
         g.position.set(p.x, p.y, p.z);
         g.rotation.y = p.heading;
       }
@@ -454,7 +470,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         const heard = p.state === 'alone' && Math.hypot(p.x - b.x, p.z - b.z) <= HEARD_DISTANCE;
         const phase = (p.id.length * 7 + p.id.charCodeAt(p.id.length - 1)) % SLAP_EVERY;
         const slapAge = heard ? (world.time + phase) % SLAP_EVERY : p.metAt === null ? null : world.time - p.metAt;
-        entry.model.update(now, entry.pace, swim ? 'swim' : 'walk', 0, slapAge);
+        const slapping = slapAge !== null && slapAge >= 0 && slapAge < SLAP_DURATION;
+        const groom = slapping ? null : idleGroom(world.time, entry.pace < 0.05 && !swim, seedOf(p.id));
+        entry.model.update(now, entry.pace, swim ? 'swim' : 'walk', 0, slapAge, null, groom);
         const wanted = home && world.lodge ? Math.atan2(-nest.x, -nest.z) : p.heading;
         if (g.parent !== drawn) drawn.add(g);
         g.position.set(at.x, at.y, at.z);

@@ -77,7 +77,7 @@ Everyday (gate means CI blocks a merge on it):
 - `python3 tools/dam-sites/scan_dam_sites.py` - draft scan of the streams in `public/tiles/` for dam
   sites (writes `public/tiles/dam_sites.json`, 10 s; the test menu toggles them, `?damsites=1` starts with them on); `python3 -m pytest tools/dam-sites` checks it
 - `npm run dev`, then open `/tools/model-preview/` - the beaver model alone, to check the look (query
-  `?mode=swim&speed=1&carry=branch&coat=2&yaw=90&t=1`; `t` freezes the time, drag turns the camera)
+  `?mode=swim&speed=1&carry=branch&coat=2&yaw=90&t=1`, or `?action=eat&carry=lily`; `t` freezes the time, drag turns the camera)
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene
 - `python3 scripts/build_question_docx.py QUESTIONS.md OUT.docx TEMPLATE.docx` -
   build a printable handout

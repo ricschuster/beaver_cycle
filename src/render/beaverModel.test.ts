@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { COATS, SLAP_DURATION, createBeaverModel, slapPose } from './beaverModel';
+import { COATS, SLAP_DURATION, actionPose, createBeaverModel, slapPose } from './beaverModel';
+import { SHOT_SECONDS } from './beaverAction';
 
 /** The box of what is drawn: hidden parts do not count. */
 function visibleBox(group: THREE.Object3D): THREE.Box3 {
@@ -149,5 +150,59 @@ describe('createBeaverModel', () => {
       return visibleBox(m.group).min.z;
     };
     expect(backEnd(0.28)).toBeGreaterThan(backEnd(null) + 0.1);
+  });
+});
+
+describe('actionPose', () => {
+  const kinds = ['gnaw', 'dig', 'drag', 'build', 'eat', 'pick', 'groom'] as const;
+
+  it('fades the one-off poses in and out, so they start and end at the walking pose', () => {
+    for (const kind of ['build', 'eat', 'pick', 'groom'] as const) {
+      expect(actionPose(kind, 0).weight).toBeCloseTo(0);
+      expect(actionPose(kind, SHOT_SECONDS[kind]).weight).toBeCloseTo(0);
+      expect(actionPose(kind, SHOT_SECONDS[kind] / 2).weight).toBeGreaterThan(0.9);
+    }
+  });
+
+  it('moves smoothly, with no jumps from one moment to the next', () => {
+    for (const kind of kinds) {
+      let prev = actionPose(kind, 0);
+      for (let t = 0.01; t < 3; t += 0.01) {
+        const cur = actionPose(kind, t);
+        for (const k of ['weight', 'sit', 'lean', 'head', 'turn', 'split'] as const) expect(Math.abs(cur[k] - prev[k])).toBeLessThan(0.15);
+        prev = cur;
+      }
+    }
+  });
+});
+
+describe('createBeaverModel with an action', () => {
+  /** The highest point of the head after `seconds` of an action. */
+  const headTop = (kind: (typeof SHOTS)[number] | 'gnaw', seconds: number): number => {
+    const m = createBeaverModel();
+    for (let t = 0; t <= seconds; t += 1 / 30) m.update(t, 0, 'walk', 0, null, null, { kind, age: t });
+    return visibleBox(m.group).max.y;
+  };
+  const SHOTS = ['eat', 'groom'] as const;
+
+  it('sits up to eat and to groom, and rears up to gnaw', () => {
+    const standing = visibleBox(createBeaverModel().group).max.y;
+    expect(headTop('eat', 1.2)).toBeGreaterThan(standing + 0.15);
+    expect(headTop('groom', 1.6)).toBeGreaterThan(standing + 0.15);
+    expect(headTop('gnaw', 1)).toBeGreaterThan(standing + 0.05);
+  });
+
+  it('keeps its hind feet on the ground while it sits up', () => {
+    const m = createBeaverModel();
+    for (let t = 0; t <= 1.2; t += 1 / 30) m.update(t, 0, 'walk', 0, null, null, { kind: 'eat', age: t });
+    expect(visibleBox(m.group).min.y).toBeGreaterThan(-0.05);
+  });
+
+  it('goes back to the walking pose after the action', () => {
+    const m = createBeaverModel();
+    const standing = visibleBox(m.group).max.y;
+    for (let t = 0; t <= 1; t += 1 / 30) m.update(t, 0, 'walk', 0, null, null, { kind: 'groom', age: t });
+    for (let t = 1; t <= 2; t += 1 / 30) m.update(t, 0, 'walk', 0, null, null, null);
+    expect(visibleBox(m.group).max.y).toBeCloseTo(standing, 2);
   });
 });

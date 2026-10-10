@@ -429,7 +429,7 @@ async function start(): Promise<void> {
     // A fox or owl that notices the beaver on land becomes a predator and is drawn from its own state (note 24, slice 3).
     const met = meetPredators(world, ambient, world.lastSlap !== null && world.lastSlap.time === world.time, dt, ponded);
     world = met.world;
-    for (const e of met.events) toast.show(PREDATOR_TEXT(e));
+    for (const e of met.events) toast.show(PREDATOR_TEXT(e), true);
     const engaged = new Set(world.predators.map((p) => p.id));
     const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded)];
     renderer.draw(world, rig.view, [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)], animals, neighboursAt(world.neighbours, world.clock, ponded));

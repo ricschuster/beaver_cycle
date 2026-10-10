@@ -1,7 +1,8 @@
 // A short message that appears at the top centre and fades away, for things like an achievement won. Messages that
 // come in while one is showing wait in a queue and show in turn. DOM only.
 export interface Toast {
-  show(text: string): void;
+  /** `urgent` shows at once, over the one on screen, for a warning that is stale by the time the queue reaches it. The queue is kept. */
+  show(text: string, urgent?: boolean): void;
 }
 
 /** How long a toast stays, in milliseconds. */
@@ -19,22 +20,35 @@ export function createToast(parent: HTMLElement): Toast {
   parent.appendChild(root);
   const queue: string[] = [];
   let showing = false;
+  // Each showing has a number, so the timers of one that an urgent toast has replaced do nothing.
+  let shown = 0;
+  const display = (text: string): void => {
+    showing = true;
+    root.textContent = text;
+    root.style.opacity = '1';
+    const mine = ++shown;
+    setTimeout(() => {
+      if (mine !== shown) return;
+      root.style.opacity = '0';
+      setTimeout(() => {
+        if (mine === shown) next();
+      }, TOAST_FADE_MS);
+    }, TOAST_MS);
+  };
   const next = (): void => {
     const text = queue.shift();
     if (text === undefined) {
       showing = false;
       return;
     }
-    showing = true;
-    root.textContent = text;
-    root.style.opacity = '1';
-    setTimeout(() => {
-      root.style.opacity = '0';
-      setTimeout(next, TOAST_FADE_MS);
-    }, TOAST_MS);
+    display(text);
   };
   return {
-    show(text) {
+    show(text, urgent = false) {
+      if (urgent) {
+        display(text);
+        return;
+      }
       queue.push(text);
       if (!showing) next();
     },

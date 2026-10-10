@@ -2,7 +2,6 @@ import { expect, test, type Page } from '@playwright/test';
 import { SOLID_RADIUS, lodgeCondition } from '../../src/sim/lodge';
 import { storeCondition } from '../../src/sim/food';
 import { damCondition } from '../../src/sim/dam';
-import { DAY_SECONDS } from '../../src/sim/clock';
 import { dragLog, enterLodgeAndRest, fellNearestTree, hasTiles, hudText, shot, startGame, tap, walkTo, walkToPoint, walkToStore, world } from './helpers';
 // Wear, repair, and the homes the family has left, in the real valley (docs/design/15_build_and_repair.md). `?age=N` starts the
 // test lodge and store N game days old: the lodge is worn at 40 days and broken at 68, the store at 20 and 34, a dam the test
@@ -195,7 +194,7 @@ test.describe('dams', () => {
 });
 
 test.describe('the home the family has left', () => {
-  test('stays solid, is without a store, ages, and its parents stay in the pond', async ({ page }) => {
+  test('stays solid, is without a store, does not wear, and its parents stay in the pond', async ({ page }) => {
     test.setTimeout(240_000);
     await start(page, 'stage=teenager');
     const w0 = await world(page);
@@ -235,15 +234,13 @@ test.describe('the home the family has left', () => {
       expect(p.inside).toBeFalsy();
     }
     expect(parents.map((p: any) => p.coat)).toEqual(home.parents);
-    // It ages with the game clock, like the lodge that stands, and its wear is not reset by going away.
+    // The parents keep it up (Q63), so it does not wear with the game clock, and a season going by changes nothing.
     const level = (x: any): number => lodgeCondition(x.formerHomes[0], x.clock);
-    const before = level(await world(page));
+    expect(level(await world(page))).toBe(1);
     await openMenu(page);
     await page.locator('button[data-season="winter"]').click();
     await openMenu(page);
-    const after = level(await world(page));
-    expect(after).toBeLessThan(before);
-    expect(after).toBeCloseTo(before - (30 * DAY_SECONDS * 0.5) / (40 * DAY_SECONDS), 1);
+    expect(level(await world(page))).toBe(1);
     await shot(page, 'wear-06-former-home');
   });
 

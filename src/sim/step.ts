@@ -2,7 +2,7 @@ import { partnerKeepsUp } from './upkeep';
 import { LODGE_CLOCK_RATE } from './clock';
 import { noActions, type Actions } from '../actions/actions';
 import type { Terrain } from './terrain';
-import { atStore, storeCapacity, storeCondition, strippable, tapped, trimmed } from './food';
+import { atStore, branchFactor, padFactor, storeCapacity, storeCondition, strippable, tapped, trimmed } from './food';
 import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, checkSite, followPond, lodgeSolid, type Lodge, nearLodge, towardDoor } from './lodge';
 import { damAt, placed, spotAt } from './dam';
@@ -53,7 +53,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   }
   const b = world.beaver;
   const rules = STAGE_RULES[stageAt(world.clock, world.bornAt)];
-  const speed = rules.speed * (b.mode === 'dive' ? DIVE_SPEED : b.mode === 'swim' ? SWIM_SPEED : WALK_SPEED) * world.speedMultiplier * (world.drag ? DRAG_SPEED : 1) * hurtFactor(world.hurtAt, world.clock);
+  const speed = rules.speed * (b.mode === 'dive' ? DIVE_SPEED : b.mode === 'swim' ? SWIM_SPEED : WALK_SPEED) * world.speedMultiplier * (world.drag ? DRAG_SPEED : 1) * hurtFactor(world.hurtAt, world.clock) * (b.mode === 'walk' ? 1 : padFactor(world.padAt, world.clock));
   // The move is swept in short steps so a fast beaver cannot jump through a trunk or over a floating log. Trunks
   // stop the beaver, which slides round them, and it shoves floating logs out of its way.
   const total = { x: x * speed * dt, z: z * speed * dt };
@@ -139,6 +139,9 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     lastSlap,
     // Eating a lily pad heals a beaver that a predator hurt (Q12).
     hurtAt: eating && world.carry === 'lily' ? null : world.hurtAt,
+    // Each food has its own small lift (#171): a pad for swimming, a branch for felling.
+    padAt: eating && world.carry === 'lily' ? world.clock : world.padAt,
+    branchAt: eating && world.carry === 'branch' ? world.clock : world.branchAt,
     beaver,
   };
   // The lone beavers: one the player comes near follows it, and moves into a whole lodge.
@@ -300,7 +303,7 @@ function work(world: WorldState, b: BeaverState, actions: Actions, dt: number, m
     const t = trees.nearest(b.x, b.z, CHOP_REACH, new Set(felled));
     if (t) chop = { id: t.id, x: t.x, z: t.z, wood: t.wood, progress: 0 };
   } else if (chop) {
-    chop = { ...chop, progress: chop.progress + dt };
+    chop = { ...chop, progress: chop.progress + dt * branchFactor(world.branchAt, clock) };
   }
   if (!chop || chop.progress < CHOP_TIME) return { chop, felled, logs, drag };
   const fell = Math.atan2(chop.x - b.x, chop.z - b.z);

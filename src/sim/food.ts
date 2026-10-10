@@ -1,6 +1,7 @@
 // The food store: a pile of branches and lily pads under the water beside the lodge door (16_food_store.md). The
 // beaver strips branches off felled logs, carries one piece at a time in its mouth, and drops it at the store. In
 // winter it takes a piece out and eats it inside the lodge. Plain data and pure functions, no three.js (ADR 0007).
+import { DAY_SECONDS } from './clock';
 import { DOOR_DISTANCE, DOOR_RUN, doorPoint, lodgeComplete, type Lodge } from './lodge';
 import { distanceToLog, type Log } from './logs';
 import { STORE_WORN_DAYS, condition, stageOf, type Wear } from './wear';
@@ -12,6 +13,20 @@ export type Stock = readonly (Food | null)[];
 
 /** Meals a piece gives when eaten: a branch is worth two lily pads (#155, 16_food_store.md). */
 export const MEALS: Record<Food, number> = { branch: 2, lily: 1 };
+
+/** Eating a lily pad speeds up swimming and diving by this factor, for `PAD_BOOST_TIME` clock seconds (#171, 16_food_store.md). */
+export const PAD_BOOST = 1.3;
+export const PAD_BOOST_TIME = 60;
+/** Eating a branch makes the beaver fell a tree this much faster, for one game day ("well fed", #171). */
+export const BRANCH_BOOST = 1.25;
+export const BRANCH_BOOST_TIME = DAY_SECONDS;
+
+const lasts = (since: number | null, clock: number, time: number): boolean => since !== null && clock >= since && clock - since < time;
+
+/** Swim and dive speed factor from a lily pad eaten at `padAt`: 1 when it has worn off. */
+export const padFactor = (padAt: number | null, clock: number): number => (lasts(padAt, clock, PAD_BOOST_TIME) ? PAD_BOOST : 1);
+/** Felling speed factor from a branch eaten at `branchAt`: 1 when it has worn off. */
+export const branchFactor = (branchAt: number | null, clock: number): number => (lasts(branchAt, clock, BRANCH_BOOST_TIME) ? BRANCH_BOOST : 1);
 
 /**
  * Pieces the store holds: enough for a family of 7 through a winter and some more. A tuning number, not set by the

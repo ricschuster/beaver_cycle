@@ -95,7 +95,7 @@ export function actionPose(kind: ActionKind, age: number): ActionPose {
 }
 
 /** The hip the body rears up about when it sits, in the model's frame. */
-const HIP = { y: 0.25, z: -0.3 };
+const HIP = { y: 0.28, z: -0.3 };
 
 export interface BeaverModel {
   group: THREE.Group;
@@ -214,7 +214,7 @@ function bodyShape(): { mesh: THREE.Mesh; paint: (fur: THREE.Color, belly: THREE
   geo.computeVertexNormals();
   const colors = new THREE.BufferAttribute(new Float32Array(pos.count * 3), 3);
   geo.setAttribute('color', colors);
-  const mesh = furry(part(geo, 0xffffff, 0, 0.36, -0.05));
+  const mesh = furry(part(geo, 0xffffff, 0, 0.33, -0.05));
   (mesh.material as THREE.MeshLambertMaterial).vertexColors = true;
   const c = new THREE.Color();
   return {
@@ -264,10 +264,18 @@ function webbedFoot(length: number, width: number): THREE.BufferGeometry {
 }
 
 /** A leg hinged at the hip or shoulder, `length` up from the ground. Hind legs have big webbed feet. */
-function leg(x: number, z: number, length: number, hind: boolean, dark: number): THREE.Group {
+/**
+ * A leg hinged at the shoulder or hip, `length` up from the ground and inside the body, so it never comes apart from it.
+ * The top is a furry shoulder, or a big haunch on a hind leg, and the lower leg and foot are dark. Hind legs have big
+ * webbed feet.
+ */
+function leg(x: number, z: number, length: number, hind: boolean, fur: number, dark: number): THREE.Group {
   const g = new THREE.Group();
   g.position.set(x, length, z);
-  g.add(part(new THREE.CapsuleGeometry(hind ? 0.06 : 0.048, length - 0.1, 4, 8), dark, 0, -length / 2, 0));
+  if (hind) g.add(furry(ellipsoid(0.11, 0.16, 0.17, fur, 0, -0.04, 0)));
+  else g.add(furry(ellipsoid(0.075, 0.12, 0.08, fur, 0, -0.06, 0)));
+  const lower = length * 0.55;
+  g.add(part(new THREE.CapsuleGeometry(hind ? 0.055 : 0.045, lower - 0.06, 4, 8), dark, 0, -length + lower / 2 + 0.02, 0));
   if (hind) g.add(part(webbedFoot(0.2, 0.17), dark, 0, -length, -0.04));
   else g.add(ellipsoid(0.065, 0.035, 0.08, dark, 0, -length + 0.035, 0.035));
   return g;
@@ -282,11 +290,9 @@ export function createBeaverModel(coat = 0): BeaverModel {
   group.add(body);
   const torso = bodyShape();
   body.add(torso.mesh);
-  // Haunches over the hind legs.
-  for (const s of [-1, 1]) body.add(furry(ellipsoid(0.1, 0.15, 0.17, FUR, s * 0.21, 0.36, -0.3)));
 
   const head = new THREE.Group();
-  head.position.set(0, 0.5, 0.5);
+  head.position.set(0, 0.47, 0.5);
   body.add(head);
   head.add(furry(ellipsoid(0.19, 0.165, 0.19, FUR, 0, 0.02, 0)));
   for (const s of [-1, 1]) {
@@ -336,13 +342,14 @@ export function createBeaverModel(coat = 0): BeaverModel {
 
   // Tail: a flat paddle hinged at the rump. Rotate `tail.rotation.x` to slap.
   const tail = new THREE.Group();
-  tail.position.set(0, 0.27, -0.58);
+  tail.position.set(0, 0.24, -0.58);
   tail.rotation.x = 0.35;
   body.add(tail);
   tail.add(tailShape());
 
-  const legs = [leg(-0.16, 0.27, 0.22, false, DARK_FUR), leg(0.16, 0.27, 0.22, false, DARK_FUR), leg(-0.2, -0.3, 0.24, true, DARK_FUR), leg(0.2, -0.3, 0.24, true, DARK_FUR)];
-  group.add(...legs);
+  // The legs ride on the body, so they go with it when it bobs, dips, or sits up.
+  const legs = [leg(-0.15, 0.27, 0.27, false, FUR, DARK_FUR), leg(0.15, 0.27, 0.27, false, FUR, DARK_FUR), leg(-0.19, -0.3, 0.28, true, FUR, DARK_FUR), leg(0.19, -0.3, 0.28, true, FUR, DARK_FUR)];
+  body.add(...legs);
 
   // The parts that take the coat's colours, found by their colour, so setCoat can paint them again.
   const painted: Record<'fur' | 'dark' | 'belly', THREE.MeshLambertMaterial[]> = { fur: [], dark: [], belly: [] };
@@ -363,8 +370,6 @@ export function createBeaverModel(coat = 0): BeaverModel {
   // The action pose and how much of it shows. It eases in and out, and the last pose is held while it fades.
   let doing: ActionPose | null = null;
   let weight = 0;
-  const rest = legs.map((l) => l.position.clone());
-  const attach = new THREE.Vector3();
 
   return {
     group,
@@ -414,7 +419,6 @@ export function createBeaverModel(coat = 0): BeaverModel {
         head.rotation.x += doing.head * w;
         head.rotation.y = doing.turn * w;
       } else body.position.z = 0;
-      body.updateMatrix();
 
       legs.forEach((l, i) => {
         const front = i < 2;
@@ -422,17 +426,12 @@ export function createBeaverModel(coat = 0): BeaverModel {
         const walkAngle = swing * 0.5 * speed01;
         // Swimming: front legs tuck under the chest, back legs trail and kick.
         const swimAngle = front ? 1.3 : 0.9 + swing * (0.7 + 0.3 * under) * (0.3 + 0.7 * speed01);
-        let angle = walkAngle * (1 - swim) + swimAngle * swim;
-        l.position.copy(rest[i]!);
-        if (doing && front && doing.paws !== null) {
-          // The front legs go with the chest as it rears up, and the paws reach, pat, or hold.
-          attach.copy(rest[i]!).applyMatrix4(body.matrix);
-          l.position.lerp(attach, w);
-          const paw = body.rotation.x + doing.paws + (i === 0 ? -doing.split : doing.split);
+        // On land the legs stand upright however the body tips, so the feet stay on the ground; afloat they go with it.
+        let angle = walkAngle * (1 - swim) + swimAngle * swim - body.rotation.x * (1 - swim);
+        if (doing && doing.paws !== null) {
+          // Front paws reach, pat, or hold, and hind legs stand still under a beaver that works with its paws.
+          const paw = front ? doing.paws + (i === 0 ? -doing.split : doing.split) : -body.rotation.x * (1 - swim);
           angle += (paw - angle) * w;
-        } else if (doing && !front && doing.paws !== null) {
-          // The hind legs stand still under a beaver that works with its paws.
-          angle *= 1 - w;
         }
         l.rotation.x = angle;
       });

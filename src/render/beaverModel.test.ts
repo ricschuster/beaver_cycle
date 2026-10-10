@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { COATS, SLAP_DURATION, actionPose, createBeaverModel, slapPose } from './beaverModel';
-import { SHOT_SECONDS } from './beaverAction';
+import { SHOT_SECONDS, type BeaverAction } from './beaverAction';
 
 /** The box of what is drawn: hidden parts do not count. */
 function visibleBox(group: THREE.Object3D): THREE.Box3 {
@@ -192,10 +192,56 @@ describe('createBeaverModel with an action', () => {
     expect(headTop('gnaw', 1)).toBeGreaterThan(standing + 0.05);
   });
 
-  it('keeps its hind feet on the ground while it sits up', () => {
+  /** The lowest point of the dark hind feet (behind the middle), which stand on the ground. */
+  const hindFeet = (m: ReturnType<typeof createBeaverModel>): number => {
+    m.group.updateMatrixWorld(true);
+    let low = Infinity;
+    m.group.traverseVisible((o) => {
+      if (!(o instanceof THREE.Mesh) || (o.material as THREE.MeshLambertMaterial).color.getHex() !== COATS[0].dark) return;
+      const box = new THREE.Box3().setFromObject(o);
+      if (box.getCenter(new THREE.Vector3()).z < -0.1) low = Math.min(low, box.min.y);
+    });
+    return low;
+  };
+
+  it('keeps its hind feet on the ground while it sits up, neither in it nor above it', () => {
     const m = createBeaverModel();
     for (let t = 0; t <= 1.2; t += 1 / 30) m.update(t, 0, 'walk', 0, null, null, { kind: 'eat', age: t });
-    expect(visibleBox(m.group).min.y).toBeGreaterThan(-0.05);
+    expect(Math.abs(hindFeet(m))).toBeLessThan(0.03);
+  });
+
+  it('keeps every leg joined to the body, walking, swimming, slapping, and sitting up', () => {
+    const poses: [number, 'walk' | 'swim', boolean, BeaverAction['kind'] | null][] = [
+      [1, 'walk', false, null],
+      [1, 'swim', false, null],
+      [0, 'walk', true, null],
+      [0, 'walk', false, 'eat'],
+      [0, 'walk', false, 'gnaw'],
+    ];
+    const ray = new THREE.Raycaster();
+    const up = new THREE.Vector3(0, 1, 0);
+    for (const [speed, mode, slap, kind] of poses) {
+      const m = createBeaverModel();
+      // The torso is the one white mesh: its colour is in its vertices. Both its sides count, so a ray from inside meets it.
+      let torso: THREE.Mesh | null = null;
+      const hinges: THREE.Object3D[] = [];
+      m.group.traverse((o) => {
+        if (o instanceof THREE.Mesh && (o.material as THREE.MeshLambertMaterial).vertexColors) torso = o;
+        if (o instanceof THREE.Group && o.children.some((c) => c instanceof THREE.Mesh && c.geometry instanceof THREE.CapsuleGeometry)) hinges.push(o);
+      });
+      expect(hinges).toHaveLength(4);
+      (torso!.material as THREE.Material).side = THREE.DoubleSide;
+      // Every frame of a walk cycle and more, so the top of each bob is seen.
+      for (let t = 0; t <= 1.5; t += 1 / 30) {
+        m.update(t, speed, mode, 0, slap ? t % SLAP_DURATION : null, null, kind && { kind, age: t });
+        m.group.updateMatrixWorld(true);
+        for (const h of hinges) {
+          // A ray up from a point inside a closed shape crosses its surface an odd number of times.
+          ray.set(h.getWorldPosition(new THREE.Vector3()), up);
+          expect(ray.intersectObject(torso!).length % 2).toBe(1);
+        }
+      }
+    }
   });
 
   it('goes back to the walking pose after the action', () => {

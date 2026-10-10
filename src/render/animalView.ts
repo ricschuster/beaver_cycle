@@ -237,6 +237,8 @@ function heronModel(): AnimalModel {
   };
 }
 
+const OWL_SCALE = 2;
+
 function owlModel(): AnimalModel {
   const BROWN = 0x7a6246;
   const PALE = 0xd9cdb4;
@@ -275,6 +277,8 @@ function owlModel(): AnimalModel {
     body.add(w);
     return w;
   });
+  // Drawn about twice life size: at its true 0.5 m the owl was a speck in the dark forest and its warning could not be read.
+  group.scale.setScalar(OWL_SCALE);
   const fly = easer();
   return {
     group,

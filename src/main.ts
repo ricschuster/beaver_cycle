@@ -11,6 +11,7 @@ import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/lif
 import { formerParentsAt, parentsAt } from './sim/family';
 import { AnimalField, capFor } from './sim/animals';
 import { growNeighbours, neighboursAt } from './sim/neighbours';
+import { giftFamilies, greetedBy, familyMood, reactFamilies, startleFamilies } from './sim/familyMoods';
 import { banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
 import { lead, leaderAnimal } from './sim/guides';
 import { pondGuests, trackPonds } from './sim/pondGuests';
@@ -415,6 +416,7 @@ async function start(): Promise<void> {
   const animalField = new AnimalField();
   let readBolt = false;
   const sniffed = new Set<string>();
+  const greeted = new Set<string>(); // families that have greeted the beaver this visit (#342)
 
   function frame(now: number): void {
     // Cap dt so a paused tab does not teleport the beaver. The first frame timestamp can come before `last`, so dt is never negative.
@@ -548,6 +550,18 @@ async function start(): Promise<void> {
     // The animals as they stand for their mood: deer bolt from a predator, wary ones keep away, curious ones come to look, a fox sniffs at the store at night (note 24, "Interaction with animals").
     const slappedNow = world.lastSlap !== null && world.lastSlap.time === world.time;
     const around = [...animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps)), ...pondGuests(world, world.beaver.x, world.beaver.z)];
+    // The families: shy, calm or curious by trust, thanking a gift, hurt by a slap, and greeting the beaver once each (#342).
+    const familyBeavers = reactFamilies(neighboursAt(world.neighbours, world.clock, ponded), world, ponded);
+    if (slappedNow) world = startleFamilies(world, familyBeavers);
+    const gifts = giftFamilies(world, familyBeavers);
+    world = gifts.world;
+    if (gifts.thanked.length > 0) toast.show('The beavers take it and trust you a little more');
+    const hello = greetedBy(familyBeavers, world);
+    if (hello && !greeted.has(hello)) {
+      greeted.add(hello);
+      const mood = familyMood(world, hello);
+      toast.show(mood === 'wary' ? 'A beaver family. They are shy. Put a branch down near them' : mood === 'calm' ? 'A beaver family says hello' : 'The beaver family is happy to see you');
+    }
     if (slappedNow) world = startle(world, around);
     const ambient = foxesAtStore(react(around, world, ponded), world, ponded);
     const led = lead(world, ambient, dt, ponded);
@@ -577,7 +591,7 @@ async function start(): Promise<void> {
     const engaged = new Set(world.predators.map((p) => p.id));
     if (world.leader) engaged.add(world.leader.id);
     const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded), ...(world.leader ? [leaderAnimal(world.leader, ponded, world)] : [])];
-    renderer.draw(world, rig.view, [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)], animals, neighboursAt(world.neighbours, world.clock, ponded));
+    renderer.draw(world, rig.view, [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)], animals, familyBeavers);
     if (now - lastReadout > 500) {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;

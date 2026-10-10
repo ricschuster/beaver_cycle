@@ -17,9 +17,9 @@ export interface LodgeView {
 const DOME_HEIGHT = 1.8;
 /** How far the dome's foot sinks below the surface, so it sits in the water. */
 const SINK = 0.3;
-/** Sticks laid over the dome, and round its foot at the water line. */
-const DOME_STICKS = 56;
-const FOOT_STICKS = 12;
+/** Sticks laid over the dome; every FOOT_EVERY-th of them lies round its foot at the water line instead. */
+const STICKS = 68;
+const FOOT_EVERY = 5;
 /** Faces round a stick. */
 const STICK_SIDES = 5;
 
@@ -71,10 +71,10 @@ export function buildLodgeShape(seed: number): LodgeShape {
   };
   // Beavers build with sticks they have peeled, so about half are pale.
   const woodOf = (): THREE.Color => (random() < 0.45 ? vary(PEELED, random, 0.1) : vary(BARK[Math.floor(random() * BARK.length)]!, random, 0.08));
-  const total = DOME_STICKS + FOOT_STICKS;
+  const total = STICKS;
   for (let i = 0; i < total; i++) {
-    // Every fifth stick lies round the foot, so the foot fills in as the dome does.
-    const foot = i % 5 === 4;
+    // Some sticks lie round the foot, spread through the list so the foot fills in as the dome does.
+    const foot = i % FOOT_EVERY === FOOT_EVERY - 1;
     const a = random() * Math.PI * 2;
     // Spread evenly over the dome's area.
     const phi = foot ? Math.PI / 2 - 0.1 : Math.acos(0.22 + 0.75 * random());

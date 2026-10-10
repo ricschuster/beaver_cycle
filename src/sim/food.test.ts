@@ -1,6 +1,6 @@
 import { FOOD_ROT, MUD_DRY } from './haul';
 import { describe, expect, it } from 'vitest';
-import { noActions, type Actions } from '../actions/actions';
+import { noIntent, type Intent } from './buttons';
 import { BRANCH_BOOST, BRANCH_BOOST_TIME, PAD_BOOST, PAD_BOOST_TIME, STORE_CAPACITY, STORE_DISTANCE, branchFactor, branchesOf, emptyStock, lilyShare, padFactor, stockMeals, stockOf, stockTotal, storeFill, storeSpot, tapped, trimmed, type Food, type Stock } from './food';
 import { LOG_ROT } from './logs';
 import { LODGE_WOOD } from './lodge';
@@ -12,7 +12,7 @@ import type { Terrain } from './terrain';
 /** Dry land for z < 0, then a lake that is deep from z = 3 (as in lodge.test.ts). */
 const shore: Terrain = { heightAt: () => 0, isWater: (_x, z) => z >= 0, waterDepth: (_x, z) => Math.max(0, z * 0.5) };
 
-const press = (a: Partial<Actions>): Actions => ({ ...noActions(), ...a });
+const press = (a: Partial<Intent>): Intent => ({ ...noIntent(), ...a });
 const log = (id: string, length: number, z = -2): Log => ({ id, x: 0, y: 0, z, heading: 0, length, floating: false });
 
 /** A whole lodge facing deep water, and the beaver on dry land at z = -1 with a log lying in reach. */
@@ -208,6 +208,6 @@ describe('eating', () => {
   it('carries the piece into the lodge', () => {
     // the piece in the mouth stays there through the swim in
     const w = { ...world(), carry: 'branch' as const, inLodge: true };
-    expect(step(w, noActions(), 0.1, shore).carry).toBe('branch');
+    expect(step(w, noIntent(), 0.1, shore).carry).toBe('branch');
   });
 });

@@ -1,13 +1,13 @@
 import { partnerKeepsUp } from './upkeep';
 import { LODGE_CLOCK_RATE } from './clock';
-import { noActions, type Actions } from '../actions/actions';
+import { newLodge, noIntent, type Intent } from './buttons';
 import type { Terrain } from './terrain';
 import { atStore, branchFactor, padFactor, storeCapacity, storeCondition, strippable, tapped, trimmed } from './food';
 import { pickedPad, reachablePad } from './lily';
-import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, checkSite, followPond, lodgeSolid, type Lodge, nearLodge, towardDoor } from './lodge';
+import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, followPond, lodgeSolid, nearLodge, towardDoor } from './lodge';
 import { damAt, placed, spotAt } from './dam';
 import { refineNear, withNewSpots } from './newSpots';
-import { lodgeGround, pondAt, pondsAt, withPonds, type Pond } from './pond';
+import { pondsAt, withPonds } from './pond';
 import { STAGE_RULES, softEdge, stageAt } from './life';
 import { canScoopMud, putDown, reachableDropped, reachableRock, rotted } from './haul';
 import { DRAG_SPEED, GRAB_REACH, climbLift, dragged, fallenLog, logLength, logRotted, nearestLog, pushFloating, type Log } from './logs';
@@ -22,27 +22,20 @@ import { birth, kitDue, BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH
 const SWEEP_STEP = 0.4;
 
 /**
- * Advance the world by dt seconds. Pure: returns a new state. While the stash screen is open the player's taps move
- * pieces between the mouth and the store's places and nothing else is done: the beaver stands still, though time goes on.
+ * Advance the world by dt seconds. Pure: returns a new state. The buttons come in as the word each press stands for
+ * (`buttons.ts`), so a press does what its label says. While the stash screen is open the player's taps move pieces
+ * between the mouth and the store's places and nothing else is done: the beaver stands still, though time goes on.
  */
-export function step(world: WorldState, actions: Actions, dt: number, terrain: Terrain, trees: TreeSource = noTrees): WorldState {
+export function step(world: WorldState, actions: Intent, dt: number, terrain: Terrain, trees: TreeSource = noTrees): WorldState {
   if (!world.stashOpen) return advance(world, actions, dt, terrain, trees);
   let { store, carry } = world;
   let stashOpen: boolean = world.stashOpen;
   if (actions.stashTap !== undefined) ({ stock: store, carry } = tapped(store, carry, actions.stashTap, storeCapacity(storeCondition(world.storeWear, world.clock))));
   if (actions.stashClose) stashOpen = false;
-  return advance({ ...world, store, carry, stashOpen }, noActions(), dt, terrain, trees);
+  return advance({ ...world, store, carry, stashOpen }, noIntent(), dt, terrain, trees);
 }
 
-/** A lodge that could start ahead of the beaver, in the lake or in a pond that a level 2 dam holds; one in a pond is tagged with it. */
-function newLodge(ground: Terrain, ponds: readonly Pond[], x: number, z: number, heading: number): Lodge | null {
-  const site = checkSite(lodgeGround(ground, ponds), x, z, heading).lodge;
-  if (!site || ground.waterDepth(site.x, site.z) > 0) return site;
-  const pond = pondAt(ponds, site.x, site.z);
-  return pond ? { ...site, pond: pond.spot } : site;
-}
-
-function advance(world: WorldState, actions: Actions, dt: number, ground: Terrain, trees: TreeSource): WorldState {
+function advance(world: WorldState, actions: Intent, dt: number, ground: Terrain, trees: TreeSource): WorldState {
   // The ponds of the dams add water to the ground. Lily pads keep to the ground's own water (they come to ponds later).
   const terrain = withPonds(ground, world.ponds);
   let { x, z } = actions.move;
@@ -101,13 +94,13 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   const lift = settled.mode === 'walk' ? climbLift(world.logs, nx, nz, world.drag) : 0;
   const after = { ...b, x: nx, z: nz, ...settled, y: settled.y + lift, breath, heading };
   const { world: built, beaver } = build({ ...world, logs: pushed }, after, actions, { x, z }, terrain, ground, rules.works);
-  // With a piece in the mouth the beaver cannot grab a log, and in the lodge the gnaw button eats it instead.
-  const eating = built.inLodge && world.carry !== null && !!actions.chop;
-  // A baby does not fell, grab, gnaw food, or use the store.
-  if (!rules.works) actions = { ...actions, chop: false, grab: false, build: false };
-  // The same goes for mud or a rock in the mouth: it cannot gnaw a tree, and the grab button puts it down instead.
+  // In the lodge, Do eats the piece in the mouth.
+  const eating = built.inLodge && world.carry !== null && actions.do === 'eat';
+  // A baby does not fell, take, gnaw food, or use the store.
+  if (!rules.works) actions = { ...actions, do: null, take: null };
+  // With a piece, mud, or a rock in the mouth the beaver cannot take a log or gnaw a tree.
   const full = (world.carry !== null || world.haul !== null) && !world.drag;
-  const workActions = { ...actions, chop: actions.chop && !eating && world.haul === null, grab: actions.grab && !full };
+  const workActions: Intent = { ...actions, do: actions.do === 'gnaw' && !full ? 'gnaw' : null, take: actions.take === 'log' && full ? null : actions.take };
   const { chop, felled, logs: worked, drag } = work(built, beaver, workActions, dt, len > 0, trees, terrain, world.clock);
   // A log that has lain a year rots away (not the one being dragged).
   const logs = worked.some((l) => l.id !== drag && logRotted(l, world.clock)) ? worked.filter((l) => l.id === drag || !logRotted(l, world.clock)) : worked;
@@ -158,17 +151,16 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
 }
 
 /**
- * The build button, one action for what is at hand. Dragging a log: put it on the lodge, which starts a new one at
- * a spot in shallow water ahead of the beaver if there is none yet. The lodge is solid, and its entrance is under
- * water: a diving beaver that swims at the entrance of a whole lodge goes in, into the round room. Inside, the
- * build button at the water hole dives out through the entrance. A log that cannot be placed stays in the
- * beaver's mouth.
+ * Do as Build or Mend: a dragged log goes on the lodge, which starts a new one at a spot in shallow water ahead of the
+ * beaver if there is none yet, and a log, mud, or a rock goes on a dam. The lodge is solid, and its entrance is under
+ * water: a diving beaver that swims at the entrance of a whole lodge goes in, into the round room. Inside, a press of
+ * Dive at the water hole dives out through the entrance. A log that cannot be placed stays in the beaver's mouth.
  */
-function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: number; z: number }, terrain: Terrain, ground: Terrain, works: boolean): { world: WorldState; beaver: BeaverState } {
+function build(world: WorldState, b: BeaverState, actions: Intent, move: { x: number; z: number }, terrain: Terrain, ground: Terrain, works: boolean): { world: WorldState; beaver: BeaverState } {
   let { lodge, logs, drag, inLodge, storeWear, dams, haul, hauled } = world;
   let beaver = b;
   if (inLodge && lodge) {
-    if (actions.build && atHole(lodge, b.x, b.z)) {
+    if (actions.diveTap && atHole(lodge, b.x, b.z)) {
       const out = doorPoint(lodge, DOOR_DISTANCE);
       inLodge = false;
       // Out of the hole the beaver is under water and rises by itself.
@@ -177,7 +169,7 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
   } else if (lodgeComplete(lodge) && lodgeCondition(lodge, world.clock) >= BROKEN_BELOW && b.mode === 'dive' && atDoor(lodge, b.x, b.z) && towardDoor(lodge, move.x, move.z) < -0.3) {
     inLodge = true;
     beaver = { ...b, ...doorPoint(lodge, ENTER_DISTANCE), y: lodge.base, mode: 'walk' };
-  } else if (works && actions.build && b.mode !== 'dive') {
+  } else if (works && (actions.do === 'build' || actions.do === 'mend') && b.mode !== 'dive') {
     const log = drag ? logs.find((l) => l.id === drag) : undefined;
     const spot = spotAt(world.spots, b.x, b.z);
     if (spot && (haul || log)) {
@@ -230,26 +222,27 @@ function build(world: WorldState, b: BeaverState, actions: Actions, move: { x: n
 }
 
 /**
- * The food. Gnawing next to a floating lily pad picks it into the mouth, and gnawing a log with no tree to gnaw
- * strips a branch into it. At the store the build button opens the stash screen (not on the frame it mends the store with
- * a log), where the player chooses what to put in or take out. Inside the lodge the gnaw button eats the piece.
+ * The food and the things carried in the mouth. Take picks up a lily pad, a piece put down earlier, a rock, or mud, and
+ * puts down what is in the mouth; Do by a log strips a branch into it. At the store Do opens the stash screen (not on the
+ * frame it mends the store with a log), where the player chooses what to put in or take out. Inside the lodge Do eats the piece.
  */
-function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boolean, wasFree: boolean, terrain: Terrain, ground: Terrain): Pick<WorldState, 'carry' | 'haul' | 'rocksTaken' | 'dropped' | 'store' | 'stashOpen' | 'stripped' | 'picked' | 'eaten'> {
+function feed(world: WorldState, b: BeaverState, actions: Intent, eating: boolean, wasFree: boolean, terrain: Terrain, ground: Terrain): Pick<WorldState, 'carry' | 'haul' | 'rocksTaken' | 'dropped' | 'store' | 'stashOpen' | 'stripped' | 'picked' | 'eaten'> {
   let { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten } = world;
   if (dropped.some((d) => rotted(d, world.clock))) dropped = dropped.filter((d) => !rotted(d, world.clock));
   if (eating) return { carry: null, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten: eaten + 1 };
   if (world.inLodge) return { carry, haul, rocksTaken, dropped, store, stashOpen, stripped, picked, eaten };
-  if ((haul || carry) && actions.grab) {
+  if ((haul || carry) && actions.take === 'drop') {
     // Put it down in front of the beaver. It lies there and can be picked up again.
     dropped = [...dropped, putDown(haul ?? { kind: carry! }, b.x, b.z, b.heading, world.time, world.clock)];
     haul = null;
     carry = null;
-  } else if (actions.build && wasFree && atStore(world.lodge, b.x, b.z) && !haul) {
+  } else if (actions.do === 'store' && wasFree && atStore(world.lodge, b.x, b.z) && !haul) {
     stashOpen = true;
-  } else if (!carry && !haul && actions.chop && !world.chop && !world.drag && b.mode !== 'dive') {
-    const lying = b.mode === 'walk' ? reachableDropped(dropped, b.x, b.z) : null;
-    const pad = lying ? null : reachablePad(ground, b.x, b.z, world.clock, picked);
-    const log = lying || pad ? null : strippable(world.logs, stripped, b.x, b.z);
+  } else if (!carry && !haul && (actions.take || actions.do === 'strip') && !world.chop && !world.drag && b.mode !== 'dive') {
+    // Take picks up what it named; Do by a log strips a branch off it.
+    const lying = actions.take === 'item' && b.mode === 'walk' ? reachableDropped(dropped, b.x, b.z) : null;
+    const pad = actions.take === 'pad' ? reachablePad(ground, b.x, b.z, world.clock, picked) : null;
+    const log = actions.do === 'strip' ? strippable(world.logs, stripped, b.x, b.z) : null;
     if (lying) {
       dropped = dropped.filter((d) => d !== lying);
       if (lying.kind === 'branch' || lying.kind === 'lily') carry = lying.kind;
@@ -261,12 +254,12 @@ function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boole
       stripped = { ...stripped, [log.id]: (stripped[log.id] ?? 0) + 1 };
       carry = 'branch';
     } else if (b.mode === 'walk') {
-      // Nothing to pick or strip: a rock in reach, or else mud from the wet ground at hand.
-      const rock = reachableRock(terrain, b.x, b.z, rocksTaken);
+      // A rock in reach, or mud from the wet ground at hand.
+      const rock = actions.take === 'rock' ? reachableRock(terrain, b.x, b.z, rocksTaken) : null;
       if (rock) {
         rocksTaken = [...rocksTaken, rock.id];
         haul = { kind: 'rock' };
-      } else if (canScoopMud(terrain, b.x, b.z, b.heading)) {
+      } else if (actions.take === 'mud' && canScoopMud(terrain, b.x, b.z, b.heading)) {
         haul = { kind: 'mud' };
       }
     }
@@ -275,18 +268,18 @@ function feed(world: WorldState, b: BeaverState, actions: Actions, eating: boole
 }
 
 /**
- * The beaver's work with trees and logs. Gnawing: a press near a tree starts it, standing still for CHOP_TIME
+ * The beaver's work with trees and logs. Gnawing: a press of Do near a tree starts it, standing still for CHOP_TIME
  * fells the tree and it falls away from the beaver as a log. Moving, swimming, or dragging stop it. Nothing is
- * lost by stopping, the tree stands. Dragging: a press takes the end of a log in reach, one at a time, and
+ * lost by stopping, the tree stands. Dragging: a press of Take takes the end of a log in reach, one at a time, and
  * another press (or diving) lets go. A log lies where it is left, and floats where the water is deep.
  */
-function work(world: WorldState, b: BeaverState, actions: Actions, dt: number, moving: boolean, trees: TreeSource, terrain: Terrain, clock: number) {
+function work(world: WorldState, b: BeaverState, actions: Intent, dt: number, moving: boolean, trees: TreeSource, terrain: Terrain, clock: number) {
   const { felled } = world;
   let { chop, logs, drag } = world;
   if (drag && b.mode === 'dive') drag = null;
-  if (actions.grab) {
-    if (drag) drag = null;
-    else if (b.mode !== 'dive') {
+  if (actions.take === 'let-go') drag = null;
+  else if (actions.take === 'log' && !drag) {
+    if (b.mode !== 'dive') {
       const log = nearestLog(logs, b.x, b.z, GRAB_REACH);
       if (log) {
         drag = log.id;
@@ -299,7 +292,7 @@ function work(world: WorldState, b: BeaverState, actions: Actions, dt: number, m
     return { chop: null, felled, logs, drag };
   }
   if (chop && (moving || b.mode !== 'walk')) chop = null;
-  if (!chop && actions.chop && !moving && b.mode === 'walk') {
+  if (!chop && actions.do === 'gnaw' && !moving && b.mode === 'walk') {
     const t = trees.nearest(b.x, b.z, CHOP_REACH, new Set(felled));
     if (t) chop = { id: t.id, x: t.x, z: t.z, wood: t.wood, progress: 0 };
   } else if (chop) {

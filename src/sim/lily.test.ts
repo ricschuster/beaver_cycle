@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { DAY_SECONDS, DAYS_PER_SEASON } from './clock';
 import { LILY_MAX_DEPTH, LILY_MIN_DEPTH, LILY_REACH, lilyPadsNear, pickedPad, reachablePad } from './lily';
 import { createWorld } from './state';
@@ -54,14 +54,14 @@ describe('picking a lily pad', () => {
   };
 
   it('gnawing next to a pad puts it in the mouth, and it is gone from the water', () => {
-    const w = step(at(summer), { ...noActions(), chop: true }, 0.1, lake);
+    const w = step(at(summer), { ...noIntent(), chop: true }, 0.1, lake);
     expect(w.carry).toBe('lily');
     expect(reachablePad(lake, pad.x, pad.z, w.clock, w.picked)).toBeNull();
   });
 
   it('does nothing in winter, with a full mouth, or out of reach', () => {
-    expect(step(at(winter), { ...noActions(), chop: true }, 0.1, lake).carry).toBeNull();
-    expect(step({ ...at(summer), carry: 'branch' }, { ...noActions(), chop: true }, 0.1, lake).carry).toBe('branch');
+    expect(step(at(winter), { ...noIntent(), chop: true }, 0.1, lake).carry).toBeNull();
+    expect(step({ ...at(summer), carry: 'branch' }, { ...noIntent(), chop: true }, 0.1, lake).carry).toBe('branch');
     const far = at(summer);
     const moved = { ...far, beaver: { ...far.beaver, x: pad.x + LILY_REACH + 3, z: pad.z + 3 } };
     expect(reachablePad(lake, moved.beaver.x, moved.beaver.z, summer, {})?.id).not.toBe(pad.id);

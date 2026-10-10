@@ -48,25 +48,33 @@ describe('createKeyboardInput', () => {
     expect(k.read().slap).toBe(true);
   });
 
-  it('gnaws once per press of E', () => {
+  it('does the thing at hand once per press of E', () => {
     const k = setup();
     k.press('KeyE');
-    expect(k.read().chop).toBe(true);
-    expect(k.read().chop).toBe(false);
+    expect(k.read().act).toBe(true);
+    expect(k.read().act).toBe(false);
   });
 
-  it('grabs or lets go once per press of G', () => {
+  it('takes or drops once per press of G', () => {
     const k = setup();
     k.press('KeyG');
-    expect(k.read().grab).toBe(true);
-    expect(k.read().grab).toBe(false);
+    expect(k.read().take).toBe(true);
+    expect(k.read().take).toBe(false);
   });
 
-  it('builds once per press of B', () => {
+  it('gives a dive tap only on the frame Space goes down', () => {
+    const k = setup();
+    k.press('Space');
+    expect(k.read().diveTap).toBe(true);
+    expect(k.read().diveTap).toBe(false);
+    expect(k.read().dive).toBe(true);
+  });
+
+  it('has no key for the old Build button', () => {
     const k = setup();
     k.press('KeyB');
-    expect(k.read().build).toBe(true);
-    expect(k.read().build).toBe(false);
+    const a = k.read();
+    expect(a.act || a.take).toBe(false);
   });
 
   it('keeps Space from pressing the focused button', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions, type Actions } from '../actions/actions';
+import { noIntent, type Intent } from './buttons';
 import { DRAG_GAP, DRAG_SPEED, FLOAT_DEPTH, distanceToLog, logLength } from './logs';
 import { createWorld, type WorldState, WALK_SPEED } from './state';
 import { step } from './step';
@@ -17,13 +17,14 @@ function source(list: TreeRef[]): TreeSource {
 }
 
 const oak: TreeRef = { id: 'a', x: 1, z: 0, wood: 2 };
-const press: Actions = { ...noActions(), chop: true };
-const grab: Actions = { ...noActions(), grab: true };
+const press: Intent = { ...noIntent(), do: 'gnaw' };
+const grab: Intent = { ...noIntent(), take: 'log' };
+const letGo: Intent = { ...noIntent(), take: 'let-go' };
 
 /** Press the gnaw button, then stand still for `seconds` in half second steps. */
 function gnawFor(w: WorldState, trees: TreeSource, seconds: number): WorldState {
   let out = step(w, press, 0, flat, trees);
-  for (let t = 0; t < seconds; t += 0.5) out = step(out, noActions(), 0.5, flat, trees);
+  for (let t = 0; t < seconds; t += 0.5) out = step(out, noIntent(), 0.5, flat, trees);
   return out;
 }
 
@@ -61,7 +62,7 @@ describe('chop', () => {
     let w = step(createWorld(flat), press, 0, flat, trees);
     w = step(w, { move: { x: 0, z: 1 } }, 0.5, flat, trees);
     expect(w.chop).toBeNull();
-    w = step(w, noActions(), CHOP_TIME, flat, trees);
+    w = step(w, noIntent(), CHOP_TIME, flat, trees);
     expect(w.felled).toEqual([]);
   });
 
@@ -89,7 +90,7 @@ describe('drag', () => {
   it('grabs a log in reach and lets go on the next press', () => {
     const w = step(felled(), grab, 0, flat);
     expect(w.drag).toBe('a');
-    expect(step(w, grab, 0, flat).drag).toBeNull();
+    expect(step(w, letGo, 0, flat).drag).toBeNull();
   });
 
   it('cannot grab a log out of reach', () => {
@@ -102,7 +103,7 @@ describe('drag', () => {
     const other = { ...base.logs[0]!, id: 'b' };
     let w = step({ ...base, logs: [...base.logs, other] }, grab, 0, flat);
     const first = w.drag;
-    w = step(w, grab, 0, flat); // lets go
+    w = step(w, letGo, 0, flat);
     w = step({ ...w, beaver: { ...w.beaver, x: other.x, z: 0 } }, grab, 0, flat);
     expect(first).not.toBeNull();
     expect(w.drag).not.toBeNull();
@@ -123,9 +124,9 @@ describe('drag', () => {
   it('leaves the log lying when let go, and a chop needs both free paws', () => {
     let w = step(felled(), grab, 0, flat);
     w = step(w, { move: { x: 0, z: 1 } }, 2, flat);
-    w = step(w, grab, 0, flat);
+    w = step(w, letGo, 0, flat);
     const at = { x: w.logs[0]!.x, z: w.logs[0]!.z };
-    w = step(w, noActions(), 5, flat);
+    w = step(w, noIntent(), 5, flat);
     expect(w.logs[0]).toMatchObject(at);
     let dragging = step(w, { ...grab, move: { x: 0, z: 0 } }, 0, flat);
     dragging = step(dragging, press, 0, flat, source([{ id: 'c', x: dragging.beaver.x, z: dragging.beaver.z, wood: 1 }]));
@@ -147,7 +148,7 @@ describe('drag', () => {
     const lake: Terrain = { heightAt: () => -5, isWater: () => true, waterDepth: () => 5 };
     let w = step(felled(), grab, 0, flat);
     w = { ...w, beaver: { ...w.beaver, mode: 'swim', y: -0.2 } };
-    expect(step(w, noActions(), 0.1, lake).drag).toBe('a');
-    expect(step(w, { ...noActions(), dive: true }, 0.5, lake).drag).toBeNull();
+    expect(step(w, noIntent(), 0.1, lake).drag).toBe('a');
+    expect(step(w, { ...noIntent(), dive: true }, 0.5, lake).drag).toBeNull();
   });
 });

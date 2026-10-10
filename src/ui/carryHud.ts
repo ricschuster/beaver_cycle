@@ -24,7 +24,7 @@ const SITE_TEXT: Record<'ok' | SiteProblem, string> = {
 export type LodgeSpot = 'hole' | 'nest' | 'room' | null;
 
 const SPOT_TEXT: Record<'hole' | 'nest' | 'room', string> = {
-  hole: 'in the lodge, press Build to dive out through the water hole',
+  hole: 'in the lodge, press Dive to dive out through the water hole',
   nest: 'in the lodge, on the nest',
   room: 'in the lodge, the water hole is the way out',
 };
@@ -43,14 +43,14 @@ export interface FoodInfo {
 }
 
 const HINT_TEXT: Record<NonNullable<FoodInfo['hint']>, string> = {
-  pick: 'press Gnaw to pick a lily pad',
+  pick: 'press Take to pick a lily pad',
   strip: 'press Gnaw to strip a branch',
-  branch: 'press Gnaw to pick up the branch',
-  lily: 'press Gnaw to pick up the lily pad',
-  rock: 'press Gnaw to pick up a rock',
-  mud: 'press Gnaw to scoop mud',
-  store: 'press Build to open the store',
-  eat: 'press Gnaw to eat it',
+  branch: 'press Take to pick up the branch',
+  lily: 'press Take to pick up the lily pad',
+  rock: 'press Take to pick up a rock',
+  mud: 'press Take to scoop mud',
+  store: 'press Store to open the store',
+  eat: 'press Eat to eat it',
 };
 
 /** "dam 40%, needs 4 wood, 2 mud, 1 rock", with "press Build to add it" when the mouth or the drag has something it needs. */
@@ -75,7 +75,7 @@ export function formatFood(food: FoodInfo | null): string {
   if (!food) return '';
   const parts: string[] = [];
   if (food.carry) parts.push(food.carry === 'branch' ? 'carrying a branch' : 'carrying a lily pad');
-  if (food.haul) parts.push(food.haul === 'mud' ? 'carrying mud, press Drag to put it down' : 'carrying a rock, press Drag to put it down');
+  if (food.haul) parts.push(food.haul === 'mud' ? 'carrying mud, press Drop to put it down' : 'carrying a rock, press Drop to put it down');
   if (food.store) parts.push(`store ${food.store.total} of ${food.store.capacity}, ${food.store.meals} ${food.store.meals === 1 ? 'meal' : 'meals'}`);
   // A worn dam is whole, so its repair line says it all. A broken one shows both: that it broke and what it needs again.
   if (food.repair) parts.push(formatRepair(food.repair));
@@ -145,7 +145,7 @@ export function formatCarry(felled: number, dragging: boolean, gnaw: number | nu
   if (spot) return SPOT_TEXT[spot] + formatFood(food);
   const lodgeText = lodge === null ? '' : lodge >= 1 ? ', lodge done' : `, lodge ${Math.floor(lodge * 100)}%`;
   const base = `${wood ? `${felled} ${felled === 1 ? 'tree' : 'trees'} felled, wood achievement` : `${felled} of ${WOOD_TREES} trees felled`}${lodgeText}`;
-  if (dragging) return (site ? `${base}, dragging a log, ${SITE_TEXT[site]}` : `${base}, dragging a log`) + (food?.repair ? `, ${formatRepair(food.repair)}, press Build to add it` : '') + (food?.dam && !(food.repair?.what === 'dam' && !food.repair.broken) ? `, ${formatDam(food.dam)}` : '');
+  if (dragging) return (site ? `${base}, dragging a log, ${SITE_TEXT[site]}` : `${base}, dragging a log`) + (food?.repair ? `, ${formatRepair(food.repair)}, press Mend to add it` : '') + (food?.dam && !(food.repair?.what === 'dam' && !food.repair.broken) ? `, ${formatDam(food.dam)}` : '');
   return (gnaw === null ? base : `${base}, gnawing ${Math.floor(Math.min(1, gnaw) * 100)}%`) + formatFood(food);
 }
 

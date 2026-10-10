@@ -26,8 +26,8 @@ export interface Choice {
   label: string;
 }
 
-/** The text of the prompt, for a given button name. */
-export const promptText = (name: string, key: string): string => `Press ${key} to talk to ${name}`;
+/** The text of the prompt by a beaver: on touch the Do button reads Talk, on the keys it is E. */
+export const promptText = (name: string, key: string): string => (key === 'Talk' ? `${name} is here, press Talk` : `Press ${key} to talk to ${name}`);
 
 /** Seconds the card takes to fade in and out. */
 const FADE = 0.25;

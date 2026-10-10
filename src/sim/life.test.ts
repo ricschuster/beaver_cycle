@@ -5,7 +5,7 @@ import { newWear } from './wear';
 import { createWorld, type WorldState, intoLodge, leaveHome, birth, kitDue, setClock, setStage, setInLodge, sleep, sleepUntil } from './state';
 import { flatTerrain } from './terrain';
 import { step } from './step';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { nextSeasonStart, nextSpringStart } from './clock';
 import { CALL_BAND, isCalledBack, softEdge, BABY_DAYS, growUpDawn, STAGE_RULES, TEENAGER_DAYS, bornAtFor, lifeAt, stageAt, stageStart } from './life';
 
@@ -73,7 +73,7 @@ describe('life in the world', () => {
 
 describe('stage rules', () => {
   const flat = flatTerrain(0);
-  const fwd = { ...noActions(), move: { x: 0, z: 1 } };
+  const fwd = { ...noIntent(), move: { x: 0, z: 1 } };
   const run = (w: ReturnType<typeof createWorld>, a = fwd, secs = 1) => {
     for (let i = 0; i < secs * 10; i++) w = step(w, a, 0.1, flat);
     return w;
@@ -86,7 +86,7 @@ describe('stage rules', () => {
   });
 
   it('a baby cannot put down a load, an adult can', () => {
-    const grab = { ...noActions(), grab: true };
+    const grab = { ...noIntent(), grab: true };
     const load = { ...createWorld(flat), haul: { kind: 'mud' as const } };
     expect(step(setStage(load, 'baby'), grab, 0.1, flat).haul).not.toBeNull();
     expect(step(load, grab, 0.1, flat).haul).toBeNull();
@@ -162,7 +162,7 @@ describe('a baby keeps to the water', () => {
   const shore = { heightAt: (_x: number, z: number) => (z < 10 ? -1 : 0), isWater: (_x: number, z: number) => z < 10, waterDepth: (_x: number, z: number) => (z < 10 ? 1 : 0) };
   const swimmer = (stage: 'baby' | 'teenager') => setStage(createWorld(shore, 0, 0), stage);
   const go = (w: ReturnType<typeof createWorld>, move: { x: number; z: number }) => {
-    for (let i = 0; i < 100; i++) w = step(w, { ...noActions(), move }, 0.1, shore);
+    for (let i = 0; i < 100; i++) w = step(w, { ...noIntent(), move }, 0.1, shore);
     return w;
   };
 
@@ -230,7 +230,7 @@ describe('leaving home', () => {
   it('keeps the old lodge solid', () => {
     const w = leaveHome({ ...createWorld(flatTerrain(0), 0, home.z - SOLID_RADIUS - 3), lodge: home });
     let s = { ...w, beaver: { ...w.beaver, heading: 0 } };
-    for (let i = 0; i < 100; i++) s = step(s, { ...noActions(), move: { x: 0, z: 1 } }, 0.1, flatTerrain(0));
+    for (let i = 0; i < 100; i++) s = step(s, { ...noIntent(), move: { x: 0, z: 1 } }, 0.1, flatTerrain(0));
     expect(Math.hypot(s.beaver.x - home.x, s.beaver.z - home.z)).toBeGreaterThanOrEqual(SOLID_RADIUS - 0.01);
   });
 });
@@ -263,7 +263,7 @@ describe('a kit is born', () => {
 
   it('happens in the step on that day', () => {
     let w = { ...grown(), clock: nextSpringStart(100) - 0.5 };
-    w = step(w, noActions(), 1, flatTerrain(0));
+    w = step(w, noIntent(), 1, flatTerrain(0));
     expect(w.generation).toBe(1);
     expect(stageAt(w.clock, w.bornAt)).toBe('baby');
   });

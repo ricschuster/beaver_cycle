@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { DAY_SECONDS, DAYS_PER_SEASON } from './clock';
 import { STORE_CAPACITY, storeCapacity, storeCondition, emptyStock, stockOf, tapped } from './food';
 import { LODGE_WOOD, lodgeCondition, type Lodge } from './lodge';
@@ -77,14 +77,14 @@ describe('repair by placing a log', () => {
   it('mends a worn lodge and uses up the log', () => {
     const clock = day(LODGE_WORN_DAYS); // worn
     const before = lodgeCondition(world(clock).lodge!, clock);
-    const after = step(world(clock), { ...noActions(), build: true }, 0, flat);
+    const after = step(world(clock), { ...noIntent(), build: true }, 0, flat);
     expect(lodgeCondition(after.lodge!, clock)).toBeCloseTo(before + 0.1 * 1);
     expect(after.logs).toHaveLength(0);
     expect(after.drag).toBeNull();
   });
 
   it('keeps the log when the lodge is as good as new', () => {
-    const after = step(world(0), { ...noActions(), build: true }, 0, flat);
+    const after = step(world(0), { ...noIntent(), build: true }, 0, flat);
     expect(after.logs).toHaveLength(1);
     expect(after.drag).toBe('a');
   });
@@ -94,7 +94,7 @@ describe('repair by placing a log', () => {
     // Stand at the store, far enough from the lodge's centre that only the store is in reach.
     const at = { ...w, lodge: { ...w.lodge!, wear: newWear(w.clock) }, beaver: { ...w.beaver, x: 0, z: 2 + 7.9 } };
     const before = storeCondition(at.storeWear, at.clock);
-    const after = step(at, { ...noActions(), build: true }, 0, flat);
+    const after = step(at, { ...noIntent(), build: true }, 0, flat);
     expect(storeCondition(after.storeWear, at.clock)).toBeGreaterThan(before);
     expect(after.logs).toHaveLength(0);
     // mending with a log does not also open the stash
@@ -104,7 +104,7 @@ describe('repair by placing a log', () => {
   it('a new lodge starts to wear from the moment it is whole', () => {
     const lodge: Lodge = { x: 0, z: 2, base: 0, door: 0, wood: LODGE_WOOD - 2 };
     const w = { ...createWorld(flat, 0, 0), clock: day(3), lodge, logs: [log('a', 6)], drag: 'a' };
-    const after = step(w, { ...noActions(), build: true }, 0, flat);
+    const after = step(w, { ...noIntent(), build: true }, 0, flat);
     expect(after.lodge!.wear).toEqual(newWear(day(3)));
     expect(after.storeWear).toEqual(newWear(day(3)));
   });
@@ -122,15 +122,15 @@ describe('effects', () => {
 
   it('a broken store loses what it held', () => {
     const w = { ...world(day(STORE_WORN_DAYS * 2)), drag: null, store: emptyStock().map((_, i) => (i < 5 ? ('branch' as const) : null)) };
-    expect(step(w, noActions(), 0, flat).store).toEqual(emptyStock());
+    expect(step(w, noIntent(), 0, flat).store).toEqual(emptyStock());
     const fresh = { ...w, clock: 0 };
-    expect(stockOf(step(fresh, noActions(), 0, flat).store, 'branch')).toBe(5);
+    expect(stockOf(step(fresh, noIntent(), 0, flat).store, 'branch')).toBe(5);
   });
 
   it('a worn store loses the pieces in the places it can no longer hold', () => {
     const full = emptyStock().map(() => 'lily' as const);
     const w = { ...world(day(30)), drag: null, store: full };
-    const after = step(w, noActions(), 0, flat).store;
+    const after = step(w, noIntent(), 0, flat).store;
     expect(after.filter((f) => f !== null)).toHaveLength(storeCapacity(0.25));
     expect(after[storeCapacity(0.25) - 1]).toBe('lily');
     expect(after[storeCapacity(0.25)]).toBeNull();

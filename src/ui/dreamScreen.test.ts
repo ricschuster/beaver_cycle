@@ -118,7 +118,7 @@ describe('dream status', () => {
 
 describe('dream input', () => {
   it('hops only on the frame Dive goes down, and passes the slap and the play', () => {
-    const a = { ...noActions(), dive: true, slap: true, build: true };
+    const a = { ...noActions(), dive: true, slap: true, act: true };
     expect(dreamInput(a, Math.PI, false)).toMatchObject({ hop: true, slap: true, play: true });
     expect(dreamInput(a, Math.PI, true).hop).toBe(false);
     expect(dreamInput(noActions(), Math.PI, true)).toMatchObject({ hop: false, slap: false, play: false });

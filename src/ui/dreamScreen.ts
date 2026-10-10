@@ -35,7 +35,7 @@ const LINE_QUEUE = 3;
 
 /** The dream's input from the player's actions: the move turned to the view, and a hop only on the frame Dive goes down. */
 export function dreamInput(actions: Actions, yaw: number, diveBefore: boolean): DreamInput {
-  return { move: relativeToView(actions.move, yaw), hop: !!actions.dive && !diveBefore, slap: !!actions.slap, play: !!actions.build };
+  return { move: relativeToView(actions.move, yaw), hop: !!actions.dive && !diveBefore, slap: !!actions.slap, play: !!actions.act };
 }
 
 /** A marshmallow beaver's name from an event, which may carry its id or its name. 'player' stays 'player'. */
@@ -204,7 +204,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
 
       let touch: TouchControls | null = null;
       if (opts.touch) {
-        touch = createTouchControls(root, true, { idPrefix: 'dream-touch', labels: { dive: 'Hop', slap: 'Splash', build: 'Play', chop: null, grab: null } });
+        touch = createTouchControls(root, true, { idPrefix: 'dream-touch', labels: { dive: 'Hop', slap: 'Splash', do: 'Play', take: null } });
         // A big round Play button next to the prompt, which is easier to find than the one among the others.
         const play = el('button', `position:relative;width:64px;height:64px;border-radius:50%;border:3px solid #fff;background:#ff8fc1;color:#fff;font-size:18px;cursor:pointer;pointer-events:auto;touch-action:none;box-shadow:0 4px 0 #e06aa3;${FONT}`) as HTMLButtonElement;
         play.type = 'button';
@@ -217,7 +217,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         });
       } else {
         const keys = el('div', `position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:2;padding:6px 16px;border-radius:999px;background:rgba(106,61,122,.55);color:#fff6ec;font-size:14px;white-space:nowrap;pointer-events:none;${FONT}`, 'dream-keys');
-        keys.textContent = 'WASD move, Space hop, T splash, B play';
+        keys.textContent = 'WASD move, Space hop, T splash, E play';
         root.append(keys);
       }
       // Read the layout once so the fade starts from 0.
@@ -274,7 +274,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     } else if (o.lines.length > 0) o.lineLeft = Math.min(o.lineLeft, LINE_SECONDS_BUSY);
     const ask = playPrompt(state);
     hud.prompt.style.display = ask ? 'flex' : 'none';
-    if (ask) text(hud.promptText, opts.touch ? ask : `${ask} (B)`);
+    if (ask) text(hud.promptText, opts.touch ? ask : `${ask} (E)`);
   };
 
   return {
@@ -298,7 +298,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       }
       // The dream's own touch buttons add to the game's input, as the game's touch buttons add to the keys.
       const merged = mergeActions(actions, o.touch?.read() ?? noActions());
-      if (o.playTapped) merged.build = true;
+      if (o.playTapped) merged.act = true;
       o.playTapped = false;
       const input = dreamInput(merged, o.rig.view.yaw, o.diveBefore);
       o.diveBefore = !!merged.dive;

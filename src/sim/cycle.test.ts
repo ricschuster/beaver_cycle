@@ -2,7 +2,7 @@
 // grow up, leave home, find a partner, build a lodge, wait for spring, a kit is born, and again for the next life.
 // It stands in for a playtest of the logic. How it feels on a tablet it cannot say.
 import { describe, expect, it } from 'vitest';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { nextSpringStart } from './clock';
 import { formerParentsAt, parentsAt } from './family';
 import { LODGE_WOOD, lodgeComplete } from './lodge';
@@ -31,7 +31,7 @@ const DT = 0.1;
  * Play on for a number of simulated seconds, with the same hook the game loop in main.ts has: when the teenager year ends,
  * the grown beaver leaves home and the lone beavers appear. (That hook lives in main.ts, not in `step`.)
  */
-function play(world: WorldState, seconds: number, actions = noActions()): WorldState {
+function play(world: WorldState, seconds: number, actions = noIntent()): WorldState {
   let w = world;
   for (let t = 0; t < seconds; t += DT) {
     const before = lifeAt(w.clock, w.bornAt).stage;
@@ -48,7 +48,7 @@ function walkTo(world: WorldState, x: number, z: number, near = 1): WorldState {
     const dx = x - w.beaver.x;
     const dz = z - w.beaver.z;
     const d = Math.hypot(dx, dz);
-    w = play(w, DT, { ...noActions(), move: { x: dx / d, z: dz / d } });
+    w = play(w, DT, { ...noIntent(), move: { x: dx / d, z: dz / d } });
   }
   return w;
 }
@@ -60,7 +60,7 @@ function buildLodgeAt(world: WorldState, x: number): WorldState {
   let w: WorldState = { ...world, inLodge: false, beaver: { ...world.beaver, x, z: -1, y: 0, mode: 'walk', heading: 0 } };
   for (let i = 0; i < LODGE_WOOD / 2; i++) {
     w = { ...w, logs: [log(`${x}:${i}`)], drag: `${x}:${i}` };
-    w = play(w, DT, { ...noActions(), build: true });
+    w = play(w, DT, { ...noIntent(), build: true });
   }
   return w;
 }

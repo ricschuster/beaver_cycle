@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { ROCK_REACH, canScoopMud, reachableRock, rockGround, rocksNear } from './haul';
 import { createWorld } from './state';
 import { step } from './step';
@@ -65,8 +65,8 @@ describe('mud', () => {
   });
 });
 
-const gnaw = { ...noActions(), chop: true };
-const drag = { ...noActions(), grab: true };
+const gnaw = { ...noIntent(), chop: true };
+const drag = { ...noIntent(), grab: true };
 
 describe('streams', () => {
   it('give mud on the stream and at its edge, and rocks on its bed and banks', () => {
@@ -78,7 +78,7 @@ describe('streams', () => {
     const rocks = rocksNear(creek, 0, 0, 200);
     expect(rocks.length).toBeGreaterThan(0);
     for (const r of rocks) expect(Math.abs(r.x)).toBeLessThanOrEqual(4.5);
-    expect(step(createWorld(creek, 0.5, 0), { ...noActions(), chop: true }, 0.1, creek).haul).not.toBeNull();
+    expect(step(createWorld(creek, 0.5, 0), { ...noIntent(), chop: true }, 0.1, creek).haul).not.toBeNull();
   });
 });
 

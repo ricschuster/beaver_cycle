@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Animal } from './animals';
 import { AnimalField } from './animals';
 import { DAY_SECONDS } from './clock';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { HURT_SPEED, HURT_TIME, RULES, hurtFactor, isHurt, meetPredators, predatorAnimals } from './predators';
 import { createWorld, WALK_SPEED, type WorldState } from './state';
 import { step } from './step';
@@ -80,7 +80,7 @@ describe('predators', () => {
     const start = w.predators[0]!;
     // The beaver runs west at the walking speed for a few seconds.
     for (let i = 0; i < 40; i++) {
-      w = step({ ...w, predators: w.predators }, { ...noActions(), move: { x: -1, z: 0 } }, 0.1, land);
+      w = step({ ...w, predators: w.predators }, { ...noIntent(), move: { x: -1, z: 0 } }, 0.1, land);
       w = meetPredators(w, [fox(10, 0)], false, 0.1, land).world;
     }
     const fox2 = w.predators[0]!;
@@ -161,7 +161,7 @@ describe('hurt', () => {
     expect(isHurt(100, 100 + HURT_TIME - 1)).toBe(true);
     expect(isHurt(100, 100 + HURT_TIME)).toBe(false);
     const go = (hurtAt: number | null): number => {
-      const w = step({ ...createWorld(land, 0, 0), hurtAt, clock: 100 }, { ...noActions(), move: { x: 1, z: 0 } }, 1, land);
+      const w = step({ ...createWorld(land, 0, 0), hurtAt, clock: 100 }, { ...noIntent(), move: { x: 1, z: 0 } }, 1, land);
       return w.beaver.x;
     };
     expect(go(100)).toBeCloseTo(go(null) * HURT_SPEED, 5);
@@ -170,7 +170,7 @@ describe('hurt', () => {
 
   it('is healed by eating a lily pad in the lodge', () => {
     const w = { ...createWorld(land, 0, 0), hurtAt: 100, clock: 200, carry: 'lily' as const, inLodge: true };
-    expect(step(w, { ...noActions(), chop: true }, 0.1, land).hurtAt).toBeNull();
-    expect(step({ ...w, carry: 'branch' }, { ...noActions(), chop: true }, 0.1, land).hurtAt).toBe(100);
+    expect(step(w, { ...noIntent(), chop: true }, 0.1, land).hurtAt).toBeNull();
+    expect(step({ ...w, carry: 'branch' }, { ...noIntent(), chop: true }, 0.1, land).hurtAt).toBe(100);
   });
 });

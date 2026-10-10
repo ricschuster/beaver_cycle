@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { LEVEL_COST, LEVEL1_COST, costOf, damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, levelOf, needs, placed, raised, settled, spotAt } from './dam';
 import { widthFactor } from './damSpots';
 import { DAY_SECONDS } from './clock';
@@ -13,7 +13,7 @@ import type { Terrain } from './terrain';
 const dry: Terrain = { heightAt: () => 0, isWater: () => false, waterDepth: () => 0 };
 const spot: DamSpot = { id: 'core:50:0', bed: { x: 50, z: 0 }, bedY: 0, flow: { x: 1, z: 0 }, maxCrest: 2, pondM2: 900 };
 const small: DamSpot = { ...spot, maxCrest: 1 };
-const build = { ...noActions(), build: true };
+const build = { ...noIntent(), build: true };
 
 describe('dam materials', () => {
   it('start a dam at a spot and stop at what it needs', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { LOG_HEIGHT, LOG_RADIUS, climbLift, distanceToLog, pushFloating, type Log } from './logs';
 import { createWorld, type WorldState } from './state';
 import { step } from './step';
@@ -91,6 +91,6 @@ describe('logs in water', () => {
 
   it('does not move anything on a calm beaver', () => {
     const w: WorldState = { ...createWorld(lake, 0, 0), logs: [log({ floating: true })] };
-    expect(step(w, noActions(), 1, lake).logs[0]).toEqual(w.logs[0]);
+    expect(step(w, noIntent(), 1, lake).logs[0]).toEqual(w.logs[0]);
   });
 });

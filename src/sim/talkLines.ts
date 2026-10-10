@@ -196,7 +196,7 @@ export const DOING: Record<NeighbourKind, Partial<Record<Errand, ErrandLines>>> 
     store: { lines: ['I am helping fill the store!'], carrying: { branch: 'Look! I am helping Mama with the store!' } },
     dam: { lines: ['I am helping Papa with the dam. Kind of.'], carrying: { mud: 'I have mud for the dam. Splat!' } },
     lodge: { lines: ['Patting mud on the lodge. Splat!'] },
-    kits: { lines: ['Playing with the other kits!'] },
+    kits: { lines: ['Staying close to Mama and Papa.', 'I am keeping near Mama. She says so.'] },
     rest: { lines: ['Having a nap. Shhh.'] },
   },
 };
@@ -214,6 +214,26 @@ export const TASK_DOING: Record<NeighbourKind, Partial<Record<Task, readonly str
   mama: { swim: ['Just swimming round our pond.'], rest: ['Resting in the sun.'], eat: ['Having a snack.'], gnaw: ['Gnawing a branch. Crunch!'], groom: ['Combing my fur. It keeps me dry.'], build: ['Building. A beaver is never done.'], play: ['Playing with the kits.'] },
   papa: { swim: ['Swimming the pond, checking all is well.'], rest: ['Resting my tail.'], eat: ['Having a snack. Work makes you hungry.'], gnaw: ['Gnawing. Good teeth, good dams.'], groom: ['Combing my fur. A dry beaver is a warm beaver.'], build: ['Building. A beaver is never done.'], play: ['Playing with the kits.'] },
   kit: { swim: ['Swimming! I am really fast.'], rest: ['Resting. Shhh.'], eat: ['Eating! Yum.'], gnaw: ['Gnawing! My teeth are growing.'], groom: ['Combing my fur. Mama says so.'], build: ['Building a tiny dam!'], play: ['Playing! Catch me!'] },
+};
+
+/** "What are you doing?" for Mama and Papa out in the pond on an errand (`routines.ts`). */
+export const HOME_ERRANDS: Record<'home-mama' | 'home-papa', Partial<Record<Errand, ErrandLines>>> = {
+  'home-mama': {
+    store: { lines: ['Looking for branches for the store.'], carrying: { branch: 'Taking this branch to the store, so nobody goes hungry.' } },
+    food: { lines: ['Finding a snack. Lily pads are best.'], carrying: { lily: 'I found a lily pad. Do you want half?' } },
+    lodge: { lines: ['Patting mud on the lodge. It keeps the wind out.'], carrying: { mud: 'Mud for the lodge, to keep it warm.' } },
+    dam: { lines: ['Looking over the dam. It must stay strong.'], carrying: { mud: 'Mud for the dam. It stops the leaks.', branch: 'This branch is for the dam.' } },
+    kits: { lines: ['Keeping an eye on you, as mamas do.'] },
+    play: { lines: ['Having a little swim for fun.'] },
+  },
+  'home-papa': {
+    dam: { lines: ['Checking the dam. Water finds every gap.'], carrying: { branch: 'This branch goes in the dam. Water finds every gap.', mud: 'Mud for the dam. It stops the leaks.' } },
+    store: { lines: ['Filling the store. A full store means a warm winter.'], carrying: { branch: 'Taking this branch to the store.' } },
+    lodge: { lines: ['Mending the lodge before the cold.'], carrying: { mud: 'Mud for the lodge. It keeps the wind out.' } },
+    food: { lines: ['Finding food. Work makes a papa hungry.'], carrying: { lily: 'A lily pad. Good food for a busy beaver.' } },
+    kits: { lines: ['Watching over you. Somebody has to.'] },
+    play: { lines: ['Just splashing about. Do not tell anyone.'] },
+  },
 };
 
 /** "What are you doing?" for Mama, Papa and the partner. */

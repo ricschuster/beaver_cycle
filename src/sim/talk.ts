@@ -14,7 +14,7 @@ import { follower, mateOf } from './partners';
 import type { WorldState } from './state';
 import { needsRepair } from './wear';
 import {
-  AGAIN, DOING, FAREWELL, FIRST_MEETING, HELP, HELP_WARY, HOME_DOING, HOME_HELP, KIN_RESCUE, LIFE, LONG_AWAY_LINES, NIGHT, REMARK, RESCUED, ROLE_WORD, SEASONAL, SINCE, STORE_WHY,
+  AGAIN, DOING, FAREWELL, FIRST_MEETING, HELP, HELP_WARY, HOME_DOING, HOME_ERRANDS, HOME_HELP, KIN_RESCUE, LIFE, LONG_AWAY_LINES, NIGHT, REMARK, RESCUED, ROLE_WORD, SEASONAL, SINCE, STORE_WHY,
   TASK_DOING, THANKS, type HomeJob, type LifeFact,
 } from './talkLines';
 
@@ -276,6 +276,9 @@ function doingLine(s: Speaker, f: TalkFacts, h: number, avoid: string): string {
   if (s.kind === 'home-mama' || s.kind === 'home-papa') {
     const t = HOME_DOING[s.kind];
     if (f.inLodge) return t.nest;
+    // Out in the pond, a parent on an errand says what it is (`routines.ts`); resting, it speaks of the player as before.
+    const job = s.errand && s.errand !== 'rest' ? HOME_ERRANDS[s.kind][s.errand] : undefined;
+    if (job) return (s.carry ? job.carrying?.[s.carry] : undefined) ?? pick(job.lines, h, avoid);
     if (s.kind === 'home-papa' && f.lodgeWorn && f.stage !== 'adult') return HOME_DOING['home-papa'].worn;
     return f.stage === 'adult' ? t.grown : t.young;
   }
@@ -335,6 +338,10 @@ interface ParentLike {
   inside: boolean;
   /** 0 resting, 1 on the move. */
   pace?: number;
+  /** What the parent is doing and why, from its routine (`routines.ts`), when known. */
+  task?: string;
+  errand?: string;
+  carry?: string | null;
 }
 
 /** The partners the player has met, as the partner module keeps them. */
@@ -358,8 +365,8 @@ interface NeighbourLike {
   carry?: string | null;
 }
 
-/** The task, errand and load of a neighbour, each only when it is one the lines know. */
-function activityOf(n: NeighbourLike): Pick<Speaker, 'task' | 'errand' | 'carry'> {
+/** The task, errand and load of a neighbour or a parent, each only when it is one the lines know. */
+function activityOf(n: Pick<NeighbourLike, 'task' | 'errand' | 'carry'>): Pick<Speaker, 'task' | 'errand' | 'carry'> {
   return {
     ...(TASKS.includes(n.task as Task) ? { task: n.task as Task } : {}),
     ...(ERRANDS.includes(n.errand as Errand) ? { errand: n.errand as Errand } : {}),
@@ -378,7 +385,7 @@ export function speakersOf(neighbours: readonly NeighbourLike[], parents: readon
       const place = placeOf?.(n.family);
       return { id: n.id, name: n.name, kind: n.role, family: n.family, x: n.x, z: n.z, ...(place ? { place } : {}), ...activityOf(n) };
     }),
-    ...parents.map((p): Speaker => ({ id: p.id, name: p.id.startsWith('mama') ? 'Mama' : 'Papa', kind: p.id.startsWith('mama') ? 'home-mama' : 'home-papa', family: null, x: p.x, z: p.z, task: parentTask(p) })),
+    ...parents.map((p): Speaker => ({ id: p.id, name: p.id.startsWith('mama') ? 'Mama' : 'Papa', kind: p.id.startsWith('mama') ? 'home-mama' : 'home-papa', family: null, x: p.x, z: p.z, task: parentTask(p), ...activityOf(p) })),
     ...partners.filter((p) => p.state !== 'alone').map((p): Speaker => ({ id: p.id, name: nameOf(p.id), kind: 'partner', family: null, x: p.x, z: p.z, task: 'swim' })),
   ];
 }

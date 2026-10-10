@@ -3,13 +3,13 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLASS_LAKE, LEVEL_FINE, type DecodedTile, type TileWater } from '../terrain/format';
-import { SWIM_EXIT_DEPTH } from '../sim/state';
 import type { TreeRef, Trunk } from '../sim/trees';
 import { KIND_BROADLEAF, placeTrees, TREE_FLOATS, TreeGrid, treeIdPosition } from '../terrain/trees';
 import { distToTile, shownLevel, type Streamer } from '../terrain/streamer';
 import { tileKey, type TileStore } from '../terrain/store';
 import { recordBuildTime, timed } from '../terrain/buildTimes';
 import type { SeasonLook, Tint } from './seasonLook';
+import { createWaterLook } from './waterLook';
 import { broadleafGeometry, coniferGeometry } from './treeModels';
 
 const CLASS_COLORS: Record<number, number> = {
@@ -242,14 +242,8 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
   return geo;
 }
 
-/** Snow on the trees, and the ice at the lake's edges. */
+/** Snow on the trees. */
 const SNOW = 0xf2f6f8;
-const ICE = 0xd6e6ee;
-/**
- * In the depth of winter the lake freezes where it is shallower than this, in metres: only where the beaver wades,
- * never where it swims (the wavy edge reaches at most a third further), since the sim lets it swim all winter.
- */
-const ICE_DEPTH = SWIM_EXIT_DEPTH;
 
 const STREAM_HALF_WIDTH = 1.25;
 const STREAM_STEP = 5;
@@ -446,30 +440,9 @@ export function createTerrainView(
   };
   addTreeLook(treeMaterial);
   addTreeLook(leafMaterial);
-  // In winter the shallows of the lake freeze: where the water is shallower than `iceDepth` metres it turns to
-  // pale, nearly opaque ice, with a wavy edge so it does not just copy the depth lines. The water the beaver swims
-  // in stays open.
-  const iceDepth = { value: 0 };
-  const iceColor = { value: new THREE.Color(ICE) };
-  lakeMaterial.onBeforeCompile = (shader) => {
-    shader.uniforms.iceDepth = iceDepth;
-    shader.uniforms.iceColor = iceColor;
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float waterDepth;\nvarying float vWaterDepth;\nvarying vec2 vWaterAt;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWaterDepth = waterDepth;\nvWaterAt = position.xz;');
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vWaterDepth;\nvarying vec2 vWaterAt;\nuniform float iceDepth;\nuniform vec3 iceColor;')
-      .replace(
-        '#include <color_fragment>',
-        `#include <color_fragment>
-        if (iceDepth > 0.0) {
-          float wave = sin(vWaterAt.x * 0.21 + 2.0 * sin(vWaterAt.y * 0.13)) * sin(vWaterAt.y * 0.17 + 1.3 + sin(vWaterAt.x * 0.11));
-          float frozen = 1.0 - smoothstep(iceDepth * 0.8, iceDepth, vWaterDepth + wave * iceDepth * 0.35);
-          diffuseColor.rgb = mix(diffuseColor.rgb, iceColor, frozen);
-          diffuseColor.a = mix(diffuseColor.a, 0.95, frozen);
-        }`,
-      );
-  };
+  // In winter the shallows of the lake freeze (waterLook.ts); the water the beaver swims in stays open.
+  const waterLook = createWaterLook();
+  waterLook.apply(lakeMaterial);
   // Broadleaf crowns shrink to nothing as the foliage goes, in the colour pass and in the shadow pass alike.
   const foliage = { value: 1 };
   const leafDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
@@ -630,10 +603,9 @@ export function createTerrainView(
       leafMaterial.color.set(look.leaf);
       foliage.value = look.foliage;
       snow.value = look.snow;
-      lakeMaterial.color.set(look.water);
-      iceDepth.value = look.ice * ICE_DEPTH;
+      waterLook.setSeason(look);
       // The streams are shallow, so they whiten all along in a frost.
-      streamMaterial.color.set(look.water).lerp(iceColor.value, 0.5 * look.ice);
+      streamMaterial.color.set(look.water).lerp(waterLook.iceColor, 0.5 * look.ice);
     },
     insideTree(x, y, z, margin) {
       return meshes.get(tileKey(Math.floor(x / size), Math.floor(z / size)))?.grid?.hit(x, y, z, margin) ?? false;

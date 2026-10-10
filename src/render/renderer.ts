@@ -542,6 +542,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       hemisphere.intensity = sky.ambient;
       const season = seasonLook(date.dayOfYear + date.timeOfDay);
       terrain?.setSeason(season);
+      pondView.setSeason(season);
       terrain?.setFelled(world.felled);
       logView.update(bare ? [] : world.logs, world.stripped);
       if (terrain && !bare && season.leafFall > 0 && now - leafTreesAt > 1) {

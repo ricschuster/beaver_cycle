@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GROOM_AFTER, GROOM_EVERY, SHOT_SECONDS, createActionWatcher, type Watched } from './beaverAction';
+import { GROOM_AFTER, GROOM_EVERY, SHOT_SECONDS, createActionWatcher, idleGroom, seedOf, type Watched } from './beaverAction';
 
 const base: Watched = { time: 0, chop: null, drag: null, logs: [], carry: null, haul: null, hauled: 0, eaten: 0 };
 const log = { id: 'L1' } as Watched['logs'][number];
@@ -67,5 +67,27 @@ describe('createActionWatcher', () => {
     for (t = 0; t <= GROOM_AFTER + 0.5; t += 0.25) w2.next({ ...base, time: t }, false, true);
     expect(w2.next({ ...base, time: t }, false, true)?.kind).toBe('groom');
     expect(w2.next({ ...base, time: t + 0.1 }, false, false)).toBeNull();
+  });
+});
+
+describe('idleGroom', () => {
+  it('grooms now and then while still, never while moving', () => {
+    let grooming = 0;
+    for (let t = 0; t < 120; t += 0.1) {
+      if (idleGroom(t, true, 5)) grooming += 0.1;
+      expect(idleGroom(t, false, 5)).toBeNull();
+    }
+    // About one groom of 3.2 s every 30 to 42 s.
+    expect(grooming).toBeGreaterThan(6);
+    expect(grooming).toBeLessThan(14);
+  });
+
+  it('spreads the beavers out so they do not groom together', () => {
+    const a = seedOf('mama');
+    const b = seedOf('papa');
+    expect(a).not.toBe(b);
+    let together = 0;
+    for (let t = 0; t < 300; t += 0.1) if (idleGroom(t, true, a) && idleGroom(t, true, b)) together++;
+    expect(together).toBeLessThan(100);
   });
 });

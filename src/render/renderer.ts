@@ -11,8 +11,8 @@ import { DIVE_RATE, SWIM_ENTER_DEPTH, SWIM_SINK, type Slap, type WorldState } fr
 import type { Streamer } from '../terrain/streamer';
 import type { TileStore } from '../terrain/store';
 import { STAGE_RULES, stageAt } from '../sim/life';
-import { createBeaverModel, type BeaverModel } from './beaverModel';
-import { createActionWatcher } from './beaverAction';
+import { SLAP_DURATION, createBeaverModel, type BeaverModel } from './beaverModel';
+import { createActionWatcher, idleGroom, seedOf } from './beaverAction';
 import { HEARD_DISTANCE, SLAP_EVERY } from '../sim/partners';
 import type { Parent, ParentId } from '../sim/family';
 import { clearDistance, clearSurface, easeReach } from './cameraClear';
@@ -399,7 +399,8 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
           entry.model.setCoat(p.coat.coat, p.coat.shade);
         }
         entry.pace += (p.pace - entry.pace) * 0.1;
-        entry.model.update(now, entry.pace, p.mode === 'swim' ? 'swim' : 'walk');
+        const parentStill = entry.pace < 0.05 && p.mode !== 'swim';
+        entry.model.update(now, entry.pace, p.mode === 'swim' ? 'swim' : 'walk', 0, null, null, idleGroom(world.time, parentStill, seedOf(p.id)));
         g.position.set(p.x, p.y, p.z);
         g.rotation.y = p.heading;
       }
@@ -469,7 +470,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         const heard = p.state === 'alone' && Math.hypot(p.x - b.x, p.z - b.z) <= HEARD_DISTANCE;
         const phase = (p.id.length * 7 + p.id.charCodeAt(p.id.length - 1)) % SLAP_EVERY;
         const slapAge = heard ? (world.time + phase) % SLAP_EVERY : p.metAt === null ? null : world.time - p.metAt;
-        entry.model.update(now, entry.pace, swim ? 'swim' : 'walk', 0, slapAge);
+        const slapping = slapAge !== null && slapAge >= 0 && slapAge < SLAP_DURATION;
+        const groom = slapping ? null : idleGroom(world.time, entry.pace < 0.05 && !swim, seedOf(p.id));
+        entry.model.update(now, entry.pace, swim ? 'swim' : 'walk', 0, slapAge, null, groom);
         const wanted = home && world.lodge ? Math.atan2(-nest.x, -nest.z) : p.heading;
         if (g.parent !== drawn) drawn.add(g);
         g.position.set(at.x, at.y, at.z);

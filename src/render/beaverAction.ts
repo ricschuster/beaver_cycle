@@ -69,3 +69,21 @@ export function createActionWatcher(): ActionWatcher {
     },
   };
 }
+
+/** A number from a beaver's id, the same each time, to spread out the grooms of the beavers the player does not steer. */
+export function seedOf(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 9973;
+  return h;
+}
+
+/**
+ * A groom now and then for a beaver the player does not steer (Mama, Papa, a partner), while it stands still. It needs no
+ * memory: the time and the seed say where in its own cycle each beaver is, so they do not all groom together.
+ */
+export function idleGroom(time: number, still: boolean, seed: number): BeaverAction | null {
+  if (!still) return null;
+  const every = GROOM_EVERY + (seed % 13);
+  const age = (((time + seed * 3.7) % every) + every) % every;
+  return age < SHOT_SECONDS.groom ? { kind: 'groom', age } : null;
+}

@@ -15,6 +15,7 @@ import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, men
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
 import { moveIn, stepPartners } from './partners';
 import { tally } from './achievements';
+import { hurtFactor } from './predators';
 import { birth, kitDue, BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
 /** The longest stretch of a move, in metres, checked for bumps in one go. */
@@ -52,7 +53,7 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
   }
   const b = world.beaver;
   const rules = STAGE_RULES[stageAt(world.clock, world.bornAt)];
-  const speed = rules.speed * (b.mode === 'dive' ? DIVE_SPEED : b.mode === 'swim' ? SWIM_SPEED : WALK_SPEED) * world.speedMultiplier * (world.drag ? DRAG_SPEED : 1);
+  const speed = rules.speed * (b.mode === 'dive' ? DIVE_SPEED : b.mode === 'swim' ? SWIM_SPEED : WALK_SPEED) * world.speedMultiplier * (world.drag ? DRAG_SPEED : 1) * hurtFactor(world.hurtAt, world.clock);
   // The move is swept in short steps so a fast beaver cannot jump through a trunk or over a floating log. Trunks
   // stop the beaver, which slides round them, and it shoves floating logs out of its way.
   const total = { x: x * speed * dt, z: z * speed * dt };
@@ -136,6 +137,8 @@ function advance(world: WorldState, actions: Actions, dt: number, ground: Terrai
     inLodge: built.inLodge,
     clock: world.clock + dt * (world.inLodge ? LODGE_CLOCK_RATE : 1),
     lastSlap,
+    // Eating a lily pad heals a beaver that a predator hurt (Q12).
+    hurtAt: eating && world.carry === 'lily' ? null : world.hurtAt,
     beaver,
   };
   // The lone beavers: one the player comes near follows it, and moves into a whole lodge.

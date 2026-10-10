@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { FOLLOW_GAP, MEET_DISTANCE, PARTNER_COUNT, PARTNER_MIN_APART, PARTNER_MIN_FROM_HOME, follower, mateOf, moveIn, partnerCue, seedPartners, stepPartners } from './partners';
+import { FOLLOW_GAP, MEET_DISTANCE, PARTNER_COUNT, PARTNER_MIN_APART, PARTNER_MIN_FROM_HOME, canHoldLodge, follower, mateOf, moveIn, partnerCue, seedPartners, stepPartners } from './partners';
 import type { DamSpot } from './damSpots';
 
-const spot = (id: string, x: number, z: number): DamSpot => ({ id, bed: { x, z }, bedY: 0, flow: { x: 0, z: 1 }, maxCrest: 1 }) as DamSpot;
+const spot = (id: string, x: number, z: number): DamSpot => ({ id, bed: { x, z }, bedY: 0, flow: { x: 0, z: 1 }, maxCrest: 2 }) as DamSpot;
 const spots = Array.from({ length: 30 }, (_, i) => spot(`s${i}`, (i % 6) * 200 - 500, Math.floor(i / 6) * 200 - 400));
 const home = { x: 0, z: 0 };
 
@@ -43,6 +43,19 @@ describe('lone beavers', () => {
 
   it('are fewer when the valley has few dam spots far enough away', () => {
     expect(seedPartners([spot('near', 10, 10)], home)).toHaveLength(0);
+  });
+});
+
+describe('room for a lodge', () => {
+  it('is a spot whose dam can hold a pond deep enough for the door', () => {
+    expect(canHoldLodge({ ...spot('a', 0, 0), maxCrest: 1.0 })).toBe(false);
+    expect(canHoldLodge({ ...spot('a', 0, 0), maxCrest: 1.5 })).toBe(true);
+    expect(canHoldLodge({ ...spot('a', 0, 0), maxCrest: 2.0 })).toBe(true);
+  });
+
+  it('is the default, so shallow spots get no lone beaver', () => {
+    const shallow = spots.map((s) => ({ ...s, maxCrest: 1.0 }));
+    expect(seedPartners(shallow, home)).toHaveLength(0);
   });
 });
 

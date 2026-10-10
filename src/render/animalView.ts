@@ -237,7 +237,65 @@ function heronModel(): AnimalModel {
   };
 }
 
-const MAKERS: Record<AnimalKind, () => AnimalModel> = { deer: deerModel, fox: foxModel, duck: duckModel, heron: heronModel };
+function owlModel(): AnimalModel {
+  const BROWN = 0x7a6246;
+  const PALE = 0xd9cdb4;
+  const group = new THREE.Group();
+  const body = new THREE.Group();
+  group.add(body);
+  // Perched, the owl stands upright: a tall body, pale at the chest, on two feet. In flight the group tilts forward.
+  body.add(ellipsoid(0.16, 0.26, 0.15, BROWN, 0, 0.3, 0));
+  body.add(ellipsoid(0.12, 0.2, 0.08, PALE, 0, 0.3, 0.1));
+  for (const s of [-1, 1]) body.add(ellipsoid(0.04, 0.04, 0.07, 0xc2a860, s * 0.06, 0.02, 0.04));
+  const tail = ellipsoid(0.08, 0.02, 0.15, 0x5e4a32, 0, 0.06, -0.12);
+  tail.rotation.x = -0.3;
+  body.add(tail);
+  const head = new THREE.Group();
+  head.position.set(0, 0.6, 0.02);
+  body.add(head);
+  head.add(ellipsoid(0.15, 0.13, 0.13, BROWN, 0, 0, 0));
+  // A pale round face with big dark eyes and a short hooked beak, and two ear tufts.
+  head.add(ellipsoid(0.13, 0.11, 0.04, PALE, 0, -0.01, 0.1));
+  eyes(head, 0.06, 0.01, 0.13, 0.04);
+  for (const s of [-1, 1]) head.add(part(new THREE.SphereGeometry(0.014, 6, 4), 0xe8c040, s * 0.06, 0.012, 0.165));
+  const beak = part(new THREE.ConeGeometry(0.02, 0.05, 5), 0xd8c070, 0, -0.03, 0.17);
+  beak.rotation.x = Math.PI / 2;
+  head.add(beak);
+  for (const s of [-1, 1]) {
+    const tuft = part(new THREE.ConeGeometry(0.03, 0.09, 5), BROWN, s * 0.09, 0.14, 0);
+    tuft.rotation.z = -s * 0.3;
+    head.add(tuft);
+  }
+  // Wings hinged at the shoulders: folded at the sides when perched, spread and flapping in flight.
+  const wings = [-1, 1].map((s) => {
+    const w = new THREE.Group();
+    w.position.set(s * 0.14, 0.45, 0);
+    w.add(ellipsoid(0.34, 0.015, 0.14, BROWN, s * 0.34, 0, 0));
+    w.add(ellipsoid(0.2, 0.012, 0.1, PALE, s * 0.36, -0.01, -0.02));
+    body.add(w);
+    return w;
+  });
+  const fly = easer();
+  return {
+    group,
+    pose(time, moving, seed) {
+      const f = fly(moving ? 1 : 0, time);
+      body.rotation.x = 0.9 * f;
+      body.position.y = 0.1 * f;
+      // Folded wings hang down by the body (rotation about z, steep), spread ones beat up and down.
+      const beat = Math.sin(time * 9 + seed) * 0.5 * f;
+      wings.forEach((w, i) => {
+        const s = i === 0 ? -1 : 1;
+        w.rotation.z = s * (-1.4 * (1 - f) + beat);
+      });
+      // Perched, the head turns slowly to look about; in flight it stays on the prey.
+      head.rotation.y = Math.sin(time * 0.6 + seed) * 1.1 * (1 - f);
+      head.rotation.x = -0.9 * f;
+    },
+  };
+}
+
+const MAKERS: Record<AnimalKind, () => AnimalModel> = { deer: deerModel, fox: foxModel, duck: duckModel, heron: heronModel, owl: owlModel };
 
 /** A number in [0, 7) from an animal's cell id, so animals of a kind do not move in step. */
 function seedOf(id: string): number {
@@ -248,7 +306,7 @@ function seedOf(id: string): number {
 
 export function createAnimalView(scene: THREE.Scene, prepare: (m: THREE.Material) => void): AnimalView {
   // Spare models of each kind, and the ones now in use by animal id.
-  const spare: Record<AnimalKind, AnimalModel[]> = { deer: [], fox: [], duck: [], heron: [] };
+  const spare: Record<AnimalKind, AnimalModel[]> = { deer: [], fox: [], duck: [], heron: [], owl: [] };
   const used = new Map<string, { kind: AnimalKind; model: AnimalModel; seed: number }>();
   const release = (id: string): void => {
     const entry = used.get(id)!;

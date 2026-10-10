@@ -11,6 +11,10 @@ import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/lif
 import { formerParentsAt, parentsAt } from './sim/family';
 import { AnimalField, capFor } from './sim/animals';
 import { growNeighbours, neighboursAt } from './sim/neighbours';
+import { nameOf } from './sim/names';
+import { TALK_END, LINE_SECONDS, buildIsFree, nearestSpeaker, pickLine, speakersOf, type Speaker } from './sim/talk';
+import { createTalkBubble } from './ui/talkBubble';
+import { giftFamilies, greetedBy, familyMood, reactFamilies, startleFamilies } from './sim/familyMoods';
 import { banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
 import { lead, leaderAnimal } from './sim/guides';
 import { pondGuests, trackPonds } from './sim/pondGuests';
@@ -415,6 +419,11 @@ async function start(): Promise<void> {
   const animalField = new AnimalField();
   let readBolt = false;
   const sniffed = new Set<string>();
+  const talkBubble = createTalkBubble(hud);
+  let buildPressed = false; // the build button went down this frame (a talk may start)
+  let talkingTo: Speaker | null = null;
+  let talks = 0;
+  const greeted = new Set<string>(); // families that have greeted the beaver this visit (#342)
 
   function frame(now: number): void {
     // Cap dt so a paused tab does not teleport the beaver. The first frame timestamp can come before `last`, so dt is never negative.
@@ -436,6 +445,7 @@ async function start(): Promise<void> {
       const actions = { ...mergeActions(readKeyboard(), touch.read()), stashTap, stashClose };
       stashTap = undefined;
       stashClose = false;
+      buildPressed = !!actions.build;
       const move = relativeToView(actions.move, rig.view.yaw);
       if (free && rig.view.free) {
         // The drone leaves the beaver, which stands still. Any move or climb cancels a tap's glide; the streamer follows the drone.
@@ -548,7 +558,34 @@ async function start(): Promise<void> {
     // The animals as they stand for their mood: deer bolt from a predator, wary ones keep away, curious ones come to look, a fox sniffs at the store at night (note 24, "Interaction with animals").
     const slappedNow = world.lastSlap !== null && world.lastSlap.time === world.time;
     const around = [...animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps)), ...pondGuests(world, world.beaver.x, world.beaver.z)];
+    // The families: shy, calm or curious by trust, thanking a gift, hurt by a slap, and greeting the beaver once each (#342).
+    const familyBeavers = reactFamilies(neighboursAt(world.neighbours, world.clock, ponded), world, ponded);
+    if (slappedNow) world = startleFamilies(world, familyBeavers);
+    const gifts = giftFamilies(world, familyBeavers);
+    world = gifts.world;
+    if (gifts.thanked.length > 0) toast.show('The beavers take it and trust you a little more');
+    const hello = greetedBy(familyBeavers, world);
+    if (hello && !greeted.has(hello)) {
+      greeted.add(hello);
+      const mood = familyMood(world, hello);
+      toast.show(mood === 'wary' ? 'A beaver family. They are shy. Put a branch down near them' : mood === 'calm' ? 'A beaver family says hello' : 'The beaver family is happy to see you');
+    }
     if (slappedNow) world = startle(world, around);
+    // Talking: a press of Build where nothing else wants it starts a talk with the nearest beaver in reach (#344).
+    const parents = [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)];
+    const near = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works && buildIsFree(world) ? nearestSpeaker(speakersOf(familyBeavers, parents, world.partners, nameOf), world.beaver) : null;
+    if (talkingTo && Math.hypot(talkingTo.x - world.beaver.x, talkingTo.z - world.beaver.z) > TALK_END) {
+      talkBubble.hush();
+      talkingTo = null;
+    }
+    if (near && buildPressed) {
+      talkingTo = near;
+      const feeling = near.family ? familyMood(world, near.family) : 'curious';
+      talkBubble.say(near.name, pickLine(near, { feeling, season: dateAt(world.clock).season, clock: world.clock, seed: talks++ }), LINE_SECONDS);
+    }
+    buildPressed = false;
+    talkBubble.prompt(near?.name ?? null, 'Build');
+    talkBubble.tick(dt);
     const ambient = foxesAtStore(react(around, world, ponded), world, ponded);
     const led = lead(world, ambient, dt, ponded);
     world = led.world;
@@ -577,7 +614,7 @@ async function start(): Promise<void> {
     const engaged = new Set(world.predators.map((p) => p.id));
     if (world.leader) engaged.add(world.leader.id);
     const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded), ...(world.leader ? [leaderAnimal(world.leader, ponded, world)] : [])];
-    renderer.draw(world, rig.view, [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)], animals, neighboursAt(world.neighbours, world.clock, ponded));
+    renderer.draw(world, rig.view, parents, animals, familyBeavers);
     if (now - lastReadout > 500) {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;

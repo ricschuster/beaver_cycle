@@ -120,6 +120,12 @@ export const CUE_EVERY = 45;
 
 const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'] as const;
 
+/** The compass word for a direction (dx east, dz south, so north is -z). */
+export function compassWord(dx: number, dz: number): string {
+  const bearing = (Math.atan2(dx, -dz) + 2 * Math.PI) % (2 * Math.PI);
+  return COMPASS[Math.round(bearing / (Math.PI / 4)) % 8] ?? 'north';
+}
+
 /** Where the nearest lone beaver is, as compass words and metres to the nearest 50, or null when there is none to find. North is -z. */
 export function partnerCue(partners: readonly Partner[], from: { x: number; z: number }): { direction: string; metres: number } | null {
   if (follower(partners) || mateOf(partners)) return null;

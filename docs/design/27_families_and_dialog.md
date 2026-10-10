@@ -3,7 +3,7 @@
 Design note, session 74. It answers open question 2 of [24_npcs_and_animals.md](24_npcs_and_animals.md) (#276: how the
 player interacts with other beaver families) and adds dialog between beavers, which the author asked for. Status: the family
 interactions are agreed with the author (greet, gifts, partner framing, rescue later, no shared dams). The dialog is a draft
-proposal; the points marked **Open** wait for the author. Nothing is built yet.
+proposal; the author answered its open points in session 74 (see "Decided" at the end). Slice 1 is built (see "As built"); the dialog is not.
 
 ## Family interactions (agreed)
 
@@ -22,6 +22,24 @@ Trust is 0 to 1 per family, kept in the same place as the animals' trust (`world
 to look and the parents stay near. A gift raises trust (first guess +0.3, as for animals), a tail slap within 30 m lowers it
 (-0.25). Nothing is ever lost: a wary family is only shy, never hostile (Q2, no losing).
 
+### As built (session 74, #342)
+
+Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesses to tune on a tablet.
+
+- A family starts at trust 0.1 (wary). `reactFamilies` places the family's beavers for the frame: wary ones keep 12 m from the
+  beaver, and a curious family's kits swim part of the way to 4 m from it (from 25 m). A move that would leave the water is not made.
+- A branch or lily pad put down within 12 m of a family's beaver is taken, and trust rises by 0.3. A rock or mud is left.
+- A tail slap within 30 m costs the family 0.25. Trust is kept in `world.trust` under the family id, so it is saved.
+- The first time a family comes within 20 m, a toast greets the player by mood. The manual has a paragraph.
+- Names (#343, `src/sim/names.ts`): each family beaver has a `name`, a pure function of its id from a list of 40 nature names, and a family is called for where its pond lies from the home, such as "north pond" (`pondName`).
+- Talk (#344, `src/sim/talk.ts`, `src/ui/talkBubble.ts`): within 6 m of a beaver (a neighbour, the player's Mama or Papa outside the
+  lodge, or a partner that is not alone), a card at the bottom says "Press Build to talk to Willow". Build starts the talk when
+  `buildIsFree` (not in the lodge, no log or load, not at the store, not at a dam spot). The beaver says one line for 7 s, picked by
+  `pickLine` from its kind, feeling (a neighbour's mood, always curious for the player's own), season, night and a counter. A wary
+  neighbour only warns. The card is fixed at the bottom, not a bubble over the head, since the renderer gives no screen position yet.
+  Walking 12 m away ends it. A baby cannot talk, as it cannot use Build.
+- Not built: choices, hints and overheard talk (#345), the rescue (#346).
+
 ## Dialog between beavers (proposal)
 
 Beavers do not talk like people, and the game is for children from 8 (the manual). So dialog is short, gentle, and
@@ -38,9 +56,11 @@ optional. It is a few lines in a speech bubble, never a wall of text, and it nev
 
 ### How the player talks
 
-- Walk up to a beaver (within about 3 m). The button hint says what a press does here, like the stash: "press Build to talk"
-  (**Open:** Build is the stash and lodge button, and Gnaw and Drag are taken; a dedicated Talk button is the other choice, but
-  the screen is already full on a tablet).
+- Walk up to a beaver (within about 3 m). The button hint says what a press does here, like the stash: "press Build to talk".
+  Build is the button that does "the thing here" (stash, lodge door, mending), so a talk takes it only when nothing else at that
+  spot wants it, and the lodge, the store and mending come first. Gnaw is for trees, food, rocks and mud, and Drag for logs and for
+  putting a gift down, so a Talk button would crowd the tablet screen. The author wants the buttons looked at as a whole later,
+  as not all make sense and a button can change with the circumstances (#341); a talk follows whatever that gives.
 - The beaver answers with one line in a bubble above its head. The player never types.
 - Where the player may answer, there are **at most 2 or 3 choices** as big buttons, such as "Hello", "Here is a branch", "Bye".
   Most talks need no choice: one line, then the bubble fades after a few seconds.
@@ -62,14 +82,13 @@ pick(speaker, listener trust, season, time of day, news, seed) -> line id
 - **Thanks** after a gift.
 - **Season and day**: snow, a warm evening, the first kits of spring.
 
-Lines are data (ids and text in one table, one place), so they can be translated and the author can edit them. English first
-(**Open:** German as well, since the valley is Austrian and the friends are there).
+Lines are data (ids and text in one table, one place), so the author can edit them and a language could be added. English only.
 
 ### How it is drawn
 
 A DOM bubble in `src/ui/` over the speaker, following it on screen, like the other overlays. The sim stays free of the DOM: it
-gives the current line id and speaker, and the UI turns that into text. A small sound or a short squeak per line is nice but
-optional (**Open**).
+gives the current line id and speaker, and the UI turns that into text. Each line also has a short squeak or call, once the
+game has sound (see "Sound" below).
 
 ### Code shape (when built)
 
@@ -86,10 +105,18 @@ optional (**Open**).
 3. Choices, news-based hints, and overheard talk between beavers.
 4. Stuck family members as guides, with the rescue (with Q20 to Q22).
 
-## Open for the author
+## Sound
 
-- The button that starts a talk (Build or a new Talk button).
-- English only, or German as well.
-- Whether a high-trust family gives hints, or trust is only felt in how they move.
-- Names for family members, so a rescued guide can be "Willow from the north pond".
-- Sound: a squeak per line, or silent text.
+The author wants sound in the game (round 2, Q36: rushing water, animal sounds such as birds, and music), and dialog gets a
+sound per line. The game has no sound yet, no code and no issue until now (#340). It needs its own note: how sound is loaded and
+played in the web stack on a tablet (the browser blocks audio until the first touch), where the files come from and their licence,
+a volume setting, and a budget for the tablet. Until it exists, dialog is silent text.
+
+## Decided (author, session 74)
+
+- The button: recommendation accepted, a talk takes Build when nothing else at that spot wants it. The buttons are to be revisited
+  as a whole (#341).
+- English only.
+- A family with high trust gives hints.
+- Family members get names, so a rescued guide can be "Willow from the north pond".
+- Sound for the lines, which waits for the game to have sound.

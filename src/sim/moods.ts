@@ -122,7 +122,7 @@ export function boltingDeer(animals: readonly Animal[], world: Pick<WorldState, 
   return animals.find((a) => a.kind === 'deer' && Math.hypot(a.x - b.x, a.z - b.z) < 60 && threats.some((p) => Math.hypot(a.x - p.x, a.z - p.z) < BOLT_AWAY + 1)) ?? null;
 }
 
-const withTrust = (world: WorldState, id: string, trust: number): WorldState => ({ ...world, trust: { ...world.trust, [id]: Math.max(0, Math.min(1, trust)) } });
+export const withTrust = (world: WorldState, id: string, trust: number): WorldState => ({ ...world, trust: { ...world.trust, [id]: Math.max(0, Math.min(1, trust)) } });
 
 /** A tail slap this step startles the moody animals within `SLAP_STARTLE`: they trust the beaver less. */
 export function startle(world: WorldState, animals: readonly Animal[]): WorldState {

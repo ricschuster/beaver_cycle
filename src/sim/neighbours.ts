@@ -2,6 +2,7 @@
 // mama and a papa, and the kits of the last two springs. Like the parents of a former home they keep the lodge up, so
 // nothing of theirs wears. Where each beaver is and how old is a pure function of the clock, so a sleep or a long
 // skip needs no catch-up and only the beavers near the player are ever worked out. No three.js and no DOM here.
+import { nameOf } from './names';
 import { DAY_SECONDS, DAYS_PER_YEAR, isNight } from './clock';
 import { COAT_COUNT, kitCoat, pondPlace, pondParts, type Coat } from './family';
 import { lifeAt, STAGE_RULES, type Stage } from './life';
@@ -23,6 +24,8 @@ export type NeighbourTask = 'swim' | 'rest';
 
 export interface NeighbourBeaver {
   id: string;
+  /** The beaver's own name (`names.ts`). */
+  name: string;
   family: string;
   role: 'mama' | 'papa' | 'kit';
   stage: Stage;
@@ -118,7 +121,7 @@ export function neighboursAt(families: readonly Neighbour[], clock: number, grou
     const place = (i: number) => pondPlace(n.lodge, parts, ground, clock, i);
     const adult = (role: 'mama' | 'papa', i: number): NeighbourBeaver => {
       const p = place(i);
-      return { id: `${n.id}:${role}`, family: n.id, role, stage: 'adult', coat: n.parents[i]!, x: p.x, y: p.y, z: p.z, heading: p.heading, pace: p.pace, task: p.pace > 0 ? 'swim' : 'rest', scale: STAGE_RULES.adult.scale };
+      return { id: `${n.id}:${role}`, name: nameOf(`${n.id}:${role}`), family: n.id, role, stage: 'adult', coat: n.parents[i]!, x: p.x, y: p.y, z: p.z, heading: p.heading, pace: p.pace, task: p.pace > 0 ? 'swim' : 'rest', scale: STAGE_RULES.adult.scale };
     };
     out.push(adult('mama', 0), adult('papa', 1));
     const year = Math.floor(clock / (DAYS_PER_YEAR * DAY_SECONDS));
@@ -129,7 +132,7 @@ export function neighboursAt(families: readonly Neighbour[], clock: number, grou
         const life = lifeAt(clock, kit.bornAt);
         if (kit.bornAt > clock || life.stage === 'adult' || life.ageDays > KIT_SEASON * 2) continue;
         const p = place(slot++);
-        out.push({ id: kit.id, family: n.id, role: 'kit', stage: life.stage, coat: kit.coat, x: p.x, y: p.y, z: p.z, heading: p.heading, pace: p.pace, task: p.pace > 0 ? 'swim' : 'rest', scale: STAGE_RULES[life.stage].scale });
+        out.push({ id: kit.id, name: nameOf(kit.id), family: n.id, role: 'kit', stage: life.stage, coat: kit.coat, x: p.x, y: p.y, z: p.z, heading: p.heading, pace: p.pace, task: p.pace > 0 ? 'swim' : 'rest', scale: STAGE_RULES[life.stage].scale });
       }
     }
   }

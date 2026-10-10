@@ -46,7 +46,7 @@ Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesse
   slots. The same slot gives the same call.
 - The rescue (#346, `src/sim/escort.ts`): in winter, in one winter in two for each family that is not wary (trust 0.3 and up), its mama
   or papa is stuck in a snowdrift on dry ground 9 to 18 m from its lodge (the same spot each time). A toast tells the player when it
-  comes within 45 m, with the pond's name. Holding Gnaw within 3 m, standing still, for 4 s digs it out: the winter's drift goes into
+  comes within 45 m, with the pond's name. A press of Gnaw within 3 m, then standing still for 4 s, digs it out: the winter's drift goes into
   `world.rescued`, the member into `world.guides`, and the family trusts the player 0.3 more. A freed guide swims in its pond again, and
   talking to it adds the reply "Show me the way". Then `world.escort` (not saved) has it lead at 6 m/s to the nearest lone beaver if the
   player has no mate, else the nearest free dam spot over 20 m away, else home; it waits when the player is 14 m behind, gives up at

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import type { BeaverMode } from '../sim/state';
 import type { Food } from '../sim/food';
 import { SHOT_SECONDS, type ActionKind, type BeaverAction } from './beaverAction';
+import { grain, hash, patternTexture, smoothstep } from './modelKit';
 
 /** Coats within beaver browns (Q59), indexed by `coatOf` in the sim. Fur, dark fur for legs and ears, and belly. */
 export const COATS = [
@@ -122,50 +123,27 @@ export function ellipsoid(rx: number, ry: number, rz: number, color: number, x: 
   return m;
 }
 
-/** A small number from 0 to 1 that is always the same for the same two whole numbers. */
-function hash(a: number, b: number): number {
-  const h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
-  return h - Math.floor(h);
-}
-
-/** Make a grey pattern texture, `size` texels square, from a brightness (0 to 1) per texel. */
-function patternTexture(size: number, repeatU: number, repeatV: number, shade: (x: number, y: number) => number): THREE.DataTexture {
-  const data = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const v = Math.round(255 * shade(x, y));
-      data.set([v, v, v, 255], (y * size + x) * 4);
-    }
+/** The fur grain of the animals (modelKit.ts), repeated more often over the beaver's bigger body. Shared by every beaver. */
+let furTexture: THREE.Texture | null = null;
+function furGrain(): THREE.Texture {
+  if (!furTexture) {
+    furTexture = grain('fur').clone();
+    furTexture.repeat.set(3, 2);
   }
-  const tex = new THREE.DataTexture(data, size, size);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(repeatU, repeatV);
-  tex.magFilter = THREE.LinearFilter;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.generateMipmaps = true;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-/** Fur grain: thin streaks of slightly lighter and darker hair that run along the body. Shared by every beaver. */
-let furTexture: THREE.DataTexture | null = null;
-function furGrain(): THREE.DataTexture {
-  furTexture ??= patternTexture(64, 3, 2, (x, y) => {
-    const strand = Math.floor((y + hash(x, 7) * 8) / 8);
-    return 0.87 + 0.13 * hash(x, strand);
-  });
   return furTexture;
 }
 
 /** The criss-cross scales on the tail. Shared by every beaver. */
 let scaleTexture: THREE.DataTexture | null = null;
 function tailScales(): THREE.DataTexture {
-  scaleTexture ??= patternTexture(32, 14, 14, (x, y) => {
-    const a = (x + y) % 16;
-    const b = (x - y + 32) % 16;
-    return a < 2 || b < 2 ? 0.6 : 0.95 + 0.05 * hash(x, y);
-  });
+  if (!scaleTexture) {
+    scaleTexture = patternTexture(32, (x, y) => {
+      const a = (x + y) % 16;
+      const b = (x - y + 32) % 16;
+      return a < 2 || b < 2 ? 0.6 : 0.95 + 0.05 * hash(x, y);
+    });
+    scaleTexture.repeat.set(14, 14);
+  }
   return scaleTexture;
 }
 
@@ -173,11 +151,6 @@ function tailScales(): THREE.DataTexture {
 function furry(mesh: THREE.Mesh): THREE.Mesh {
   (mesh.material as THREE.MeshLambertMaterial).map = furGrain();
   return mesh;
-}
-
-function smoothstep(a: number, b: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
 }
 
 /**

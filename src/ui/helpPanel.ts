@@ -35,6 +35,8 @@ export interface HelpOptions {
   touch: boolean;
   /** Called when the welcome card is closed, so the caller can remember it. */
   onWelcomed(): void;
+  /** Called when the player asks for the first steps again from the manual bar. */
+  onCoach(): void;
 }
 
 const BUTTON = 'min-width:44px;min-height:44px;padding:8px 16px;border:0;border-radius:10px;font:16px system-ui,sans-serif;cursor:pointer;';
@@ -61,7 +63,15 @@ export function createHelpPanel(parent: HTMLElement, opts: HelpOptions): HelpPan
   close.textContent = 'Back to the game';
   close.dataset.action = 'manual-close';
   close.style.cssText = `${BUTTON}background:#f3e3b5;color:#2a1f0e;`;
-  bar.append(title, close);
+  const again = document.createElement('button');
+  again.type = 'button';
+  again.textContent = 'Show the first steps';
+  again.dataset.action = 'manual-coach';
+  again.style.cssText = `${BUTTON}background:#e3d6b0;color:#2a1f0e;`;
+  const buttons = document.createElement('span');
+  buttons.style.cssText = 'display:flex;gap:10px';
+  buttons.append(again, close);
+  bar.append(title, buttons);
   const frame = document.createElement('iframe');
   frame.title = 'Beaver Cycle manual';
   frame.style.cssText = 'flex:1;border:0;width:100%';
@@ -117,6 +127,10 @@ export function createHelpPanel(parent: HTMLElement, opts: HelpOptions): HelpPan
   };
   open.addEventListener('click', openManual);
   close.addEventListener('click', closeManual);
+  again.addEventListener('click', () => {
+    closeManual();
+    opts.onCoach();
+  });
   read.addEventListener('click', () => {
     closeWelcome();
     openManual();

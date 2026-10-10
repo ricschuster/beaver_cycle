@@ -238,3 +238,21 @@ test('the welcome card stays away in an automated browser', async ({ page }) => 
   await expect(page.locator('#help-button')).toBeVisible();
   await expect(page.locator('#welcome')).toBeHidden();
 });
+
+test('the coach gives the first step when asked for, and skip ends it', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?shadows=0&coach=1');
+  // The coach starts on the first frame, which comes late where the browser draws in software (CI): wait until time has moved.
+  await page.waitForFunction(() => ((window as unknown as { __game?: { world(): { time: number } } }).__game?.world().time ?? 0) > 0, undefined, { timeout: 60_000 });
+  await expect(page.locator('#coach')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#coach')).toContainText('Walk around');
+  await page.click('[data-action=coach-skip]');
+  await expect(page.locator('#coach')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('the coach stays away in an automated browser', async ({ page }) => {
+  await page.goto('/?shadows=0');
+  await expect(page.locator('#coach')).toBeHidden();
+});

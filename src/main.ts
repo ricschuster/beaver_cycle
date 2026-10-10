@@ -31,6 +31,7 @@ import { storeCapacity, storeCondition } from './sim/food';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createKeyHints } from './ui/keyHints';
 import { WELCOME_KEY, createHelpPanel, wantsWelcome } from './ui/helpPanel';
+import { COACH_KEY, createCoach, wantsCoach } from './ui/coach';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createTestMenu } from './ui/testMenu';
 import { createFlyButtons } from './ui/flyButtons';
@@ -96,28 +97,45 @@ async function start(): Promise<void> {
   const readKeyboard = createKeyboardInput(window);
   const touch = createTouchControls(document.body, wantsTouchControls(navigator, query));
   createKeyHints(document.body, window, !wantsTouchControls(navigator, query) && !free);
-  // The "?" button opens the manual (public/manual.html), and the first start shows a welcome card. Storage can be
-  // blocked, so a failed read counts as not seen and a failed write is ignored.
+  // The "?" button opens the manual (public/manual.html), and the first start shows a welcome card.
+  // Storage can be blocked, so a failed read counts as not seen and a failed write is ignored.
+  const remembered = (key: string): boolean => {
+    try {
+      return localStorage.getItem(key) === '1';
+    } catch {
+      return false;
+    }
+  };
+  const remember = (key: string): void => {
+    try {
+      localStorage.setItem(key, '1');
+    } catch {
+      // Not remembered: it shows again next time.
+    }
+  };
+  // The first-steps coach (docs/design/25_first_steps_coach.md). It starts after the welcome card, from the world as it is
+  // then, and only for an adult: a baby cannot do its steps. The frame loop starts it when `coachPending` is set, since the world exists only there.
+  let coachPending = false;
+  const coach = free
+    ? null
+    : createCoach(document.body, {
+        touch: wantsTouchControls(navigator, query),
+        onEnd: () => remember(COACH_KEY),
+      });
   if (!free) {
-    const remembered = (): boolean => {
-      try {
-        return localStorage.getItem(WELCOME_KEY) === '1';
-      } catch {
-        return false;
-      }
-    };
     const help = createHelpPanel(document.body, {
       manualUrl: `${import.meta.env.BASE_URL}manual.html`,
       touch: wantsTouchControls(navigator, query),
       onWelcomed() {
-        try {
-          localStorage.setItem(WELCOME_KEY, '1');
-        } catch {
-          // Not remembered: the card shows again next time.
-        }
+        remember(WELCOME_KEY);
+        if (wantsCoach(remembered(COACH_KEY), query, navigator.webdriver)) coachPending = true;
+      },
+      onCoach: () => {
+        coachPending = true;
       },
     });
-    if (wantsWelcome(remembered(), query, navigator.webdriver)) help.showWelcome();
+    if (wantsWelcome(remembered(WELCOME_KEY), query, navigator.webdriver)) help.showWelcome();
+    else if (wantsCoach(remembered(COACH_KEY), query, navigator.webdriver)) coachPending = true;
   }
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
     shadows: query.get('shadows') !== '0' && !free,
@@ -390,6 +408,11 @@ async function start(): Promise<void> {
         rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
       }
     }
+    if (coachPending) {
+      coachPending = false;
+      if (lifeAt(world.clock, world.bornAt).stage === 'adult') coach?.start(world);
+    }
+    coach?.update(world);
     breathMeter.set(world.beaver.breath);
     clockHud.set(world.clock);
     lifeHud.set(lifeAt(world.clock, world.bornAt));

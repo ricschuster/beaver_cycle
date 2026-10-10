@@ -72,6 +72,7 @@ Everyday (gate means CI blocks a merge on it):
   `public/tiles/` (untracked, about 29 MB, 4 min; the first run also caches about
   80 MB of the BEV 1 m terrain in `data/raw/` for the fine tiles, ADR 0008); it also snaps the stream lines to the terrain channel, ADR 0010, `--no-snap` skips that; `python3 -m pytest tools/tiles`
   checks them (needs `data/raw/`)
+- `MANUAL_SHOTS=public/manual npx playwright test tests/e2e/manual-shots.spec.ts` - retake the pictures in the manual from the real valley (needs the local tiles, 1 to 2 minutes; skips without `MANUAL_SHOTS`)
 - `python3 tools/dam-sites/scan_dam_sites.py` - draft scan of the streams in `public/tiles/` for dam
   sites (writes `public/tiles/dam_sites.json`, 10 s; the test menu toggles them, `?damsites=1` starts with them on); `python3 -m pytest tools/dam-sites` checks it
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene
@@ -88,7 +89,7 @@ Everyday (gate means CI blocks a merge on it):
 - `tools/tiles/` - cuts terrain, land cover, and water into game tiles.
 - `tools/tablet-live/` - Capacitor shell that loads the dev server on a tablet.
 - `public/manual.html` - the player manual, shown in the game by the ? button (`src/ui/helpPanel.ts`). Update it when
-  controls, HUD text, or rules change.
+  controls, HUD text, or rules change, and keep the first steps in step with `src/ui/coachSteps.ts` (the in-game coach). Written for kids from 8, short sentences, pictures in `public/manual/`.
 - `src/` - the game. `sim/` is state and rules (no DOM, no three.js, no
   input; the ground comes in through its `Terrain` interface), `terrain/` is
   tile decoding, the tile store, and the streamer (no three.js), `actions/` is what the player wants as plain data plus the input

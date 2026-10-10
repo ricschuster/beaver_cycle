@@ -621,7 +621,9 @@ async function start(): Promise<void> {
     if (slappedNow) world = startle(world, around);
     // Talking: a press of Build where nothing else wants it starts a talk with the nearest beaver in reach (#344).
     const parents = [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats), ...formerParentsAt(world.formerHomes, world.clock, ponded)];
-    const near = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works && buildIsFree(world) ? nearestSpeaker(speakersOf(familyBeavers, parents, world.partners, nameOf), world.beaver) : null;
+    // A baby cannot work, but it talks to its own people from day 1 (Mama and Papa; siblings are not in the game yet).
+    const grown = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works;
+    const near = buildIsFree(world) ? nearestSpeaker(speakersOf(grown ? familyBeavers : [], parents, grown ? world.partners : [], nameOf), world.beaver) : null;
     if (talkingTo && Math.hypot(talkingTo.x - world.beaver.x, talkingTo.z - world.beaver.z) > TALK_END) {
       talkBubble.hush();
       talkingTo = null;

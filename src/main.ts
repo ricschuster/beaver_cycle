@@ -377,9 +377,8 @@ async function start(): Promise<void> {
     // Growing up from a teenager: Mama and Papa say it is time to start a family of one's own (Q8, Q50).
     const nowStage = lifeAt(world.clock, world.bornAt).stage;
     if (lastStage === 'teenager' && nowStage === 'adult') {
-      // A lone beaver lives where a lodge can be built within 300 m, so the player can lead it home.
-      const ground = lodgeGround(terrain, world.ponds);
-      world = withPartners(leaveHome(world), (spot) => findSite(ground, spot.bed.x, spot.bed.z, 300) !== null);
+      // A lone beaver lives at a dam spot that can hold a lodge pond, so the player can lead it home and build there.
+      world = withPartners(leaveHome(world));
       toast.show('Mama and Papa say it is time to start a family of your own');
     }
     lastStage = nowStage;

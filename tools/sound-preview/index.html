@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sound preview</title>
+    <style>
+      body { margin: 0; padding: 12px; background: #222; color: #eee; font: 15px sans-serif; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      h2 { font-size: 15px; margin: 18px 0 6px; color: #9cd; }
+      p { margin: 4px 0; color: #bbb; }
+      table { border-collapse: collapse; width: 100%; max-width: 980px; }
+      td, th { padding: 6px 8px; border-bottom: 1px solid #333; text-align: left; vertical-align: middle; }
+      th { color: #999; font-weight: normal; font-size: 12px; }
+      td.num { font-variant-numeric: tabular-nums; color: #aaa; white-space: nowrap; }
+      button { font: inherit; padding: 8px 14px; margin: 2px; border: 1px solid #555; border-radius: 6px; background: #333; color: #eee; min-height: 40px; }
+      button.on { background: #2a6; border-color: #2a6; }
+      button.stop { background: #a43; border-color: #a43; }
+      button.rate.sel { background: #36a; border-color: #36a; }
+      button.rate.sel.bad { background: #a43; border-color: #a43; }
+      input[type=text] { font: inherit; padding: 6px; width: 12em; background: #111; color: #eee; border: 1px solid #444; border-radius: 4px; }
+      #bar { position: sticky; top: 0; background: #222; padding: 6px 0; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      textarea { width: 100%; max-width: 980px; height: 8em; background: #111; color: #eee; border: 1px solid #444; }
+    </style>
+  </head>
+  <body>
+    <h1>Sound preview</h1>
+    <p>Tap a sound to hear it. Rate each one, and add a note if you like. Ratings are kept on this device. Press Export when done.</p>
+    <div id="bar"></div>
+    <h2>Ambient layers (loop)</h2>
+    <table id="layers"></table>
+    <h2>One-shot effects</h2>
+    <table id="effects"></table>
+    <h2>Export</h2>
+    <p><button id="export">Export ratings</button> <button id="copy">Copy</button></p>
+    <textarea id="out" readonly></textarea>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

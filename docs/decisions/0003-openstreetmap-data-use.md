@@ -52,6 +52,9 @@ polygons and travel routes computed on BEV terrain. What goes public:
   so the manual and README now credit OpenStreetMap contributors and link the
   copyright page.
 
+The play polygons in `data/areas/` come from a BEV elevation rule (valley floor
+below 630 m, smoothed), not from OSM geometry.
+
 Tiles, `data/raw/`, and any APK stay unpublished. The release decision above
 still applies to them, and to handing the APK to friends.
 

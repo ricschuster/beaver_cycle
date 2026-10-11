@@ -162,7 +162,7 @@ describe('the beavers of the dream', () => {
 });
 
 describe('candy props', () => {
-  const kinds: PropKind[] = ['lollipop', 'gumdrop', 'candyCane', 'cupcake', 'iceCream', 'marshmallowRock'];
+  const kinds: PropKind[] = ['lollipop', 'gumdrop', 'candyCane', 'cupcake', 'iceCream', 'marshmallowRock', 'cottonCandy'];
   it('stands each prop on the origin, at a candy size, in few triangles', () => {
     for (const kind of kinds) {
       const g = propShape({ id: `a-${kind}`, kind, colour: 2 });

@@ -26,8 +26,10 @@ in the chocolate river.
 
 - **Candy land** is a square of soft pastel ground, about 160 m across, with rolling candy hills at the edges that keep the
   beaver in. A chocolate river winds across it. A little path of round candy stones leads from where the beaver wakes up in
-  the dream, past lollipop trees, gumdrop bushes, candy canes, cupcake hills, ice cream cones, and marshmallow rocks, down to
-  the river bank. Every night the river, the path, the props, and the sweets are laid out new from a seed.
+  the dream, past lollipop trees, cotton candy trees, gumdrop bushes, candy canes, cupcake hills, ice cream cones, and
+  marshmallow rocks, down to the river bank. Every night the river, the path, the props, and the sweets are laid out new from
+  a seed. The cotton candy trees (the author, session 81) are a paper stick with a soft cloud of pink, sky blue, or lilac
+  spun sugar, and a big one hides a marshmallow beaver, as a big lollipop does.
 - **The beaver** is a marshmallow beaver too, in the colours of the rainbow from nose to tail (the author, session 81), so
   it stands out among the pastel ones. It walks on land and swims in the chocolate (no diving under, no breath). The Dive control makes it hop on land
   and leap out of the chocolate like a dolphin. The tail slap splashes chocolate.

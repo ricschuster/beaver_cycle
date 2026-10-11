@@ -150,10 +150,8 @@ game has sound (see "Sound" below).
 
 ## Sound
 
-The author wants sound in the game (round 2, Q36: rushing water, animal sounds such as birds, and music), and dialog gets a
-sound per line. The game has no sound yet, no code and no issue until now (#340). It needs its own note: how sound is loaded and
-played in the web stack on a tablet (the browser blocks audio until the first touch), where the files come from and their licence,
-a volume setting, and a budget for the tablet. Until it exists, dialog is silent text.
+The author wants sound in the game, and dialog gets a sound per line: a short babble or chirp, not voices. The plan for
+sound is in `32_sound.md` (#340). Until it is built, dialog is silent text.
 
 ## Decided (author, session 74)
 

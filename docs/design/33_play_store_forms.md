@@ -53,7 +53,7 @@ game does not show.
 
 ## Contact
 
-The store listing and the privacy page use ric.schuster@gmail.com (chosen by the author, 2026-10-11). Play may show it publicly.
+The store listing and the privacy page use <ric.schuster@gmail.com> (chosen by the author, 2026-10-11). Play may show it publicly.
 
 ## Still open
 

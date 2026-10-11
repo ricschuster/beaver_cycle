@@ -51,7 +51,7 @@ import { createDreamScreen } from './ui/dreamScreen';
 import { createTestMenu } from './ui/testMenu';
 import { STREAM_HEARD } from './audio/mix';
 import { createWebAudio } from './audio/webAudio';
-import { watchBeaver } from './audio/effects';
+import { watchBeaver, watchWorld } from './audio/effects';
 import { LAYERS, createSound, wireBrowser } from './audio/sound';
 import { createMuteButton } from './ui/muteButton';
 import { createFlyButtons } from './ui/flyButtons';
@@ -320,6 +320,7 @@ async function start(): Promise<void> {
   const soundOut = createWebAudio();
   const sound = createSound(soundOut, storage);
   const beaverCues = watchBeaver();
+  const worldCues = watchWorld();
   const silent = free || query.get('sound') === '0';
   if (!silent) wireBrowser(soundOut, window, document);
   const muteButton = free ? null : createMuteButton(document.body, sound.settings().muted, () => {
@@ -849,7 +850,7 @@ async function start(): Promise<void> {
     renderer.draw(world, rig.view, parents, animals, drawnFamily, stuckList.map((st) => ({ x: st.x, y: ponded.heightAt(st.x, st.z), z: st.z })), dug > 0);
     if (!silent) {
       const b = world.beaver;
-      sound.cue(beaverCues(world, now / 1000), now / 1000);
+      sound.cue([...beaverCues(world, now / 1000), ...worldCues(world, lastAmbient, now / 1000)], now / 1000);
       sound.update({
         streamDistance: terrain.streamDistance?.(b.x, b.z, STREAM_HEARD) ?? Infinity,
         onWater: ponded.isWater(b.x, b.z),

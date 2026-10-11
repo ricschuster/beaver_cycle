@@ -76,7 +76,7 @@ Everyday (gate means CI blocks a merge on it):
 - `MANUAL_SHOTS=public/manual npx playwright test tests/e2e/manual-shots.spec.ts` - retake the pictures in the manual from the real valley (needs the local tiles, 1 to 2 minutes; skips without `MANUAL_SHOTS`)
 - `python3 tools/dam-sites/scan_dam_sites.py` - draft scan of the streams in `public/tiles/` for dam
   sites (writes `public/tiles/dam_sites.json`, 10 s; the test menu toggles them, `?damsites=1` starts with them on); `python3 -m pytest tools/dam-sites` checks it
-- Pages: `.github/workflows/pages.yml` deploys `main` to https://ricschuster.github.io/beaver_cycle/ with the tiles from the `tiles` release (`tar -czf tiles.tar.gz -C public tiles`, then `gh release upload tiles tiles.tar.gz --clobber` after a tile rebuild)
+- Pages: `.github/workflows/pages.yml` deploys `main` to <https://ricschuster.github.io/beaver_cycle/> with the tiles from the `tiles` release (`tar -czf tiles.tar.gz -C public tiles`, then `gh release upload tiles tiles.tar.gz --clobber` after a tile rebuild)
 - `npm run dev`, then open `/tools/model-preview/` - the beaver model alone, to check the look (query
   `?mode=swim&speed=1&carry=branch&coat=2&yaw=90&t=1`, or `?action=eat&carry=lily`; `t` freezes the time, drag turns the camera)
 - `npm run dev`, then open `/tools/model-preview/animals.html` - one ambient animal alone (query

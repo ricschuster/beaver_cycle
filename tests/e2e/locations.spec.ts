@@ -3,7 +3,7 @@ import { buildLodge, goToNearestSpot, hasTiles, shot, startGame, toggleMenu, wor
 // Each play location on the real valley (#42): the test menu jumps there, finishes a dam at the nearest spot, and the pond has a
 // place a lodge can start. With PLAYTEST_BUILD=1 the beaver also fells trees and builds the lodge by hand, which is slow (a few
 // minutes a location). The unit test src/terrain/locations.test.ts checks the same ground without the browser; this one checks
-// that the beaver can really do it there. Written in session 64 and not run yet; run it before relying on it.
+// that the beaver can really do it there. All six pass without PLAYTEST_BUILD (about 7 minutes, #315); the hand built lodge is not run yet.
 
 const LOCATIONS = ['core', 'north', 'south', 'east-oedseen', 'vorderer-springbach', 'hinterer-springbach'];
 const BUILD = process.env.PLAYTEST_BUILD === '1';
@@ -26,13 +26,20 @@ for (const id of LOCATIONS) {
     await toggleMenu(page);
     const spot = await goToNearestSpot(page);
     expect(spot, 'a dam spot at the location').toBeTruthy();
+    // A lodge sees only the pond of a level 2 dam or higher (design note 20, `lodgeGround`): a level 1 pond is too shallow for the
+    // door. "Finish dam here" fills level 1 and each press after raises it a level, so press it up to the top level the spot holds.
+    const top = [1.0, 1.5, 2.0].filter((c) => c <= spot.maxCrest + 1e-6).length || 1;
     await page.getByRole('button', { name: 'Test menu' }).click();
-    await page.locator('button[data-action="dam-fill"]').click();
-    await page.waitForTimeout(1500);
+    for (let level = 1; level <= top; level++) {
+      await page.locator('button[data-action="dam-fill"]').click();
+      await page.waitForTimeout(1500);
+    }
     await page.getByRole('button', { name: 'Test menu' }).click();
     const w = await world(page);
+    console.log(id, JSON.stringify({ spot: spot.id, maxCrest: spot.maxCrest, level: w.dams[0]?.level ?? 1, ponds: w.ponds.map((p: any) => ({ crest: p.crest, area: p.area })) }));
     expect(w.dams).toHaveLength(1);
     expect(w.ponds.length).toBeGreaterThan(0);
+    expect(w.dams[0].level ?? 1, 'the nearest spot holds a dam high enough for a lodge pond').toBeGreaterThanOrEqual(2);
     const site = await page.evaluate(() => (window as any).__game.lodgeSite(120));
     expect(site, 'a place a lodge can start on the new pond').toBeTruthy();
     await shot(page, `locations-${id}-pond`);

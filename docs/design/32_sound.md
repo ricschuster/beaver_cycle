@@ -127,6 +127,26 @@ Sounds made in code cannot be judged by a test, so the check has two halves.
   with the worst first. Do it on the tablet over the dev server, then play the game for the mix.
 - **Then decide per sound:** leave it, tune the synth, or after one round of tuning replace it with a CC0 file.
 
+## Recordings (session 90)
+
+The author heard the code made sounds and rated nearly all of them wrong (`tools/sound-preview/ratings-round1.md`), so recordings
+replace them. Only `done` and the three chimes stay in code. Babble and chirp stay in code for now (no recording yet; open).
+
+- **The player** (`webAudio.ts`, `samples.ts`): on the first touch it reads `public/audio/manifest.json`, starts each ambient
+  layer from one recording picked at random for the session, and decodes the effect files in the background. A play picks a random
+  clip of the effect (not the one played last), with the pitch varied by up to 7% and the gain by up to 15%. An effect or layer the
+  manifest does not list is made in code, as before. If the manifest is missing the whole game is made in code. Until the files are
+  decoded (a second or two) an effect with recordings stays silent rather than play the synth.
+- **Choosing is data, not code.** `python3 tools/sound-preview/pick_from_ratings.py RATINGS.md ...` copies every clip rated ok from
+  `public/audio-candidates/` to `public/audio/` and writes the manifest. Several ok clips for one effect form its pool.
+- **Candidates in two rounds.** `stage_candidates.py` (round 1) and `stage_gaps.py` (round 2: water slap, setdown, hurt, stroke,
+  fall, cheer, more splashes) both write into `public/audio-candidates/`; `fetch_packs.sh` downloads the sources.
+- **Water slap.** The tail slap on land (`slap`) and in water (`slapwater`, when the beaver is swimming or diving) are two effects.
+  The sim has no depth for a splash, so all splash clips, shallow or deep, share one pool.
+- **Credits.** `public/audio/CREDITS.md` lists source, author and licence. One clip (the cheer) is CC-BY 4.0 and needs the credit;
+  the rest are CC0. A credits line in the game is still to do if more CC-BY clips are chosen.
+- **Budget.** 3.4 MB for the 68 clips of round 1, inside the 5 MB budget.
+
 ## Slices
 
 Each slice is its own pull request, and each can stay silent in tests.

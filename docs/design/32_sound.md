@@ -1,7 +1,6 @@
 # Sound
 
-Design note for #340. Status: proposal, decided by the author in session 84 where marked **Decided**; the rest waits for the
-author. The game has no sound yet. The author wants rushing water, animal sounds such as birds, and music (round 2, Q36),
+Design note for #340. Status: decided by the author in session 84. Issues #405 to #410 are the slices. The game has no sound yet. The author wants rushing water, animal sounds such as birds, and music (round 2, Q36),
 a sound per line of dialog (`27_families_and_dialog.md`), and giggles and a cheer in the dream (`29_dream_candy_land.md`).
 
 ## Decided (author, session 84)
@@ -83,9 +82,8 @@ Each slice is its own pull request, and each can stay silent in tests.
 5. The dream sounds.
 6. Music, if the author still wants it.
 
-## Open questions for the author
+## Also decided (author, session 84)
 
-- Is a mute button on the screen at all times right, or only in the settings?
-- Should the lone beaver and the partner have their own calls (a partner "follow me" chirp)?
-- Should a sound that is out of sight, such as a fox, show a hint on screen (a direction), so a deaf or muted player is not
-  left out? The proposal is that every sound which warns also has a toast, as the predators already do.
+- **A mute button is on the screen at all times**, not only in the settings.
+- **The partner and the lone beaver get their own calls**, for example a follow-me chirp (slice 4, #408).
+- **Every sound that warns also has a toast**, so a muted player is not left out. The predators already work this way.

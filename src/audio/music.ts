@@ -7,7 +7,8 @@ import { rng } from './synth';
 /** What the music plays: the valley, the dream, or nothing. */
 export type MusicMood = 'valley' | 'dream' | 'off';
 
-export type NoteVoice = 'pad' | 'pluck' | 'bell';
+/** The instruments: a string section (pad), a harp, a flute, and a celesta-like bell. */
+export type NoteVoice = 'pad' | 'pluck' | 'flute' | 'bell';
 
 export interface Note {
   /** Seconds from the start of the music at which it begins. */
@@ -78,7 +79,9 @@ export function createComposer(seed: number, start = 0): Composer {
           // A walk up and down the scale, by a step or two, kept between the low and high step of the mood.
           const move = Math.floor(rand() * 5) - 2;
           stepNow = Math.min(m.high, Math.max(m.low, stepNow + (move === 0 ? 2 : move)));
-          out.push({ time: noteAt, hz: stepHz(key, stepNow), seconds: m.voice === 'bell' ? 2.4 : 3.2, gain: m.noteGain * (0.7 + 0.3 * rand()), voice: m.voice });
+          // In the valley a harp and a flute take turns (about two in five are flute), in the dream it is always the bell.
+          const voice: NoteVoice = m.voice === 'bell' ? 'bell' : rand() < 0.4 ? 'flute' : 'pluck';
+          out.push({ time: noteAt, hz: stepHz(key, stepNow), seconds: voice === 'bell' ? 2.4 : voice === 'flute' ? 3.6 : 3.2, gain: m.noteGain * (0.7 + 0.3 * rand()), voice });
           noteAt += pick(m.gap);
         } else break;
       }

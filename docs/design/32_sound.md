@@ -168,6 +168,7 @@ replace them. Only `done` and the three chimes stay in code. Chirp and babble ha
   of one major pentatonic scale, so nothing clashes. A pad of three notes changes chord every 36 s (valley, key A) or 16 s (dream,
   key D). Single notes fall at random between: a soft pluck every 6 to 14 s in the valley, a bell every half second or so in the
   dream, walking up and down the scale by a step or two. Each run has its own seed.
+- **Instruments, not a synth** (session 96): the pad is a string section (three detuned saws through a filter that opens as the bow sets in, with a vibrato), single notes in the valley are a harp or a flute (a breathy sine with a late vibrato), and the dream's bell has overtones. Everything runs through one generated hall (a convolver reverb) and every note is up to 30 ms off the beat.
 - Each mood has its own gain into the music bus; the valley fades out as the dream fades in (time constant 2.5 s). Notes are scheduled
   2 s ahead on the audio clock, and the timer stops when the mood is off, so a muted or silent game does no work.
 - **Frame rate:** the music gives way after 4 s under 22 fps and returns after 12 s over 32 fps (`createFrameWatch`).

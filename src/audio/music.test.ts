@@ -35,7 +35,7 @@ describe('composer', () => {
   });
 
   it('is sparse in the valley and busy in the dream', () => {
-    const valley = createComposer(2).notes(120).filter((n) => n.voice === 'pluck').length;
+    const valley = createComposer(2).notes(120).filter((n) => n.voice === 'pluck' || n.voice === 'flute').length;
     const d = createComposer(2);
     d.setMood('dream');
     const dream = d.notes(120).filter((n) => n.voice === 'bell').length;
@@ -44,12 +44,18 @@ describe('composer', () => {
     expect(dream).toBeGreaterThan(valley * 4);
   });
 
+  it('gives the valley both a harp and a flute', () => {
+    const voices = new Set(createComposer(5).notes(600).map((n) => n.voice));
+    expect(voices.has('pluck')).toBe(true);
+    expect(voices.has('flute')).toBe(true);
+  });
+
   it('holds a chord of three pad notes in the valley', () => {
     expect(createComposer(1).notes(10).filter((n) => n.voice === 'pad')).toHaveLength(3);
   });
 
   it('keeps single notes in a comfortable range', () => {
-    for (const n of createComposer(9).notes(600)) if (n.voice === 'pluck') expect(n.hz).toBeLessThan(110 * 2 ** (13 / 5));
+    for (const n of createComposer(9).notes(600)) if (n.voice === 'pluck' || n.voice === 'flute') expect(n.hz).toBeLessThan(110 * 2 ** (13 / 5));
   });
 });
 

@@ -165,32 +165,119 @@ export function createWebAudio(): SoundOut {
     for (let i = 0; i < files.length; i += 6) await Promise.all(files.slice(i, i + 6).map((f) => load(c, f)));
   };
 
-  /** One note of the music: a soft pad (two detuned triangles, slow in and out), a pluck, or a bell (two sine partials, quick to start and long to fade). */
-  const playNote = (c: Ctx, note: Note, into: GainNode, when: number): void => {
+  /** A short wash of noise for the breath at the start of a flute note. */
+  let breath: AudioBuffer | null = null;
+
+  /** A hall: two channels of noise that fade over about three seconds and grow duller, for the convolver. */
+  const hallResponse = (c: Ctx): AudioBuffer => {
+    const seconds = 3;
+    const n = Math.floor(c.sampleRate * seconds);
+    const buf = c.createBuffer(2, n, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      let low = 0;
+      for (let i = 0; i < n; i++) {
+        const t = i / n;
+        // A one-pole low-pass whose cut-off falls with time: the highs die first, as in a real room.
+        const k = 0.6 - 0.5 * t;
+        low += k * ((Math.random() * 2 - 1) - low);
+        d[i] = low * (1 - t) ** 3;
+      }
+    }
+    return buf;
+  };
+
+  /** Shorthand: a gain node that swells to `peak` and falls away, and goes into `into`. */
+  const envelope = (c: Ctx, into: AudioNode, when: number, peak: number, attack: number, end: number, plucked: boolean): GainNode => {
     const g = c.createGain();
     g.connect(into);
-    const end = when + note.seconds;
-    const tones: [OscillatorType, number, number][] =
-      note.voice === 'pad'
-        ? [['triangle', note.hz, 1], ['triangle', note.hz * 1.004, 1]]
-        : note.voice === 'pluck'
-          ? [['triangle', note.hz, 1], ['sine', note.hz * 2, 0.3]]
-          : [['sine', note.hz, 1], ['sine', note.hz * 2.76, 0.18]];
-    const attack = note.voice === 'pad' ? note.seconds * 0.35 : 0.02;
     g.gain.setValueAtTime(0, when);
-    g.gain.linearRampToValueAtTime(note.gain, when + attack);
-    if (note.voice === 'pad') g.gain.linearRampToValueAtTime(0, end);
-    else g.gain.exponentialRampToValueAtTime(0.0001, end);
-    for (const [type, hz, level] of tones) {
-      const osc = c.createOscillator();
-      osc.type = type;
-      osc.frequency.value = hz;
-      const part = c.createGain();
-      part.gain.value = level;
-      osc.connect(part).connect(g);
-      osc.start(when);
-      osc.stop(end + 0.1);
+    g.gain.linearRampToValueAtTime(peak, when + attack);
+    if (plucked) g.gain.exponentialRampToValueAtTime(0.0001, end);
+    else {
+      g.gain.setValueAtTime(peak, Math.max(when + attack, end - Math.max(0.4, (end - when) * 0.4)));
+      g.gain.linearRampToValueAtTime(0, end);
     }
+    return g;
+  };
+
+  /** A tone: an oscillator of one wave through a gain, started and stopped with the note. A vibrato (cents, hertz, after a delay) can sway it. */
+  const tone = (c: Ctx, type: OscillatorType, hz: number, level: number, into: AudioNode, when: number, end: number, cents = 0, vibrato?: { cents: number; rate: number; delay: number }): void => {
+    const osc = c.createOscillator();
+    osc.type = type;
+    osc.frequency.value = hz;
+    osc.detune.value = cents;
+    const part = c.createGain();
+    part.gain.value = level;
+    osc.connect(part).connect(into);
+    if (vibrato) {
+      const lfo = c.createOscillator();
+      lfo.frequency.value = vibrato.rate * (0.9 + 0.2 * Math.random());
+      const depth = c.createGain();
+      depth.gain.setValueAtTime(0, when);
+      depth.gain.linearRampToValueAtTime(vibrato.cents, when + vibrato.delay + 0.6);
+      lfo.connect(depth).connect(osc.detune);
+      lfo.start(when);
+      lfo.stop(end + 0.1);
+    }
+    osc.start(when);
+    osc.stop(end + 0.1);
+  };
+
+  /** One note of the music, played as an instrument: strings (three detuned saws through a filter that opens as the bow sets in, with a vibrato), a harp (a plucked triangle with its overtones), a flute (a breathy sine with a slow vibrato), or a celesta-like bell. */
+  const playNote = (c: Ctx, note: Note, into: AudioNode, when: number): void => {
+    const end = when + note.seconds;
+    if (note.voice === 'pad') {
+      const g = envelope(c, into, when, note.gain, note.seconds * 0.35, end, false);
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.Q.value = 0.4;
+      lp.frequency.setValueAtTime(350, when);
+      lp.frequency.linearRampToValueAtTime(Math.min(2400, note.hz * 7), when + note.seconds * 0.5);
+      lp.connect(g);
+      // Three players a few cents apart, not one oscillator, so the section has a chorus and a slow beat.
+      for (const cents of [-9, 1, 8]) tone(c, 'sawtooth', note.hz, 0.3, lp, when, end, cents + (Math.random() - 0.5) * 4, { cents: 5, rate: 5, delay: 0.8 });
+      return;
+    }
+    if (note.voice === 'pluck') {
+      const g = envelope(c, into, when, note.gain, 0.006, end, true);
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(Math.min(5000, note.hz * 9), when);
+      lp.frequency.exponentialRampToValueAtTime(note.hz * 2, when + 1.2);
+      lp.connect(g);
+      tone(c, 'triangle', note.hz, 0.7, lp, when, end);
+      tone(c, 'sine', note.hz * 2, 0.35, lp, when, end);
+      tone(c, 'sine', note.hz * 3, 0.15, lp, when, end);
+      return;
+    }
+    if (note.voice === 'flute') {
+      const g = envelope(c, into, when, note.gain, 0.14, end, false);
+      tone(c, 'sine', note.hz, 0.8, g, when, end, 0, { cents: 14, rate: 5.2, delay: 0.5 });
+      tone(c, 'sine', note.hz * 2, 0.12, g, when, end);
+      tone(c, 'sine', note.hz * 3, 0.04, g, when, end);
+      // The breath: a puff of band-passed noise as the note starts.
+      breath ??= noiseBuffer(c);
+      const puff = c.createBufferSource();
+      puff.buffer = breath;
+      const bp = c.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = note.hz * 2;
+      bp.Q.value = 1.2;
+      const pg = c.createGain();
+      pg.gain.setValueAtTime(0, when);
+      pg.gain.linearRampToValueAtTime(0.05, when + 0.05);
+      pg.gain.linearRampToValueAtTime(0.012, when + 0.4);
+      pg.gain.linearRampToValueAtTime(0, end);
+      puff.connect(bp).connect(pg).connect(g);
+      puff.start(when);
+      puff.stop(end + 0.1);
+      return;
+    }
+    const g = envelope(c, into, when, note.gain, 0.01, end, true);
+    tone(c, 'sine', note.hz, 1, g, when, end);
+    tone(c, 'sine', note.hz * 2.76, 0.18, g, when, end);
+    tone(c, 'sine', note.hz * 5.4, 0.05, g, when, when + 0.5);
   };
 
   /** Schedule the notes that begin in the next moments. Runs on a timer while the music plays. */
@@ -202,7 +289,8 @@ export function createWebAudio(): SoundOut {
     for (const note of composer.notes(c.currentTime - t0 + MUSIC_AHEAD)) {
       // A note that fell behind (the tab was away) is dropped, not played late in a heap.
       if (t0 + note.time < c.currentTime) continue;
-      playNote(c, note, gain, t0 + note.time);
+      // A player is never exactly on the beat: up to 30 ms either way.
+      playNote(c, note, gain, Math.max(c.currentTime, t0 + note.time + (Math.random() - 0.5) * 0.06));
     }
   };
 
@@ -229,10 +317,18 @@ export function createWebAudio(): SoundOut {
     effects.connect(master);
     music = c.createGain();
     music.connect(master);
+    // Everything the music plays goes through one hall: some of it dry, some of it echoing round the room.
+    const hall = c.createGain();
+    hall.connect(music);
+    const room = c.createConvolver();
+    room.buffer = hallResponse(c);
+    const wet = c.createGain();
+    wet.gain.value = 0.5;
+    hall.connect(room).connect(wet).connect(music);
     for (const mood of ['valley', 'dream'] as const) {
       const gain = c.createGain();
       gain.gain.value = 0;
-      gain.connect(music);
+      gain.connect(hall);
       moods.set(mood, gain);
     }
     composer = createComposer(Math.floor(Math.random() * 1e9), 1);

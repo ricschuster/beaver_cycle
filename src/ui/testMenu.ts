@@ -182,7 +182,7 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   breathButton.dataset.action = 'breath-low';
   style(breathButton);
   breathButton.onclick = () => opts.onBreathLow();
-  row('Beaver').appendChild(breathButton);
+  stageRow.appendChild(breathButton);
   const viewRow = row('View');
   const views: [FlyMode, string][] = [
     ['off', 'Beaver'],

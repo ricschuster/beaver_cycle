@@ -1,7 +1,6 @@
 // The dream's scene (docs/design/29_dream_candy_land.md): candy land drawn with three.js on its own canvas, made when a dream
 // starts and thrown away on waking. It reads the dream's state and never changes it.
 import * as THREE from 'three';
-import type { Coat } from '../sim/family';
 import { CHOCOLATE, CHOCOLATE_LEVEL, dreamHeight, type DreamBeaver, type DreamEvent, type DreamLand, type DreamState, type Sweet, type SweetKind } from '../sim/dream';
 import { SWIM_SINK } from '../sim/state';
 import type { ViewState } from './cameraRig';
@@ -71,8 +70,8 @@ export function sweetHeight(sweet: Pick<Sweet, 'floating'>, ground: number, time
   return sweet.floating ? CHOCOLATE_LEVEL + 0.16 + 0.05 * Math.sin(time * 1.8 + phase) : ground + 0.5 + 0.09 * Math.sin(time * 2.2 + phase);
 }
 
-/** The scene for one night's land, with the player's beaver in its own coat. The canvas fills `parent`. */
-export function createDreamView(parent: HTMLElement, land: DreamLand, coat: Coat): DreamView {
+/** The scene for one night's land, with the player as a rainbow marshmallow beaver. The canvas fills `parent`. */
+export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView {
   const gl = new THREE.WebGLRenderer({ antialias: true });
   gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, DREAM_PIXEL_RATIO));
   const canvas = gl.domElement;
@@ -169,8 +168,8 @@ export function createDreamView(parent: HTMLElement, land: DreamLand, coat: Coat
     scene.add(new THREE.Points(geo, material));
   }
 
-  // The beavers: the player's own, and a marshmallow beaver for each one in the dream, made when first seen.
-  const player = dreamPlayer(coat);
+  // The beavers: the player's rainbow one, and a marshmallow beaver for each one in the dream, made when first seen.
+  const player = dreamPlayer();
   scene.add(player.group);
   const mallows = new Map<string, { model: BeaverModel; far: THREE.Mesh }>();
 

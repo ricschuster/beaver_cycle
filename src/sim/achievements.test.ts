@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { noIntent, type Intent } from './buttons';
-import { ACHIEVEMENT_IDS, ACHIEVEMENT_TEXT, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, tally } from './achievements';
-import { DAY_SECONDS, DAYS_PER_YEAR, START_CLOCK } from './clock';
+import { ACHIEVEMENT_IDS, ACHIEVEMENT_TEXT, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, rescuesThisLife, tally } from './achievements';
+import { DAY_SECONDS, DAYS_PER_YEAR, START_CLOCK, dateAt, nextSpringStart } from './clock';
 import { LEVEL1_COST, LEVEL_COST } from './dam';
 import type { DamSpot } from './damSpots';
 import { STORE_CAPACITY } from './food';
 import { LODGE_WOOD } from './lodge';
-import { createWorld, newLife, type WorldState } from './state';
+import type { Partner } from './partners';
+import { birth, createWorld, newLife, type WorldState } from './state';
 import { step } from './step';
 import type { Terrain } from './terrain';
 import { newWear } from './wear';
@@ -66,6 +67,48 @@ describe('the rules', () => {
   });
 });
 
+describe('the family ones (Q38)', () => {
+  const home = { x: 0, z: 0, base: 0, door: 0, wood: LODGE_WOOD };
+  const partner: Partner = { id: 'partner:s1', x: 0, z: 0, heading: 0, coat: 1, shade: 0, state: 'alone', metAt: null, homeAt: null };
+  const mate: Partner = { ...partner, state: 'home', metAt: 1, homeAt: 100 };
+  // A grown beaver whose partner lives in its whole lodge. The test lodge would win Home, so it counts as inherited here.
+  const family = (): WorldState => ({ ...base(), lodge: home, partners: [mate], journey: { ...base().journey, inherited: ['lodge'] } });
+
+  it('mate: a partner lives in the lodge, not one that only follows or was never met', () => {
+    expect(won({ ...base(), partners: [partner] })).toEqual([]);
+    expect(won({ ...base(), partners: [{ ...partner, state: 'following', metAt: 1 }] })).toEqual([]);
+    expect(won(family())).toEqual(['mate']);
+  });
+
+  it('kits: won when the kit is due, on the first day of spring after the partner moved in', () => {
+    expect(won({ ...family(), clock: nextSpringStart(100) - 1 })).not.toContain('kits');
+    expect(won({ ...family(), clock: nextSpringStart(100) })).toContain('kits');
+  });
+
+  it('kits: the kit starts with nothing won, and no partner, so it finds its own mate', () => {
+    const kit = birth({ ...family(), clock: nextSpringStart(100), achievements: ['mate', 'kits'] });
+    expect(kit.achievements).toEqual([]);
+    expect(won(kit)).not.toContain('mate');
+    expect(won(kit)).not.toContain('kits');
+  });
+
+  it('guide: a stuck beaver dug out in this life', () => {
+    const year = dateAt(base().clock).year;
+    expect(won({ ...base(), rescued: [] })).toEqual([]);
+    expect(won({ ...base(), rescued: [`family:1:2:stuck:${year}`] })).toEqual(['guide']);
+  });
+
+  it('guide: a rescue of an earlier life does not count, one in this life does', () => {
+    const spring = nextSpringStart(base().clock);
+    const before = `family:1:2:stuck:${dateAt(base().clock).year}`;
+    const kit = newLife({ ...base(), clock: spring, rescued: [before] });
+    expect(rescuesThisLife(kit)).toBe(0);
+    expect(won(kit)).not.toContain('guide');
+    const now = `family:1:2:stuck:${dateAt(spring).year}`;
+    expect(won({ ...kit, rescued: [before, now] })).toContain('guide');
+  });
+});
+
 describe('the counts', () => {
   it('counts a pad picked, and one picked again after it grew back', () => {
     expect(padsBetween({}, { a: 0 })).toBe(1);
@@ -113,7 +156,10 @@ describe('the list', () => {
     expect(lines[0]).toBe('[ ] Wood 12/30');
     expect(lines[1]).toBe('[x] Home');
     expect(lines).toContain('[ ] Water gardener 3/20');
-    expect(lines).toHaveLength(10);
+    expect(lines).toContain('[ ] Mate');
+    expect(lines).toContain('[ ] Kits');
+    expect(lines).toContain('[ ] Guide');
+    expect(lines).toHaveLength(13);
   });
 });
 

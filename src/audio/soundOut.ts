@@ -1,8 +1,8 @@
 // Where sound goes (docs/design/32_sound.md). The game talks to this small interface, the tests to a fake, and the browser
 // to Web Audio (webAudio.ts). Nothing in `sim/` imports this.
 
-/** The ambient loops. More come with the later slices. */
-export type Layer = 'water';
+/** The ambient loops. */
+export type Layer = 'water' | 'wind' | 'birds' | 'crickets' | 'owl';
 
 export interface SoundOut {
   /** Set the volumes of the two buses, 0 to 1. */

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { effectsGain, musicGain, waterGain, STREAM_HEARD, type Hearing } from './mix';
+import { birdsGain, cricketsGain, effectsGain, musicGain, owlGain, waterGain, windGain, STREAM_HEARD, type Hearing } from './mix';
 import { DEFAULT_SOUND, SOUND_KEY, loadSound, parseSound, saveSound } from './settings';
 import { createSound, wireBrowser } from './sound';
 import { fakeSoundOut } from './soundOut';
+import { birdsLoop, cricketsLoop, owlLoop } from './synth';
 
-const far: Hearing = { streamDistance: Infinity, onWater: false, inLodge: false, underwater: false };
+const far: Hearing = { streamDistance: Infinity, onWater: false, inLodge: false, underwater: false, daylight: 1, season: 'spring' };
 
 function memory(): Pick<Storage, 'getItem' | 'setItem'> & { data: Map<string, string> } {
   const data = new Map<string, string>();
@@ -26,6 +27,42 @@ describe('waterGain', () => {
     expect(waterGain({ ...at, inLodge: true })).toBeCloseTo(0.3);
     expect(waterGain({ ...at, underwater: true })).toBeCloseTo(0.4);
   });
+});
+
+describe('the ambient layers', () => {
+  const night = { ...far, daylight: 0 };
+  it('has birds by day and not at night, and fewer under the snow', () => {
+    expect(birdsGain(far)).toBeGreaterThan(0.5);
+    expect(birdsGain(night)).toBe(0);
+    expect(birdsGain({ ...far, season: 'winter' })).toBeLessThan(birdsGain({ ...far, season: 'summer' }) / 4);
+  });
+  it('has crickets and an owl at night, with no crickets in winter and none by day', () => {
+    expect(cricketsGain({ ...night, season: 'summer' })).toBeGreaterThan(0.3);
+    expect(cricketsGain(far)).toBe(0);
+    expect(cricketsGain({ ...night, season: 'winter' })).toBe(0);
+    expect(owlGain({ ...night, season: 'winter' })).toBeGreaterThan(0);
+    expect(owlGain(far)).toBe(0);
+  });
+  it('is dull in a lodge and gone under water', () => {
+    expect(windGain({ ...far, inLodge: true })).toBeCloseTo(windGain(far) * 0.2);
+    expect(windGain({ ...far, underwater: true })).toBe(0);
+    expect(birdsGain({ ...far, underwater: true })).toBe(0);
+  });
+});
+
+describe('the synthesised loops', () => {
+  for (const [name, make] of [['birds', birdsLoop], ['crickets', cricketsLoop], ['owl', owlLoop]] as const) {
+    it(`${name} has sound, stays in range, and is silent at both ends so it joins`, () => {
+      const d = make(8000);
+      expect(d.length).toBeGreaterThan(8000 * 5);
+      let peak = 0;
+      for (const v of d) peak = Math.max(peak, Math.abs(v));
+      expect(peak).toBeGreaterThan(0.05);
+      expect(peak).toBeLessThanOrEqual(1);
+      expect(Math.abs(d[0]!)).toBeLessThan(0.01);
+      expect(Math.abs(d[d.length - 1]!)).toBeLessThan(0.01);
+    });
+  }
 });
 
 describe('the buses', () => {
@@ -83,6 +120,15 @@ describe('createSound', () => {
     sound.setLayerOn('water', false);
     sound.update({ ...far, streamDistance: 0 });
     expect(out.layers.get('water')).toBe(0);
+  });
+  it('sends every layer and lets a switch silence one', () => {
+    const out = fakeSoundOut();
+    const sound = createSound(out, null);
+    sound.setLayerOn('birds', false);
+    sound.update(far);
+    expect(out.layers.get('birds')).toBe(0);
+    expect(out.layers.get('wind')).toBeGreaterThan(0);
+    expect([...out.layers.keys()].sort()).toEqual(['birds', 'crickets', 'owl', 'water', 'wind']);
   });
 });
 

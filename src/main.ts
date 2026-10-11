@@ -7,7 +7,7 @@ import { createRenderer } from './render/renderer';
 import { SEASON_FULL_DAY } from './render/seasonLook';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
-import { DAY_SECONDS, dateAt, withSeason, withTimeOfDay } from './sim/clock';
+import { DAY_SECONDS, dateAt, daylight, withSeason, withTimeOfDay } from './sim/clock';
 import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { formerParentsAt, parentsAt } from './sim/family';
@@ -378,7 +378,7 @@ async function start(): Promise<void> {
       music: sound.settings().music,
       onEffects: sound.setEffects,
       onMusic: sound.setMusic,
-      layers: LAYERS.map((id) => ({ id, name: id === 'water' ? 'Water' : id, on: sound.layerOn(id), onToggle: (on: boolean) => sound.setLayerOn(id, on) })),
+      layers: LAYERS.map((id) => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1), on: sound.layerOn(id), onToggle: (on: boolean) => sound.setLayerOn(id, on) })),
     },
     minimap: {
       label: MAP_LABEL[minimap.mode()],
@@ -849,6 +849,8 @@ async function start(): Promise<void> {
         onWater: ponded.isWater(b.x, b.z),
         inLodge: world.inLodge,
         underwater: ponded.isWater(b.x, b.z) && ponded.waterDepth(b.x, b.z) > 1,
+        daylight: daylight(dateAt(world.clock).timeOfDay),
+        season: dateAt(world.clock).season,
       });
     }
     minimap.update(now, { ground: ponded, pondsKey: world.ponds, beaver: world.beaver, yaw: rig.view.yaw, lodge: world.lodge });

@@ -71,6 +71,15 @@ A new `src/audio/` folder. The rules are the same as for `render/`:
 - `public/manual.html` gets a short section with a picture when the sliders exist, and the test menu gets a switch for
   each layer.
 
+## Slice 2, as built
+
+- Wind, birds, crickets and an owl are **all made in code** (`src/audio/synth.ts` and looped noise), so slice 2 adds no file, no
+  licence line and no size. Files can still replace any of them later if one sounds thin on the tablet.
+- Gains are plain functions of `Hearing` in `mix.ts`: wind always, a little more in autumn; birds by day (most in spring, few in
+  winter); crickets at night (none in winter); an owl at night in every season. A lodge keeps 20% of each, and the head
+  under water hears none of the four (water itself is dulled, as in slice 1).
+- The test menu has a switch for each layer.
+
 ## Slices
 
 Each slice is its own pull request, and each can stay silent in tests.

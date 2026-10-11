@@ -2,7 +2,7 @@
 // samples in a `Float32Array`, silent at both ends. No audio device here, so it is easy to test.
 
 import { SYNTH_RATE } from './synth';
-import type { Effect } from './effects';
+import type { Cue, Effect } from './effects';
 import { DURATION } from './effects';
 
 function rng(seed: number): () => number {
@@ -91,9 +91,9 @@ function voice(out: Float32Array, at: number, len: number, level: number, f0: nu
 }
 
 /** The samples of one effect, as long as `DURATION` says. */
-export function effectSamples(effect: Effect, rate = SYNTH_RATE): Float32Array<ArrayBuffer> {
-  const out = new Float32Array(Math.floor(rate * DURATION[effect]));
-  const rand = rng(41 + effect.length * 7 + effect.charCodeAt(0));
+export function effectSamples(effect: Effect, rate = SYNTH_RATE, talk?: Cue['voice']): Float32Array<ArrayBuffer> {
+  const out = new Float32Array(Math.floor(rate * (talk?.seconds ?? DURATION[effect])));
+  const rand = rng(effect === 'babble' ? (talk?.seed ?? 1) : 41 + effect.length * 7 + effect.charCodeAt(0));
   switch (effect) {
     case 'chop':
       // Gnawing: four quick bites, each a rasp and a small knock, no two the same.
@@ -196,6 +196,57 @@ export function effectSamples(effect: Effect, rate = SYNTH_RATE): Float32Array<A
       // A short, high squeal that falls.
       voice(out, 0, 0.4, 0.7, 1100, 600, 6, rate);
       break;
+    case 'babble': {
+      // Little syllables, each a short tone with a contour, in the pitch of the speaker. Not words: a few moves of the voice.
+      const pitch = talk?.pitch ?? 300;
+      const seconds = talk?.seconds ?? 1;
+      let at = 0.02;
+      let hz = pitch;
+      while (at < seconds - 0.1) {
+        const len = 0.07 + rand() * 0.07;
+        const next = pitch * (0.8 + rand() * 0.5);
+        voice(out, at, len, 0.6, hz, next, 0, rate);
+        at += len + 0.015 + rand() * 0.06;
+        // Now and then a breath between phrases.
+        if (rand() < 0.2) at += 0.12;
+        hz = next;
+      }
+      // The last syllable of a line falls.
+      voice(out, Math.min(at, seconds - 0.12), 0.1, 0.5, hz, pitch * 0.75, 0, rate);
+      break;
+    }
+    case 'chirp':
+      // A follow-me call: two quick rising peeps.
+      voice(out, 0, 0.12, 0.7, 700, 1100, 0, rate);
+      voice(out, 0.17, 0.14, 0.7, 800, 1350, 0, rate);
+      break;
+    case 'chime':
+    case 'chimeHigh':
+    case 'chimeStar': {
+      // A soft bell: a sine and its bright partials, ringing out. Each kind of sweet is higher and longer.
+      const hz = effect === 'chime' ? 784 : effect === 'chimeHigh' ? 1047 : 1319;
+      const notes = effect === 'chimeStar' ? [1, 1.5, 2] : [1];
+      notes.forEach((m, k) => {
+        const at = k * 0.09;
+        const n = Math.floor(0.7 * rate);
+        for (let i = 0; i < n && Math.floor(at * rate) + i < out.length; i++) {
+          const x = i / n;
+          const t = i / rate;
+          out[Math.floor(at * rate) + i]! += 0.4 * Math.min(1, x * 80) * Math.exp(-5 * x) * (Math.sin(2 * Math.PI * hz * m * t) + 0.25 * Math.sin(2 * Math.PI * hz * m * 2.76 * t));
+        }
+      });
+      break;
+    }
+    case 'giggle':
+      // Four or five quick hiccups going up and down, like a child laughing.
+      for (let k = 0; k < 5; k++) voice(out, 0.02 + k * 0.13, 0.09, 0.6, 700 + 90 * k - (k % 2) * 160, 900 + 60 * k - (k % 2) * 200, 0, rate);
+      break;
+    case 'cheer': {
+      // A crowd of small voices rising together, with a sparkle on top.
+      for (let k = 0; k < 4; k++) voice(out, 0.03 * k, 0.9, 0.35, 400 + 70 * k, 650 + 110 * k, 3, rate, true);
+      for (let k = 0; k < 4; k++) knock(out, 0.5 + k * 0.1, 0.4, 0.2, 1568 + 400 * k, rate);
+      break;
+    }
   }
   // Keep it clear of clipping, then end on silence.
   let peak = 0;

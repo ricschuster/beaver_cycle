@@ -4,22 +4,32 @@
 import type { WorldState } from '../sim/state';
 import type { Animal } from '../sim/animals';
 import { LODGE_WOOD } from '../sim/lodge';
+import { follower } from '../sim/partners';
 
 export type Effect =
   | 'chop' | 'fall' | 'splash' | 'slap' | 'stroke' | 'eat' | 'pickup' | 'setdown'
   // The building group: a log, a load of mud, a rock placed, and a piece finished or mended.
   | 'wood' | 'mud' | 'rock' | 'done'
   // The animals: a duck, and the warnings of the owl, the fox, the lynx and the bear, and the beaver hurt.
-  | 'quack' | 'hoot' | 'yap' | 'growl' | 'rumble' | 'hurt';
+  | 'quack' | 'hoot' | 'yap' | 'growl' | 'rumble' | 'hurt'
+  // Talk: a babble per line (its pitch and length come with the cue), and the call of a partner or a lone beaver.
+  | 'babble' | 'chirp'
+  // The dream: a chime for each kind of sweet, a giggle and a cheer.
+  | 'chime' | 'chimeHigh' | 'chimeStar' | 'giggle' | 'cheer';
 
 export interface Cue {
   effect: Effect;
   /** 0 to 1, before the effects volume. */
   gain: number;
+  /** For a babble: the pitch of the speaker in Hz, how long the line runs in seconds, and a seed so no two sound alike. */
+  voice?: { pitch: number; seconds: number; seed: number };
 }
 
 /** Seconds each effect lasts: the voice it takes is free again then. */
-export const DURATION: Record<Effect, number> = { chop: 0.5, fall: 1.5, splash: 0.7, slap: 0.3, stroke: 0.4, eat: 0.4, pickup: 0.15, setdown: 0.25, wood: 0.35, mud: 0.4, rock: 0.3, done: 0.9, quack: 0.45, hoot: 1.2, yap: 0.35, growl: 1.1, rumble: 1.4, hurt: 0.5 };
+export const DURATION: Record<Effect, number> = { chop: 0.5, fall: 1.5, splash: 0.7, slap: 0.3, stroke: 0.4, eat: 0.4, pickup: 0.15, setdown: 0.25, wood: 0.35, mud: 0.4, rock: 0.3, done: 0.9, quack: 0.45, hoot: 1.2, yap: 0.35, growl: 1.1, rumble: 1.4, hurt: 0.5, babble: 0, chirp: 0.45, chime: 0.8, chimeHigh: 0.8, chimeStar: 1.1, giggle: 0.8, cheer: 1.4 };
+
+/** Seconds a cue holds its voice. */
+export const cueSeconds = (c: Cue): number => c.voice?.seconds ?? DURATION[c.effect];
 
 /** One gnaw per this many seconds of chopping progress. */
 const CHOP_TICK = 0.5;
@@ -114,7 +124,7 @@ export function createVoices(max: number): { admit(cue: Cue, now: number): boole
         if (playing[quietest]!.gain >= cue.gain) return false;
         playing.splice(quietest, 1);
       }
-      playing.push({ until: now + DURATION[cue.effect], gain: cue.gain });
+      playing.push({ until: now + cueSeconds(cue), gain: cue.gain });
       return true;
     },
   };
@@ -148,6 +158,8 @@ export function watchWorld(): (w: WorldState, ambient: readonly Animal[], now: n
   let hurtAt: number | null = null;
   let warned = new Set<string>();
   let quackAt = 0;
+  let following: string | null = null;
+  let leading = false;
   return (w, ambient, now) => {
     const cues: Cue[] = [];
     const nowDams = new Map<string, Built>();
@@ -180,6 +192,8 @@ export function watchWorld(): (w: WorldState, ambient: readonly Animal[], now: n
         const near = Math.hypot(p.x - w.beaver.x, p.z - w.beaver.z);
         if (near < HEARD) cues.push({ effect: WARNING[p.kind] ?? 'growl', gain: Math.max(0.3, 1 - near / HEARD) });
       }
+      const follow = follower(w.partners)?.id ?? null;
+      if ((follow !== null && follow !== following) || (w.leader !== null && !leading)) cues.push({ effect: 'chirp', gain: 0.7 });
       if (w.hurtAt !== null && w.hurtAt !== hurtAt) cues.push({ effect: 'hurt', gain: 0.9 });
       if (now - quackAt >= QUACK_EVERY) {
         let near = Infinity;
@@ -195,6 +209,8 @@ export function watchWorld(): (w: WorldState, ambient: readonly Animal[], now: n
     lodgeWood = nowWood;
     mended = w.mended;
     hurtAt = w.hurtAt;
+    following = follower(w.partners)?.id ?? null;
+    leading = w.leader !== null;
     warned = nowWarned;
     return cues;
   };

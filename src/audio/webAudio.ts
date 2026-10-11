@@ -136,14 +136,14 @@ export function createWebAudio(): SoundOut {
       wantLayers.set(layer, gain);
       apply();
     },
-    play(effect, gain) {
+    play(effect, gain, voice) {
       if (!ctx || !effects || suspended || ctx.state !== 'running') return;
-      let buf = buffers.get(effect);
+      let buf = voice ? undefined : buffers.get(effect);
       if (!buf) {
-        const samples = effectSamples(effect);
+        const samples = effectSamples(effect, SYNTH_RATE, voice);
         buf = ctx.createBuffer(1, samples.length, SYNTH_RATE);
         buf.copyToChannel(samples, 0);
-        buffers.set(effect, buf);
+        if (!voice) buffers.set(effect, buf);
       }
       const src = ctx.createBufferSource();
       src.buffer = buf;

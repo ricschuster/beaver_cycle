@@ -4,7 +4,7 @@
 /** The ambient loops. */
 export type Layer = 'water' | 'wind' | 'birds' | 'crickets' | 'owl';
 
-import type { Effect } from './effects';
+import type { Cue, Effect } from './effects';
 
 export interface SoundOut {
   /** Set the volumes of the two buses, 0 to 1. */
@@ -12,7 +12,7 @@ export interface SoundOut {
   /** Set how loud an ambient loop is, 0 to 1. A layer switched off is silent. */
   setLayer(layer: Layer, gain: number): void;
   /** Play a one-shot effect once, at a gain of 0 to 1 before the effects volume. */
-  play(effect: Effect, gain: number): void;
+  play(effect: Effect, gain: number, voice?: Cue['voice']): void;
   /** Stop all sound while the game is in the background, and carry on when it is back. */
   setSuspended(suspended: boolean): void;
   /** Start the sound once the browser allows it (the first touch or key). Safe to call again. */
@@ -22,12 +22,12 @@ export interface SoundOut {
 }
 
 /** A stand-in that only records what it was told, for tests. */
-export function fakeSoundOut(): SoundOut & { effects: number; music: number; layers: Map<Layer, number>; played: { effect: Effect; gain: number }[]; suspended: boolean; unlocked: boolean } {
+export function fakeSoundOut(): SoundOut & { effects: number; music: number; layers: Map<Layer, number>; played: { effect: Effect; gain: number; voice?: Cue['voice'] }[]; suspended: boolean; unlocked: boolean } {
   const out = {
     effects: 0,
     music: 0,
     layers: new Map<Layer, number>(),
-    played: [] as { effect: Effect; gain: number }[],
+    played: [] as { effect: Effect; gain: number; voice?: Cue['voice'] }[],
     suspended: false,
     unlocked: false,
     setBuses(e: number, m: number) {
@@ -37,8 +37,8 @@ export function fakeSoundOut(): SoundOut & { effects: number; music: number; lay
     setLayer(layer: Layer, gain: number) {
       out.layers.set(layer, gain);
     },
-    play(effect: Effect, gain: number) {
-      out.played.push({ effect, gain });
+    play(effect: Effect, gain: number, voice?: Cue['voice']) {
+      out.played.push({ effect, gain, voice });
     },
     setSuspended(s: boolean) {
       out.suspended = s;

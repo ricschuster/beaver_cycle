@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SCALE, createComposer, createFrameWatch, stepHz } from './music';
+import { SCALE, PLAIN_COLOUR, createComposer, createFrameWatch, stepHz } from './music';
 
 const inScale = (hz: number, key: number): boolean => {
   const semis = (12 * Math.log2(hz / key)) % 12;
@@ -76,5 +76,44 @@ describe('frame watch', () => {
     w.update(15, 0);
     w.update(60, 1);
     expect(w.update(15, 5)).toBe(true);
+  });
+});
+
+describe('the colour of the valley music', () => {
+  const single = (n: { voice: string }): boolean => n.voice === 'pluck' || n.voice === 'flute';
+  const count = (c: Parameters<ReturnType<typeof createComposer>['setColour']>[0]): number => {
+    const k = createComposer(3);
+    k.setColour(c);
+    return k.notes(1200).filter(single).length;
+  };
+
+  it('is the plain music with no colour set', () => {
+    const a = createComposer(4);
+    const b = createComposer(4);
+    b.setColour(PLAIN_COLOUR);
+    expect(b.notes(300)).toEqual(a.notes(300));
+  });
+
+  it('plays fewer notes in winter and at night than in summer by day', () => {
+    const summer = count({ season: 'summer', night: false });
+    expect(count({ season: 'winter', night: false })).toBeLessThan(summer);
+    expect(count({ season: 'summer', night: true })).toBeLessThan(summer);
+  });
+
+  it('plays lower and softer at night, and keeps to the scale', () => {
+    const day = createComposer(6);
+    const night = createComposer(6);
+    night.setColour({ season: 'winter', night: true });
+    const high = (notes: { hz: number; voice: string }[]): number => Math.max(...notes.filter(single).map((n) => n.hz));
+    expect(high(night.notes(1200))).toBeLessThan(high(day.notes(1200)));
+    for (const n of night.notes(2400)) expect(inScale(n.hz, 110)).toBe(true);
+  });
+
+  it('leaves the dream alone', () => {
+    const a = createComposer(8);
+    const b = createComposer(8);
+    for (const c of [a, b]) c.setMood('dream');
+    b.setColour({ season: 'winter', night: true });
+    expect(b.notes(100)).toEqual(a.notes(100));
   });
 });

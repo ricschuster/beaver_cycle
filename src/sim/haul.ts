@@ -53,9 +53,9 @@ export function reachableDropped(dropped: readonly Dropped[], x: number, z: numb
 /** A rock is looked for in cells of this many metres a side, at most one a cell. */
 export const ROCK_CELL = 5;
 /** The share of cells that hold a rock where the ground is wet or beside water: streams, banks, shores. A tuning number. */
-export const ROCK_CHANCE_WATER = 0.75;
+export const ROCK_CHANCE_WATER = 0.6;
 /** The share of cells that hold a rock on steep stony ground away from water. A tuning number. */
-export const ROCK_CHANCE_STONY = 0.25;
+export const ROCK_CHANCE_STONY = 0.2;
 /** The beaver reaches a rock within this many metres of its centre. */
 export const ROCK_REACH = 1.8;
 /** Radius of a rock in metres, for drawing. */

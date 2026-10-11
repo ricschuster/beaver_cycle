@@ -6,7 +6,7 @@ import { SYNTH_RATE, birdsLoop, cricketsLoop, owlLoop } from './synth';
 import { effectSamples } from './effectsSynth';
 import type { Effect } from './effects';
 import { parseManifest, pickVariant, variation, type Manifest } from './samples';
-import { createComposer, type MusicMood, type Note } from './music';
+import { createComposer, PLAIN_COLOUR, type MusicColour, type MusicMood, type Note } from './music';
 import type { Layer, SoundOut } from './soundOut';
 
 /** The pitch (Hz) at which a recorded babble plays unchanged: a mama's. */
@@ -75,6 +75,7 @@ export function createWebAudio(): SoundOut {
   let appliedMood: MusicMood = 'off';
   let composer: ReturnType<typeof createComposer> | null = null;
   let composerStart = 0;
+  let wantColour: MusicColour = PLAIN_COLOUR;
   let musicTimer: ReturnType<typeof setInterval> | null = null;
 
   const url = (file: string): string => `${import.meta.env.BASE_URL}audio/${file}`;
@@ -332,6 +333,7 @@ export function createWebAudio(): SoundOut {
       moods.set(mood, gain);
     }
     composer = createComposer(Math.floor(Math.random() * 1e9), 1);
+    composer.setColour(wantColour);
     composerStart = c.currentTime;
     for (const layer of ['water', 'wind', 'birds', 'crickets', 'owl'] as const) {
       const gain = c.createGain();
@@ -412,6 +414,10 @@ export function createWebAudio(): SoundOut {
       src.connect(g).connect(effects);
       src.start();
       if (stopAt !== null) src.stop(stopAt);
+    },
+    setColour(colour) {
+      wantColour = colour;
+      composer?.setColour(colour);
     },
     setMood(mood) {
       wantMood = mood;

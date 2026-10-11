@@ -5,7 +5,7 @@
 export type Layer = 'water' | 'wind' | 'birds' | 'crickets' | 'owl';
 
 import type { Cue, Effect } from './effects';
-import type { MusicMood } from './music';
+import type { MusicColour, MusicMood } from './music';
 
 export interface SoundOut {
   /** Set the volumes of the two buses, 0 to 1. */
@@ -16,6 +16,8 @@ export interface SoundOut {
   play(effect: Effect, gain: number, voice?: Cue['voice']): void;
   /** Set what the music plays: the valley, the dream, or nothing. It fades from one to the next. */
   setMood(mood: MusicMood): void;
+  /** Set the season and night colour of the valley music. */
+  setColour(colour: MusicColour): void;
   /** Stop all sound while the game is in the background, and carry on when it is back. */
   setSuspended(suspended: boolean): void;
   /** Start the sound once the browser allows it (the first touch or key). Safe to call again. */
@@ -25,11 +27,12 @@ export interface SoundOut {
 }
 
 /** A stand-in that only records what it was told, for tests. */
-export function fakeSoundOut(): SoundOut & { effects: number; music: number; mood: MusicMood; layers: Map<Layer, number>; played: { effect: Effect; gain: number; voice?: Cue['voice'] }[]; suspended: boolean; unlocked: boolean } {
+export function fakeSoundOut(): SoundOut & { effects: number; music: number; mood: MusicMood; colour: MusicColour | null; layers: Map<Layer, number>; played: { effect: Effect; gain: number; voice?: Cue['voice'] }[]; suspended: boolean; unlocked: boolean } {
   const out = {
     effects: 0,
     music: 0,
     mood: 'off' as MusicMood,
+    colour: null as MusicColour | null,
     layers: new Map<Layer, number>(),
     played: [] as { effect: Effect; gain: number; voice?: Cue['voice'] }[],
     suspended: false,
@@ -46,6 +49,9 @@ export function fakeSoundOut(): SoundOut & { effects: number; music: number; moo
     },
     setMood(m: MusicMood) {
       out.mood = m;
+    },
+    setColour(c: MusicColour) {
+      out.colour = c;
     },
     setSuspended(s: boolean) {
       out.suspended = s;

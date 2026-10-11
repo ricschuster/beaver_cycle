@@ -3,7 +3,7 @@
 import { createWebAudio } from '../../src/audio/webAudio';
 import { LAYERS } from '../../src/audio/sound';
 import type { Layer } from '../../src/audio/soundOut';
-import type { MusicMood } from '../../src/audio/music';
+import type { MusicColour, MusicMood } from '../../src/audio/music';
 
 const out = createWebAudio();
 let music = 0.5;
@@ -26,6 +26,37 @@ for (const [m, name] of [['valley', 'Valley'], ['dream', 'Dream'], ['off', 'Off'
   moodButtons.set(m, b);
   document.getElementById('moods')!.append(b);
 }
+
+// Season and night colour of the valley music, as the game sets it from the clock.
+const colour: MusicColour = { season: 'spring', night: false };
+const colourButtons: HTMLButtonElement[] = [];
+const showColour = (): void => {
+  for (const b of colourButtons) b.classList.toggle('sel', b.dataset.season === colour.season || (b.dataset.night === '1') === colour.night && b.dataset.night !== undefined);
+  out.setColour({ ...colour });
+};
+for (const season of ['spring', 'summer', 'autumn', 'winter'] as const) {
+  const b = document.createElement('button');
+  b.textContent = season;
+  b.dataset.season = season;
+  b.onclick = () => {
+    colour.season = season;
+    showColour();
+  };
+  colourButtons.push(b);
+  document.getElementById('colours')!.append(b);
+}
+for (const [night, name] of [[false, 'day'], [true, 'night']] as const) {
+  const b = document.createElement('button');
+  b.textContent = name;
+  b.dataset.night = night ? '1' : '0';
+  b.onclick = () => {
+    colour.night = night;
+    showColour();
+  };
+  colourButtons.push(b);
+  document.getElementById('colours')!.append(b);
+}
+showColour();
 
 (document.getElementById('music') as HTMLInputElement).oninput = (e) => {
   music = Number((e.target as HTMLInputElement).value);

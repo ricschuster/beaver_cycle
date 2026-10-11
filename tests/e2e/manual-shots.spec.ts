@@ -52,8 +52,8 @@ test.describe('pictures for the manual', () => {
     });
     if (tree) {
       // The trunk is about 2 m across at the foot, so a beaver at the tree's centre is hidden inside it: this picture is taken
-      // from a little short of it. (There is no picture of the gnawing itself for the same reason: the beaver ends up at the trunk.)
-      await walkToPoint(page, tree, 3.4, 40_000);
+      // from a little short of it, inside the 3 m gnaw reach so the Do button reads Gnaw. (There is no picture of the gnawing itself for the same reason: the beaver ends up at the trunk.)
+      await walkToPoint(page, tree, 2.7, 40_000);
       await page.waitForTimeout(500);
       await frame(page, 0, 0.3, 8, tree);
       await take(page, 'tree');

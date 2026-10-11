@@ -12,7 +12,7 @@ export interface Cue {
 }
 
 /** Seconds each effect lasts: the voice it takes is free again then. */
-export const DURATION: Record<Effect, number> = { chop: 0.2, fall: 1.5, splash: 0.7, slap: 0.3, stroke: 0.4, eat: 0.4, pickup: 0.15, setdown: 0.25 };
+export const DURATION: Record<Effect, number> = { chop: 0.5, fall: 1.5, splash: 0.7, slap: 0.3, stroke: 0.4, eat: 0.4, pickup: 0.15, setdown: 0.25 };
 
 /** One gnaw per this many seconds of chopping progress. */
 const CHOP_TICK = 0.5;

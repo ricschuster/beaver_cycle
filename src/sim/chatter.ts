@@ -5,7 +5,7 @@
 //
 // Placeholders in the lines: `{to}` is what the caller calls the other one (a name, or "Mama" and "Papa" from a kit), `{from}`
 // what the other calls the caller back, `{guide}` a beaver the player dug out of the snow ("me" or "you" when it is one of the
-// two), `{dir}` a compass word, `{pond}` a family's pond, `{speaker}` and `{kit}` members of the family.
+// two), `{where}` where something is from the player ("to your left, close by"), `{pond}` a family's pond, `{speaker}` and `{kit}` members of the family.
 import { DAY_FRACTION, DAY_SECONDS, dateAt, type Season } from './clock';
 import { damNeedsRepair, damWhole } from './dam';
 import { FAMILY_START_TRUST, familyMood, familyTrust } from './familyMoods';
@@ -13,7 +13,8 @@ import { stockMeals, type Food } from './food';
 import { lodgeComplete, lodgeCondition } from './lodge';
 import type { Mood } from './moods';
 import { nameOf } from './names';
-import { compassWord, follower, mateOf } from './partners';
+import { follower, mateOf } from './partners';
+import { placeWords } from './wayToPartner';
 import type { WorldState } from './state';
 import { needsRepair } from './wear';
 
@@ -370,8 +371,8 @@ export function giftThanks(kind: Food, members: readonly Pick<Chatterer, 'name' 
 
 /** The partner remarks on what is around while it follows, and on the home once it lives there. */
 export const PARTNER_LINES = {
-  spot: ['That stream to the {dir} looks good for a dam.', 'There is a good dam spot to the {dir}. Shall we look?'],
-  pads: ['I smell lily pads to the {dir}. Yum!'],
+  spot: ['I see a stream {where} that looks good for a dam.', 'There is a good dam spot {where}. Shall we look?'],
+  pads: ['I smell lily pads {where}. Yum!'],
   wornDam: ['One of your dams is wearing thin. Shall we mend it?'],
   building: ['Our lodge is coming along. A few more logs!'],
   dusk: ['The sun is going down. Let us find a safe place to sleep.'],
@@ -400,9 +401,9 @@ const DUSK = 0.06;
 /**
  * What the partner says now, or null. While it follows, it may point out a free dam spot or lily pads near, a worn dam, the
  * lodge being built, the nightfall or the season; once it lives in the lodge, it may talk about the home when the player is near
- * it. At most once a slot of the clock and in about half the slots; the same slot gives the same remark.
+ * it. `facing` is where the player looks, for the words "to your left". At most once a slot of the clock and in about half the slots; the same slot gives the same remark.
  */
-export function partnerRemark(world: Pick<WorldState, 'partners' | 'spots' | 'dams' | 'clock' | 'beaver' | 'lodge' | 'store' | 'inLodge'>, pad: { x: number; z: number } | null): Said | null {
+export function partnerRemark(world: Pick<WorldState, 'partners' | 'spots' | 'dams' | 'clock' | 'beaver' | 'lodge' | 'store' | 'inLodge'>, pad: { x: number; z: number } | null, facing: number = world.beaver.heading): Said | null {
   const p = follower(world.partners) ?? mateOf(world.partners);
   if (!p) return null;
   const b = world.beaver;
@@ -431,8 +432,8 @@ export function partnerRemark(world: Pick<WorldState, 'partners' | 'spots' | 'da
       .map((s) => ({ s, d: Math.hypot(s.bed.x - b.x, s.bed.z - b.z) }))
       .filter((c) => c.d <= REMARK_SPOT_RANGE)
       .sort((a, c) => a.d - c.d)[0];
-    if (spot) lines.push(...PARTNER_LINES.spot.map((t) => fill(t, { dir: compassWord(spot.s.bed.x - b.x, spot.s.bed.z - b.z) })!));
-    if (pad && Math.hypot(pad.x - b.x, pad.z - b.z) <= REMARK_PAD_RANGE) lines.push(...PARTNER_LINES.pads.map((t) => fill(t, { dir: compassWord(pad.x - b.x, pad.z - b.z) })!));
+    if (spot) lines.push(...PARTNER_LINES.spot.map((t) => fill(t, { where: placeWords(spot.s.bed.x - b.x, spot.s.bed.z - b.z, facing) })!));
+    if (pad && Math.hypot(pad.x - b.x, pad.z - b.z) <= REMARK_PAD_RANGE) lines.push(...PARTNER_LINES.pads.map((t) => fill(t, { where: placeWords(pad.x - b.x, pad.z - b.z, facing) })!));
     if (world.lodge && !lodgeComplete(world.lodge)) lines.push(...PARTNER_LINES.building);
     if (dusk) lines.push(...PARTNER_LINES.dusk);
     lines.push(...PARTNER_LINES.follow);

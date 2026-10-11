@@ -48,6 +48,8 @@ export const noIntent = (): Intent => ({ move: { x: 0, z: 0 } });
 /** What is near the beaver that `step` does not know about: someone to talk to, and a drift with a beaver stuck in it. */
 export interface Around {
   speaker: boolean;
+  /** The nearest speaker is a partner who follows the player, who is always close, so Talk would hide Gnaw at every tree. */
+  following?: boolean;
   drift: boolean;
 }
 
@@ -129,9 +131,9 @@ export function doHere(world: WorldState, ground: Terrain, trees: TreeSource, ar
   if (log || world.haul) return grown && b.mode !== 'dive' ? placeHere(world, ground, log) : null;
   if (grown && b.mode !== 'dive' && lodgeComplete(world.lodge) && atStore(world.lodge, b.x, b.z)) return 'store';
   if (grown && around.drift && b.mode === 'walk') return 'dig';
-  if (around.speaker) return 'talk';
-  if (!grown || world.carry || b.mode === 'dive') return null;
-  if (b.mode === 'walk' && (world.chop || trees.nearest(b.x, b.z, CHOP_REACH, felledAsSet(world.felled)))) return 'gnaw';
-  if (strippable(world.logs, world.stripped, b.x, b.z)) return 'strip';
-  return null;
+  if (around.speaker && !around.following) return 'talk';
+  const work = grown && !world.carry && b.mode !== 'dive';
+  if (work && b.mode === 'walk' && (world.chop || trees.nearest(b.x, b.z, CHOP_REACH, felledAsSet(world.felled)))) return 'gnaw';
+  if (work && strippable(world.logs, world.stripped, b.x, b.z)) return 'strip';
+  return around.speaker ? 'talk' : null;
 }

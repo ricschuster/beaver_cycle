@@ -2,15 +2,18 @@ import { describe, expect, it } from 'vitest';
 import {
   CHOCOLATE_LEVEL,
   COUNT_TIME,
+  HIDE_TIME,
   MALLOW_COLOURS,
   PROP_RADIUS,
   RUSH,
+  SEEK_SPEED,
   SHOWER,
   SWIM_SPEED,
   TAG_TIME,
   WALK_SPEED,
   chocolateDepth,
   dreamHeight,
+  hideOrSeek,
   newDream,
   playPrompt,
   stepDream,
@@ -406,7 +409,7 @@ describe('hide and seek', () => {
 
   it('counts to ten while the hiders run off behind distinct props, then the seeking starts', () => {
     const { s, m } = seekStart();
-    const r = stepDream(s, input({ play: true }), DT);
+    const r = stepDream(s, input({ play: true, pick: 'seek' }), DT);
     const game = r.state.game;
     if (game.kind !== 'seek') throw new Error('no seek');
     expect(game.phase).toBe('counting');
@@ -438,7 +441,7 @@ describe('hide and seek', () => {
 
   it('hiders giggle when the player is near enough to hear', () => {
     const { s } = seekStart();
-    const hidden = run(stepDream(s, input({ play: true }), DT).state, COUNT_TIME + 15).state;
+    const hidden = run(stepDream(s, input({ play: true, pick: 'seek' }), DT).state, COUNT_TIME + 15).state;
     const game = hidden.game;
     if (game.kind !== 'seek') throw new Error('no seek');
     const h = mallow(hidden, game.hiders[0]!);
@@ -457,7 +460,7 @@ describe('hide and seek', () => {
 
   it('finding all of them ends it with a shower of sweets on land, and they follow the player a little', () => {
     const { s } = seekStart();
-    let state = run(stepDream(s, input({ play: true }), DT).state, COUNT_TIME + 15).state;
+    let state = run(stepDream(s, input({ play: true, pick: 'seek' }), DT).state, COUNT_TIME + 15).state;
     const game = state.game;
     if (game.kind !== 'seek') throw new Error('no seek');
     const before = state.sweets.length;
@@ -483,7 +486,7 @@ describe('hide and seek', () => {
 
   it('found ones follow the player while the others are still hidden', () => {
     const { s } = seekStart();
-    let state = run(stepDream(s, input({ play: true }), DT).state, COUNT_TIME + 15).state;
+    let state = run(stepDream(s, input({ play: true, pick: 'seek' }), DT).state, COUNT_TIME + 15).state;
     const game = state.game;
     if (game.kind !== 'seek' || game.hiders.length < 2) throw new Error('need two hiders');
     const h = mallow(state, game.hiders[0]!);
@@ -494,5 +497,163 @@ describe('hide and seek', () => {
     expect(f.state).toBe('follow');
     expect(dist(f, walk.beaver)).toBeLessThan(5);
     expect(walk.game).toMatchObject({ kind: 'seek', found: [h.id] });
+  });
+});
+
+describe('hide or seek', () => {
+  /** The player on land next to a marshmallow beaver, as for hide and seek. */
+  function nextTo(): { s: DreamState; m: Mallow } {
+    const d = newDream(42);
+    const m = d.mallows.find((x) => chocolateDepth(d.land, x.x, x.z) === 0)!;
+    return { s: place({ ...d, mallows: d.mallows.map((x) => ({ ...x, met: true })) }, { x: m.x + 2, z: m.z }), m };
+  }
+
+  it('on land, Play asks first, and the one asked waits looking at the player', () => {
+    const { s, m } = nextTo();
+    const r = stepDream(s, input({ play: true }), DT);
+    expect(r.state.game).toEqual({ kind: 'choose', with: m.id });
+    expect(r.events.some((e) => e.what === 'seekStart' || e.what === 'hideStart')).toBe(false);
+    expect(hideOrSeek(r.state)).toBe(m.name);
+    expect(hideOrSeek(s)).toBeNull();
+    expect(playPrompt(r.state)).toBeNull();
+    const waited = run(r.state, 3).state;
+    expect(waited.game).toEqual({ kind: 'choose', with: m.id });
+    expect(dist(mallow(waited, m.id), mallow(s, m.id))).toBeLessThan(0.5);
+    const w = mallow(waited, m.id);
+    expect(Math.abs(Math.atan2(waited.beaver.x - w.x, waited.beaver.z - w.z) - w.heading)).toBeLessThan(0.1);
+  });
+
+  it('starts the game picked, and walking off drops the question', () => {
+    const { s } = nextTo();
+    const asked = stepDream(s, input({ play: true }), DT).state;
+    expect(stepDream(asked, input({ pick: 'seek' }), DT).state.game).toMatchObject({ kind: 'seek', phase: 'counting' });
+    expect(stepDream(asked, input({ pick: 'hide' }), DT).state.game).toMatchObject({ kind: 'hide', phase: 'counting' });
+    const off = stepDream(place(asked, { x: asked.beaver.x + 9, z: asked.beaver.z }), input({ pick: 'hide' }), DT).state;
+    expect(off.game.kind).toBe('none');
+    // A pick with no question does nothing.
+    expect(stepDream(s, input({ pick: 'hide' }), DT).state.game.kind).toBe('none');
+  });
+});
+
+describe('hiding from the marshmallow beavers', () => {
+  function hideStart(): { s: DreamState; m: Mallow; r: { state: DreamState; events: DreamEvent[] } } {
+    const d = newDream(42);
+    const m = d.mallows.find((x) => chocolateDepth(d.land, x.x, x.z) === 0)!;
+    const s = place({ ...d, mallows: d.mallows.map((x) => ({ ...x, met: true })) }, { x: m.x + 2, z: m.z });
+    return { s, m, r: stepDream(s, input({ play: true, pick: 'hide' }), DT) };
+  }
+
+  /** The corner of the land farthest from a point, well out of the seekers' way. */
+  const farCorner = (p: DreamPoint): DreamPoint => ({ x: -Math.sign(p.x || 1) * (INNER - 4), z: -Math.sign(p.z || 1) * (INNER - 4) });
+
+  /** Hiding has begun and the seeking is on, with the player far off in a corner. */
+  function seeking(): { state: DreamState; seekers: string[]; base: DreamPoint } {
+    const { r } = hideStart();
+    const g = r.state.game;
+    if (g.kind !== 'hide') throw new Error('no hide');
+    const state = run(place(r.state, farCorner(g.base)), COUNT_TIME + 0.1).state;
+    return { state, seekers: g.seekers, base: g.base };
+  }
+
+  it('the one asked and the nearest others, four at most, count at the base while the player runs off', () => {
+    const { s, m, r } = hideStart();
+    const g = r.state.game;
+    if (g.kind !== 'hide') throw new Error('no hide');
+    expect(g.phase).toBe('counting');
+    expect(g.seekers[0]).toBe(m.id);
+    expect(g.seekers.length).toBe(Math.min(4, s.mallows.filter((x) => dist(x, s.beaver) < 35).length));
+    expect(dist(g.base, s.beaver)).toBeLessThan(0.05);
+    expect(r.events).toContainEqual({ what: 'hideStart', seekers: g.seekers.length });
+    for (const id of g.seekers) expect(mallow(r.state, id).state).toBe('count');
+    const counting = run(r.state, COUNT_TIME - 1, input({ move: { x: 1, z: 0 } }));
+    expect(counting.events.some((e) => e.what === 'spotted')).toBe(false);
+    expect(dist(mallow(counting.state, m.id), g.base)).toBeLessThan(2.5);
+    const go = run(counting.state, 1.2);
+    expect(go.events).toContainEqual({ what: 'hideGo' });
+    expect(go.state.game).toMatchObject({ kind: 'hide', phase: 'seeking' });
+    for (const id of g.seekers) expect(mallow(go.state, id).state).toBe('seek');
+  });
+
+  it('seekers go slower than the player, looking behind the hiding props near the base', () => {
+    const { state, seekers, base } = seeking();
+    let st = state;
+    const peeked = new Set<string>();
+    let fastest = 0;
+    for (let i = 0; i < 20 / DT; i++) {
+      st = stepDream(st, still, DT).state;
+      for (const id of seekers) {
+        const m = mallow(st, id);
+        fastest = Math.max(fastest, m.speed);
+        if (m.peek) peeked.add(m.peek);
+      }
+    }
+    expect(fastest).toBeLessThanOrEqual(SEEK_SPEED + 0.01);
+    expect(SEEK_SPEED).toBeLessThan(WALK_SPEED);
+    expect(peeked.size).toBeGreaterThan(seekers.length);
+    for (const id of peeked) {
+      const p = st.land.props.find((q) => q.id === id)!;
+      expect(p.hide).toBe(true);
+      expect(dist(p, base)).toBeLessThan(50);
+    }
+  });
+
+  it('a seeker sees a player in the open, but not one behind a hiding prop', () => {
+    const { state, seekers } = seeking();
+    const id = seekers[0]!;
+    const prop = state.land.props.find((p) => p.hide && dist(p, state.beaver) > 20 && PROP_RADIUS[p.kind] * p.size > 0.6)!;
+    const r = PROP_RADIUS[prop.kind] * prop.size;
+    const at = (p: DreamPoint): DreamState => ({ ...state, mallows: state.mallows.map((m) => (m.id === id ? { ...m, x: p.x, z: p.z, goal: { x: p.x, z: p.z }, until: state.time + 5 } : m)) });
+    const seeker = { x: prop.x + r + 4, z: prop.z };
+    const behind = stepDream(place(at(seeker), { x: prop.x - r - 0.5, z: prop.z }), still, DT);
+    expect(behind.events.some((e) => e.what === 'spotted')).toBe(false);
+    const open = stepDream(place(at(seeker), { x: seeker.x, z: seeker.z + 4 }), still, DT);
+    expect(open.events).toContainEqual({ what: 'spotted', who: mallow(state, id).name, left: seekers.length - 1 });
+    const found = mallow(open.state, id);
+    expect(found.state).toBe('home');
+    expect(found.giggleAt).toBe(open.state.time);
+    expect(found.hopAt).toBe(open.state.time);
+    expect(open.state.game).toMatchObject({ kind: 'hide', found: [id] });
+  });
+
+  it('seekers near the player giggle, and they find one hiding by the base within the minute', () => {
+    const { r } = hideStart();
+    const g = r.state.game;
+    if (g.kind !== 'hide') throw new Error('no hide');
+    const prop = r.state.land.props.filter((p) => p.hide && dist(p, g.base) > 10).sort((a, b) => dist(a, g.base) - dist(b, g.base))[0]!;
+    const k = (PROP_RADIUS[prop.kind] * prop.size + 0.6) / dist(prop, g.base);
+    const spot = { x: prop.x + (prop.x - g.base.x) * k, z: prop.z + (prop.z - g.base.z) * k };
+    const { events } = run(place(r.state, spot), COUNT_TIME + 60);
+    const spotted = events.findIndex((e) => e.what === 'spotted');
+    expect(spotted).toBeGreaterThan(-1);
+    expect(events.slice(0, spotted).some((e) => e.what === 'giggle' && g.seekers.some((id) => mallow(r.state, id).name === e.who))).toBe(true);
+  });
+
+  it('ends with a shower of sweets on land when all have found the player', () => {
+    const { state, seekers } = seeking();
+    let st = state;
+    const events: DreamEvent[] = [];
+    const before = st.sweets.length;
+    for (const id of seekers) {
+      const m = mallow(st, id);
+      const r = stepDream(place(st, { x: m.x + 1, z: m.z }), still, DT);
+      st = r.state;
+      events.push(...r.events);
+    }
+    expect(events.filter((e) => e.what === 'spotted').length).toBe(seekers.length);
+    expect(events).toContainEqual({ what: 'hideEnd', found: seekers.length, seekers: seekers.length });
+    expect(events).toContainEqual({ what: 'shower', count: SHOWER });
+    expect(st.game.kind).toBe('none');
+    expect(st.sweets.length).toBe(before + SHOWER);
+    for (const id of seekers) expect(mallow(st, id).state).toBe('follow');
+    for (const id of seekers) expect(mallow(run(st, 6).state, id).state).toBe('wander');
+  });
+
+  it('ends after a minute with sweets all the same when nobody found the player', () => {
+    const { state, seekers } = seeking();
+    const { state: st, events } = run(state, HIDE_TIME + 0.5);
+    expect(events.some((e) => e.what === 'spotted')).toBe(false);
+    expect(events).toContainEqual({ what: 'hideEnd', found: 0, seekers: seekers.length });
+    expect(events).toContainEqual({ what: 'shower', count: SHOWER });
+    expect(st.game.kind).toBe('none');
   });
 });

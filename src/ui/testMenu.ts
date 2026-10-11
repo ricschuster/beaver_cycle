@@ -34,6 +34,10 @@ export interface TestMenuOptions {
   onLodge(inLodge: boolean): void;
   /** Take the lodge and its wear away, so a new one can be started (for instance in a pond). */
   onRemoveLodge(): void;
+  /** Leave the beaver with almost no breath, to see it come up and wait before it dives again. */
+  onBreathLow(): void;
+  /** Fill the food store but one place, so the last piece can go in by hand (the Pantry achievement). */
+  onFillStore(): void;
   /** Sleep through the night; only does something in the lodge at night. */
   onSleep(): void;
   /** Open a dream now, at any time and place (docs/design/29_dream_candy_land.md). */
@@ -56,6 +60,14 @@ export interface TestMenuOptions {
   damTools?: { onGo(): void; onFill(): void };
   /** The minimap trial (docs/design/31_minimap.md): a button showing its mode, and a press moves to the next mode and says which. */
   minimap?: { label: string; onNext(): string };
+  /** Sound (docs/design/32_sound.md): the two volumes, 0 to 1, and a switch for each ambient layer. */
+  sound?: {
+    effects: number;
+    music: number;
+    onEffects(volume: number): void;
+    onMusic(volume: number): void;
+    layers: { id: string; name: string; on: boolean; onToggle(on: boolean): void }[];
+  };
 }
 
 export interface TestMenu {
@@ -175,6 +187,12 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   style(lifeButton);
   lifeButton.onclick = () => opts.onNewLife();
   stageRow.appendChild(lifeButton);
+  const breathButton = document.createElement('button');
+  breathButton.textContent = 'Out of breath';
+  breathButton.dataset.action = 'breath-low';
+  style(breathButton);
+  breathButton.onclick = () => opts.onBreathLow();
+  stageRow.appendChild(breathButton);
   const viewRow = row('View');
   const views: [FlyMode, string][] = [
     ['off', 'Beaver'],
@@ -238,6 +256,41 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     };
     row('Minimap').appendChild(mapButton);
   }
+  if (opts.sound) {
+    const sound = opts.sound;
+    const slider = (label: string, value: number, onInput: (v: number) => void): void => {
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = '0';
+      input.max = '1';
+      input.step = '0.05';
+      input.value = String(value);
+      input.dataset.action = `sound-${label.toLowerCase()}`;
+      input.setAttribute('aria-label', `${label} volume`);
+      input.style.cssText = 'width:150px;min-height:44px;vertical-align:middle';
+      input.oninput = () => onInput(Number(input.value));
+      row(`${label} volume`).appendChild(input);
+    };
+    slider('Effects', sound.effects, sound.onEffects);
+    slider('Music', sound.music, sound.onMusic);
+    const layersRow = row('Sound layers');
+    for (const l of sound.layers) {
+      let on = l.on;
+      const b = document.createElement('button');
+      b.dataset.action = `sound-layer-${l.id}`;
+      style(b);
+      const show = (): void => {
+        b.textContent = `${l.name} ${on ? 'on' : 'off'}`;
+      };
+      show();
+      b.onclick = () => {
+        on = !on;
+        show();
+        l.onToggle(on);
+      };
+      layersRow.appendChild(b);
+    }
+  }
   if (opts.damTools) {
     const tools = opts.damTools;
     const go = document.createElement('button');
@@ -284,7 +337,12 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     showLodge();
     opts.onRemoveLodge();
   };
-  lodgeRow.append(lodgeButton, sleepButton, dreamButton, removeButton);
+  const fillStoreButton = document.createElement('button');
+  fillStoreButton.textContent = 'Fill store but one';
+  fillStoreButton.dataset.action = 'store-fill';
+  style(fillStoreButton);
+  fillStoreButton.onclick = () => opts.onFillStore();
+  lodgeRow.append(lodgeButton, sleepButton, dreamButton, removeButton, fillStoreButton);
 
   const jumpRow = row('Jump to');
   for (const loc of opts.locations) {

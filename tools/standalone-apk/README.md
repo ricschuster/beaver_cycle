@@ -47,8 +47,10 @@ ANDROID_HOME=~/Android/Sdk JAVA_HOME=~/Android/jdk-21 ./build_aab.sh
 - The script also drops `audio-candidates/` (sounds waiting to be rated, not used by the game, 7 MB) and the `INTERNET`
   permission from the synced copy before it builds, since Capacitor serves the app from the device. The bundle then has no
   permission of its own (checked with `dump manifest`: only AndroidX's own receiver permission, which is normal), no native
-  libraries (so the 16 KB page size rule has nothing to check), and the target is API 36. **Not yet played on a tablet without
-  `INTERNET`**; the debug APK keeps the permission. Play a release build on a tablet before any upload.
+  libraries (so the 16 KB page size rule has nothing to check), and the target is API 36. Played in an Android 16 tablet emulator without `INTERNET`: it starts offline, the tiles load, a save survives a restart, the
+  OSM credit opens the browser, and sound plays. **Not yet played on a real tablet** (frame time, touch feel): do that before any
+  upload. For an emulator test, a plain `.aab` cannot be installed; use `bundletool build-apks --connected-device` (or
+  `--mode=universal`) with the debug keystore, then `install-apks`, and check that the game's sound button is on.
 - Check a bundle with `bundletool` (download `bundletool-all-*.jar` from <https://github.com/google/bundletool/releases>, run it with
   JDK 21): `java -jar bundletool-all-1.18.3.jar validate --bundle=BUNDLE.aab` and `dump manifest --bundle=BUNDLE.aab`. Checked
   on 1.0: valid, `minSdk 24`, `targetSdk 36`, signed with the upload key (valid to 2054), no `.so` files. `INTERNET` is

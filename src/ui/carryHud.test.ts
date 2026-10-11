@@ -69,6 +69,21 @@ describe('food line', () => {
     expect(info.repair).toEqual({ what: 'store', percent: 25, wood: 8, broken: false });
     expect(formatCarry(0, true, null, 1, null, null, info)).toBe('0 of 30 trees felled, lodge done, dragging a log, store worn 25%, needs 8 wood (a long log is 2), press Mend to add it');
   });
+
+  it('names the worse of a worn lodge and a broken store, and says the other needs wood too', () => {
+    const clock = 41 * DAY_SECONDS; // 41 days: the lodge is at 0.49, the store broken
+    const base = createWorld(flatTerrain(0));
+    const w = { ...base, lodge: { ...lodge, wear: newWear(0) }, clock, storeWear: newWear(0), beaver: { ...base.beaver, x: 0, z: 4.8 } }; // in reach of both
+    const info = foodInfoOf(w, flatTerrain(0))!;
+    expect(info.repair).toEqual({ what: 'store', percent: 0, wood: 4, broken: true, also: 'lodge' });
+    expect(formatCarry(0, true, null, 1, null, null, info)).toBe('0 of 30 trees felled, lodge done, dragging a log, store broken, needs 4 wood (a long log is 2), press Mend to add it, the lodge needs wood too');
+    expect(formatCarry(0, false, null, 1, null, null, info)).toContain('store broken, needs 4 wood (a long log is 2), the lodge needs wood too');
+    // The other way round: a broken lodge is worse than a worn store, and the store comes second.
+    const lodgeFirst = foodInfoOf({ ...w, clock: 70 * DAY_SECONDS, storeWear: newWear(45 * DAY_SECONDS) }, flatTerrain(0))!;
+    expect(lodgeFirst.repair).toMatchObject({ what: 'lodge', broken: true, also: 'store' });
+    // Only one in need: no "too".
+    expect(foodInfoOf({ ...w, lodge }, flatTerrain(0))!.repair!.also).toBeUndefined();
+  });
 });
 
 describe('dam line', () => {

@@ -1,10 +1,10 @@
-// The beavers of the dream (docs/design/29_dream_candy_land.md): the player's beaver, and the marshmallow beavers, the
-// same model in pastel colours, a little rounder, with pink cheeks and a squash and stretch when they hop. The parts of
-// each model that move together are merged into one mesh, so a beaver costs seven draw calls instead of about thirty.
+// The beavers of the dream (docs/design/29_dream_candy_land.md): the marshmallow beavers, the game's model in pastel
+// colours, a little rounder, with pink cheeks and a squash and stretch when they hop, and the player as one more in the
+// colours of the rainbow. The parts of each model that move together are merged into one mesh, so a beaver costs seven
+// draw calls instead of about thirty.
 import * as THREE from 'three';
 import { LEAP_TIME, MALLOW_COLOURS, type DreamBeaver, type Mallow } from '../sim/dream';
 import { NOSE, TAIL, TEETH, createBeaverModel, type BeaverModel } from './beaverModel';
-import type { Coat } from '../sim/family';
 
 /** Seconds a marshmallow beaver squashes and stretches after a hop. */
 export const HOP_SQUASH_SECONDS = 0.6;
@@ -99,24 +99,50 @@ function mergeAll(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   return out;
 }
 
-/** The player's beaver in its own coat, merged for the dream. Its fur keeps the fur grain. */
-export function dreamPlayer(coat: Coat): BeaverModel {
-  const model = createBeaverModel(coat.coat);
-  model.setCoat(coat.coat, coat.shade);
-  let fur: THREE.Texture | null = null;
+/** The hue of the rainbow (0 red to 0.8 violet) at `z` metres along a beaver in its own space: red at the nose, violet at the tail. */
+export function rainbowHue(z: number): number {
+  return 0.8 * Math.min(1, Math.max(0, (0.7 - z) / 1.6));
+}
+
+/** The player's beaver in the dream: a marshmallow beaver too, in the colours of the rainbow from nose to tail (the author, session 81). */
+export function dreamPlayer(): BeaverModel {
+  // A pale grey marshmallow beaver first, so the fur, the darker paws and ears, and the light belly keep their shading.
+  const model = mallowModel(RAINBOW_BASE);
+  model.group.updateMatrixWorld(true);
+  const toModel = model.group.matrixWorld.clone().invert();
+  const p = new THREE.Vector3();
+  const c = new THREE.Color();
+  const hsl = { h: 0, s: 0, l: 0 };
   model.group.traverse((o) => {
-    if (!fur && o instanceof THREE.Mesh) fur = (o.material as THREE.MeshLambertMaterial).map;
+    if (!(o instanceof THREE.Mesh)) return;
+    const colours = o.geometry.getAttribute('color');
+    const positions = o.geometry.getAttribute('position');
+    if (!colours) return;
+    const m = o.matrixWorld.clone().premultiply(toModel);
+    for (let i = 0; i < colours.count; i++) {
+      c.fromBufferAttribute(colours as THREE.BufferAttribute, i);
+      c.getHSL(hsl);
+      // The eyes stay dark, and the white teeth, the rosy nose, and the pink cheeks keep their colour.
+      if (hsl.l < 0.3 || hsl.l > 0.97 || hsl.s > 0.1) continue;
+      p.fromBufferAttribute(positions as THREE.BufferAttribute, i).applyMatrix4(m);
+      c.setHSL(rainbowHue(p.z), 0.85, 0.45 + 0.35 * hsl.l);
+      colours.setXYZ(i, c.r, c.g, c.b);
+    }
+    colours.needsUpdate = true;
   });
-  flatten(model.group, new THREE.MeshLambertMaterial({ vertexColors: true, map: fur }));
   return model;
 }
 
 /** Pink cheeks, a rosy nose, white teeth, and a pastel tail for a marshmallow beaver. */
 const BLUSH = 0xff9fbf;
 
+/** The pale grey coat the player's rainbow is painted over: an index past the pastel coats of the others. */
+const RAINBOW_BASE = -1;
+const GREYS = { fur: 0xd9d9d9, dark: 0xbdbdbd, belly: 0xf2f2f2 };
+
 /** A marshmallow beaver in the pastel coat `colour` (an index into `MALLOW_COLOURS`), merged for the dream. */
 export function mallowModel(colour: number): BeaverModel {
-  const coat = MALLOW_COLOURS[((colour % MALLOW_COLOURS.length) + MALLOW_COLOURS.length) % MALLOW_COLOURS.length]!;
+  const coat = colour === RAINBOW_BASE ? GREYS : MALLOW_COLOURS[((colour % MALLOW_COLOURS.length) + MALLOW_COLOURS.length) % MALLOW_COLOURS.length]!;
   const model = createBeaverModel();
   model.setColours(coat);
   for (const s of [-1, 1]) {

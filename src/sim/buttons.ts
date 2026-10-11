@@ -5,7 +5,7 @@
 import { atStore, storeCondition, strippable } from './food';
 import { reachablePad } from './lily';
 import { checkSite, lodgeComplete, lodgeCondition, logWood, nearLodge, type Lodge } from './lodge';
-import { damAt, damMendUnits, placed, settled, spotAt } from './dam';
+import { damAt, damMendUnits, placed, raised, settled, spotAt } from './dam';
 import { lodgeGround, pondAt, type Pond } from './pond';
 import { STAGE_RULES, stageAt } from './life';
 import { canScoopMud, reachableDropped, reachableRock } from './haul';
@@ -89,7 +89,11 @@ export function placeHere(world: WorldState, ground: Terrain, log: Log | undefin
   const spot = spotAt(world.spots, b.x, b.z);
   if (spot && (log || world.haul)) {
     const add = log ? { wood: logWood(log) } : world.haul!.kind === 'mud' ? { mud: 1 } : { rock: 1 };
-    if (placed(world.dams, spot, add, undefined, world.clock) !== world.dams) return damMendUnits(settled(damAt(world.dams, spot), world.clock, spot), world.clock) > 0 ? 'mend' : 'build';
+    if (placed(world.dams, spot, add, undefined, world.clock) !== world.dams) {
+      // A good whole dam that can go up a level is raised by the press, not mended, even when it has worn a little.
+      const dam = settled(damAt(world.dams, spot), world.clock, spot);
+      return raised(dam, spot, world.clock) === undefined && damMendUnits(dam, world.clock) > 0 ? 'mend' : 'build';
+    }
   }
   if (!log) return null;
   const target = world.lodge ?? newLodge(ground, world.ponds, b.x, b.z, b.heading);

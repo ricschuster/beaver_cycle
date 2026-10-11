@@ -12,7 +12,7 @@ proposal; the author answered its open points in session 74 (see "Decided" at th
 | Visit and be greeted | Built first. A family notices the player coming near and reacts by trust. |
 | Gift a branch or a lily pad | Built first. Same drop-near gesture as for animals (#307); the family accepts and trusts more. |
 | Partner from a family's teenagers | Framing only. The lone beavers (`partners.ts`) are the grown kits of a neighbouring family who left. No new rule. |
-| Rescue a stuck family member | Later, with the stuck guides (Q20 to Q22, Q53). The stuck beaver is a named member of a family the player knows. |
+| Rescue a stuck family member | Built (#346), with the stuck guides (Q20 to Q22, Q53). The stuck beaver is a named member of a family the player knows. |
 | Share a dam | Not built. It would break "a family keeps its home up", for little gain. |
 
 ### Trust
@@ -33,8 +33,8 @@ Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesse
 - The first time a family comes within 20 m, a toast greets the player by mood. The manual has a paragraph.
 - Names (#343, `src/sim/names.ts`): each family beaver has a `name`, a pure function of its id from a list of 40 nature names, and a family is called for where its pond lies from the home, such as "north pond" (`pondName`).
 - Talk (#344, `src/sim/talk.ts`, `src/ui/talkBubble.ts`): within 6 m of a beaver (a neighbour, the player's Mama or Papa outside the
-  lodge, or a partner that is not alone), a card at the bottom says "Press Build to talk to Willow". Build starts the talk when
-  `buildIsFree` (not in the lodge, no log or load, not at the store, not at a dam spot). The beaver says one line for 7 s, picked by
+  lodge, or a partner that is not alone), a card at the bottom says "Willow is here, press Talk". Since #341 the Do button shows
+  Talk when nothing nearer to hand comes first in its order (`docs/design/30_buttons.md`). The beaver says one line for 7 s, picked by
   `pickLine` from its kind, feeling (a neighbour's mood, always curious for the player's own), season, night and a counter. A wary
   neighbour only warns. The card is fixed at the bottom, not a bubble over the head, since the renderer gives no screen position yet.
   Walking 12 m away ends it. A baby cannot work, but it talks to Mama and Papa from day 1, in the lodge too (the author's answer; siblings once they exist). Neighbours and partners wait until it can work.
@@ -46,7 +46,7 @@ Code: `src/sim/familyMoods.ts`, wired in `src/main.ts`. Numbers are first guesse
   slots. The same slot gives the same call.
 - The rescue (#346, `src/sim/escort.ts`): in winter, in one winter in two for each family that is not wary (trust 0.3 and up), its mama
   or papa is stuck in a snowdrift on dry ground 9 to 18 m from its lodge (the same spot each time). A toast tells the player when it
-  comes within 45 m, with the pond's name. A press of Gnaw within 3 m, then standing still for 4 s, digs it out: the winter's drift goes into
+  comes within 45 m, with the pond's name. A press of Do (it shows Dig) within 3 m, then standing still for 4 s, digs it out: the winter's drift goes into
   `world.rescued`, the member into `world.guides`, and the family trusts the player 0.3 more. A freed guide swims in its pond again, and
   talking to it adds the reply "Show me the way". Then `world.escort` (not saved) has it lead at 6 m/s to the nearest lone beaver if the
   player has no mate, else the nearest free dam spot over 20 m away, else home; it waits when the player is 14 m behind, gives up at
@@ -102,7 +102,8 @@ optional. It is a few lines in a speech bubble, never a wall of text, and it nev
   Build is the button that does "the thing here" (stash, lodge door, mending), so a talk takes it only when nothing else at that
   spot wants it, and the lodge, the store and mending come first. Gnaw is for trees, food, rocks and mud, and Drag for logs and for
   putting a gift down, so a Talk button would crowd the tablet screen. The author wants the buttons looked at as a whole later,
-  as not all make sense and a button can change with the circumstances (#341); a talk follows whatever that gives.
+  as not all make sense and a button can change with the circumstances (#341); a talk follows whatever that gives. Built that
+  way since: Do shows Talk by a beaver.
 - The beaver answers with one line in a bubble above its head. The player never types.
 - Where the player may answer, there are **at most 2 or 3 choices** as big buttons, such as "Hello", "Here is a branch", "Bye".
   Most talks need no choice: one line, then the bubble fades after a few seconds.

@@ -216,10 +216,10 @@ Each step is playable on a tablet and small enough for one pull request.
   Vorderer Springbach 19, Hinterer Springbach 32, east-oedseen 6. All six areas
   give six spots at 150 m spacing.
 - Mud and rocks (`src/sim/haul.ts`, `src/render/rockView.ts`; the beaver shows the lump in its mouth; streams count as wet ground through `Terrain.streamDistance`, 1.5 m each side of the line): one thing in the mouth at a time, like food.
-  Gnaw at the water's edge scoops mud. Gnaw next to a rock picks it up. The Drag button puts it down
+  Take at the water's edge scoops mud. Take next to a rock picks it up. Take again puts it down
   in front of the beaver, where it lies and can be picked up again (the author, session 39). Rocks are worked out from the ground like lily pads
   (10 m cells, 40 percent of them), on stream beds, banks, and steep ground, none on a lake floor or flat
-  dry land. The land cover class is not used yet, so a rock can lie in a meadow bank. Tune on the tablet.
+  dry land, and none on a dry meadow (#210). Tune on the tablet.
 - The level 1 dam (`src/sim/dam.ts`, `src/render/damView.ts`): within 5 m of a spot (the ring) the Build
   button puts a dragged log (wood, a long one is 2), the mud, or the rock in the mouth onto the dam, up to
   8 wood, 4 mud, and 2 rocks. The HUD shows the percent and what is still needed. The dam is drawn as sticks,

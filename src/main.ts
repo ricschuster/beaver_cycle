@@ -49,6 +49,7 @@ import { createSleepPrompt } from './ui/sleepPrompt';
 import { createDreamScreen } from './ui/dreamScreen';
 import { createTestMenu } from './ui/testMenu';
 import { createFlyButtons } from './ui/flyButtons';
+import { createMinimap, minimapMode, nextMode, type MinimapMode } from './ui/minimap';
 import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
 import { lodgeGround, pondsOf, withPonds } from './sim/pond';
@@ -304,6 +305,9 @@ async function start(): Promise<void> {
   let jump: { x: number; z: number; deadline: number; spawn: { x: number; z: number } | null } | null = null;
   // Locations first, then the named markers (the lake, the bog, the inflows) as test jump points.
   const anchors = store?.index.anchors ?? [];
+  // The minimap trial (docs/design/31_minimap.md): on, turning with the camera; ?minimap=north keeps north up, ?minimap=0 or the test menu turns it off, and an automated browser needs ?minimap=1.
+  const minimap = createMinimap(free ? document.createElement('div') : document.body, minimapMode(query.get('minimap'), navigator.webdriver));
+  const MAP_LABEL: Record<MinimapMode, string> = { north: 'North up', turn: 'Turning', off: 'Off' };
   const menu = createTestMenu(document.body, {
     speeds: [1, 2, 5, 20, 100],
     locations: anchors.map((a) => ({ id: a.id, name: a.name, enabled: a.inTiles })),
@@ -347,6 +351,13 @@ async function start(): Promise<void> {
       renderer.setShadows(on);
     },
     damSites: damSitesFile.length > 0 ? { initiallyOn: query.get('damsites') === '1', onToggle: setDamSites } : undefined,
+    minimap: {
+      label: MAP_LABEL[minimap.mode()],
+      onNext() {
+        minimap.setMode(nextMode(minimap.mode()));
+        return MAP_LABEL[minimap.mode()];
+      },
+    },
     damTools:
       damSpots.length > 0
         ? {
@@ -790,6 +801,7 @@ async function start(): Promise<void> {
     const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded), ...(world.leader ? [leaderAnimal(world.leader, ponded, world)] : [])];
     const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : [])];
     renderer.draw(world, rig.view, parents, animals, drawnFamily, stuckList.map((st) => ({ x: st.x, y: ponded.heightAt(st.x, st.z), z: st.z })), dug > 0);
+    minimap.update(now, { ground: ponded, pondsKey: world.ponds, beaver: world.beaver, yaw: rig.view.yaw, lodge: world.lodge });
     if (now - lastReadout > 500) {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;

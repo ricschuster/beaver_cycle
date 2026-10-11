@@ -54,6 +54,8 @@ export interface TestMenuOptions {
   damSites?: { initiallyOn: boolean; onToggle(on: boolean): void };
   /** Dam test tools: jump to the nearest dam spot, and complete the dam at the spot the beaver stands at. Leave out when there are no spots. */
   damTools?: { onGo(): void; onFill(): void };
+  /** The minimap trial (docs/design/31_minimap.md): a button showing its mode, and a press moves to the next mode and says which. */
+  minimap?: { label: string; onNext(): string };
 }
 
 export interface TestMenu {
@@ -224,6 +226,17 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
       damSites.onToggle(damOn);
     };
     row('Dam sites').appendChild(damButton);
+  }
+  if (opts.minimap) {
+    const minimap = opts.minimap;
+    const mapButton = document.createElement('button');
+    mapButton.dataset.action = 'minimap';
+    style(mapButton);
+    mapButton.textContent = minimap.label;
+    mapButton.onclick = () => {
+      mapButton.textContent = minimap.onNext();
+    };
+    row('Minimap').appendChild(mapButton);
   }
   if (opts.damTools) {
     const tools = opts.damTools;

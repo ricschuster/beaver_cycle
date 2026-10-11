@@ -7,7 +7,7 @@ import { LODGE_WOOD } from '../sim/lodge';
 import { follower } from '../sim/partners';
 
 export type Effect =
-  | 'chop' | 'fall' | 'splash' | 'slap' | 'stroke' | 'eat' | 'pickup' | 'setdown'
+  | 'chop' | 'fall' | 'splash' | 'slap' | 'slapwater' | 'stroke' | 'eat' | 'pickup' | 'setdown'
   // The building group: a log, a load of mud, a rock placed, and a piece finished or mended.
   | 'wood' | 'mud' | 'rock' | 'done'
   // The animals: a duck, and the warnings of the owl, the fox, the lynx and the bear, and the beaver hurt.
@@ -26,7 +26,7 @@ export interface Cue {
 }
 
 /** Seconds each effect lasts: the voice it takes is free again then. */
-export const DURATION: Record<Effect, number> = { chop: 0.5, fall: 1.5, splash: 0.7, slap: 0.3, stroke: 0.4, eat: 0.4, pickup: 0.15, setdown: 0.25, wood: 0.35, mud: 0.4, rock: 0.3, done: 0.9, quack: 0.45, hoot: 1.2, yap: 0.35, growl: 1.1, rumble: 1.4, hurt: 0.5, babble: 0, chirp: 0.45, chime: 0.8, chimeHigh: 0.8, chimeStar: 1.1, giggle: 0.8, cheer: 1.4 };
+export const DURATION: Record<Effect, number> = { chop: 0.5, fall: 1.5, splash: 0.7, slap: 0.3, slapwater: 0.5, stroke: 0.4, eat: 0.4, pickup: 0.15, setdown: 0.25, wood: 0.35, mud: 0.4, rock: 0.3, done: 0.9, quack: 0.45, hoot: 1.2, yap: 0.35, growl: 1.1, rumble: 1.4, hurt: 0.5, babble: 0, chirp: 0.45, chime: 0.8, chimeHigh: 0.8, chimeStar: 1.1, giggle: 0.8, cheer: 1.4 };
 
 /** Seconds a cue holds its voice. */
 export const cueSeconds = (c: Cue): number => c.voice?.seconds ?? DURATION[c.effect];
@@ -88,7 +88,7 @@ export function watchBeaver(): (w: WorldState, now: number) => Cue[] {
     const cues: Cue[] = [];
     if (w.chop && (w.chop.id !== prev.chopId || cur.chopTick > prev.chopTick)) cues.push({ effect: 'chop', gain: 0.7 });
     if (cur.felled > prev.felled) cues.push({ effect: 'fall', gain: 1 });
-    if (cur.slapAt !== null && cur.slapAt !== prev.slapAt) cues.push({ effect: 'slap', gain: 0.9 });
+    if (cur.slapAt !== null && cur.slapAt !== prev.slapAt) cues.push({ effect: cur.mode === 'walk' ? 'slap' : 'slapwater', gain: 0.9 });
     const wet = (m: string): boolean => m !== 'walk';
     if (wet(cur.mode) && !wet(prev.mode)) {
       cues.push({ effect: 'splash', gain: 0.8 });

@@ -1,10 +1,11 @@
 // Sound in the browser through the Web Audio API (docs/design/32_sound.md). One AudioContext for the whole game. The browser
-// blocks it until the first touch or key, so it is made on `unlock`, called from such an event. The rushing water is made and
-// the other loops are made in code (synth.ts and looped noise), so they need no file and have no licence.
+// blocks it until the first touch or key, so it is made on `unlock`, called from such an event. Sounds are recordings from
+// public/audio/ (samples.ts); an effect or layer the manifest does not list is made in code (synth.ts, effectsSynth.ts).
 
 import { SYNTH_RATE, birdsLoop, cricketsLoop, owlLoop } from './synth';
 import { effectSamples } from './effectsSynth';
 import type { Effect } from './effects';
+import { parseManifest, pickVariant, variation, type Manifest } from './samples';
 import type { Layer, SoundOut } from './soundOut';
 
 type Ctx = AudioContext;
@@ -46,13 +47,106 @@ export function createWebAudio(): SoundOut {
   let effects: GainNode | null = null;
   let music: GainNode | null = null;
   const layers = new Map<Layer, GainNode>();
-  // Effects are made the first time they are needed, and kept.
+  // Code made effects are made the first time they are needed, and kept.
   const buffers = new Map<Effect, AudioBuffer>();
+  // Recordings: the manifest (null until read, or if there is none), the decoded files, and the file played last per effect.
+  let manifest: Manifest | null = null;
+  let manifestDone = false;
+  const decoded = new Map<string, AudioBuffer>();
+  const last = new Map<Effect, string>();
   // What was asked before the context existed.
   let wantEffects = 0;
   let wantMusic = 0;
   const wantLayers = new Map<Layer, number>();
   let suspended = false;
+
+  const url = (file: string): string => `${import.meta.env.BASE_URL}audio/${file}`;
+  const load = async (c: Ctx, file: string): Promise<AudioBuffer | null> => {
+    const have = decoded.get(file);
+    if (have) return have;
+    try {
+      const r = await fetch(url(file));
+      if (!r.ok) return null;
+      const buf = await c.decodeAudioData(await r.arrayBuffer());
+      decoded.set(file, buf);
+      return buf;
+    } catch {
+      return null;
+    }
+  };
+
+  /** A layer made in code: noise through filters for water and wind, a looped sample for the rest. */
+  const synthLayer = (c: Ctx, layer: Layer, into: GainNode, noise: AudioBuffer): void => {
+    if (layer === 'water') {
+      // Noise through a low-pass that opens a little and moves, so it rushes and does not hiss.
+      const src = c.createBufferSource();
+      src.buffer = noise;
+      src.loop = true;
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 900;
+      const wobble = c.createOscillator();
+      wobble.frequency.value = 0.3;
+      const depth = c.createGain();
+      depth.gain.value = 250;
+      wobble.connect(depth).connect(lp.frequency);
+      src.connect(lp).connect(into);
+      src.start();
+      wobble.start();
+    } else if (layer === 'wind') {
+      // The same noise, duller, with a slow gust.
+      const gust = c.createGain();
+      gust.gain.value = 0.6;
+      const gustLfo = c.createOscillator();
+      gustLfo.frequency.value = 0.08;
+      const gustDepth = c.createGain();
+      gustDepth.gain.value = 0.4;
+      gustLfo.connect(gustDepth).connect(gust.gain);
+      const src = c.createBufferSource();
+      src.buffer = noise;
+      src.loop = true;
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 450;
+      src.connect(lp).connect(gust).connect(into);
+      src.start();
+      gustLfo.start();
+    } else {
+      const loop = loopSource(c, layer === 'birds' ? birdsLoop() : layer === 'crickets' ? cricketsLoop() : owlLoop());
+      loop.connect(into);
+      loop.start();
+    }
+  };
+
+  /** Start every layer: a recording from the manifest (one picked for this session), or the one made in code. */
+  const startLayers = async (c: Ctx): Promise<void> => {
+    const noise = noiseBuffer(c);
+    for (const [layer, node] of layers) {
+      const files = manifest?.layers[layer];
+      const buf = files ? await load(c, pickVariant(files, Math.random())) : null;
+      if (buf) {
+        const src = c.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        src.connect(node);
+        src.start();
+      } else synthLayer(c, layer, node, noise);
+    }
+  };
+
+  /** Read the manifest, start the layers, then decode the effect files in the background, six at a time. */
+  const start = async (c: Ctx): Promise<void> => {
+    try {
+      const r = await fetch(url('manifest.json'));
+      if (r.ok) manifest = parseManifest(await r.json());
+    } catch {
+      manifest = null;
+    }
+    manifestDone = true;
+    await startLayers(c);
+    const files = Object.values(manifest?.effects ?? {}).flat();
+    for (let i = 0; i < files.length; i += 6) await Promise.all(files.slice(i, i + 6).map((f) => load(c, f)));
+  };
 
   const build = (c: Ctx): void => {
     const master = c.createGain();
@@ -61,58 +155,13 @@ export function createWebAudio(): SoundOut {
     effects.connect(master);
     music = c.createGain();
     music.connect(master);
-    // Water: noise through a low-pass that opens a little and moves, so it rushes and does not hiss.
-    const water = c.createGain();
-    water.gain.value = 0;
-    const src = c.createBufferSource();
-    src.buffer = noiseBuffer(c);
-    src.loop = true;
-    const lp = c.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = 900;
-    const wobble = c.createOscillator();
-    wobble.frequency.value = 0.3;
-    const depth = c.createGain();
-    depth.gain.value = 250;
-    wobble.connect(depth).connect(lp.frequency);
-    src.connect(lp).connect(water).connect(effects);
-    src.start();
-    wobble.start();
-    layers.set('water', water);
-    // Wind: the same noise, duller, with a slow gust.
-    const wind = c.createGain();
-    wind.gain.value = 0;
-    const gust = c.createGain();
-    gust.gain.value = 0.6;
-    const gustLfo = c.createOscillator();
-    gustLfo.frequency.value = 0.08;
-    const gustDepth = c.createGain();
-    gustDepth.gain.value = 0.4;
-    gustLfo.connect(gustDepth).connect(gust.gain);
-    const windSrc = c.createBufferSource();
-    windSrc.buffer = src.buffer;
-    windSrc.loop = true;
-    const windLp = c.createBiquadFilter();
-    windLp.type = 'lowpass';
-    windLp.frequency.value = 450;
-    windSrc.connect(windLp).connect(gust).connect(wind).connect(effects);
-    windSrc.start();
-    gustLfo.start();
-    layers.set('wind', wind);
-    // Birds, crickets and an owl: loops of samples made in code.
-    const samples: [Layer, Float32Array<ArrayBuffer>][] = [
-      ['birds', birdsLoop()],
-      ['crickets', cricketsLoop()],
-      ['owl', owlLoop()],
-    ];
-    for (const [layer, data] of samples) {
+    for (const layer of ['water', 'wind', 'birds', 'crickets', 'owl'] as const) {
       const gain = c.createGain();
       gain.gain.value = 0;
-      const loop = loopSource(c, data);
-      loop.connect(gain).connect(effects);
-      loop.start();
+      gain.connect(effects);
       layers.set(layer, gain);
     }
+    void start(c);
   };
 
   const apply = (): void => {
@@ -124,6 +173,18 @@ export function createWebAudio(): SoundOut {
     for (const [layer, node] of layers) node.gain.setTargetAtTime(wantLayers.get(layer) ?? 0, t, 0.3);
     if (suspended && ctx.state === 'running') void ctx.suspend();
     else if (!suspended && ctx.state === 'suspended') void ctx.resume();
+  };
+
+  /** A recording of the effect to play now, or null: none listed (use the synth) or none ready yet (say nothing). */
+  const recording = (effect: Effect): AudioBuffer | null | undefined => {
+    if (!manifestDone) return null;
+    const files = manifest?.effects[effect];
+    if (!files) return undefined;
+    const ready = files.filter((f) => decoded.has(f));
+    if (ready.length === 0) return null;
+    const file = pickVariant(ready, Math.random(), last.get(effect));
+    last.set(effect, file);
+    return decoded.get(file)!;
   };
 
   return {
@@ -138,17 +199,26 @@ export function createWebAudio(): SoundOut {
     },
     play(effect, gain, voice) {
       if (!ctx || !effects || suspended || ctx.state !== 'running') return;
-      let buf = voice ? undefined : buffers.get(effect);
-      if (!buf) {
-        const samples = effectSamples(effect, SYNTH_RATE, voice);
-        buf = ctx.createBuffer(1, samples.length, SYNTH_RATE);
-        buf.copyToChannel(samples, 0);
-        if (!voice) buffers.set(effect, buf);
-      }
+      const rec = voice ? undefined : recording(effect);
+      if (rec === null) return;
       const src = ctx.createBufferSource();
-      src.buffer = buf;
       const g = ctx.createGain();
-      g.gain.value = gain;
+      if (rec) {
+        const v = variation(Math.random(), Math.random());
+        src.buffer = rec;
+        src.playbackRate.value = v.rate;
+        g.gain.value = gain * v.gain;
+      } else {
+        let buf = voice ? undefined : buffers.get(effect);
+        if (!buf) {
+          const samples = effectSamples(effect, SYNTH_RATE, voice);
+          buf = ctx.createBuffer(1, samples.length, SYNTH_RATE);
+          buf.copyToChannel(samples, 0);
+          if (!voice) buffers.set(effect, buf);
+        }
+        src.buffer = buf;
+        g.gain.value = gain;
+      }
       src.connect(g).connect(effects);
       src.start();
     },

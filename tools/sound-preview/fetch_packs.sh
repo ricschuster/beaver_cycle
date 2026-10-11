@@ -14,3 +14,6 @@ for slug in $OGA; do
 done
 mkdir -p "$D/bsb"
 for p in $BSB; do curl -sL -m 120 "https://bigsoundbank.com/UPLOAD/ogg/${p##*-s}.ogg" -o "$D/bsb/$p.ogg"; done
+# Round 2 (stage_gaps.py): more BigSoundBank recordings for the effects round 1 left without a good clip.
+GAP_BSB="splash-small-1-s1529 splash-small-2-s1530 splash-small-3-s1531 splash-small-4-s1532 splash-small-5-s1533 splash-small-6-s1534 splash-big-1-s1519 splash-big-2-s1520 splash-big-3-s1521 rowing-slowly-s1514 rowing-quickly-s1513 shoes-in-the-water-s0690 water-bubble-2-s0183 chainsaw-and-falling-tree-s2750 broken-twigs-1-s1299 broken-twigs-2-s1300 unloading-logs-s1441 steps-on-the-twigs-s1301 mouse-screams-s0459 chick-that-chirp-s0672 applause-about-25-50-people-1-s0812 shouts-and-applauses-of-teens-1-s0236 shouts-and-applauses-of-teens-2-s0237 laughter-of-children-s1660 parisian-park-children-games-s1082"
+for p in $GAP_BSB; do curl -sL -m 120 "https://bigsoundbank.com/UPLOAD/ogg/${p##*-s}.ogg" -o "$D/bsb/$p.ogg"; done

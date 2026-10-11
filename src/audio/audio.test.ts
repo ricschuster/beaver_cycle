@@ -175,6 +175,8 @@ describe('the beaver cues', () => {
     expect(effects(watch({ ...dry, lastSlap: { time: 5, x: 0, z: 0 } }, 0.1))).toEqual(['slap']);
     expect(watch({ ...dry, lastSlap: { time: 5, x: 0, z: 0 } }, 0.2)).toEqual([]);
     const swim = (x: number) => ({ ...dry, beaver: { ...dry.beaver, mode: 'swim' as const, x } });
+    expect(effects(watch({ ...swim(0), lastSlap: { time: 6, x: 0, z: 0 } }, 0.5)).filter((e) => e !== 'splash')).toEqual(['slapwater']);
+    watch(dry, 0.6);
     const splash = watch(swim(0), 1);
     expect(splash.map((c) => c.effect)).toEqual(['splash']);
     expect(effects(watch(swim(0.5), 1.5))).toEqual([]);
@@ -298,7 +300,7 @@ describe('talk and dream cues', () => {
 });
 
 describe('effectSamples', () => {
-  const all: Effect[] = ['chop', 'fall', 'splash', 'slap', 'stroke', 'eat', 'pickup', 'setdown', 'wood', 'mud', 'rock', 'done', 'quack', 'hoot', 'yap', 'growl', 'rumble', 'hurt', 'babble', 'chirp', 'chime', 'chimeHigh', 'chimeStar', 'giggle', 'cheer'];
+  const all: Effect[] = ['chop', 'fall', 'splash', 'slap', 'slapwater', 'stroke', 'eat', 'pickup', 'setdown', 'wood', 'mud', 'rock', 'done', 'quack', 'hoot', 'yap', 'growl', 'rumble', 'hurt', 'babble', 'chirp', 'chime', 'chimeHigh', 'chimeStar', 'giggle', 'cheer'];
   it('makes every effect as long as its duration, audible, in range, and silent at the end', () => {
     for (const e of all.filter((x) => x !== 'babble')) {
       const s = effectSamples(e);

@@ -1,0 +1,116 @@
+{
+ "effects": {
+  "cheer": [
+   "cheer-1-childrens_game_app_ending.ogg"
+  ],
+  "chop": [
+   "chop-6-apple_bite_0.ogg",
+   "chop-7-crunch.4.ogg",
+   "chop-8-RabbitEating.ogg"
+  ],
+  "eat": [
+   "eat-2-crunch.3.ogg",
+   "eat-3-crunch.5.ogg",
+   "eat-4-crunch.6.ogg",
+   "eat-8-apple_bite_0.ogg"
+  ],
+  "giggle": [
+   "giggle-2-cute_01.ogg",
+   "giggle-3-cute_05.ogg",
+   "giggle-4-cute_09.ogg"
+  ],
+  "growl": [
+   "growl-1-cat-roar-1-s1881.ogg",
+   "growl-2-cat-roar-2-s1882.ogg",
+   "growl-3-cat-roar-3-s1883.ogg",
+   "growl-4-cat-roar-4-s1884.ogg",
+   "growl-8-grunt_01.ogg"
+  ],
+  "hoot": [
+   "hoot-1-tawny-owl-3-s3459.ogg",
+   "hoot-2-tawny-owl-4-s3460.ogg",
+   "hoot-3-tawny-owl-1-s1763.ogg",
+   "hoot-4-tawny-owl-1-s1763.ogg"
+  ],
+  "mud": [
+   "mud-1-mud_01.ogg",
+   "mud-2-mud_05.ogg",
+   "mud-6-mud_21.ogg",
+   "mud-7-slime_01.ogg"
+  ],
+  "pickup": [
+   "pickup-5-bfh1_misc_05.ogg"
+  ],
+  "quack": [
+   "quack-1-ducks-s0276.ogg",
+   "quack-2-ducks-s0276.ogg",
+   "quack-3-ducks-s0276.ogg",
+   "quack-4-ducks-s0276.ogg",
+   "quack-5-ducks-s0276.ogg"
+  ],
+  "rock": [
+   "rock-1-bfh1_rock_falling_01.ogg",
+   "rock-2-bfh1_rock_falling_04.ogg",
+   "rock-4-bfh1_rock_falling_08.ogg",
+   "rock-6-stones_01.ogg"
+  ],
+  "rumble": [
+   "rumble-1-bear_01.ogg",
+   "rumble-2-bear_02.ogg"
+  ],
+  "slap": [
+   "slap-3-thwack-07.ogg",
+   "slap-4-thwack-09.ogg"
+  ],
+  "splash": [
+   "splash-2-splash_02.ogg",
+   "splash-3-splash_03.ogg",
+   "splash-4-splash_04.ogg",
+   "splash-5-splash_05.ogg",
+   "splash-7-splash_12.ogg"
+  ],
+  "stroke": [
+   "stroke-2-splash_14.ogg"
+  ],
+  "wood": [
+   "wood-2-wood_03.ogg",
+   "wood-4-wood_05.ogg",
+   "wood-5-bfh1_wood_falling_02.ogg"
+  ],
+  "yap": [
+   "yap-2-barking_02.ogg",
+   "yap-4-wolf_monster_6.ogg"
+  ]
+ },
+ "layers": {
+  "birds": [
+   "birds-1-awakening-birds-s0222.ogg",
+   "birds-2-birds-waking-4-s1906.ogg",
+   "birds-3-forest-3-s2715.ogg",
+   "birds-4-forest-5-s3085.ogg",
+   "birds-6-park_ambience_birds.ogg"
+  ],
+  "crickets": [
+   "crickets-1-field-cricket-s1020.ogg",
+   "crickets-2-insect-song-s1052.ogg",
+   "crickets-4-singing-insect-1-s3089.ogg",
+   "crickets-5-crickets_1.ogg"
+  ],
+  "owl": [
+   "owl-2-tawny-owl-1-s1763.ogg",
+   "owl-3-long-eared-owl-1-s0936.ogg"
+  ],
+  "water": [
+   "water-1-mountain-stream-1-s2754.ogg",
+   "water-2-mountain-stream-4-s3217.ogg",
+   "water-3-mountain-stream-6-s3219.ogg",
+   "water-5-brooklet-s0864.ogg",
+   "water-6-small-stream-1-s0213.ogg",
+   "water-7-park_ambience_river.ogg"
+  ],
+  "wind": [
+   "wind-1-wind1.ogg",
+   "wind-2-wind3.ogg"
+  ]
+ }
+}

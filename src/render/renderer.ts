@@ -34,6 +34,7 @@ import { createStoreView, type StoreView } from './storeView';
 import type { DamSite } from './damSites';
 import { createDamSiteView } from './damSites';
 import { createSpotRings, type SpotRings } from './spotRing';
+import { createWayPointer } from './wayPointer';
 import type { DamSpot } from '../sim/damSpots';
 import { clearingsOf, createTerrainView, type Clearing, type TerrainView } from './terrainView';
 
@@ -66,6 +67,8 @@ export interface Renderer {
   setDamSitesVisible(on: boolean): void;
   /** Mark the free dam spots with rings that show when the beaver is near. */
   setDamSpots(spots: readonly DamSpot[]): void;
+  /** The sparkles toward a lone beaver at these points (none hides them), twinkling by `time` (seconds). */
+  setWayDots(dots: readonly { x: number; y: number; z: number }[], time: number): void;
   /** The element that takes drag and zoom input. */
   canvas: HTMLCanvasElement;
 }
@@ -201,6 +204,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
 
   const logView = createLogView(scene, shadows, prepare);
   const lodgeView = createLodgeView(scene, shadows, prepare);
+  const wayPointer = createWayPointer(scene);
   const storeView = createStoreView(scene, shadows, prepare);
   const formerStoreViews: StoreView[] = [];
   const kept = keptStock();
@@ -329,6 +333,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     canvas: gl.domElement,
     setLodgePreview(at) {
       lodgeView.preview(at);
+    },
+    setWayDots(dots, time) {
+      wayPointer.set(dots, time);
     },
     addDamSites(sites) {
       damSiteGroup?.removeFromParent();

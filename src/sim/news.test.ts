@@ -13,14 +13,15 @@ describe('newsFor', () => {
     expect(answerNews(w, none, true, 0)).toBe('Nothing new on the pond today.');
   });
 
-  it('tells where the pads are, with the compass and the distance to 10 m', () => {
-    const news = newsFor(w, { pad: { x: 0, z: -43 }, predator: null });
-    expect(news).toEqual(['Lily pads grow to the north, about 40 m from here.']);
+  it('tells where the pads are from where the player looks, with no compass and no metres', () => {
+    // The beaver faces +z, so -z is behind it; a player looking along -z sees them straight ahead.
+    expect(newsFor(w, { pad: { x: 0, z: -43 }, predator: null })).toEqual(['Lily pads grow behind you, close by.']);
+    expect(newsFor(w, { pad: { x: 0, z: -43 }, predator: null, facing: Math.PI })).toEqual(['Lily pads grow straight ahead, close by.']);
   });
 
   it('warns of a predator, and says where', () => {
     const news = newsFor(w, { pad: null, predator: { x: 30, z: 0, kind: 'fox' } });
-    expect(news[0]).toContain('fox to the east');
+    expect(news[0]).toBe('I smelled a fox to your left. Keep your tail ready.');
   });
 
   it('keeps hints from a beaver that does not trust the player yet', () => {

@@ -21,6 +21,14 @@ describe('rocks', () => {
     expect(rocksNear(steep, 0, 0, 100)).toEqual(a);
   });
 
+  it('lie thicker by water than on steep stony ground', () => {
+    const along = (rocks: { z: number }[]): number => rocks.filter((r) => Math.abs(r.z) <= 100).length;
+    // Count per square metre: the creek band is 9 m wide (x within 4.5 m), the steep area is 200 m wide.
+    const water = along(rocksNear(creek, 0, 0, 120)) / (9 * 200);
+    const stony = along(rocksNear(steep, 0, 0, 120)) / (200 * 200);
+    expect(water).toBeGreaterThan(stony * 2);
+  });
+
   it('lie on stream beds, banks, and steep ground, not on flat dry land or a lake floor', () => {
     expect(rocksNear(dry, 0, 0, 200)).toEqual([]);
     expect(rocksNear(lake, 0, 0, 200)).toEqual([]);

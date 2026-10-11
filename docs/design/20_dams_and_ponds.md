@@ -218,7 +218,7 @@ Each step is playable on a tablet and small enough for one pull request.
 - Mud and rocks (`src/sim/haul.ts`, `src/render/rockView.ts`; the beaver shows the lump in its mouth; streams count as wet ground through `Terrain.streamDistance`, 1.5 m each side of the line): one thing in the mouth at a time, like food.
   Take at the water's edge scoops mud. Take next to a rock picks it up. Take again puts it down
   in front of the beaver, where it lies and can be picked up again (the author, session 39). Rocks are worked out from the ground like lily pads
-  (10 m cells, 40 percent of them), on stream beds, banks, and steep ground, none on a lake floor or flat
+  (5 m cells; 75 percent of them on stream beds, banks and shores, 25 percent on steep ground away from water; raised in session 96, author: too few), none on a lake floor or flat
   dry land, and none on a dry meadow (#210). Tune on the tablet.
 - The level 1 dam (`src/sim/dam.ts`, `src/render/damView.ts`): within 5 m of a spot (the ring) the Build
   button puts a dragged log (wood, a long one is 2), the mud, or the rock in the mouth onto the dam, up to

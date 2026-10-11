@@ -135,18 +135,7 @@ const STAY = 15;
 export function whereTo(world: WorldState): { x: number; z: number; what: Escort['what'] } | null {
   const b = world.beaver;
   const cue = partnerCue(world.partners, b);
-  if (cue) {
-    let best: { x: number; z: number } | null = null;
-    let bestDist = Infinity;
-    for (const p of world.partners) {
-      const d = Math.hypot(p.x - b.x, p.z - b.z);
-      if (p.state === 'alone' && d < bestDist) {
-        best = p;
-        bestDist = d;
-      }
-    }
-    if (best) return { x: best.x, z: best.z, what: 'lone' };
-  }
+  if (cue) return { x: cue.partner.x, z: cue.partner.z, what: 'lone' };
   let spot: { x: number; z: number } | null = null;
   let spotDist = Infinity;
   for (const s of world.spots) {

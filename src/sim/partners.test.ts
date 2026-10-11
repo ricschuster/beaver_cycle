@@ -99,11 +99,10 @@ describe('meeting', () => {
 
 describe('the cue to a lone beaver', () => {
   const alone = (id: string, x: number, z: number) => ({ id, x, z, heading: 0, coat: 0, shade: 0, state: 'alone' as const, metAt: null, homeAt: null });
-  it('names the direction (north is -z) and the distance of the nearest', () => {
+  it('finds the nearest lone beaver and how far it is', () => {
     const cue = partnerCue([alone('a', 1200, 0), alone('b', 0, -1060)], { x: 0, z: 0 });
-    expect(cue).toEqual({ direction: 'north', metres: 1050 });
-    expect(partnerCue([alone('a', 700, 700)], { x: 0, z: 0 })).toEqual({ direction: 'south-east', metres: 1000 });
-    expect(partnerCue([alone('a', -300, 0)], { x: 0, z: 0 })?.direction).toBe('west');
+    expect(cue?.partner.id).toBe('b');
+    expect(cue?.d).toBeCloseTo(1060);
   });
   it('is silent with no lone beaver, a follower, or a mate', () => {
     expect(partnerCue([], { x: 0, z: 0 })).toBeNull();

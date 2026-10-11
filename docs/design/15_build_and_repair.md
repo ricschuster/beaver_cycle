@@ -145,6 +145,9 @@ Wood only, since mud and rock come with the dam. Code in `src/sim/wear.ts`.
   everything, slow pulse, brighter when broken. A worn lodge goes grey and slumps.
 - The HUD line near a worn piece says how worn it is and how many wood units it
   still needs (a long log is 2), and the store line shows its real capacity.
+  Next to both a worn lodge and a worn store it names the worse one and adds
+  that the other needs wood too, for example "store broken, needs 4 wood (a long
+  log is 2), the lodge needs wood too" (#257).
 - The lodge clock runs at half speed inside, so buildings wear slower while the
   beaver is in the lodge. That is a small difference from the text above.
 - The dam wears too, see `20_dams_and_ponds.md` (step 3): a season to worn, mended by wood, mud, and rocks.

@@ -28,6 +28,16 @@ export const COARSEST = 2;
 /** An idle streamer looks again after the beaver moves this many metres. */
 const REPASS_DISTANCE = 2;
 
+/**
+ * A fetch that failed (a dropped request on the tablet's WLAN) is tried again after this many milliseconds, doubling with
+ * each failure up to RETRY_MAX_MS, so a lost tile comes back without asking the server again every frame.
+ */
+export const RETRY_FIRST_MS = 2000;
+export const RETRY_MAX_MS = 60000;
+
+/** Milliseconds to wait before trying a fetch again after it has failed `tries` times in a row. */
+export const retryWait = (tries: number): number => Math.min(RETRY_MAX_MS, RETRY_FIRST_MS * 2 ** (tries - 1));
+
 /** Detail level for a tile at a distance, keeping the previous level near a ring. */
 export function levelFor(dist: number, prev: number | undefined, o: StreamerOptions): number {
   const base = dist < o.rings[0] ? 0 : dist < o.rings[1] ? 1 : COARSEST;
@@ -65,7 +75,8 @@ export class Streamer {
   private readonly desired = new Map<string, number>();
   private readonly fine = new Set<string>();
   private readonly inFlight = new Set<string>();
-  private readonly failed = new Set<string>();
+  /** Fetches that failed: how many times in a row, and when they may be tried again (`now` milliseconds). */
+  private readonly failed = new Map<string, { tries: number; at: number }>();
   private idle = false;
   private lastX = 0;
   private lastZ = 0;
@@ -80,6 +91,7 @@ export class Streamer {
     private readonly fetchTile: FetchTile,
     private readonly options: StreamerOptions = defaultStreamerOptions,
     private readonly fetchWater?: FetchWater,
+    private readonly now: () => number = () => performance.now(),
   ) {
     this.keys = store.index.tiles.map((t) => tileKey(t.tx, t.tz));
     this.farDone = new Uint8Array(this.keys.length);
@@ -161,29 +173,43 @@ export class Streamer {
     }
   }
 
+  /** True when a fetch may start: not under way, and not failed so lately that it waits to be tried again. */
+  private mayStart(id: string): boolean {
+    if (this.inFlight.has(id)) return false;
+    const f = this.failed.get(id);
+    return !f || this.now() >= f.at;
+  }
+
+  /** Note a failed fetch, and when to try it again. Only the first failure in a row is logged. */
+  private fail(id: string, e: unknown): void {
+    const tries = (this.failed.get(id)?.tries ?? 0) + 1;
+    this.failed.set(id, { tries, at: this.now() + retryWait(tries) });
+    if (tries === 1) console.warn(`${id} failed, will try again`, e);
+  }
+
   private startWater(tx: number, tz: number): void {
     const id = `water:${tileKey(tx, tz)}`;
-    if (!this.fetchWater || this.inFlight.has(id) || this.failed.has(id)) return;
+    if (!this.fetchWater || !this.mayStart(id)) return;
     this.inFlight.add(id);
     this.fetchWater(tx, tz)
-      .then((water) => this.store.putWater(tx, tz, water))
-      .catch((e: unknown) => {
-        this.failed.add(id);
-        console.warn(`${id} failed`, e);
+      .then((water) => {
+        this.failed.delete(id);
+        this.store.putWater(tx, tz, water);
       })
+      .catch((e: unknown) => this.fail(id, e))
       .finally(() => this.inFlight.delete(id));
   }
 
   private start(tx: number, tz: number, level: number): void {
-    const id = `${level}:${tileKey(tx, tz)}`;
-    if (this.inFlight.has(id) || this.failed.has(id)) return;
+    const id = `tile ${level}:${tileKey(tx, tz)}`;
+    if (!this.mayStart(id)) return;
     this.inFlight.add(id);
     this.fetchTile(level, tx, tz)
-      .then((tile) => this.store.put(tile))
-      .catch((e: unknown) => {
-        this.failed.add(id);
-        console.warn(`tile ${id} failed`, e);
+      .then((tile) => {
+        this.failed.delete(id);
+        this.store.put(tile);
       })
+      .catch((e: unknown) => this.fail(id, e))
       .finally(() => this.inFlight.delete(id));
   }
 

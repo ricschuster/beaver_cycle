@@ -29,6 +29,7 @@ export const PROP_RADIUS: Readonly<Record<PropKind, number>> = {
   cupcake: 0.9,
   iceCream: 0.35,
   marshmallowRock: 0.8,
+  cottonCandy: 0.2,
 };
 
 const TAU = Math.PI * 2;
@@ -182,12 +183,13 @@ function makePath(rand: () => number, river: readonly DreamPoint[], width: numbe
 }
 
 const PROP_KINDS: readonly [PropKind, number][] = [
-  ['lollipop', 0.25],
-  ['gumdrop', 0.22],
-  ['candyCane', 0.15],
-  ['cupcake', 0.12],
-  ['iceCream', 0.12],
-  ['marshmallowRock', 0.14],
+  ['lollipop', 0.21],
+  ['gumdrop', 0.19],
+  ['candyCane', 0.12],
+  ['cupcake', 0.11],
+  ['iceCream', 0.1],
+  ['marshmallowRock', 0.12],
+  ['cottonCandy', 0.15],
 ];
 
 function pickKind(rand: () => number): PropKind {
@@ -199,9 +201,9 @@ function pickKind(rand: () => number): PropKind {
   return 'gumdrop';
 }
 
-/** Big enough to hide a marshmallow beaver: the bulky kinds from size 1.1, a lollipop from 1.2 (its sweet is big then). */
+/** Big enough to hide a marshmallow beaver: the bulky kinds from size 1.1, a lollipop or a cotton candy tree from 1.2 (its sweet is big then). */
 const hides = (kind: PropKind, size: number): boolean =>
-  ((kind === 'cupcake' || kind === 'marshmallowRock' || kind === 'iceCream') && size >= 1.1) || (kind === 'lollipop' && size >= 1.2);
+  ((kind === 'cupcake' || kind === 'marshmallowRock' || kind === 'iceCream') && size >= 1.1) || ((kind === 'lollipop' || kind === 'cottonCandy') && size >= 1.2);
 
 /** Hiding props in the grove by the end of the path, and the most of all props that hide. */
 const GROVE = 10;
@@ -226,7 +228,7 @@ function makeProps(rand: () => number, river: readonly DreamPoint[], width: numb
   };
   // A grove of big props round where the path meets the river, where the marshmallow beavers play, to hide behind.
   const end = path[path.length - 1]!;
-  const hiders: PropKind[] = ['cupcake', 'marshmallowRock', 'iceCream', 'lollipop'];
+  const hiders: PropKind[] = ['cupcake', 'marshmallowRock', 'iceCream', 'lollipop', 'cottonCandy'];
   for (let attempt = 0, grove = 0; attempt < 400 && grove < GROVE; attempt++) {
     const a = rand() * TAU;
     const r = 14 + rand() * 24;

@@ -16,7 +16,7 @@ function fixture(seed: number): DreamState {
   for (let x = -80; x <= 80; x += 2) river.push({ x, z: 12 + 4 * Math.sin(x / 15) });
   const path = [];
   for (let z = -30; z <= 6; z += 2) path.push({ x: 3 * Math.sin(z / 8), z });
-  const kinds: PropKind[] = ['lollipop', 'gumdrop', 'candyCane', 'cupcake', 'iceCream', 'marshmallowRock'];
+  const kinds: PropKind[] = ['lollipop', 'gumdrop', 'candyCane', 'cupcake', 'iceCream', 'marshmallowRock', 'cottonCandy'];
   const props: DreamProp[] = [];
   kinds.forEach((kind, k) => {
     for (let i = 0; i < 8; i++) {
@@ -104,11 +104,11 @@ if (giggler) giggler.state = 'hidden';
 const host = document.getElementById('view')!;
 // ?cycle=N makes and throws away N views first, as N nights of dreams would, to check that nothing leaks.
 for (let i = 0; i < num('cycle', 0); i++) {
-  const v = createDreamView(host, state.land, { coat: i % 5, shade: 0 });
+  const v = createDreamView(host, state.land);
   v.draw(state, { yaw: 0, pitch: 0.3, dist: 6 }, []);
   v.dispose();
 }
-const view = createDreamView(host, state.land, { coat: 1, shade: 0 });
+const view = createDreamView(host, state.land);
 (window as unknown as { dreamView: unknown }).dreamView = view;
 const rig = createCameraRig(view.canvas);
 rig.view.yaw = q.has('yaw') ? (num('yaw', 0) * Math.PI) / 180 : b.heading + Math.PI;

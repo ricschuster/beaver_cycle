@@ -94,11 +94,15 @@ export async function fellNearestTree(page: Page, reach = 120): Promise<string |
     return g.nearestTree(b.x, b.z, r);
   }, reach);
   if (!tree) return null;
-  // Stand still within reach and gnaw. A press while the beaver is still moving does nothing, so a miss tries again.
+  // Stand still within reach and gnaw. A press while the beaver is still moving does nothing, so a miss tries again. A press
+  // while the tree is still being gnawed, or once it is down, would strip a branch off the new log into the mouth, and a full
+  // mouth stops the next Gnaw and Take, so a retry presses only when nothing is being gnawed.
   for (let attempt = 0; attempt < 4; attempt++) {
     await walkToPoint(page, tree, 2.2 + attempt * 0.2, 40_000);
     await page.waitForTimeout(300);
-    await tap(page, 'KeyE');
+    const w = await world(page);
+    if (w.felled.includes(tree.id)) return tree.id;
+    if (!w.chop) await tap(page, 'KeyE');
     const done = await page.waitForFunction((id) => (window as any).__game.world().felled.includes(id), tree.id, { polling: 100, timeout: 15_000 }).then(() => true, () => false);
     if (done) return tree.id;
     if (process.env.PLAYTEST_DEBUG) {
@@ -116,7 +120,21 @@ export async function dragLog(page: Page, id: string): Promise<void> {
   const half = log.length / 2;
   // Points along the log, from its near end to the middle: the beaver reaches 2.5 m from the nearest point of the log.
   const along = [0, 0.25, 0.5].map((f) => ({ x: log.x - Math.sin(log.heading) * half * (1 - f), z: log.z - Math.cos(log.heading) * half * (1 - f) }));
+  // Take drops what is in the mouth, and then picks up a piece put down before a log. A press short of the log can also take
+  // mud or a rock. So whatever is in the mouth is put down well away from the log first.
+  const emptyMouth = async (back: Point): Promise<void> => {
+    const w = await world(page);
+    if (!w.carry && !w.haul) return;
+    const d = Math.hypot(w.beaver.x - log.x, w.beaver.z - log.z) || 1;
+    const out = half + 6;
+    await walkToPoint(page, { x: log.x + ((w.beaver.x - log.x) / d) * out, z: log.z + ((w.beaver.z - log.z) / d) * out }, 1.5, 15_000);
+    await tap(page, 'KeyG');
+    await page.waitForFunction(() => !(window as any).__game.world().carry && !(window as any).__game.world().haul, null, { polling: 100, timeout: 3000 }).catch(() => undefined);
+    await walkToPoint(page, back, 1.5, 15_000);
+    await page.waitForTimeout(200);
+  };
   for (let attempt = 0; attempt < 4; attempt++) {
+    await emptyMouth(along[Math.min(attempt, along.length - 1)]!);
     await tap(page, 'KeyG');
     const got = await page.waitForFunction((i) => (window as any).__game.world().drag === i, id, { polling: 100, timeout: 1500 }).then(() => true, () => false);
     if (got) return;

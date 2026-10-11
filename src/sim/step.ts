@@ -144,10 +144,13 @@ function advance(world: WorldState, actions: Intent, dt: number, ground: Terrain
     next.partners = partners;
   }
   // On the first day of spring after the partner moved in, a kit is born and the player plays it.
-  // The birth comes after the tally, so the new life starts with an empty list and counters instead of the old ones.
+  // The birth comes after the tally, so the new life starts with an empty list and counters instead of the old ones. It waits
+  // one step when an achievement was won in this one (Kits and Hand down are won as the kit is due), so the old life's list
+  // holds it for a frame and its toast shows.
   const counted = tally(world, next);
   const kept = partnerKeepsUp(world, counted);
-  return kitDue(kept) ? birth(kept) : kept;
+  const justWon = counted.achievements.length > world.achievements.length;
+  return kitDue(kept) && !justWon ? birth(kept) : kept;
 }
 
 /**

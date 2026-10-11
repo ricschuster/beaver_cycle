@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { doHere, takeHere, takeLabel, DO_LABEL } from './buttons';
+import { DAY_SECONDS } from './clock';
+import { LEVEL_COST, placed } from './dam';
+import type { DamSpot } from './damSpots';
 import { createWorld, type WorldState } from './state';
 import { flatTerrain } from './terrain';
 import { CHOP_REACH, noTrees, type TreeRef, type TreeSource } from './trees';
@@ -40,6 +43,14 @@ describe('Do', () => {
   it('does nothing else with a full mouth or while the stash is open', () => {
     expect(doHere({ ...world(), carry: 'branch' }, flat, trees, none)).toBeNull();
     expect(doHere({ ...world(), stashOpen: true }, flat, trees, none)).toBeNull();
+  });
+
+  it('builds when a log raises a good dam that has worn a little, and mends a worn one', () => {
+    const spot: DamSpot = { id: 'core:0:0', bed: { x: 0, z: 0 }, bedY: 0, flow: { x: 1, z: 0 }, maxCrest: 2, pondM2: 900 };
+    const dams = placed([], spot, LEVEL_COST[2]!, undefined, 0); // level 1, whole, new at clock 0
+    const at = (clock: number): WorldState => ({ ...world(), clock, spots: [spot], dams, logs: [log], drag: 'l' });
+    expect(doHere(at(2 * DAY_SECONDS), flat, noTrees, none)).toBe('build'); // 0.8: raised to level 2
+    expect(doHere(at(12 * DAY_SECONDS), flat, noTrees, none)).toBe('mend'); // worn
   });
 
   it('has a word for every job', () => {

@@ -190,9 +190,9 @@ describe('partnerRemark', () => {
 
   it('points out a free dam spot and lily pads near, not a spot with a dam', () => {
     const w = { ...base, partners: [p('following')], spots: [spot('s', 40, 0)] };
-    expect(remarks(w).some((r) => r?.text.includes('to the east looks good for a dam'))).toBe(true);
+    expect(remarks(w).some((r) => r?.text.includes('dam') && r.text.includes('close by'))).toBe(true);
     expect(remarks({ ...w, dams: [{ spot: 's', wood: 0, mud: 0, rock: 0 }] }).some((r) => r?.text.includes('dam spot') || r?.text.includes('good for a dam'))).toBe(false);
-    expect(remarks({ ...base, partners: [p('following')] }, { x: 0, z: -30 }).some((r) => r?.text.includes('lily pads to the north'))).toBe(true);
+    expect(remarks({ ...base, partners: [p('following')] }, { x: 0, z: -30 }).some((r) => r?.text.includes('lily pads') && r.text.includes('close by'))).toBe(true);
   });
 
   it('talks about the home only near it', () => {

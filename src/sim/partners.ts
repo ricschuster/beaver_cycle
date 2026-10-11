@@ -126,18 +126,14 @@ export function compassWord(dx: number, dz: number): string {
   return COMPASS[Math.round(bearing / (Math.PI / 4)) % 8] ?? 'north';
 }
 
-/** Where the nearest lone beaver is, as compass words and metres to the nearest 50, or null when there is none to find. North is -z. */
-export function partnerCue(partners: readonly Partner[], from: { x: number; z: number }): { direction: string; metres: number } | null {
+/** The nearest lone beaver and how far it is (metres), or null when there is none to find: none left alone, or one already follows or lives in the lodge. The words for it are in `wayToPartner.ts`. */
+export function partnerCue(partners: readonly Partner[], from: { x: number; z: number }): { partner: Partner; d: number } | null {
   if (follower(partners) || mateOf(partners)) return null;
-  let best: { dx: number; dz: number; d: number } | null = null;
+  let best: { partner: Partner; d: number } | null = null;
   for (const p of partners) {
     if (p.state !== 'alone') continue;
-    const dx = p.x - from.x;
-    const dz = p.z - from.z;
-    const d = Math.hypot(dx, dz);
-    if (best === null || d < best.d) best = { dx, dz, d };
+    const d = Math.hypot(p.x - from.x, p.z - from.z);
+    if (best === null || d < best.d) best = { partner: p, d };
   }
-  if (best === null) return null;
-  const bearing = (Math.atan2(best.dx, -best.dz) + 2 * Math.PI) % (2 * Math.PI);
-  return { direction: COMPASS[Math.round(bearing / (Math.PI / 4)) % 8] ?? 'north', metres: Math.round(best.d / 50) * 50 };
+  return best;
 }

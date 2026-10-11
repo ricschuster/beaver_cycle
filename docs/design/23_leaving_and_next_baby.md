@@ -96,8 +96,13 @@ The grown beaver stays in the world, and the next baby is its child:
   the first one seeded (120 m or more from home), and every lone beaver lives at a spot with a lodge site within 300 m, so the
   player can lead it to a lake and build there (#254), an unmet beaver slaps its tail
   every 20 game seconds while the player is within 150 m, with a toast the first
-  time. Out of earshot a toast names the compass direction and distance of the nearest lone beaver, every 45 s of play
-  (`partnerCue`, #254). A toast at the start of winter says kits are born on the first day of
+  time. Out of earshot a toast says where the nearest lone beaver lives, every 45 s of play
+  (`partnerCue`, #254), in words a kid can use, not compass points and metres (`wayToPartner.ts`): which way from where the
+  player looks ("straight ahead", "behind you", "to your left"), "up the hill" or "down the hill" when it lives 15 m or more
+  higher or lower, "near the north pond family" when it lives within 120 m of a family the player has met, and "close by"
+  (150 m), "a little swim away" (500 m) or "a long way off". After that toast, the first tail slap heard, or the news from a
+  beaver, seven soft gold sparkles on the ground or water beside the player point toward it for 60 s of play, or until the
+  player is within 25 m or the beaver follows someone. They are not saved. A toast at the start of winter says kits are born on the first day of
   spring when no partner lives in the lodge yet. Missing a spring only moves the kit to the next one.
 - "New baby" in the test menu is the same without a partner: a kit of the
   current parents' coats.

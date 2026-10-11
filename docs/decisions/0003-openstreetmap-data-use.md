@@ -58,6 +58,21 @@ below 630 m, smoothed), not from OSM geometry.
 Tiles, `data/raw/`, and any APK stay unpublished. The release decision above
 still applies to them, and to handing the APK to friends.
 
+## Update 2026-10-11: tiles published
+
+The author decided to publish the game at <https://ricschuster.github.io/beaver_cycle/>,
+and with it the tiles (release `tiles`, `.github/workflows/pages.yml`). The
+tiles are OSM-derived, so they are published as an ODbL database:
+
+- `NOTICE.md` states that the tiles are ODbL and must be credited and shared
+  alike. The source code is AGPL-3.0, which is a separate work that only reads
+  the tiles at run time.
+- The credit is in the manual (the ? button), the README and `NOTICE.md`.
+- The tools that rebuild the tiles are public, so the data can be remade.
+- Not settled: whether a game counts as a Produced Work (the guidelines are
+  silent). Publishing the tiles as ODbL data makes that question moot for the
+  tiles. The APK stays a local debug build.
+
 ## Consequences
 
 - No licence risk today, and the editor stays simple.

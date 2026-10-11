@@ -4,7 +4,7 @@ A Capacitor app (`com.beavercycle.game`) with the built game bundled inside, so
 a tablet plays with no computer, cable, or WLAN. It is the first form of the
 sideloaded APK in [ADR 0007](../../docs/decisions/0007-web-stack.md). It is a
 debug build for the author and friends, for local testing only: the tiles come
-from OpenStreetMap data, whose licence is not settled (ADR 0003).
+from OpenStreetMap data, which is ODbL and needs its credit (ADR 0003, `NOTICE.md`).
 
 ## Build and install
 

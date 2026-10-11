@@ -330,4 +330,21 @@ describe('effectSamples', () => {
   it('is the same every time', () => {
     expect(effectSamples('splash')).toEqual(effectSamples('splash'));
   });
+
+  it('asks for the music mood, and for none when the music is switched off or the frames are slow', () => {
+    const out = fakeSoundOut();
+    const sound = createSound(out, null);
+    sound.music('valley', 60, 0);
+    expect(out.mood).toBe('valley');
+    sound.music('dream', 60, 1);
+    expect(out.mood).toBe('dream');
+    sound.setMusicOn(false);
+    expect(out.mood).toBe('off');
+    sound.music('valley', 60, 2);
+    expect(out.mood).toBe('off');
+    sound.setMusicOn(true);
+    sound.music('valley', 10, 3);
+    sound.music('valley', 10, 8);
+    expect(out.mood).toBe('off');
+  });
 });

@@ -112,7 +112,7 @@ A new `src/audio/` folder. The rules are the same as for `render/`:
 - **Calls.** A partner who starts to follow, or a lone beaver who starts to lead, gives a two-peep **chirp**.
 - **Dream.** `dreamCues` turns the dream's events into sounds: a bell chime for each sweet (higher for a swirl, a three note
   one for a star and the shower), a **giggle** for a greeting, a catch, a find and the hide and seek giggles, a **cheer** when a game ends, and a splash.
-- All made in code, first drafts, to tune on the tablet. Music (slice 6, #410) is still open and optional.
+- All made in code, first drafts, to tune on the tablet. Music is slice 6 below.
 
 ## Checking sound
 
@@ -162,6 +162,18 @@ replace them. Only `done` and the three chimes stay in code. Chirp and babble ha
 - **Nothing is open.** `/tools/sound-preview2/` hides rounds 1 to 5 (`SETTLED` in its `main.ts`) and lists code-made sounds still to rate
   (`SYNTH_GAPS`, empty now) and clips staged after round 5.
 
+## Slice 6, music, as built
+
+- **Generative, in code** (`src/audio/music.ts`, scheduled in `webAudio.ts`): no recording, no licence, no download. Every note is a step
+  of one major pentatonic scale, so nothing clashes. A pad of three notes changes chord every 36 s (valley, key A) or 16 s (dream,
+  key D). Single notes fall at random between: a soft pluck every 6 to 14 s in the valley, a bell every half second or so in the
+  dream, walking up and down the scale by a step or two. Each run has its own seed.
+- Each mood has its own gain into the music bus; the valley fades out as the dream fades in (time constant 2.5 s). Notes are scheduled
+  2 s ahead on the audio clock, and the timer stops when the mood is off, so a muted or silent game does no work.
+- **Frame rate:** the music gives way after 4 s under 22 fps and returns after 12 s over 32 fps (`createFrameWatch`).
+- The Music slider and the mute button act on the music bus; the test menu has a Music switch.
+- First draft, to tune on the tablet: the chords, the gaps, the loudness against the ambient layers. Season and night colour are not done.
+
 ## Slices
 
 Each slice is its own pull request, and each can stay silent in tests.
@@ -171,7 +183,7 @@ Each slice is its own pull request, and each can stay silent in tests.
 3. One-shot effects, in groups (beaver, building, animals).
 4. Dialog babble.
 5. The dream sounds.
-6. Music, if the author still wants it.
+6. Music (built, session 96, #410).
 
 ## Also decided (author, session 84)
 

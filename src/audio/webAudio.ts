@@ -6,12 +6,19 @@ import { SYNTH_RATE, birdsLoop, cricketsLoop, owlLoop } from './synth';
 import { effectSamples } from './effectsSynth';
 import type { Effect } from './effects';
 import { parseManifest, pickVariant, variation, type Manifest } from './samples';
+import { createComposer, type MusicMood, type Note } from './music';
 import type { Layer, SoundOut } from './soundOut';
 
 /** The pitch (Hz) at which a recorded babble plays unchanged: a mama's. */
 const BABBLE_REF_HZ = 320;
 
 type Ctx = AudioContext;
+
+/** The music is scheduled this far ahead of the clock, in seconds, and looked at this often. */
+const MUSIC_AHEAD = 2;
+const MUSIC_EVERY_MS = 500;
+/** How slowly a mood fades in and out, as a time constant in seconds. */
+const MUSIC_FADE = 2.5;
 
 /** Brown-ish noise, 4 s, which joins without a click because it is made to end where it began. */
 function noiseBuffer(ctx: Ctx): AudioBuffer {
@@ -62,6 +69,13 @@ export function createWebAudio(): SoundOut {
   let wantMusic = 0;
   const wantLayers = new Map<Layer, number>();
   let suspended = false;
+  // The music (music.ts): each mood plays into its own gain, so one fades out as the other fades in.
+  const moods = new Map<'valley' | 'dream', GainNode>();
+  let wantMood: MusicMood = 'off';
+  let appliedMood: MusicMood = 'off';
+  let composer: ReturnType<typeof createComposer> | null = null;
+  let composerStart = 0;
+  let musicTimer: ReturnType<typeof setInterval> | null = null;
 
   const url = (file: string): string => `${import.meta.env.BASE_URL}audio/${file}`;
   const load = async (c: Ctx, file: string): Promise<AudioBuffer | null> => {
@@ -151,6 +165,63 @@ export function createWebAudio(): SoundOut {
     for (let i = 0; i < files.length; i += 6) await Promise.all(files.slice(i, i + 6).map((f) => load(c, f)));
   };
 
+  /** One note of the music: a soft pad (two detuned triangles, slow in and out), a pluck, or a bell (two sine partials, quick to start and long to fade). */
+  const playNote = (c: Ctx, note: Note, into: GainNode, when: number): void => {
+    const g = c.createGain();
+    g.connect(into);
+    const end = when + note.seconds;
+    const tones: [OscillatorType, number, number][] =
+      note.voice === 'pad'
+        ? [['triangle', note.hz, 1], ['triangle', note.hz * 1.004, 1]]
+        : note.voice === 'pluck'
+          ? [['triangle', note.hz, 1], ['sine', note.hz * 2, 0.3]]
+          : [['sine', note.hz, 1], ['sine', note.hz * 2.76, 0.18]];
+    const attack = note.voice === 'pad' ? note.seconds * 0.35 : 0.02;
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(note.gain, when + attack);
+    if (note.voice === 'pad') g.gain.linearRampToValueAtTime(0, end);
+    else g.gain.exponentialRampToValueAtTime(0.0001, end);
+    for (const [type, hz, level] of tones) {
+      const osc = c.createOscillator();
+      osc.type = type;
+      osc.frequency.value = hz;
+      const part = c.createGain();
+      part.gain.value = level;
+      osc.connect(part).connect(g);
+      osc.start(when);
+      osc.stop(end + 0.1);
+    }
+  };
+
+  /** Schedule the notes that begin in the next moments. Runs on a timer while the music plays. */
+  const scheduleMusic = (c: Ctx): void => {
+    if (!composer || suspended || c.state !== 'running' || wantMood === 'off') return;
+    const gain = moods.get(wantMood);
+    if (!gain) return;
+    const t0 = composerStart;
+    for (const note of composer.notes(c.currentTime - t0 + MUSIC_AHEAD)) {
+      // A note that fell behind (the tab was away) is dropped, not played late in a heap.
+      if (t0 + note.time < c.currentTime) continue;
+      playNote(c, note, gain, t0 + note.time);
+    }
+  };
+
+  const applyMood = (): void => {
+    if (!ctx || appliedMood === wantMood) return;
+    appliedMood = wantMood;
+    const t = ctx.currentTime;
+    for (const [mood, node] of moods) node.gain.setTargetAtTime(mood === wantMood ? 1 : 0, t, MUSIC_FADE);
+    if (wantMood !== 'off' && composer) composer.setMood(wantMood);
+    if (wantMood !== 'off' && !musicTimer) {
+      const c = ctx;
+      musicTimer = setInterval(() => scheduleMusic(c), MUSIC_EVERY_MS);
+    } else if (wantMood === 'off' && musicTimer) {
+      // The tail of the last notes fades with the mood gain; the timer stops now, so nothing new is scheduled.
+      clearInterval(musicTimer);
+      musicTimer = null;
+    }
+  };
+
   const build = (c: Ctx): void => {
     const master = c.createGain();
     master.connect(c.destination);
@@ -158,6 +229,14 @@ export function createWebAudio(): SoundOut {
     effects.connect(master);
     music = c.createGain();
     music.connect(master);
+    for (const mood of ['valley', 'dream'] as const) {
+      const gain = c.createGain();
+      gain.gain.value = 0;
+      gain.connect(music);
+      moods.set(mood, gain);
+    }
+    composer = createComposer(Math.floor(Math.random() * 1e9), 1);
+    composerStart = c.currentTime;
     for (const layer of ['water', 'wind', 'birds', 'crickets', 'owl'] as const) {
       const gain = c.createGain();
       gain.gain.value = 0;
@@ -174,6 +253,7 @@ export function createWebAudio(): SoundOut {
     effects.gain.setTargetAtTime(wantEffects, t, 0.05);
     music.gain.setTargetAtTime(wantMusic, t, 0.05);
     for (const [layer, node] of layers) node.gain.setTargetAtTime(wantLayers.get(layer) ?? 0, t, 0.3);
+    applyMood();
     if (suspended && ctx.state === 'running') void ctx.suspend();
     else if (!suspended && ctx.state === 'suspended') void ctx.resume();
   };
@@ -236,6 +316,10 @@ export function createWebAudio(): SoundOut {
       src.connect(g).connect(effects);
       src.start();
       if (stopAt !== null) src.stop(stopAt);
+    },
+    setMood(mood) {
+      wantMood = mood;
+      applyMood();
     },
     setSuspended(s) {
       suspended = s;

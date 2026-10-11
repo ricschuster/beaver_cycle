@@ -384,6 +384,7 @@ async function start(): Promise<void> {
       onMusic: sound.setMusic,
       layers: [
         ...LAYERS.map((id) => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1), on: sound.layerOn(id), onToggle: (on: boolean) => sound.setLayerOn(id, on) })),
+        { id: 'music', name: 'Music', on: sound.musicOn(), onToggle: sound.setMusicOn },
         { id: 'oneshots', name: 'One-shots', on: sound.oneShotsOn(), onToggle: sound.setOneShotsOn },
       ],
     },
@@ -598,6 +599,7 @@ async function start(): Promise<void> {
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
     if (dreamScreen.active()) {
       dreamScreen.frame(dt, mergeActions(readKeyboard(), touch.read()));
+      if (!silent) sound.music('dream', fps, now / 1000);
       return;
     }
     if (jump && streamer) {
@@ -865,6 +867,7 @@ async function start(): Promise<void> {
     if (!silent) {
       const b = world.beaver;
       sound.cue([...beaverCues(world, now / 1000), ...worldCues(world, lastAmbient, now / 1000)], now / 1000);
+      sound.music('valley', fps, now / 1000);
       sound.update({
         streamDistance: terrain.streamDistance?.(b.x, b.z, STREAM_HEARD) ?? Infinity,
         onWater: ponded.isWater(b.x, b.z),

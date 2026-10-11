@@ -5,10 +5,12 @@ import { createWebAudio } from './webAudio';
 type Source = { started: boolean; stopped: boolean; order: string[]; loop: boolean };
 let sources: Source[];
 let ctxState: string;
+let oscillators: number[];
 
 function node(): Record<string, unknown> {
   const n: Record<string, unknown> = {
-    gain: { value: 0, setTargetAtTime() {}, setValueAtTime() {}, linearRampToValueAtTime() {} },
+    gain: { value: 0, setTargetAtTime() {}, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} },
+    stop() {},
     frequency: { value: 0 },
     playbackRate: { value: 1 },
     start() {},
@@ -27,7 +29,11 @@ class FakeContext {
   resume = (): Promise<void> => Promise.resolve();
   suspend = (): Promise<void> => Promise.resolve();
   createGain = node;
-  createOscillator = node;
+  createOscillator = (): Record<string, unknown> => {
+    const n = node();
+    n.start = () => oscillators.push(1);
+    return n;
+  };
   createBiquadFilter = node;
   createBuffer(_c: number, n: number) {
     return { length: n, getChannelData: () => new Float32Array(n), copyToChannel() {} };
@@ -72,6 +78,7 @@ async function make(manifest: unknown) {
 
 beforeEach(() => {
   sources = [];
+  oscillators = [];
   ctxState = 'running';
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -107,5 +114,21 @@ describe('createWebAudio play', () => {
     const before = sources.length;
     out.play('chop', 0.5);
     expect(sources.length).toBe(before);
+  });
+});
+
+describe('createWebAudio music', () => {
+  it('plays nothing until a mood is set, then a pad chord, and nothing again when set to off', async () => {
+    const out = await make(null);
+    const quiet = oscillators.length;
+    await new Promise((r) => setTimeout(r, 600));
+    expect(oscillators.length).toBe(quiet);
+    out.setMood('valley');
+    await new Promise((r) => setTimeout(r, 600));
+    expect(oscillators.length).toBeGreaterThan(quiet);
+    out.setMood('off');
+    const after = oscillators.length;
+    await new Promise((r) => setTimeout(r, 600));
+    expect(oscillators.length).toBe(after);
   });
 });

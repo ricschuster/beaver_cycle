@@ -57,7 +57,7 @@ export function createSound(out: SoundOut, storage: Pick<Storage, 'getItem' | 's
     oneShotsOn: () => oneShots,
     cue(cues, now) {
       if (!oneShots) return;
-      for (const c of cues) if (voices.admit(c, now)) out.play(c.effect, c.gain);
+      for (const c of cues) if (voices.admit(c, now)) out.play(c.effect, c.gain, c.voice);
     },
     update(h) {
       for (const layer of LAYERS) out.setLayer(layer, on.get(layer) ? GAINS[layer](h) : 0);

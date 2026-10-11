@@ -52,6 +52,7 @@ import { createTestMenu } from './ui/testMenu';
 import { STREAM_HEARD } from './audio/mix';
 import { createWebAudio } from './audio/webAudio';
 import { watchBeaver, watchWorld } from './audio/effects';
+import { babbleCue, dreamCues } from './audio/talkDream';
 import { LAYERS, createSound, wireBrowser } from './audio/sound';
 import { createMuteButton } from './ui/muteButton';
 import { createFlyButtons } from './ui/flyButtons';
@@ -480,6 +481,9 @@ async function start(): Promise<void> {
   const dreamScreen = createDreamScreen(document.body, {
     touch: wantsTouchControls(navigator, query),
     onWake: () => sleepPrompt.wakeFromDream(),
+    onEvents: (events) => {
+      if (!silent) sound.cue(dreamCues(events), performance.now() / 1000);
+    },
   });
   const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation): void => dreamScreen.start(seed);
   let fps = 60;
@@ -529,6 +533,7 @@ async function start(): Promise<void> {
   const speak = (who: Speaker, text: string, seconds: number, facts: TalkFacts | null): void => {
     const choices = facts ? choicesFor(who, facts, asked).map((id) => ({ id, label: REPLY_LABEL[id] })) : [];
     talkBubble.say(who.name, text, seconds, choices, answer(who), roleOf(who));
+    if (!silent) sound.cue([babbleCue(who.kind, who.id, text)], performance.now() / 1000);
   };
   const answer = (who: Speaker) => (id: string): void => {
     if (talkingTo?.id !== who.id || !talkFacts) return;

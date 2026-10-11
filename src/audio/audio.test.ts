@@ -4,6 +4,7 @@ import { DEFAULT_SOUND, SOUND_KEY, loadSound, parseSound, saveSound } from './se
 import { createSound, wireBrowser, MAX_ONE_SHOTS } from './sound';
 import { DURATION, createVoices, watchBeaver, watchWorld, type Cue, type Effect } from './effects';
 import { effectSamples } from './effectsSynth';
+import { babbleCue, dreamCues } from './talkDream';
 import { createWorld } from '../sim/state';
 import { fakeSoundOut } from './soundOut';
 import { SYNTH_RATE, birdsLoop, cricketsLoop, owlLoop } from './synth';
@@ -265,10 +266,41 @@ describe('the building and animal cues', () => {
   });
 });
 
+describe('talk and dream cues', () => {
+  it('babbles higher for a kit than a papa, longer for a longer line, and the same each time', () => {
+    const kit = babbleCue('kit', 'k1', 'Hello there!').voice!;
+    const papa = babbleCue('papa', 'p1', 'Hello there!').voice!;
+    expect(kit.pitch).toBeGreaterThan(papa.pitch);
+    expect(babbleCue('papa', 'p1', 'A much longer line about the dam and the weather today.').voice!.seconds).toBeGreaterThan(papa.seconds);
+    expect(babbleCue('papa', 'p1', 'Hello there!')).toEqual(babbleCue('papa', 'p1', 'Hello there!'));
+    expect(babbleCue('papa', 'p2', 'Hello there!').voice!.pitch).not.toBe(papa.pitch);
+  });
+  it('makes a babble as long as the line says, and different for different seeds', () => {
+    const cue = babbleCue('mama', 'm', 'Come and see the pond');
+    const s = effectSamples('babble', SYNTH_RATE, cue.voice);
+    expect(s.length).toBe(Math.floor(SYNTH_RATE * cue.voice!.seconds));
+    expect(Math.max(...s.map(Math.abs))).toBeGreaterThan(0.1);
+    expect(s).not.toEqual(effectSamples('babble', SYNTH_RATE, { ...cue.voice!, seed: 5 }));
+  });
+  it('gives the dream a chime for each sweet, a giggle for play and a cheer at the end', () => {
+    const e = (what: string, more: object = {}) => ({ what, ...more }) as never;
+    expect(dreamCues([e('sweet', { kind: 'drop' }), e('sweet', { kind: 'swirl' }), e('sweet', { kind: 'star' })]).map((c) => c.effect)).toEqual(['chime', 'chimeHigh', 'chimeStar']);
+    expect(dreamCues([e('giggle'), e('tagEnd'), e('rush')]).map((c) => c.effect)).toEqual(['giggle', 'cheer']);
+  });
+  it('calls when a partner starts to follow', () => {
+    const dry = createWorld({ heightAt: () => 0, waterDepth: () => 0, isWater: () => false } as never, 0, 0);
+    const watch = watchWorld();
+    watch(dry, [], 0);
+    const partner = { id: 'p', state: 'following' } as never;
+    expect(watch({ ...dry, partners: [partner] }, [], 1).map((c) => c.effect)).toEqual(['chirp']);
+    expect(watch({ ...dry, partners: [partner] }, [], 2)).toEqual([]);
+  });
+});
+
 describe('effectSamples', () => {
-  const all: Effect[] = ['chop', 'fall', 'splash', 'slap', 'stroke', 'eat', 'pickup', 'setdown', 'wood', 'mud', 'rock', 'done', 'quack', 'hoot', 'yap', 'growl', 'rumble', 'hurt'];
+  const all: Effect[] = ['chop', 'fall', 'splash', 'slap', 'stroke', 'eat', 'pickup', 'setdown', 'wood', 'mud', 'rock', 'done', 'quack', 'hoot', 'yap', 'growl', 'rumble', 'hurt', 'babble', 'chirp', 'chime', 'chimeHigh', 'chimeStar', 'giggle', 'cheer'];
   it('makes every effect as long as its duration, audible, in range, and silent at the end', () => {
-    for (const e of all) {
+    for (const e of all.filter((x) => x !== 'babble')) {
       const s = effectSamples(e);
       expect(s.length, e).toBe(Math.floor(SYNTH_RATE * DURATION[e]));
       expect(Math.max(...s.map(Math.abs)), e).toBeGreaterThan(0.1);

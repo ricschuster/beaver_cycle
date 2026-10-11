@@ -103,6 +103,17 @@ A new `src/audio/` folder. The rules are the same as for `render/`:
 - A **quack** for a duck within 30 m, about every 9 seconds at most.
 - All ten are made in code like the rest. They are first drafts: **add first, tune on the tablet after** (author, session 88).
 
+## Slices 4 and 5, talk and the dream, as built
+
+- **Babble.** `babbleCue` (`src/audio/talkDream.ts`) gives one babble for each line a beaver says, played when its bubble opens.
+  The pitch follows the speaker (kit 560 Hz, partner 400, mama 320, papa 190, each nudged up to 10% by its id so two papas differ),
+  and the length follows the line (0.5 to 2.4 s). It is a string of short tone syllables with a falling last one, from a seed made
+  of the speaker and the text. Not words.
+- **Calls.** A partner who starts to follow, or a lone beaver who starts to lead, gives a two-peep **chirp**.
+- **Dream.** `dreamCues` turns the dream's events into sounds: a bell chime for each sweet (higher for a swirl, a three note
+  one for a star and the shower), a **giggle** for a greeting, a catch, a find and the hide and seek giggles, a **cheer** when a game ends, and a splash.
+- All made in code, first drafts, to tune on the tablet. Music (slice 6, #410) is still open and optional.
+
 ## Slices
 
 Each slice is its own pull request, and each can stay silent in tests.

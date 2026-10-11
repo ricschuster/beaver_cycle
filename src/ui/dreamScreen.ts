@@ -25,6 +25,8 @@ export interface DreamScreenOptions {
   onWake(): void;
   /** Show the dream's own touch buttons, else a line with the keys. */
   touch: boolean;
+  /** Called each frame with what happened in the dream, for its sounds. */
+  onEvents?(events: readonly DreamEvent[]): void;
 }
 
 /** Seconds a line stays, and less when more wait behind it. At most this many wait. */
@@ -366,6 +368,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       o.rig.update(dt, o.state.beaver.heading, merged.move.x !== 0 || merged.move.z !== 0);
       o.view.draw(o.state, o.rig.view, stepped.events);
       showHud(o, stepped.events, dt, countBefore);
+      if (stepped.events.length > 0) opts.onEvents?.(stepped.events);
     },
     active: () => open !== null,
     state: () => open?.state ?? null,

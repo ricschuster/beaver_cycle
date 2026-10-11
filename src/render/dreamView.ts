@@ -315,7 +315,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     if (b.mode === 'swim' && time - b.slapAt < SLAP_DURATION) splash(b.x, b.z, time);
   };
 
-  // A "hee hee" over each hidden marshmallow beaver that has just giggled.
+  // A "hee hee" over each marshmallow beaver that has just giggled in hide and seek.
   const giggleTex = keep(giggleTexture());
   const giggles = new Map<string, THREE.Sprite>();
   const giggleOf = (id: string): THREE.Sprite => {
@@ -337,10 +337,10 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     for (const ev of events) {
       if (ev.what === 'sweet') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.5, ev.z, time, ev.kind === 'star' ? 26 : 14, ev.kind === 'star' ? GOLD : CONFETTI, 2.6, 1.6, 0.9);
       else if (ev.what === 'rush') sparkles.emit(b.x, b.y + 0.5, b.z, time, 24, GOLD, 3, 2.2, 1);
-      else if (ev.what === 'shower' || ev.what === 'tagEnd' || ev.what === 'seekEnd') sparkles.emit(b.x, b.y + 1.5, b.z, time, 50, CONFETTI, 4.5, 3.5, 1.4);
-      else if (ev.what === 'found' || ev.what === 'greet') {
+      else if (ev.what === 'shower' || ev.what === 'tagEnd' || ev.what === 'seekEnd' || ev.what === 'hideEnd') sparkles.emit(b.x, b.y + 1.5, b.z, time, 50, CONFETTI, 4.5, 3.5, 1.4);
+      else if (ev.what === 'found' || ev.what === 'spotted' || ev.what === 'greet') {
         const m = near(ev.who);
-        sparkles.emit(m.x, m.y + 0.8, m.z, time, ev.what === 'found' ? 18 : 8, CONFETTI, 2.4, 1.2, 0.9);
+        sparkles.emit(m.x, m.y + 0.8, m.z, time, ev.what === 'greet' ? 8 : 18, CONFETTI, 2.4, 1.2, 0.9);
       }
     }
     // A trail of gold while the sugar rush lasts.
@@ -418,7 +418,8 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
         putShadow(i + 1, m, 1.05);
         if (it === m.id) marked = model.group.position;
         const age = m.giggleAt === null ? Infinity : time - m.giggleAt;
-        const showGiggle = m.state === 'hidden' && age >= 0 && age < GIGGLE_SECONDS;
+        // A hider giggles where it hides, and a seeker as it comes near the player or finds them.
+        const showGiggle = (m.state === 'hidden' || m.state === 'seek' || m.state === 'home') && age >= 0 && age < GIGGLE_SECONDS;
         const giggle = showGiggle || giggles.has(m.id) ? giggleOf(m.id) : null;
         if (giggle) {
           giggle.visible = showGiggle;

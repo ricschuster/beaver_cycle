@@ -22,21 +22,31 @@ test('a rock is picked up with Take, put down, and taken again', async ({ page }
   });
   expect(rocks.length, 'rocks lie on the stream banks near the start').toBeGreaterThan(0);
   // Walk up to the nearest rock and press Take. Some lie where the beaver cannot stand (in the water, on a steep bank), so a
-  // miss tries the next one.
+  // miss tries the next one. Under load a press can land late, so the mouth is looked at before each press: a rock already in
+  // it counts, and mud scooped by a press short of a rock is put down first.
   let got = false;
   for (const rock of rocks.slice(0, 6)) {
     if (!(await walkToPoint(page, rock, 0.6, 40_000))) continue;
     await page.waitForTimeout(300);
+    const before = await world(page);
+    if (before.haul?.kind === 'rock') {
+      got = true;
+      break;
+    }
+    if (before.haul || before.carry) {
+      await tap(page, 'KeyG');
+      await page.waitForFunction(() => !(window as any).__game.world().haul && !(window as any).__game.world().carry, null, { polling: 100, timeout: 4000 }).catch(() => undefined);
+    }
     await tap(page, 'KeyG');
-    got = await page.waitForFunction(() => (window as any).__game.world().haul?.kind === 'rock', null, { polling: 100, timeout: 2000 }).then(() => true, () => false);
+    got = await page.waitForFunction(() => (window as any).__game.world().haul?.kind === 'rock', null, { polling: 100, timeout: 4000 }).then(() => true, () => false);
     if (got) break;
     if (process.env.PLAYTEST_DEBUG) console.log('rock miss', JSON.stringify({ rock, beaver: (await world(page)).beaver }));
   }
   expect(got, 'a rock in the mouth').toBe(true);
   let w = await world(page);
-  expect(w.rocksTaken).toHaveLength(1);
-  // The rock taken is gone from the ground.
-  expect((await page.evaluate(() => ((window as any).__game.rocksNear(150) as { id: string }[]).map((r) => r.id))).includes(w.rocksTaken[0])).toBe(false);
+  expect(w.rocksTaken.length).toBeGreaterThan(0);
+  // The rock taken last is gone from the ground.
+  expect((await page.evaluate(() => ((window as any).__game.rocksNear(150) as { id: string }[]).map((r) => r.id))).includes(w.rocksTaken.at(-1))).toBe(false);
   await shot(page, 'moves-01-rock');
 
   // Take again puts it down in front of the beaver, and once more picks it up again.

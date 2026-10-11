@@ -2,8 +2,15 @@
 // event stream, so `watchBeaver` compares each frame's world with the last. Plain numbers only, so it is easy to test.
 
 import type { WorldState } from '../sim/state';
+import type { Animal } from '../sim/animals';
+import { LODGE_WOOD } from '../sim/lodge';
 
-export type Effect = 'chop' | 'fall' | 'splash' | 'slap' | 'stroke' | 'eat' | 'pickup' | 'setdown';
+export type Effect =
+  | 'chop' | 'fall' | 'splash' | 'slap' | 'stroke' | 'eat' | 'pickup' | 'setdown'
+  // The building group: a log, a load of mud, a rock placed, and a piece finished or mended.
+  | 'wood' | 'mud' | 'rock' | 'done'
+  // The animals: a duck, and the warnings of the owl, the fox, the lynx and the bear, and the beaver hurt.
+  | 'quack' | 'hoot' | 'yap' | 'growl' | 'rumble' | 'hurt';
 
 export interface Cue {
   effect: Effect;
@@ -12,7 +19,7 @@ export interface Cue {
 }
 
 /** Seconds each effect lasts: the voice it takes is free again then. */
-export const DURATION: Record<Effect, number> = { chop: 0.2, fall: 1.5, splash: 0.7, slap: 0.3, stroke: 0.4, eat: 0.4, pickup: 0.15, setdown: 0.25 };
+export const DURATION: Record<Effect, number> = { chop: 0.5, fall: 1.5, splash: 0.7, slap: 0.3, stroke: 0.4, eat: 0.4, pickup: 0.15, setdown: 0.25, wood: 0.35, mud: 0.4, rock: 0.3, done: 0.9, quack: 0.45, hoot: 1.2, yap: 0.35, growl: 1.1, rumble: 1.4, hurt: 0.5 };
 
 /** One gnaw per this many seconds of chopping progress. */
 const CHOP_TICK = 0.5;
@@ -110,5 +117,85 @@ export function createVoices(max: number): { admit(cue: Cue, now: number): boole
       playing.push({ until: now + DURATION[cue.effect], gain: cue.gain });
       return true;
     },
+  };
+}
+
+/** Where each predator's warning is heard from, and the effect it gives. */
+const WARNING: Record<string, Effect> = { owl: 'hoot', fox: 'yap', lynx: 'growl', bear: 'rumble' };
+/** A predator is heard within this many metres. */
+const HEARD = 60;
+/** A duck is heard within this many metres, and calls about this often (real seconds) at the nearest. */
+const QUACK_HEARD = 30;
+const QUACK_EVERY = 9;
+
+interface Built {
+  wood: number;
+  mud: number;
+  rock: number;
+  level: number;
+}
+
+/**
+ * Like `watchBeaver`, for what is built and for the animals: a log, mud or a rock placed on a dam or the lodge, a piece
+ * finished or mended, the warning of each predator when it first notices the beaver, the beaver hurt, and now and then a duck
+ * near by. `ambient` is the animals around the beaver now. The first call gives no cue.
+ */
+export function watchWorld(): (w: WorldState, ambient: readonly Animal[], now: number) => Cue[] {
+  let first = true;
+  let dams = new Map<string, Built>();
+  let lodgeWood = 0;
+  let mended = 0;
+  let hurtAt: number | null = null;
+  let warned = new Set<string>();
+  let quackAt = 0;
+  return (w, ambient, now) => {
+    const cues: Cue[] = [];
+    const nowDams = new Map<string, Built>();
+    for (const d of w.dams) nowDams.set(d.spot, { wood: d.wood, mud: d.mud, rock: d.rock, level: d.level ?? 1 });
+    const nowWood = w.lodge?.wood ?? 0;
+    const nowWarned = new Set(w.predators.filter((p) => p.phase !== 'off').map((p) => p.id));
+    if (!first) {
+      let wood = false;
+      let mud = false;
+      let rock = false;
+      let done = false;
+      for (const [spot, d] of nowDams) {
+        const was = dams.get(spot) ?? { wood: 0, mud: 0, rock: 0, level: 0 };
+        wood ||= d.wood > was.wood;
+        mud ||= d.mud > was.mud;
+        rock ||= d.rock > was.rock;
+        done ||= was.level > 0 && d.level > was.level;
+      }
+      if (nowWood > lodgeWood) {
+        wood = true;
+        done ||= nowWood >= LODGE_WOOD && lodgeWood < LODGE_WOOD;
+      }
+      if (w.mended > mended) done = true;
+      if (wood) cues.push({ effect: 'wood', gain: 0.8 });
+      if (mud) cues.push({ effect: 'mud', gain: 0.7 });
+      if (rock) cues.push({ effect: 'rock', gain: 0.8 });
+      if (done) cues.push({ effect: 'done', gain: 0.8 });
+      for (const p of w.predators) {
+        if (p.phase === 'off' || warned.has(p.id)) continue;
+        const near = Math.hypot(p.x - w.beaver.x, p.z - w.beaver.z);
+        if (near < HEARD) cues.push({ effect: WARNING[p.kind] ?? 'growl', gain: Math.max(0.3, 1 - near / HEARD) });
+      }
+      if (w.hurtAt !== null && w.hurtAt !== hurtAt) cues.push({ effect: 'hurt', gain: 0.9 });
+      if (now - quackAt >= QUACK_EVERY) {
+        let near = Infinity;
+        for (const a of ambient) if (a.kind === 'duck') near = Math.min(near, Math.hypot(a.x - w.beaver.x, a.z - w.beaver.z));
+        if (near < QUACK_HEARD) {
+          cues.push({ effect: 'quack', gain: 0.6 * (1 - near / QUACK_HEARD) + 0.1 });
+          quackAt = now;
+        }
+      }
+    } else quackAt = now;
+    first = false;
+    dams = nowDams;
+    lodgeWood = nowWood;
+    mended = w.mended;
+    hurtAt = w.hurtAt;
+    warned = nowWarned;
+    return cues;
   };
 }

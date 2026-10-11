@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { birdsGain, cricketsGain, effectsGain, musicGain, owlGain, waterGain, windGain, STREAM_HEARD, type Hearing } from './mix';
 import { DEFAULT_SOUND, SOUND_KEY, loadSound, parseSound, saveSound } from './settings';
 import { createSound, wireBrowser, MAX_ONE_SHOTS } from './sound';
-import { DURATION, createVoices, watchBeaver, type Cue, type Effect } from './effects';
+import { DURATION, createVoices, watchBeaver, watchWorld, type Cue, type Effect } from './effects';
 import { effectSamples } from './effectsSynth';
 import { createWorld } from '../sim/state';
 import { fakeSoundOut } from './soundOut';
@@ -220,8 +220,53 @@ describe('the one-shots through Sound', () => {
   });
 });
 
+describe('the building and animal cues', () => {
+  const dry = createWorld({ heightAt: () => 0, waterDepth: () => 0, isWater: () => false } as never, 0, 0);
+  const effects = (cues: Cue[]): string[] => cues.map((c) => c.effect);
+  const dam = (wood: number, mud: number, rock: number, level: 1 | 2 | 3 = 1) => ({ ...dry, dams: [{ spot: 'a', wood, mud, rock, level }] });
+  it('is silent on the first frame and while nothing changes', () => {
+    const watch = watchWorld();
+    expect(watch(dam(3, 1, 0), [], 0)).toEqual([]);
+    expect(watch(dam(3, 1, 0), [], 0.1)).toEqual([]);
+  });
+  it('gives a sound for each material placed on a dam, and a flourish when the level rises', () => {
+    const watch = watchWorld();
+    watch(dam(3, 1, 0), [], 0);
+    expect(effects(watch(dam(5, 1, 0), [], 1))).toEqual(['wood']);
+    expect(effects(watch(dam(5, 2, 1), [], 2))).toEqual(['mud', 'rock']);
+    expect(effects(watch(dam(5, 2, 1, 2), [], 3))).toEqual(['done']);
+  });
+  it('sounds a lodge log and the finished lodge, and a mended piece', () => {
+    const watch = watchWorld();
+    const lodge = (wood: number) => ({ ...dry, lodge: { x: 0, z: 0, base: 0, door: 0, wood } });
+    watch(lodge(8), [], 0);
+    expect(effects(watch(lodge(10), [], 1))).toEqual(['wood', 'done']);
+    expect(effects(watch({ ...lodge(10), mended: 1 }, [], 2))).toEqual(['done']);
+  });
+  it('warns once for each predator by its own call, louder when near, and hears the beaver hurt', () => {
+    const watch = watchWorld();
+    watch(dry, [], 0);
+    const owl = { id: 'o', kind: 'owl' as const, x: 10, z: 0, lift: 0, heading: 0, phase: 'warn' as const, since: 0 };
+    const cues = watch({ ...dry, predators: [owl] }, [], 1);
+    expect(effects(cues)).toEqual(['hoot']);
+    expect(watch({ ...dry, predators: [{ ...owl, phase: 'chase' as const }] }, [], 2)).toEqual([]);
+    expect(effects(watch({ ...dry, predators: [{ ...owl, phase: 'chase' as const }], hurtAt: 5 }, [], 3))).toEqual(['hurt']);
+    const far = watch({ ...dry, predators: [{ ...owl, id: 'f', kind: 'fox' as const, x: 100 }] }, [], 4);
+    expect(far).toEqual([]);
+  });
+  it('quacks now and then for a duck near by, not for a far one', () => {
+    const watch = watchWorld();
+    const duck = (x: number) => [{ id: 'd', kind: 'duck' as const, x, y: 0, z: 0, heading: 0, moving: true }];
+    watch(dry, duck(5), 0);
+    expect(watch(dry, duck(5), 3)).toEqual([]);
+    expect(effects(watch(dry, duck(5), 10))).toEqual(['quack']);
+    expect(watch(dry, duck(5), 12)).toEqual([]);
+    expect(watch(dry, duck(80), 30)).toEqual([]);
+  });
+});
+
 describe('effectSamples', () => {
-  const all: Effect[] = ['chop', 'fall', 'splash', 'slap', 'stroke', 'eat', 'pickup', 'setdown'];
+  const all: Effect[] = ['chop', 'fall', 'splash', 'slap', 'stroke', 'eat', 'pickup', 'setdown', 'wood', 'mud', 'rock', 'done', 'quack', 'hoot', 'yap', 'growl', 'rumble', 'hurt'];
   it('makes every effect as long as its duration, audible, in range, and silent at the end', () => {
     for (const e of all) {
       const s = effectSamples(e);

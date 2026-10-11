@@ -89,7 +89,19 @@ A new `src/audio/` folder. The rules are the same as for `render/`:
 - All eight are **made in code** (`src/audio/effectsSynth.ts`), so no file and no licence line. They load on first use.
 - At most **4 one-shots** play at once (`MAX_ONE_SHOTS`), the ambient layers taking the rest of the 8. A new sound with no free
   voice takes the place of the quietest if it is louder, and is dropped if not. The test menu has a **One-shots** switch.
-- Not yet: the building group (dam, lodge, repair, #407) and the animals and predator warnings. Warnings keep their toasts.
+- The gnaw is four quick bites (a chattering rasp and a small knock each), 0.5 s long, since the first single click sounded like
+  a knock on a door.
+- Not yet: the sounds are untuned (see the next section).
+
+## Slice 3, the building and animal group, as built
+
+- `watchWorld` (`src/audio/effects.ts`) is the same idea for what is built and for the animals. It gives: a **wood** knock for
+  a log on a dam or the lodge, a wet **mud** squelch, a **rock** clack, and a **done** flourish (two rising notes) when a dam
+  goes up a level, the lodge is whole, or a piece is mended back to new.
+- Each predator gives its call once, when it first notices the beaver, louder when closer and not heard beyond 60 m: **hoot**
+  (owl), **yap** (fox), **growl** (lynx), **rumble** (bear). The toast stays. The beaver being hurt gives a **hurt** squeal.
+- A **quack** for a duck within 30 m, about every 9 seconds at most.
+- All ten are made in code like the rest. They are first drafts: **add first, tune on the tablet after** (author, session 88).
 
 ## Slices
 

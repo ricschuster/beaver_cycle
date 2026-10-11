@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Music preview</title>
+    <style>
+      body { margin: 0; padding: 12px; background: #222; color: #eee; font: 15px sans-serif; max-width: 640px; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      h2 { font-size: 15px; margin: 18px 0 6px; color: #9cd; }
+      p { margin: 4px 0; color: #bbb; }
+      button { font: inherit; padding: 8px 14px; margin: 2px; border: 1px solid #555; border-radius: 6px; background: #333; color: #eee; min-height: 44px; }
+      button.sel { background: #36a; border-color: #36a; }
+      label { display: block; margin: 8px 0; }
+      input[type=range] { width: 60%; vertical-align: middle; }
+      #log { font: 12px monospace; color: #8a8; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Music preview</h1>
+    <p>The generative music of the game (<code>src/audio/music.ts</code>), alone, with the ambient layers to judge the loudness against. Tap a mood to start; every run is a new tune.</p>
+    <h2>Mood</h2>
+    <div id="moods"></div>
+    <h2>Volume</h2>
+    <label>Music <input id="music" type="range" min="0" max="1" step="0.05" value="0.5" /></label>
+    <label>Effects and ambient <input id="effects" type="range" min="0" max="1" step="0.05" value="0.5" /></label>
+    <h2>Ambient under it</h2>
+    <div id="layers"></div>
+    <p id="log"></p>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

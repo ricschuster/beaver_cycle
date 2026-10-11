@@ -172,6 +172,7 @@ replace them. Only `done` and the three chimes stay in code. Chirp and babble ha
   2 s ahead on the audio clock, and the timer stops when the mood is off, so a muted or silent game does no work.
 - **Frame rate:** the music gives way after 4 s under 22 fps and returns after 12 s over 32 fps (`createFrameWatch`).
 - The Music slider and the mute button act on the music bus; the test menu has a Music switch.
+- `/tools/music-preview/` plays the music alone, with sliders and the ambient layers to switch on beneath it.
 - First draft, to tune on the tablet: the chords, the gaps, the loudness against the ambient layers. Season and night colour are not done.
 
 ## Slices

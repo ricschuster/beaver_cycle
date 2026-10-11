@@ -26,7 +26,7 @@ export interface DreamPoint {
 /** The chocolate's surface height. Land is above it, the river bed below. */
 export const CHOCOLATE_LEVEL = 0;
 
-export type PropKind = 'lollipop' | 'gumdrop' | 'candyCane' | 'cupcake' | 'iceCream' | 'marshmallowRock';
+export type PropKind = 'lollipop' | 'gumdrop' | 'candyCane' | 'cupcake' | 'iceCream' | 'marshmallowRock' | 'cottonCandy';
 
 export interface DreamProp {
   id: string;

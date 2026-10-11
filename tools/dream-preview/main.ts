@@ -16,7 +16,7 @@ function fixture(seed: number): DreamState {
   for (let x = -80; x <= 80; x += 2) river.push({ x, z: 12 + 4 * Math.sin(x / 15) });
   const path = [];
   for (let z = -30; z <= 6; z += 2) path.push({ x: 3 * Math.sin(z / 8), z });
-  const kinds: PropKind[] = ['lollipop', 'gumdrop', 'candyCane', 'cupcake', 'iceCream', 'marshmallowRock'];
+  const kinds: PropKind[] = ['lollipop', 'gumdrop', 'candyCane', 'cupcake', 'iceCream', 'marshmallowRock', 'cottonCandy'];
   const props: DreamProp[] = [];
   kinds.forEach((kind, k) => {
     for (let i = 0; i < 8; i++) {

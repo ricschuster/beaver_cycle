@@ -5,7 +5,7 @@
 export const SYNTH_RATE = 22050;
 
 /** A small seeded random generator, so a loop sounds the same every run. */
-function rng(seed: number): () => number {
+export function rng(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6d2b79f5) >>> 0;

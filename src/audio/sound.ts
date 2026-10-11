@@ -4,6 +4,7 @@
 import { waterGain, windGain, birdsGain, cricketsGain, owlGain, effectsGain, musicGain, type Hearing } from './mix';
 import { createVoices, type Cue } from './effects';
 import { loadSound, saveSound, type SoundSettings } from './settings';
+import { createFrameWatch, type MusicMood } from './music';
 import type { Layer, SoundOut } from './soundOut';
 
 export interface Sound {
@@ -14,6 +15,11 @@ export interface Sound {
   /** Switch a layer on or off (a test menu switch). */
   setLayerOn(layer: Layer, on: boolean): void;
   layerOn(layer: Layer): boolean;
+  /** Switch the music on or off (a test menu switch). */
+  setMusicOn(on: boolean): void;
+  musicOn(): boolean;
+  /** Called every frame: what the music should play (the valley or the dream), the frame rate, and real time in seconds. The music gives way when frames are slow. */
+  music(mood: Exclude<MusicMood, 'off'>, fps: number, now: number): void;
   /** Switch the one-shot effects on or off (a test menu switch). */
   setOneShotsOn(on: boolean): void;
   oneShotsOn(): boolean;
@@ -42,6 +48,8 @@ export function createSound(out: SoundOut, storage: Pick<Storage, 'getItem' | 's
   push();
   const voices = createVoices(MAX_ONE_SHOTS);
   let oneShots = true;
+  let musicOn = true;
+  const watch = createFrameWatch();
   return {
     settings: () => s,
     setMuted: (muted) => change({ ...s, muted }),
@@ -51,6 +59,14 @@ export function createSound(out: SoundOut, storage: Pick<Storage, 'getItem' | 's
       on.set(layer, v);
     },
     layerOn: (layer) => on.get(layer) ?? false,
+    setMusicOn: (v) => {
+      musicOn = v;
+      if (!v) out.setMood('off');
+    },
+    musicOn: () => musicOn,
+    music(mood, fps, now) {
+      out.setMood(musicOn && watch.update(fps, now) ? mood : 'off');
+    },
     setOneShotsOn: (v) => {
       oneShots = v;
     },

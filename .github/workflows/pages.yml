@@ -1,0 +1,49 @@
+name: Pages
+
+# Publishes the game to https://ricschuster.github.io/beaver_cycle/ on every
+# push to main. The valley tiles are untracked (public/tiles/), so they come
+# from the release tagged `tiles`, built locally with tools/tiles/build_tiles.py
+# and uploaded as tiles.tar.gz. Refresh them with
+# `gh release upload tiles tiles.tar.gz --clobber`.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Fetch the valley tiles
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download tiles --pattern tiles.tar.gz
+          tar -xzf tiles.tar.gz -C public
+          rm tiles.tar.gz
+      - name: Build
+        run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

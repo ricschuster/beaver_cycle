@@ -8,6 +8,9 @@ import type { Effect } from './effects';
 import { parseManifest, pickVariant, variation, type Manifest } from './samples';
 import type { Layer, SoundOut } from './soundOut';
 
+/** The pitch (Hz) at which a recorded babble plays unchanged: a mama's. */
+const BABBLE_REF_HZ = 320;
+
 type Ctx = AudioContext;
 
 /** Brown-ish noise, 4 s, which joins without a click because it is made to end where it began. */
@@ -199,15 +202,25 @@ export function createWebAudio(): SoundOut {
     },
     play(effect, gain, voice) {
       if (!ctx || !effects || suspended || ctx.state !== 'running') return;
-      const rec = voice ? undefined : recording(effect);
+      const rec = recording(effect);
       if (rec === null) return;
       const src = ctx.createBufferSource();
       const g = ctx.createGain();
       if (rec) {
         const v = variation(Math.random(), Math.random());
         src.buffer = rec;
-        src.playbackRate.value = v.rate;
+        // A talking sound follows the speaker: a higher or lower pitch (halfway to the speaker's, so a papa is not a slow growl) and the
+        // length of the line, the clip looped when it is shorter and faded out at the end.
+        const pitch = voice ? Math.sqrt(voice.pitch / BABBLE_REF_HZ) : 1;
+        src.playbackRate.value = v.rate * pitch;
         g.gain.value = gain * v.gain;
+        if (voice) {
+          src.loop = true;
+          const t = ctx.currentTime;
+          g.gain.setValueAtTime(gain * v.gain, t + Math.max(0, voice.seconds - 0.1));
+          g.gain.linearRampToValueAtTime(0, t + voice.seconds);
+          src.stop(t + voice.seconds);
+        }
       } else {
         let buf = voice ? undefined : buffers.get(effect);
         if (!buf) {

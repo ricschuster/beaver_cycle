@@ -31,3 +31,10 @@ for pair in Kinoton/494071 matt_beer/515313 ecfike/139952; do
   id=${pair##*/}; curl -sL -m 30 -A "Mozilla/5.0" "https://freesound.org/people/${pair%/*}/sounds/$id/" -o "$D/fs/$id.html"
   curl -sL -m 60 -o "$D/fs/fs-$id.mp3" "$(grep -o 'https://cdn.freesound.org/previews/[^"]*-hq\.mp3' "$D/fs/$id.html" | head -1)"
 done
+# Round 4 (stage_gaps.py): chirp (chicks, young birds, kitten mews). The baby babble recordings were tried for babble and none worked.
+GAP4_BSB="chick-that-chirp-s0672 chick-1-stuffings-s0430 chick-2-stuffings-s0431 young-bird-s0692 young-bird-and-an-adult-s0693 babie-swallows-1-s1055 babie-swallows-2-s1056 babie-swallows-3-s1057 baby-birds-in-a-nest-1-s1907 baby-birds-in-a-nest-2-s1908 mewing-kitten-2-months-s0372 mewing-kitten-3-weeks-s0390 small-mewing-of-a-cat-s0098 four-month-old-baby-babbles-s0894 three-month-old-baby-babbles-s0889 baby-amused-1-s0231 baby-amused-2-s0232"
+for p in $GAP4_BSB; do curl -sL -m 120 "https://bigsoundbank.com/UPLOAD/ogg/${p##*-s}.ogg" -o "$D/bsb/$p.ogg"; done
+# Round 5 (stage_gaps.py): babble, second try (cockatiel chatter, hens, cat mews).
+GAP5_BSB="hens-worried-s1039 hen-lays-1-s0975 hen-lays-3-s0977 hens-lays-s0978 hen-imitated-to-the-mouth-1-s2203 hen-imitated-to-the-mouth-2-s2204 cat-complaining-s0658 cat-meow-made-with-mouth-s0926 australian-aviary-of-thoiry-zoo-1-s1164"
+for k in 1 2 3 4 5 6 7 8; do curl -sL -m 120 "https://bigsoundbank.com/UPLOAD/ogg/$((2768 + k)).ogg" -o "$D/bsb/cockatiel-parakeet-$k-s$((2768 + k)).ogg"; done
+for p in $GAP5_BSB; do curl -sL -m 120 "https://bigsoundbank.com/UPLOAD/ogg/${p##*-s}.ogg" -o "$D/bsb/$p.ogg"; done

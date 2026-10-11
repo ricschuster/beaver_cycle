@@ -130,7 +130,7 @@ Sounds made in code cannot be judged by a test, so the check has two halves.
 ## Recordings (session 90)
 
 The author heard the code made sounds and rated nearly all of them wrong (`tools/sound-preview/ratings-round1.md`), so recordings
-replace them. Only `done` and the three chimes stay in code. Babble and chirp stay in code for now (no recording yet; open).
+replace them. Only `done` and the three chimes stay in code. Chirp and babble have recordings since session 93.
 
 - **The player** (`webAudio.ts`, `samples.ts`): on the first touch it reads `public/audio/manifest.json`, starts each ambient
   layer from one recording picked at random for the session, and decodes the effect files in the background. A play picks a random
@@ -148,6 +148,19 @@ replace them. Only `done` and the three chimes stay in code. Babble and chirp st
   sounds credit line. `pick_from_ratings.py` clears only the old `.ogg` files, so `CREDITS.md` survives a rebuild.
 - **Round 2 (session 91).** The author rated the gap clips (`tools/sound-preview/ratings-round2.md`, which includes the round 1 oks).
   104 clips, 3.8 MB, inside the 5 MB budget. `fall` has no ok clip yet and plays the code sound.
+- **Round 3 (session 92) and settled (session 93).** `fall` (9 clips), `slap` (7) and `pickup` (7) are settled and in `public/audio/`
+  (`tools/sound-preview/ratings-round3.md`). `stroke` and `quack` are settled too: the oks are enough. `done` and the three chimes stay
+  in code and are settled: the author rated them ok in rounds 1 and 2. Fox (`yap`, 2 clips) and lynx (`growl`) have recordings, and the
+  bear (`rumble`, 2 clips) is thin.
+- **Chirp (session 93).** Round 4 staged 22 chirp clips (chicks, young birds, nestlings, kitten mews, BigSoundBank CC0). The author rated
+  nine ok (`tools/sound-preview/ratings-round4.md`) and the synth chirp wrong, so `chirp` plays those nine.
+- **Babble (session 93).** Round 4 tried baby babbles, all wrong. Round 5 (a cockatiel, hens, cats) gave 14 ok cockatiel clips
+  (`ratings-round4.md`); the hens, cats and aviary were wrong. A babble cue carries a voice (pitch and length of the line), and the player
+  now uses a recording for it too (`webAudio.ts`): half way to the speaker's pitch (`sqrt(pitch / 320)` as the playback rate, so a kit is
+  higher and a papa lower), looped to the length of the line and faded out in the last 0.1 s. The synth babble stays as the fallback
+  when the manifest has none. 4.3 MB in `public/audio/`.
+- **Nothing is open.** `/tools/sound-preview2/` hides rounds 1 to 5 (`SETTLED` in its `main.ts`) and lists code-made sounds still to rate
+  (`SYNTH_GAPS`, empty now) and clips staged after round 5.
 
 ## Slices
 

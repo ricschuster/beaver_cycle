@@ -1,11 +1,38 @@
 {
  "effects": {
+  "babble": [
+   "babble-1-cockatiel-parakeet-1-s2769.ogg",
+   "babble-10-cockatiel-parakeet-6-s2774.ogg",
+   "babble-11-cockatiel-parakeet-7-s2775.ogg",
+   "babble-12-cockatiel-parakeet-7-s2775.ogg",
+   "babble-13-cockatiel-parakeet-8-s2776.ogg",
+   "babble-14-cockatiel-parakeet-8-s2776.ogg",
+   "babble-2-cockatiel-parakeet-2-s2770.ogg",
+   "babble-3-cockatiel-parakeet-3-s2771.ogg",
+   "babble-4-cockatiel-parakeet-3-s2771.ogg",
+   "babble-5-cockatiel-parakeet-4-s2772.ogg",
+   "babble-6-cockatiel-parakeet-4-s2772.ogg",
+   "babble-7-cockatiel-parakeet-5-s2773.ogg",
+   "babble-8-cockatiel-parakeet-5-s2773.ogg",
+   "babble-9-cockatiel-parakeet-6-s2774.ogg"
+  ],
   "cheer": [
    "cheer-1-childrens_game_app_ending.ogg",
    "cheer-11-shouts-and-applauses-of-teens-1-s0236.ogg",
    "cheer-12-shouts-and-applauses-of-teens-2-s0237.ogg",
    "cheer-17-applause-about-25-50-people-1-s0812.ogg",
    "cheer-5-shouts-and-applauses-of-teens-2-s0237.ogg"
+  ],
+  "chirp": [
+   "chirp-15-baby-birds-in-a-nest-1-s1907.ogg",
+   "chirp-16-baby-birds-in-a-nest-1-s1907.ogg",
+   "chirp-17-baby-birds-in-a-nest-2-s1908.ogg",
+   "chirp-19-mewing-kitten-2-months-s0372.ogg",
+   "chirp-3-chick-that-chirp-s0672.ogg",
+   "chirp-4-chick-1-stuffings-s0430.ogg",
+   "chirp-5-chick-1-stuffings-s0430.ogg",
+   "chirp-6-chick-2-stuffings-s0431.ogg",
+   "chirp-7-chick-2-stuffings-s0431.ogg"
   ],
   "chop": [
    "chop-6-apple_bite_0.ogg",

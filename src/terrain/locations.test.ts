@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { AnimalField } from '../sim/animals';
-import { firstSpots, type DamSpot } from '../sim/damSpots';
+import { LEVEL_CREST, firstSpots, type DamSpot } from '../sim/damSpots';
 import { findSite } from '../sim/lodge';
 import { growNeighbours, type Neighbour } from '../sim/neighbours';
 import { LODGE_POND_CREST, floodPond, withPonds } from '../sim/pond';
@@ -57,6 +57,18 @@ describe.skipIf(!HAVE_TILES)('the play locations on the real tiles', () => {
       }
       console.log(id, 'spots', spots.length, 'lodge ponds', holding.length);
       expect(holding.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it(`${id}: every first spot floods a pond in the game at each level the scan offers`, () => {
+      // The scan (tools/dam-sites) floods its own copy of the ground; a pond that only just fits there can spill here.
+      const dry: string[] = [];
+      for (const spot of firstSpots(sites, id, anchor())) {
+        LEVEL_CREST.forEach((crest, i) => {
+          if (crest > spot.maxCrest + 1e-6 || spot.widths?.[i] === null) return;
+          if (!floodPond(store, spot, crest)) dry.push(`${spot.id} at ${crest} m`);
+        });
+      }
+      expect(dry).toEqual([]);
     });
 
     it(`${id}: animals live round the anchor`, () => {

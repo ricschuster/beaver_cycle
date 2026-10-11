@@ -48,8 +48,9 @@ test.describe('a worn lodge and store', () => {
     expect(lodgeCondition(w0.lodge, w0.clock)).toBeLessThan(0.15);
     await walkToStore(page);
     const text = await hudText(page);
-    // Both are in reach at the store: the worse one (the store) is the one named.
+    // Both are in reach at the store: the worse one (the store) is the one named, and the lodge is said to need wood too.
     expect(text).toContain('store broken, needs 4 wood');
+    expect(text).toContain('the lodge needs wood too');
     expect(text).toContain('store 0 of 0');
     // A diver at the entrance of a broken lodge does not go in.
     await walkToPoint(page, { x: w0.lodge.x + Math.sin(w0.lodge.door) * 7, z: w0.lodge.z + Math.cos(w0.lodge.door) * 7 }, 1.5, 40_000);
@@ -106,7 +107,7 @@ test.describe('mending', () => {
     expect(lodgeCondition(w0.lodge, w0.clock)).toBeCloseTo(0.4875, 2);
     expect(w0.achievements).not.toContain('handy');
     await walkToStore(page);
-    expect(await hudText(page)).toContain('store broken, needs 4 wood');
+    expect(await hudText(page)).toContain('store broken, needs 4 wood (a long log is 2), the lodge needs wood too');
     for (let trip = 0; trip < 6; trip++) {
       let w = await world(page);
       if (storeCondition(w.storeWear, w.clock) > 0.99) break;

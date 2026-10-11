@@ -5,14 +5,13 @@
 import { mergeActions, noActions, relativeToView, type Actions } from '../actions/actions';
 import { createCameraRig, type CameraRig } from '../render/cameraRig';
 import { createDreamView, type DreamView } from '../render/dreamView';
-import type { Coat } from '../sim/family';
 import { newDream, playPrompt, stepDream, type DreamEvent, type DreamInput, type DreamState } from '../sim/dream';
 import { DARK_MS, FADE_MS } from './sleepPrompt';
 import { createTouchControls, type TouchControls } from './touchControls';
 
 export interface DreamScreen {
-  /** Open a new dream from a seed, with the player's beaver in its coat. Does nothing while a dream is open. */
-  start(seed: number, coat: Coat): void;
+  /** Open a new dream from a seed. Does nothing while a dream is open. */
+  start(seed: number): void;
   /** One frame of the dream: step it with the actions, draw it, and update the screen. */
   frame(dt: number, actions: Actions): void;
   /** True from `start` until the screen has faded out after Wake up. */
@@ -169,7 +168,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     }, DARK_MS);
   };
 
-  const build = (seed: number, coat: Coat): Open => {
+  const build = (seed: number): Open => {
     const state = newDream(seed);
     const root = el(
       'div',
@@ -179,7 +178,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     );
     parent.appendChild(root);
     try {
-      const view = createDreamView(root, state.land, coat);
+      const view = createDreamView(root, state.land);
       const rig = createCameraRig(view.canvas);
 
       const countBox = el('div', `${PILL};position:absolute;left:max(16px,env(safe-area-inset-left));top:16px;z-index:2;display:flex;align-items:center;gap:8px;padding:6px 18px 6px 10px;font-size:26px;pointer-events:none`, 'dream-count');
@@ -278,10 +277,10 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
   };
 
   return {
-    start(seed, coat) {
+    start(seed) {
       if (open) return;
       try {
-        open = build(seed, coat);
+        open = build(seed);
       } catch (e) {
         // A dream that cannot open must not leave the player in the dark.
         console.error('dream: could not start', e);

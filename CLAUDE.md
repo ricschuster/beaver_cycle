@@ -84,6 +84,7 @@ Everyday (gate means CI blocks a merge on it):
   triangles; `node tools/prop-preview/shoot.mjs out.png` screenshots it from a Vite server on port 5202 (`npx vite --port 5202 --strictPort`)
 - `npm run dev`, then open `/tools/sound-preview/` - every sound of the game to play and rate (ok, thin, harsh, wrong), with its measurements; `SOUND_REPORT=dir npx vitest run src/audio/analyze.test.ts` writes a WAV of each sound and a table
 - `npm run dev`, then open `/tools/sound-preview2/` - the open sound gaps only (code-made sounds listed in `SYNTH_GAPS`, and clips staged after the settled rounds, `SETTLED` in its `main.ts`; none open now), rated apart from the full page
+- `npm run dev`, then open `/tools/music-preview/` - the generative music alone (Valley, Dream, Off), with its own volume sliders and the ambient layers to judge the loudness against (query `?mood=dream` starts on the first touch)
 - `npm run dev`, then open `/tools/dream-preview/` - the candy land dream scene alone (query `?seed=N&t=2&tag=1&giggle=1`); in the
   game `?dream=1&seed=N` opens a dream at once, and the test menu has Dream now
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene

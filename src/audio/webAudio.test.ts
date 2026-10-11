@@ -7,11 +7,15 @@ let sources: Source[];
 let ctxState: string;
 let oscillators: number[];
 
+const param = (): Record<string, unknown> => ({ value: 0, setTargetAtTime() {}, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} });
+
 function node(): Record<string, unknown> {
   const n: Record<string, unknown> = {
-    gain: { value: 0, setTargetAtTime() {}, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} },
+    gain: param(),
     stop() {},
-    frequency: { value: 0 },
+    frequency: param(),
+    detune: param(),
+    Q: param(),
     playbackRate: { value: 1 },
     start() {},
     connect: (to: unknown) => to,
@@ -35,6 +39,7 @@ class FakeContext {
     return n;
   };
   createBiquadFilter = node;
+  createConvolver = node;
   createBuffer(_c: number, n: number) {
     return { length: n, getChannelData: () => new Float32Array(n), copyToChannel() {} };
   }

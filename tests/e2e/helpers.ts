@@ -1,6 +1,7 @@
 // Shared helpers for the playtests in tests/e2e: drive the real game the way a player does, with the keys and the test menu,
 // and read its state through the read only `window.__game` hook (src/main.ts).
 import { expect, type Page } from '@playwright/test';
+import { costOf, needs } from '../../src/sim/dam';
 import { DOOR_DISTANCE, HOLE, NEST, doorPoint } from '../../src/sim/lodge';
 
 export type Point = { x: number; z: number };
@@ -323,4 +324,43 @@ export async function walkToStore(page: Page): Promise<void> {
   // STORE_DISTANCE in src/sim/food.ts: the door point 1.5 m beyond the door distance.
   await walkToPoint(page, doorPoint(lodge, DOOR_DISTANCE + 1.5), 0.8, 40_000);
   await page.waitForTimeout(300);
+}
+
+/**
+ * Build the dam at a spot by real play, from the first log to the last rock: fell a tree, drag the log to the ring and place it,
+ * and scoop mud and rocks from the wet ground and put them on, until the dam is whole at level 1. The first log starts the dam.
+ * A load the dam no longer needs is put down again. Returns the number of trips it took.
+ */
+export async function buildDamByHand(page: Page, spot: { id: string; bed: Point }, opts: { maxTrips?: number } = {}): Promise<number> {
+  const dam = async (): Promise<any> => (await world(page)).dams.find((d: any) => d.spot === spot.id);
+  const left = async (): Promise<{ wood: number; mud: number; rock: number }> => {
+    const d = await dam();
+    return d ? needs(d, costOf(d)) : { wood: 1, mud: 1, rock: 1 };
+  };
+  const max = opts.maxTrips ?? 40;
+  for (let trip = 1; trip <= max; trip++) {
+    let n = await left();
+    if (n.wood + n.mud + n.rock === 0) return trip - 1;
+    const d = await dam();
+    if (!d || n.wood > 0) {
+      const id = await fellNearestTree(page, 80);
+      expect(id, 'a tree to fell near the dam spot').not.toBeNull();
+      await dragLog(page, id!);
+      await walkToPoint(page, spot.bed, 3, 40_000);
+      const before = d?.wood ?? 0;
+      await tap(page, 'KeyE');
+      await page.waitForFunction(([sp, b]) => ((window as any).__game.world().dams.find((x: any) => x.spot === sp)?.wood ?? 0) > (b as number), [spot.id, before], { polling: 100, timeout: 5000 });
+      continue;
+    }
+    n = await left();
+    const kind = await scoopLoad(page, spot);
+    expect(kind, 'mud or a rock in the mouth').not.toBeNull();
+    await walkToPoint(page, spot.bed, 3, 30_000);
+    await tap(page, 'KeyE');
+    await page.waitForFunction(() => (window as any).__game.world().haul === null, null, { polling: 100, timeout: 5000 }).catch(async () => {
+      // The dam wants no more of this: put the load down and scoop again.
+      await tap(page, 'KeyG');
+    });
+  }
+  throw new Error(`the dam at ${spot.id} was not whole after ${max} trips`);
 }

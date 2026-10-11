@@ -1,17 +1,19 @@
 // Achievements (Q38 to Q40, design note 21). Each is a rule over the world, checked every step. Plain data, so a save keeps
 // what is won. A win stays won. Counters that need an event (pads picked, pieces mended, loads hauled) are kept in the world.
 // Each life has its own journey (Q40): `newLife` starts the list and the counters again, and what earlier lives built does not count.
+// The family ones (a mate, kits, a guide) are the author's own list (Q38).
 import { STORE_CAPACITY, stockTotal, storeCondition } from './food';
 import { damCondition, damWhole, levelOf, type Dam } from './dam';
 import { maxLevel } from './damSpots';
 import { lodgeComplete, lodgeCondition } from './lodge';
-import { DAY_SECONDS, DAYS_PER_YEAR } from './clock';
-import type { WorldState } from './state';
+import { DAY_SECONDS, DAYS_PER_YEAR, dateAt } from './clock';
+import { mateOf } from './partners';
+import { kitDue, type WorldState } from './state';
 
-export type AchievementId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year';
+export type AchievementId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide';
 
 /** The order they are listed and shown in. */
-export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year'];
+export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide'];
 
 /** Trees to fell for the wood achievement (Q39). */
 export const WOOD_TREES = 30;
@@ -22,10 +24,19 @@ export const HAULER_LOADS = 30;
 /** Pieces mended back to new for the handy beaver. */
 export const HANDY_MENDS = 1;
 
-type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey'>;
+type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey' | 'partners' | 'bornAt' | 'rescued'>;
 
 /** Trees felled in this life. */
 export const treesThisLife = (w: Pick<WorldState, 'felled' | 'journey'>): number => w.felled.length - w.journey.felled;
+
+/**
+ * Stuck beavers this life dug out. A rescue's id ends in the year of its winter (`escort.ts`), and a kit is born on the first
+ * day of spring, so a rescue in the year the life started or later is its own (the same reading as the talk's "You dug me out").
+ */
+export const rescuesThisLife = (w: Pick<WorldState, 'rescued' | 'journey'>): number => {
+  const start = dateAt(w.journey.start).year;
+  return w.rescued.filter((id) => Number(id.slice(id.lastIndexOf(':') + 1)) >= start).length;
+};
 
 const mine = (w: Facts, id: string): boolean => !w.journey.inherited.includes(id);
 
@@ -44,6 +55,11 @@ const RULES: Record<AchievementId, (w: Facts) => boolean> = {
   handy: (w) => w.mended >= HANDY_MENDS,
   hauler: (w) => w.hauled >= HAULER_LOADS,
   year: (w) => w.clock - w.journey.start >= DAYS_PER_YEAR * DAY_SECONDS,
+  // A partner lives in the lodge. A kit's life starts with no partners, so it finds its own.
+  mate: (w) => mateOf(w.partners) !== null,
+  // The kit is due: the step that wins this holds the birth one step (`step.ts`), so the toast shows before the kit's own list starts.
+  kits: (w) => kitDue(w),
+  guide: (w) => rescuesThisLife(w) >= 1,
 };
 
 /** The achievements the world has now won that it did not have yet, in the order to show them. */
@@ -91,6 +107,9 @@ export const ACHIEVEMENT_TEXT: Record<AchievementId, string> = {
   handy: 'Handy beaver achievement: mended and good as new',
   hauler: `Hauler achievement: ${HAULER_LOADS} loads on the dams`,
   year: 'A full year achievement: all four seasons',
+  mate: 'Mate achievement: a partner lives in your lodge',
+  kits: 'Kits achievement: a kit of your own',
+  guide: 'Guide achievement: a beaver you dug out shows the way',
 };
 
 /** The names for the list in the test menu. */
@@ -105,6 +124,9 @@ export const ACHIEVEMENT_NAME: Record<AchievementId, string> = {
   handy: 'Handy beaver',
   hauler: 'Hauler',
   year: 'A full year',
+  mate: 'Mate',
+  kits: 'Kits',
+  guide: 'Guide',
 };
 
 /** The list for the test menu: one line per achievement, with a mark for won and the count where there is one. */

@@ -49,6 +49,10 @@ import { AUTOSAVE_EVERY, ago, clearSave, loadSave, wantsSave, writeSave, type Sa
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createDreamScreen } from './ui/dreamScreen';
 import { createTestMenu } from './ui/testMenu';
+import { STREAM_HEARD } from './audio/mix';
+import { createWebAudio } from './audio/webAudio';
+import { LAYERS, createSound, wireBrowser } from './audio/sound';
+import { createMuteButton } from './ui/muteButton';
 import { createFlyButtons } from './ui/flyButtons';
 import { createMinimap, minimapMode, nextMode, type MinimapMode } from './ui/minimap';
 import { loadDamSites } from './render/damSites';
@@ -311,6 +315,15 @@ async function start(): Promise<void> {
   // The minimap trial (docs/design/31_minimap.md): on, turning with the camera; ?minimap=north keeps north up, ?minimap=0 or the test menu turns it off, and an automated browser needs ?minimap=1.
   const minimap = createMinimap(free ? document.createElement('div') : document.body, minimapMode(query.get('minimap'), navigator.webdriver));
   const MAP_LABEL: Record<MinimapMode, string> = { north: 'North up', turn: 'Turning', off: 'Off' };
+  // Sound (docs/design/32_sound.md): the mute button is always on the screen. The free fly view and ?sound=0 stay silent.
+  const soundOut = createWebAudio();
+  const sound = createSound(soundOut, storage);
+  const silent = free || query.get('sound') === '0';
+  if (!silent) wireBrowser(soundOut, window, document);
+  const muteButton = free ? null : createMuteButton(document.body, sound.settings().muted, () => {
+    sound.setMuted(!sound.settings().muted);
+    muteButton?.set(sound.settings().muted);
+  });
   const menu = createTestMenu(document.body, {
     speeds: [1, 2, 5, 20, 100],
     locations: anchors.map((a) => ({ id: a.id, name: a.name, enabled: a.inTiles })),
@@ -360,6 +373,13 @@ async function start(): Promise<void> {
       renderer.setShadows(on);
     },
     damSites: damSitesFile.length > 0 ? { initiallyOn: query.get('damsites') === '1', onToggle: setDamSites } : undefined,
+    sound: {
+      effects: sound.settings().effects,
+      music: sound.settings().music,
+      onEffects: sound.setEffects,
+      onMusic: sound.setMusic,
+      layers: LAYERS.map((id) => ({ id, name: id === 'water' ? 'Water' : id, on: sound.layerOn(id), onToggle: (on: boolean) => sound.setLayerOn(id, on) })),
+    },
     minimap: {
       label: MAP_LABEL[minimap.mode()],
       onNext() {
@@ -822,6 +842,15 @@ async function start(): Promise<void> {
     if (!wayTo) wayPointer = null;
     renderer.setWayDots(wayTo && !world.inLodge ? pointerDots(world.beaver, wayTo, ponded) : [], world.time);
     renderer.draw(world, rig.view, parents, animals, drawnFamily, stuckList.map((st) => ({ x: st.x, y: ponded.heightAt(st.x, st.z), z: st.z })), dug > 0);
+    if (!silent) {
+      const b = world.beaver;
+      sound.update({
+        streamDistance: terrain.streamDistance?.(b.x, b.z, STREAM_HEARD) ?? Infinity,
+        onWater: ponded.isWater(b.x, b.z),
+        inLodge: world.inLodge,
+        underwater: ponded.isWater(b.x, b.z) && ponded.waterDepth(b.x, b.z) > 1,
+      });
+    }
     minimap.update(now, { ground: ponded, pondsKey: world.ponds, beaver: world.beaver, yaw: rig.view.yaw, lodge: world.lodge });
     if (now - lastReadout > 500) {
       lastReadout = now;

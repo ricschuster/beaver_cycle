@@ -60,6 +60,14 @@ export interface TestMenuOptions {
   damTools?: { onGo(): void; onFill(): void };
   /** The minimap trial (docs/design/31_minimap.md): a button showing its mode, and a press moves to the next mode and says which. */
   minimap?: { label: string; onNext(): string };
+  /** Sound (docs/design/32_sound.md): the two volumes, 0 to 1, and a switch for each ambient layer. */
+  sound?: {
+    effects: number;
+    music: number;
+    onEffects(volume: number): void;
+    onMusic(volume: number): void;
+    layers: { id: string; name: string; on: boolean; onToggle(on: boolean): void }[];
+  };
 }
 
 export interface TestMenu {
@@ -247,6 +255,41 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
       mapButton.textContent = minimap.onNext();
     };
     row('Minimap').appendChild(mapButton);
+  }
+  if (opts.sound) {
+    const sound = opts.sound;
+    const slider = (label: string, value: number, onInput: (v: number) => void): void => {
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = '0';
+      input.max = '1';
+      input.step = '0.05';
+      input.value = String(value);
+      input.dataset.action = `sound-${label.toLowerCase()}`;
+      input.setAttribute('aria-label', `${label} volume`);
+      input.style.cssText = 'width:150px;min-height:44px;vertical-align:middle';
+      input.oninput = () => onInput(Number(input.value));
+      row(`${label} volume`).appendChild(input);
+    };
+    slider('Effects', sound.effects, sound.onEffects);
+    slider('Music', sound.music, sound.onMusic);
+    const layersRow = row('Sound layers');
+    for (const l of sound.layers) {
+      let on = l.on;
+      const b = document.createElement('button');
+      b.dataset.action = `sound-layer-${l.id}`;
+      style(b);
+      const show = (): void => {
+        b.textContent = `${l.name} ${on ? 'on' : 'off'}`;
+      };
+      show();
+      b.onclick = () => {
+        on = !on;
+        show();
+        l.onToggle(on);
+      };
+      layersRow.appendChild(b);
+    }
   }
   if (opts.damTools) {
     const tools = opts.damTools;

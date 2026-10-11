@@ -5,7 +5,7 @@ import { newWear } from './wear';
 import { createWorld, type WorldState, intoLodge, leaveHome, birth, kitDue, setClock, setStage, setInLodge, sleep, sleepUntil } from './state';
 import { flatTerrain } from './terrain';
 import { step } from './step';
-import { noIntent } from './buttons';
+import { noIntent, type Intent } from './buttons';
 import { nextSeasonStart, nextSpringStart } from './clock';
 import { CALL_BAND, isCalledBack, softEdge, BABY_DAYS, growUpDawn, STAGE_RULES, TEENAGER_DAYS, bornAtFor, lifeAt, stageAt, stageStart } from './life';
 
@@ -86,7 +86,7 @@ describe('stage rules', () => {
   });
 
   it('a baby cannot put down a load, an adult can', () => {
-    const grab = { ...noIntent(), grab: true };
+    const grab: Intent = { ...noIntent(), take: 'drop' };
     const load = { ...createWorld(flat), haul: { kind: 'mud' as const } };
     expect(step(setStage(load, 'baby'), grab, 0.1, flat).haul).not.toBeNull();
     expect(step(load, grab, 0.1, flat).haul).toBeNull();

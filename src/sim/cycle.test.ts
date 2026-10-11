@@ -60,7 +60,7 @@ function buildLodgeAt(world: WorldState, x: number): WorldState {
   let w: WorldState = { ...world, inLodge: false, beaver: { ...world.beaver, x, z: -1, y: 0, mode: 'walk', heading: 0 } };
   for (let i = 0; i < LODGE_WOOD / 2; i++) {
     w = { ...w, logs: [log(`${x}:${i}`)], drag: `${x}:${i}` };
-    w = play(w, DT, { ...noIntent(), build: true });
+    w = play(w, DT, { ...noIntent(), do: 'build' });
   }
   return w;
 }

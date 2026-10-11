@@ -70,11 +70,11 @@ test.describe('a baby at home', () => {
     expect(dist(w.beaver, lodge)).toBeLessThan(45);
   });
 
-  test('cannot gnaw, grab or build', async ({ page }) => {
+  test('cannot gnaw or take', async ({ page }) => {
     await startGame(page, 'stage=baby');
     test.skip(!(await hasTiles(page)), 'needs the tiles built locally');
     await leaveLodgeByHole(page);
-    for (const key of ['KeyE', 'KeyG', 'KeyB']) await tap(page, key);
+    for (const key of ['KeyE', 'KeyG']) await tap(page, key);
     await page.waitForTimeout(500);
     const w = await world(page);
     expect(w.chop).toBeNull();

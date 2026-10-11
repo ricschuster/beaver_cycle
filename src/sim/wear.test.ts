@@ -77,14 +77,14 @@ describe('repair by placing a log', () => {
   it('mends a worn lodge and uses up the log', () => {
     const clock = day(LODGE_WORN_DAYS); // worn
     const before = lodgeCondition(world(clock).lodge!, clock);
-    const after = step(world(clock), { ...noIntent(), build: true }, 0, flat);
+    const after = step(world(clock), { ...noIntent(), do: 'mend' }, 0, flat);
     expect(lodgeCondition(after.lodge!, clock)).toBeCloseTo(before + 0.1 * 1);
     expect(after.logs).toHaveLength(0);
     expect(after.drag).toBeNull();
   });
 
   it('keeps the log when the lodge is as good as new', () => {
-    const after = step(world(0), { ...noIntent(), build: true }, 0, flat);
+    const after = step(world(0), { ...noIntent(), do: 'mend' }, 0, flat);
     expect(after.logs).toHaveLength(1);
     expect(after.drag).toBe('a');
   });
@@ -94,7 +94,7 @@ describe('repair by placing a log', () => {
     // Stand at the store, far enough from the lodge's centre that only the store is in reach.
     const at = { ...w, lodge: { ...w.lodge!, wear: newWear(w.clock) }, beaver: { ...w.beaver, x: 0, z: 2 + 7.9 } };
     const before = storeCondition(at.storeWear, at.clock);
-    const after = step(at, { ...noIntent(), build: true }, 0, flat);
+    const after = step(at, { ...noIntent(), do: 'mend' }, 0, flat);
     expect(storeCondition(after.storeWear, at.clock)).toBeGreaterThan(before);
     expect(after.logs).toHaveLength(0);
     // mending with a log does not also open the stash
@@ -104,7 +104,7 @@ describe('repair by placing a log', () => {
   it('a new lodge starts to wear from the moment it is whole', () => {
     const lodge: Lodge = { x: 0, z: 2, base: 0, door: 0, wood: LODGE_WOOD - 2 };
     const w = { ...createWorld(flat, 0, 0), clock: day(3), lodge, logs: [log('a', 6)], drag: 'a' };
-    const after = step(w, { ...noIntent(), build: true }, 0, flat);
+    const after = step(w, { ...noIntent(), do: 'build' }, 0, flat);
     expect(after.lodge!.wear).toEqual(newWear(day(3)));
     expect(after.storeWear).toEqual(newWear(day(3)));
   });

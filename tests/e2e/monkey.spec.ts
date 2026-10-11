@@ -37,7 +37,7 @@ async function checkSound(page: Page, label: string): Promise<number> {
   return Number(/(\d+) fps/.exec(text)?.[1] ?? NaN);
 }
 
-const KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyE', 'KeyG', 'KeyB', 'KeyT'];
+const KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyE', 'KeyG', 'KeyT'];
 const SAFE_MENU = ['button[data-speed="1"]', 'button[data-speed="2"]', 'button[data-speed="5"]', 'button[data-time="dawn"]', 'button[data-time="noon"]', 'button[data-time="night"]', 'button[data-season="spring"]', 'button[data-season="summer"]', 'button[data-season="autumn"]', 'button[data-season="winter"]', 'button[data-stage="baby"]', 'button[data-stage="teenager"]', 'button[data-stage="adult"]', 'button[data-action="new-life"]', 'button[data-action="lodge"]', 'button[data-action="sleep"]', 'button[data-action="dam-fill"]', 'button[data-action="achievements"]'];
 
 test('random keys and menu clicks for a few minutes throw nothing and keep the beaver on the ground', async ({ page }) => {

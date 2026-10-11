@@ -17,7 +17,7 @@ test('a log and a load of mud go on a dam by real play, then the dam is finished
   expect(id, 'a tree to fell near the dam spot').not.toBeNull();
   await dragLog(page, id!);
   await walkToPoint(page, spot.bed, 3, 30_000);
-  await tap(page, 'KeyB');
+  await tap(page, 'KeyE');
   await page.waitForFunction(() => (window as any).__game.world().dams.length === 1, null, { polling: 100, timeout: 5000 });
   let w = await world(page);
   expect(w.dams[0].spot).toBe(spot.id);
@@ -30,7 +30,7 @@ test('a log and a load of mud go on a dam by real play, then the dam is finished
   const kind = await scoopLoad(page, spot);
   expect(kind, 'mud or a rock in the mouth').not.toBeNull();
   await walkToPoint(page, spot.bed, 3, 20_000);
-  await tap(page, 'KeyB');
+  await tap(page, 'KeyE');
   await page.waitForFunction(() => (window as any).__game.world().haul === null, null, { polling: 100, timeout: 5000 });
   w = await world(page);
   expect(w.hauled).toBe(1);

@@ -170,7 +170,7 @@ describe('hurt', () => {
 
   it('is healed by eating a lily pad in the lodge', () => {
     const w = { ...createWorld(land, 0, 0), hurtAt: 100, clock: 200, carry: 'lily' as const, inLodge: true };
-    expect(step(w, { ...noIntent(), chop: true }, 0.1, land).hurtAt).toBeNull();
-    expect(step({ ...w, carry: 'branch' }, { ...noIntent(), chop: true }, 0.1, land).hurtAt).toBe(100);
+    expect(step(w, { ...noIntent(), do: 'eat' }, 0.1, land).hurtAt).toBeNull();
+    expect(step({ ...w, carry: 'branch' }, { ...noIntent(), do: 'eat' }, 0.1, land).hurtAt).toBe(100);
   });
 });

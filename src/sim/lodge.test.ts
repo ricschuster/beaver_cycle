@@ -14,7 +14,8 @@ const shore: Terrain = {
   waterDepth: (_x, z) => Math.max(0, z * 0.5),
 };
 
-const build: Intent = { ...noIntent(), build: true };
+const build: Intent = { ...noIntent(), do: 'build' };
+const tapDive: Intent = { ...noIntent(), diveTap: true };
 const log = (id: string, length: number): Log => ({ id, x: 0, y: 0, z: -2, heading: 0, length, floating: false });
 
 /** A beaver on dry land at z = -1 facing the water, dragging a log of this length. */
@@ -167,15 +168,15 @@ describe('solid lodge', () => {
     expect(inside.inLodge).toBe(true);
   });
 
-  it('leaves only by the water hole: build at the hole dives out the entrance', () => {
+  it('leaves only by the water hole: Dive at the hole dives out the entrance', () => {
     const w = wholeLodge();
     const l = w.lodge!;
     const inside = step(w, { ...noIntent(), move: { x: -Math.sin(l.door), z: -Math.cos(l.door) }, dive: true }, 0.1, shore);
-    expect(step(inside, build, 0.1, shore).inLodge).toBe(true);
-    expect(step({ ...inside, beaver: { ...inside.beaver, x: l.x + 3, z: l.z + 3 } }, build, 0.1, shore).inLodge).toBe(true);
+    expect(step(inside, tapDive, 0.1, shore).inLodge).toBe(true);
+    expect(step({ ...inside, beaver: { ...inside.beaver, x: l.x + 3, z: l.z + 3 } }, tapDive, 0.1, shore).inLodge).toBe(true);
     const atPool = { ...inside, beaver: { ...inside.beaver, x: l.x + HOLE.x, z: l.z + HOLE.z - HOLE.radius - 0.5 } };
     expect(atHole(l, atPool.beaver.x, atPool.beaver.z)).toBe(true);
-    const out = step(atPool, build, 0.1, shore);
+    const out = step(atPool, tapDive, 0.1, shore);
     expect(out.inLodge).toBe(false);
     expect(Math.hypot(out.beaver.x - l.x, out.beaver.z - l.z)).toBeGreaterThan(SOLID_RADIUS);
     expect(out.beaver.mode).toBe('dive');

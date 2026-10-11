@@ -389,12 +389,3 @@ export function speakersOf(neighbours: readonly NeighbourLike[], parents: readon
     ...partners.filter((p) => p.state !== 'alone').map((p): Speaker => ({ id: p.id, name: nameOf(p.id), kind: 'partner', family: null, x: p.x, z: p.z, task: 'swim' })),
   ];
 }
-
-/**
- * True when the Build button has no other job where the player stands, so a press may start a talk: not the water hole of the lodge (it
- * leads out), not with a log or load in hand (it goes on the lodge or dam), not at the food store (the stash), and not at a dam spot.
- */
-export function buildIsFree(world: Pick<WorldState, 'inLodge' | 'drag' | 'haul' | 'lodge' | 'spots' | 'beaver' | 'stashOpen'>): boolean {
-  const b = world.beaver;
-  return !(world.inLodge && world.lodge && atHole(world.lodge, b.x, b.z)) && !world.drag && !world.haul && !world.stashOpen && !atStore(world.lodge, b.x, b.z) && !spotAt(world.spots, b.x, b.z);
-}

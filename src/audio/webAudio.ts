@@ -1,7 +1,8 @@
 // Sound in the browser through the Web Audio API (docs/design/32_sound.md). One AudioContext for the whole game. The browser
-// blocks it until the first touch or key, so it is made on `unlock`, called from such an event. The rushing water is made in
-// code from looped noise, so it needs no file and has no licence.
+// blocks it until the first touch or key, so it is made on `unlock`, called from such an event. The rushing water is made and
+// the other loops are made in code (synth.ts and looped noise), so they need no file and have no licence.
 
+import { SYNTH_RATE, birdsLoop, cricketsLoop, owlLoop } from './synth';
 import type { Layer, SoundOut } from './soundOut';
 
 type Ctx = AudioContext;
@@ -24,6 +25,16 @@ function noiseBuffer(ctx: Ctx): AudioBuffer {
     d[n - fade + i] = d[n - fade + i]! * (1 - t) + d[i]! * t;
   }
   return buf;
+}
+
+/** A looped buffer from samples. */
+function loopSource(ctx: Ctx, samples: Float32Array<ArrayBuffer>): AudioBufferSourceNode {
+  const buf = ctx.createBuffer(1, samples.length, SYNTH_RATE);
+  buf.copyToChannel(samples, 0);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  return src;
 }
 
 export function createWebAudio(): SoundOut {
@@ -64,6 +75,40 @@ export function createWebAudio(): SoundOut {
     src.start();
     wobble.start();
     layers.set('water', water);
+    // Wind: the same noise, duller, with a slow gust.
+    const wind = c.createGain();
+    wind.gain.value = 0;
+    const gust = c.createGain();
+    gust.gain.value = 0.6;
+    const gustLfo = c.createOscillator();
+    gustLfo.frequency.value = 0.08;
+    const gustDepth = c.createGain();
+    gustDepth.gain.value = 0.4;
+    gustLfo.connect(gustDepth).connect(gust.gain);
+    const windSrc = c.createBufferSource();
+    windSrc.buffer = src.buffer;
+    windSrc.loop = true;
+    const windLp = c.createBiquadFilter();
+    windLp.type = 'lowpass';
+    windLp.frequency.value = 450;
+    windSrc.connect(windLp).connect(gust).connect(wind).connect(effects);
+    windSrc.start();
+    gustLfo.start();
+    layers.set('wind', wind);
+    // Birds, crickets and an owl: loops of samples made in code.
+    const samples: [Layer, Float32Array<ArrayBuffer>][] = [
+      ['birds', birdsLoop()],
+      ['crickets', cricketsLoop()],
+      ['owl', owlLoop()],
+    ];
+    for (const [layer, data] of samples) {
+      const gain = c.createGain();
+      gain.gain.value = 0;
+      const loop = loopSource(c, data);
+      loop.connect(gain).connect(effects);
+      loop.start();
+      layers.set(layer, gain);
+    }
   };
 
   const apply = (): void => {

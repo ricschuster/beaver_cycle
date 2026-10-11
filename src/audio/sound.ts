@@ -1,7 +1,7 @@
 // The game's sound, put together (docs/design/32_sound.md): the settings, the layers, and a `SoundOut` to play them. The frame
 // loop calls `update` with what the beaver can hear. No DOM here except the events that unlock the sound.
 
-import { waterGain, effectsGain, musicGain, type Hearing } from './mix';
+import { waterGain, windGain, birdsGain, cricketsGain, owlGain, effectsGain, musicGain, type Hearing } from './mix';
 import { loadSound, saveSound, type SoundSettings } from './settings';
 import type { Layer, SoundOut } from './soundOut';
 
@@ -17,7 +17,9 @@ export interface Sound {
   update(h: Hearing): void;
 }
 
-export const LAYERS: readonly Layer[] = ['water'];
+export const LAYERS: readonly Layer[] = ['water', 'wind', 'birds', 'crickets', 'owl'];
+
+const GAINS: Record<Layer, (h: Hearing) => number> = { water: waterGain, wind: windGain, birds: birdsGain, crickets: cricketsGain, owl: owlGain };
 
 export function createSound(out: SoundOut, storage: Pick<Storage, 'getItem' | 'setItem'> | null): Sound {
   let s = loadSound(storage);
@@ -39,7 +41,7 @@ export function createSound(out: SoundOut, storage: Pick<Storage, 'getItem' | 's
     },
     layerOn: (layer) => on.get(layer) ?? false,
     update(h) {
-      out.setLayer('water', on.get('water') ? waterGain(h) : 0);
+      for (const layer of LAYERS) out.setLayer(layer, on.get(layer) ? GAINS[layer](h) : 0);
     },
   };
 }

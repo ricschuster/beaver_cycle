@@ -48,7 +48,9 @@ Pages are at `https://bigsoundbank.com/<name>-sNNNN.html`. Authors: Joseph SARDI
   birds waking 4 `-s1906`, forest 5 `-s3085`, field cricket `-s1020`, insect song `-s1052`, singing insect 1 `-s3089`,
   splash small 2, 4 and 5 `-s1530`, `-s1532`, `-s1533`, splash big 1 to 3 `-s1519` to `-s1521`, rowing slowly `-s1514`,
   shoes in the water `-s0690`, steps on the twigs `-s1301`, unloading logs `-s1441`, mouse screams `-s0459`,
-  applause about 25 50 people 1 `-s0812`, punch 4 to 6, 8 and 10 `-s2459` to `-s2461`, `-s2463`, `-s2465` (slap), feet in leaves 1 `-s0137` (pickup).
+  applause about 25 50 people 1 `-s0812`, punch 4 to 6, 8 and 10 `-s2459` to `-s2461`, `-s2463`, `-s2465` (slap), feet in leaves 1 `-s0137` (pickup),
+  chick 1 and 2 (stuffings) `-s0430`, `-s0431`, chick that chirp `-s0672`, baby birds in a nest 1 and 2 `-s1907`, `-s1908`,
+  mewing kitten 2 months `-s0372` (chirp), cockatiel parakeet 1 to 8 `-s2769` to `-s2776` (babble).
 
 ## CC0 from Freesound
 

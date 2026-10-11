@@ -261,10 +261,14 @@ describe('a kit is born', () => {
     expect(w.partners).toEqual([]);
   });
 
-  it('happens in the step on that day', () => {
+  it('happens on that day, one step after the Kits achievement is won', () => {
     let w = { ...grown(), clock: nextSpringStart(100) - 0.5 };
     w = step(w, noIntent(), 1, flatTerrain(0));
+    expect(w.achievements).toContain('kits');
+    expect(w.generation).toBe(0);
+    w = step(w, noIntent(), 1, flatTerrain(0));
     expect(w.generation).toBe(1);
+    expect(w.achievements).toEqual([]);
     expect(stageAt(w.clock, w.bornAt)).toBe('baby');
   });
 });

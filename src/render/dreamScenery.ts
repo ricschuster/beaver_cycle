@@ -22,7 +22,7 @@ const CREAM = new THREE.Color(0xfff6e6);
 const FLAVOURS = [0xf9bcd0, 0xfff0cf, 0xc7f1de, 0xc9ddf8, 0xe0d0f6].map((c) => new THREE.Color(c));
 
 /** How far a prop darkens the ground around it, by kind at size 1 (a soft round shadow baked in the colours). */
-const SHADE_RADIUS: Record<DreamProp['kind'], number> = { lollipop: 1.1, gumdrop: 1.4, candyCane: 0.5, cupcake: 1.9, iceCream: 0.8, marshmallowRock: 1.3 };
+const SHADE_RADIUS: Record<DreamProp['kind'], number> = { lollipop: 1.1, gumdrop: 1.4, candyCane: 0.5, cupcake: 1.9, iceCream: 0.8, marshmallowRock: 1.3, cottonCandy: 1.3 };
 
 /**
  * The colour of the ground at a point: a meadow of soft mint, pink and lemon patches, caramel where it dips to the

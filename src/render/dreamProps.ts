@@ -1,5 +1,5 @@
-// The candy shapes of the dream (docs/design/29_dream_candy_land.md): lollipop trees, gumdrop bushes, candy canes,
-// cupcakes, ice cream cones, marshmallow rocks, the peppermint stepping stones of the path, and the sweets. Every shape
+// The candy shapes of the dream (docs/design/29_dream_candy_land.md): lollipop trees, cotton candy trees, gumdrop bushes,
+// candy canes, cupcakes, ice cream cones, marshmallow rocks, the peppermint stepping stones of the path, and the sweets. Every shape
 // is non indexed with a colour per vertex and smooth normals, so the props of a patch of land merge into one mesh with
 // one material, and stripes stay crisp because each face has one colour. Built at size 1, standing on the origin and
 // facing +z, from a seeded draw so a prop looks the same every time it is rebuilt.
@@ -131,6 +131,31 @@ function lollipop(colour: number, random: () => number): THREE.BufferGeometry {
   const bow = candy(colour + 3, 0.3);
   const knots = [-1, 1].map((s) => put(plainPaint(new THREE.ConeGeometry(0.09, 0.2, 8), bow), s * 0.1, 1.93, 0.02, 0, 0, (s * Math.PI) / 2));
   return merge([stick, swirl, ...knots]);
+}
+
+/** Cotton candy comes in pink, sky blue, and lilac. */
+const COTTON = [0xffb6dc, 0xaedcff, 0xd9bcff].map((hex) => new THREE.Color(hex));
+
+/** A cotton candy tree: a paper stick and a big soft cloud of spun sugar on top, a heap of puffs in two colours. About 3.4 m high. */
+function cottonCandy(colour: number, random: () => number): THREE.BufferGeometry {
+  const paper = new THREE.Color(0xf6efe2);
+  const stick = put(plainPaint(new THREE.CylinderGeometry(0.06, 0.08, 2.3, 8, 1, true), paper), 0, 1.15, 0);
+  const main = COTTON[((colour % 3) + 3) % 3]!;
+  const swirl = COTTON[(((colour + 1) % 3) + 3) % 3]!;
+  // Fluffy: each face a touch lighter or darker, so the cloud looks spun and not smooth.
+  const fluff = (base: THREE.Color): THREE.BufferGeometry =>
+    paint(new THREE.SphereGeometry(1, 10, 7), () => base.clone().lerp(WHITE, 0.08 + random() * 0.25));
+  const parts = [stick, put(fluff(main), 0, 2.72, 0, 0, 0, 0, 0.88, 0.7, 0.88)];
+  const puffs = 7;
+  for (let i = 0; i < puffs; i++) {
+    const a = (i / puffs) * Math.PI * 2 + random() * 0.5;
+    const up = 2.55 + random() * 0.55;
+    const out = 0.6 + random() * 0.2;
+    const r = 0.36 + random() * 0.14;
+    parts.push(put(fluff(i % 3 === 1 ? swirl : main), Math.cos(a) * out, up, Math.sin(a) * out, 0, 0, 0, r, r * 0.9, r));
+  }
+  parts.push(put(fluff(swirl), 0.05, 3.12, -0.03, 0, 0, 0, 0.3, 0.26, 0.3));
+  return merge(parts);
 }
 
 /** A sugared dome. */
@@ -309,6 +334,7 @@ const SHAPES: Record<PropKind, (colour: number, random: () => number) => THREE.B
   cupcake,
   iceCream,
   marshmallowRock,
+  cottonCandy,
 };
 
 /** The shape of one prop at size 1, standing on the origin and facing +z, the same every time for the same prop. */

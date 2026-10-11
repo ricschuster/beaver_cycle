@@ -432,7 +432,7 @@ async function start(): Promise<void> {
     touch: wantsTouchControls(navigator, query),
     onWake: () => sleepPrompt.wakeFromDream(),
   });
-  const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation): void => dreamScreen.start(seed, world.coat);
+  const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation): void => dreamScreen.start(seed);
   let fps = 60;
   let lastReadout = 0;
   let animalsAt = 0;

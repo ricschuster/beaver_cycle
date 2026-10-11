@@ -37,8 +37,8 @@ export interface FoodInfo {
   store: { total: number; capacity: number; meals: number } | null;
   /** The dam spot within reach: how far the dam is and what it still needs. `level` is the one it is built to, and `raise` is true for a whole dam that can be raised to it, `top` is true for a whole dam at the biggest level the spot holds, so `wood`, `mud`, and `rock` are what the raise needs. */
   dam: { percent: number; wood: number; mud: number; rock: number; whole: boolean; canAdd: boolean; level: number; raise: boolean; top: boolean } | null;
-  /** The lodge or store within reach that needs repair: its condition in percent and the wood units still needed. */
-  repair: { what: 'lodge' | 'store' | 'dam'; percent: number; wood: number; broken: boolean } | null;
+  /** The lodge or store within reach that needs repair: its condition in percent and the wood units still needed. `also` is the other of the two when it is in reach and needs wood too (a log goes to the worse one first). */
+  repair: { what: 'lodge' | 'store' | 'dam'; percent: number; wood: number; broken: boolean; also?: 'lodge' | 'store' } | null;
   hint: 'pick' | 'strip' | 'branch' | 'lily' | 'rock' | 'mud' | 'store' | 'eat' | null;
 }
 
@@ -62,6 +62,9 @@ export function formatDam(d: NonNullable<FoodInfo['dam']>): string {
   return `dam${d.level > 1 ? ` level ${d.level}` : ''} ${d.percent}%, needs ${list}${add}`;
 }
 
+/** ", the lodge needs wood too" when the other of the lodge and the store in reach needs wood as well, else empty. */
+const alsoText = (r: FoodInfo['repair']): string => (r?.also ? `, the ${r.also} needs wood too` : '');
+
 /** "store worn 25%, needs 6 wood (a long log is 2)", or "broken" for a piece that has to be rebuilt. */
 export function formatRepair(r: NonNullable<FoodInfo['repair']>): string {
   // A dam takes wood, mud, and rocks alike. A broken one is built again, which the dam line says.
@@ -78,13 +81,13 @@ export function formatFood(food: FoodInfo | null): string {
   if (food.haul) parts.push(food.haul === 'mud' ? 'carrying mud, press Drop to put it down' : 'carrying a rock, press Drop to put it down');
   if (food.store) parts.push(`store ${food.store.total} of ${food.store.capacity}, ${food.store.meals} ${food.store.meals === 1 ? 'meal' : 'meals'}`);
   // A worn dam is whole, so its repair line says it all. A broken one shows both: that it broke and what it needs again.
-  if (food.repair) parts.push(formatRepair(food.repair));
+  if (food.repair) parts.push(formatRepair(food.repair) + alsoText(food.repair));
   if (food.dam && !(food.repair?.what === 'dam' && !food.repair.broken)) parts.push(formatDam(food.dam));
   if (food.hint) parts.push(HINT_TEXT[food.hint]);
   return parts.length ? `, ${parts.join(', ')}` : '';
 }
 
-/** The worse of the lodge and the store that is in reach and needs repair, or null. */
+/** The worse of the lodge and the store that is in reach and needs repair, with the other one as `also` when it needs wood too, or null. */
 function repairInfoOf(world: WorldState): FoodInfo['repair'] {
   const { lodge, beaver: b } = world;
   if (!lodgeComplete(lodge)) return null;
@@ -93,8 +96,9 @@ function repairInfoOf(world: WorldState): FoodInfo['repair'] {
   const lodgeNeeds = nearLodge(lodge, b.x, b.z) && needsRepair(lodgeLevel);
   const storeNeeds = atStore(lodge, b.x, b.z) && needsRepair(storeLevel);
   const info = (what: 'lodge' | 'store', level: number, wood: number): NonNullable<FoodInfo['repair']> => ({ what, percent: Math.round(level * 100), wood, broken: stageOf(level) === 'broken' });
-  if (lodgeNeeds && (!storeNeeds || lodgeLevel <= storeLevel)) return info('lodge', lodgeLevel, woodToMend(lodge.wear, world.clock, LODGE_WORN_DAYS, LODGE_WOOD));
-  if (storeNeeds) return info('store', storeLevel, woodToMend(world.storeWear, world.clock, STORE_WORN_DAYS, STORE_REBUILD_WOOD));
+  const both = lodgeNeeds && storeNeeds;
+  if (lodgeNeeds && (!storeNeeds || lodgeLevel <= storeLevel)) return { ...info('lodge', lodgeLevel, woodToMend(lodge.wear, world.clock, LODGE_WORN_DAYS, LODGE_WOOD)), ...(both ? { also: 'store' as const } : {}) };
+  if (storeNeeds) return { ...info('store', storeLevel, woodToMend(world.storeWear, world.clock, STORE_WORN_DAYS, STORE_REBUILD_WOOD)), ...(both ? { also: 'lodge' as const } : {}) };
   return null;
 }
 
@@ -145,7 +149,7 @@ export function formatCarry(felled: number, dragging: boolean, gnaw: number | nu
   if (spot) return SPOT_TEXT[spot] + formatFood(food);
   const lodgeText = lodge === null ? '' : lodge >= 1 ? ', lodge done' : `, lodge ${Math.floor(lodge * 100)}%`;
   const base = `${wood ? `${felled} ${felled === 1 ? 'tree' : 'trees'} felled, wood achievement` : `${felled} of ${WOOD_TREES} trees felled`}${lodgeText}`;
-  if (dragging) return (site ? `${base}, dragging a log, ${SITE_TEXT[site]}` : `${base}, dragging a log`) + (food?.repair ? `, ${formatRepair(food.repair)}, press Mend to add it` : '') + (food?.dam && !(food.repair?.what === 'dam' && !food.repair.broken) ? `, ${formatDam(food.dam)}` : '');
+  if (dragging) return (site ? `${base}, dragging a log, ${SITE_TEXT[site]}` : `${base}, dragging a log`) + (food?.repair ? `, ${formatRepair(food.repair)}, press Mend to add it${alsoText(food.repair)}` : '') + (food?.dam && !(food.repair?.what === 'dam' && !food.repair.broken) ? `, ${formatDam(food.dam)}` : '');
   return (gnaw === null ? base : `${base}, gnawing ${Math.floor(Math.min(1, gnaw) * 100)}%`) + formatFood(food);
 }
 

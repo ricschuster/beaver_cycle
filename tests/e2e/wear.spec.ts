@@ -185,7 +185,7 @@ test.describe('dams', () => {
     // Back to the spot the dam stands at.
     const spot = (await world(page)).spots.find((s: any) => s.id === before.dam.spot);
     await walkToPoint(page, spot.bed, 2, 60_000);
-    expect(await hudText(page)).toContain('press Build to add it');
+    expect(await hudText(page)).toContain('press Mend to add it');
     await tap(page, 'KeyE');
     await page.waitForFunction((i) => !(window as any).__game.world().logs.some((l: any) => l.id === i), id, { polling: 100, timeout: 5000 });
     const w = await world(page);

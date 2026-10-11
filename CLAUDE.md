@@ -83,6 +83,7 @@ Everyday (gate means CI blocks a merge on it):
 - `npm run dev`, then open `/tools/prop-preview/` - the props (lodge, dam, logs, rocks, food store, lily pads) side by side with their meshes and
   triangles; `node tools/prop-preview/shoot.mjs out.png` screenshots it from a Vite server on port 5202 (`npx vite --port 5202 --strictPort`)
 - `npm run dev`, then open `/tools/sound-preview/` - every sound of the game to play and rate (ok, thin, harsh, wrong), with its measurements; `SOUND_REPORT=dir npx vitest run src/audio/analyze.test.ts` writes a WAV of each sound and a table
+- `npm run dev`, then open `/tools/sound-preview2/` - only the newest sound candidates (`round: 3` in `public/audio-candidates/index.json`), rated apart from the full page
 - `npm run dev`, then open `/tools/dream-preview/` - the candy land dream scene alone (query `?seed=N&t=2&tag=1&giggle=1`); in the
   game `?dream=1&seed=N` opens a dream at once, and the test menu has Dream now
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene

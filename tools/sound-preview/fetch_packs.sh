@@ -17,3 +17,17 @@ for p in $BSB; do curl -sL -m 120 "https://bigsoundbank.com/UPLOAD/ogg/${p##*-s}
 # Round 2 (stage_gaps.py): more BigSoundBank recordings for the effects round 1 left without a good clip.
 GAP_BSB="splash-small-1-s1529 splash-small-2-s1530 splash-small-3-s1531 splash-small-4-s1532 splash-small-5-s1533 splash-small-6-s1534 splash-big-1-s1519 splash-big-2-s1520 splash-big-3-s1521 rowing-slowly-s1514 rowing-quickly-s1513 shoes-in-the-water-s0690 water-bubble-2-s0183 chainsaw-and-falling-tree-s2750 broken-twigs-1-s1299 broken-twigs-2-s1300 unloading-logs-s1441 steps-on-the-twigs-s1301 mouse-screams-s0459 chick-that-chirp-s0672 applause-about-25-50-people-1-s0812 shouts-and-applauses-of-teens-1-s0236 shouts-and-applauses-of-teens-2-s0237 laughter-of-children-s1660 parisian-park-children-games-s1082"
 for p in $GAP_BSB; do curl -sL -m 120 "https://bigsoundbank.com/UPLOAD/ogg/${p##*-s}.ogg" -o "$D/bsb/$p.ogg"; done
+# Round 3 (stage_gaps.py): pickup (suction), land slap (punch thuds) and fall gaps. Also by hand: PACKS/user/tree-falling-user.wav (the author's file),
+# PACKS/oga/tree_falling.flac (Yo Frankie!, CC-BY 3.0), tree_creak.ogg (CC0, node 132362) and wood100/ (100-CC0-wood-metal-SFX.zip, CC0).
+GAP3_BSB="punch-s2459 punch-s2460 punch-s2461 punch-s2463 punch-s2465 pop-s648 pop-s211 pop-s462 pop-s1074 pop-s137"
+for p in $GAP3_BSB; do curl -sL -m 120 "https://bigsoundbank.com/UPLOAD/ogg/${p##*-s}.ogg" -o "$D/bsb/$p.ogg"; done
+mkdir -p "$D/oga"
+curl -sL -m 120 -o "$D/oga/tree_falling.flac" https://opengameart.org/sites/default/files/tree_falling.flac
+curl -sL -m 120 -o "$D/oga/tree_creak.ogg" https://opengameart.org/sites/default/files/tree_creak.ogg
+curl -sL -m 300 -o "$D/oga/wood100.zip" https://opengameart.org/sites/default/files/100-CC0-wood-metal-SFX.zip && unzip -qo "$D/oga/wood100.zip" -d "$D/oga/wood100"
+# Freesound CC0 tree falls (the -hq.mp3 preview URL is on each page; the page shows CC0): people/Kinoton/sounds/494071, people/matt_beer/sounds/515313, people/ecfike/sounds/139952.
+mkdir -p "$D/fs"
+for pair in Kinoton/494071 matt_beer/515313 ecfike/139952; do
+  id=${pair##*/}; curl -sL -m 30 -A "Mozilla/5.0" "https://freesound.org/people/${pair%/*}/sounds/$id/" -o "$D/fs/$id.html"
+  curl -sL -m 60 -o "$D/fs/fs-$id.mp3" "$(grep -o 'https://cdn.freesound.org/previews/[^"]*-hq\.mp3' "$D/fs/$id.html" | head -1)"
+done

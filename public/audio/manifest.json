@@ -18,6 +18,17 @@
    "eat-4-crunch.6.ogg",
    "eat-8-apple_bite_0.ogg"
   ],
+  "fall": [
+   "fall-15-tree_falling.ogg",
+   "fall-16-tree_falling.ogg",
+   "fall-17-tree_falling.ogg",
+   "fall-18-tree_creak.ogg",
+   "fall-19-tree_creak.ogg",
+   "fall-24-fs-494071.ogg",
+   "fall-25-fs-515313.ogg",
+   "fall-26-fs-515313.ogg",
+   "fall-27-fs-139952.ogg"
+  ],
   "giggle": [
    "giggle-2-cute_01.ogg",
    "giggle-3-cute_05.ogg",
@@ -55,6 +66,12 @@
    "mud-7-slime_01.ogg"
   ],
   "pickup": [
+   "pickup-14-pop-s137.ogg",
+   "pickup-15-pop-s137.ogg",
+   "pickup-16-pop-s137.ogg",
+   "pickup-20-steps-on-the-twigs-s1301.ogg",
+   "pickup-21-steps-on-the-twigs-s1301.ogg",
+   "pickup-22-steps-on-the-twigs-s1301.ogg",
    "pickup-5-bfh1_misc_05.ogg"
   ],
   "quack": [
@@ -82,8 +99,13 @@
    "setdown-9-unloading-logs-s1441.ogg"
   ],
   "slap": [
+   "slap-10-punch-s2463.ogg",
+   "slap-11-punch-s2465.ogg",
    "slap-3-thwack-07.ogg",
-   "slap-4-thwack-09.ogg"
+   "slap-4-thwack-09.ogg",
+   "slap-7-punch-s2459.ogg",
+   "slap-8-punch-s2460.ogg",
+   "slap-9-punch-s2461.ogg"
   ],
   "slapwater": [
    "slapwater-10-splash-small-4-s1532.ogg",

@@ -120,6 +120,7 @@ export function effectSamples(effect: Effect, rate = SYNTH_RATE, talk?: Cue['voi
       noise(out, rand, 0.05, 0.3, 0.4, 0.8, rate);
       break;
     case 'slap':
+    case 'slapwater':
       // The flat of the tail on the water: a sharp crack and a low pop.
       noise(out, rand, 0, 0.12, 1, 0.7, rate);
       thump(out, 0, 0.25, 0.7, 150, 70, rate);

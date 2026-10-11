@@ -176,6 +176,66 @@ for (const e of effects) {
   }
 }
 
+// Candidate recordings: for each effect the synth sound first, then the staged CC0 files, to compare by ear (stage_candidates.py).
+interface Cand { file: string; source: string; loop?: boolean }
+async function candidates(): Promise<void> {
+  let index: Record<string, Cand[]>;
+  try {
+    const r = await fetch(`${import.meta.env.BASE_URL}audio-candidates/index.json`);
+    if (!r.ok) return;
+    index = (await r.json()) as Record<string, Cand[]>;
+  } catch {
+    return;
+  }
+  document.getElementById('candnote')!.textContent = 'Each group starts with the current synth sound. Rate the recordings the same way.';
+  const t = document.getElementById('cands')!;
+  for (const [effect, list] of Object.entries(index)) {
+    const head = el('tr');
+    const h = el('td', effect);
+    h.colSpan = 5;
+    h.style.cssText = 'color:#9cd;padding-top:14px';
+    head.append(h);
+    t.append(head);
+    const synth = el('tr');
+    const sb = el('button', `${effect.replace('layer:', '')} (synth)`);
+    const isLayer = effect.startsWith('layer:');
+    sb.onclick = () => {
+      unlock();
+      if (!isLayer) {
+        out.play(effect as Effect, gain);
+        return;
+      }
+      const layer = effect.slice(6) as Layer;
+      if (layerOn.has(layer)) layerOn.delete(layer);
+      else layerOn.add(layer);
+      for (const p of paintLayers) p();
+      sb.classList.toggle('on', layerOn.has(layer));
+    };
+    synth.append(el('td').appendChild(sb).parentElement!, el('td', 'current'), el('td'), el('td'), el('td'));
+    t.append(synth);
+    for (const c of list) {
+      const tr = el('tr');
+      const b = el('button', c.file.replace(/\.ogg$/, ''));
+      const audio = new Audio(`${import.meta.env.BASE_URL}audio-candidates/${c.file}`);
+      audio.loop = c.loop === true;
+      b.onclick = () => {
+        audio.volume = Math.min(1, gain * volume * 1.2);
+        if (audio.loop && !audio.paused) {
+          audio.pause();
+          b.classList.remove('on');
+          return;
+        }
+        audio.currentTime = 0;
+        void audio.play();
+        b.classList.toggle('on', audio.loop);
+      };
+      tr.append(el('td').appendChild(b).parentElement!, el('td', c.source, 'num'), ...rateCells(`cand:${c.file}`));
+      t.append(tr);
+    }
+  }
+}
+void candidates();
+
 // Export: the ratings as markdown, worst first, so the next session can start from them.
 const area = document.getElementById('out') as HTMLTextAreaElement;
 const order = (r?: Rating): number => (r ? RATINGS.indexOf(r) + 1 : 0);

@@ -48,3 +48,6 @@ tools/standalone-apk/android/
 
 # LibreOffice lock files
 .~lock.*#
+
+# Candidate recordings for the sound preview (CC0, not yet chosen)
+public/audio-candidates/

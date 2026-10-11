@@ -13,7 +13,9 @@ For every stream point (every STEP metres along the OSM lines, not in a lake):
      until the ground reaches the crest. That is the dam, and its length is the two walks added.
      Longer than MAX_DAM means the valley is too wide for that crest.
   3. Flood the ground below the crest upstream of the dam line. That is the pond. A pond over
-     MAX_POND or one that touches the edge of the window spills, and the site is dropped.
+     MAX_POND or one that comes closer than EDGE cells to the edge of the window spills, and the site is
+     dropped. The margin is there because the game floods its own window (src/sim/pond.ts) on heights
+     sampled a little differently, and a pond that only just fits here can spill there.
   4. Keep the sites whose pond is at least MIN_POND.
   5. Line gate: the pond must lie on the drawn stream. At least MIN_NEAR_SHARE of its cells are within
      LINE_NEAR metres of an OSM stream line, and at least MIN_LINE_IN_POND of the line points upstream
@@ -46,6 +48,7 @@ CRESTS = (1.0, 1.5, 2.0)  # dam crest above the bed, metres
 MAX_DAM = 40.0  # longest dam, metres
 MIN_POND = 200.0  # smallest pond worth a lodge, square metres
 MAX_POND = 12000.0  # a pond over this spills into the valley, square metres
+EDGE = 2  # a pond closer than this many cells to the window edge counts as spilling, so the game's own fill keeps it
 SPACING = 45.0  # metres between kept sites
 LEVEL1_CREST = 1.0  # the crest of the first dam, as in src/sim/damSpots.ts LEVEL_CREST[0]
 LINE_NEAR = 5.0  # a pond cell this close to an OSM stream line counts as on the stream, metres
@@ -213,7 +216,7 @@ def evaluate(H, x0, z0, bed_xy, flow_dir, crest_h, lines=None):
         i, j = queue.popleft()
         cells.append((i, j))
         depth = max(depth, level - H[i, j])
-        if len(cells) > limit or i in (0, n - 1) or j in (0, n - 1):
+        if len(cells) > limit or min(i, j, n - 1 - i, n - 1 - j) < EDGE:
             return None  # spills
         for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             a, b = i + di, j + dj

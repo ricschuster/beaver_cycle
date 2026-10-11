@@ -1,11 +1,11 @@
 # Achievements
 
-The achievements: the first ten, and three for the family. The goal of the game is to finish every task and win every achievement (Q38), and after that
+The achievements: the first ten, three for the family (Q38), and three more of the family list in #220. The goal of the game is to finish every task and win every achievement (Q38), and after that
 play goes on, with each baby starting its own journey (Q40). So an achievement is never lost, and none can be missed for
 good: each one can be won at any time by playing on. Nothing here has a timer, a fail state, or a rival.
 
 The wood achievement (30 trees, Q39) and the three family ones (a mate, kits, the guides, Q38) are the author's. The other
-nine are proposals for the author to keep, change, or drop.
+nine, and the three family ones of #220, are proposals for the author to keep, change, or drop.
 
 ## Rules for all of them
 
@@ -58,6 +58,42 @@ game (`23_leaving_and_next_baby.md`, `27_families_and_dialog.md`).
   same reading the talk uses for "You dug me out"). A rescue by an earlier life does not count. Old saves need no change:
   the rule reads `rescued` and `partners`, which saves already keep.
 
+## Three more of the family (#220)
+
+The issue's family list was "a mate, kits, raise a kit to a teenager, meet a teenager who left, welcome a visitor who noticed
+a scent mound, hand a dam or lodge down". Mate and Kits are above. These three read what the game already keeps, with no new
+saved state, so old saves need no change (`met`, `formerHomes`, `parentCoats`, `dams` and `journey` are all saved).
+
+| Id | Name | Won when | Counted from | New state |
+| --- | --- | --- | --- | --- |
+| `grownUp` | Growing up | A life that began as a baby is a teenager | `stageAt(journey.start, bornAt)` and `stageAt(clock, bornAt)` | none |
+| `visitHome` | Visit home | After leaving home, a talk with Mama or Papa at the home this life grew up in | `met`, `formerHomes`, `parentCoats` (`visitedHome`) | none |
+| `handDown` | Hand down | A kit is due while a dam this life built stands whole (or is being raised) | `kitDue`, `dams`, `journey.inherited` | none |
+
+- **Growing up** is the reading of "raise a kit to a teenager". The player plays the kit (note 23), and Mama and Papa raise
+  it, so the kit that grows up is the player's own life: it began as a baby (born as a kit, `?stage=baby`, or New baby) and
+  has reached the teenager stage. The first life of a game that starts as an adult never wins it, and nor does one moved on
+  by the test menu's stage buttons from the start. A sleep until teenager wins it like playing the year does.
+- **Visit home** is the reading of "meet a teenager who left" (Q60: a teenager who left can be met again, with Mama and Papa
+  in another part of the pond). The player is the teenager who left, so the meeting is the player swimming back and talking
+  to Mama or Papa at its old lodge (`formerParentsAt`). Their ids carry the place of that lodge (`formerParentIds`), so a talk
+  while still at home does not count. The home is the former home whose parents are this life's parents, so a kit that
+  talks to its grandparents at an older home does not win it; it wins it at its own old home once it has left. `met` starts
+  again with each life, so it is won again by each life that visits.
+- **Hand down** is the reading of "hand a dam or lodge down". The lodge always goes to the kit (a kit is only born in a
+  whole lodge, which the life built after leaving home), so the lodge alone would be Kits again. The dam is what makes it
+  its own: when the kit is due, a dam this life built stands whole, or is being raised a level (a dam is raised only when
+  whole). A dam an earlier life left does not count (`journey.inherited`). The kit then has the lodge and the dam as
+  inherited. Like Kits, the birth waits one step when anything was won in that step (`step.ts`), so its toast shows. It
+  is a moment, not a count: a life whose kit comes while it has no whole dam of its own does not win it, and its kit can.
+
+Not built, since the game has nothing to see it by:
+
+- **Welcome a visitor who noticed a scent mound.** There are no scent mounds and no visitors. The author's answer (Q30, Q62)
+  is that a visitor notices the scent mounds and then a new beaver lives nearby, but the beaver cannot make a scent mound,
+  no beaver ever comes to the player's pond (note 28 leaves "should neighbours ever visit" open for the author), and no new
+  family ever moves in. It waits for scent mounds and visitors to be designed and built.
+
 ## Notes on each
 
 - **Home** is the lodge toast in every game that starts with a whole test lodge (`?lodge=0` leaves it out). It is won on
@@ -94,6 +130,9 @@ Short, in the game's plain voice, no em dashes:
 - Mate: "Mate achievement: a partner lives in your lodge"
 - Kits: "Kits achievement: a kit of your own"
 - Guide: "Guide achievement: a beaver you dug out shows the way"
+- Growing up: "Growing up achievement: from baby to teenager"
+- Visit home: "Visit home achievement: you met your family again"
+- Hand down: "Hand down achievement: your kit gets your lodge and dam"
 
 ## What the HUD shows
 
@@ -111,6 +150,8 @@ The author agreed on the list, and on these three points:
   hauler. A proper screen waits for the art pass (#105).
 - **The family and guide achievements** (Q38) are built: Mate, Kits, and Guide, above. Which moment each one is won at
   (a partner moved in, the kit due, a rescue) is a first reading for the author to keep or change.
+- **Three more of the family** (#220) are built: Growing up, Visit home, and Hand down, above, as first readings too. The
+  visitor and the scent mound is not built.
 
 Built in `src/sim/achievements.ts`: one rule per achievement, checked each step by `tally`. Counters in `WorldState`:
 `padsPicked`, `mended`, `hauled`. `DamSpot.found` marks a spot a pond found. A piece counts as mended when it was worn

@@ -1,19 +1,22 @@
 // Achievements (Q38 to Q40, design note 21). Each is a rule over the world, checked every step. Plain data, so a save keeps
 // what is won. A win stays won. Counters that need an event (pads picked, pieces mended, loads hauled) are kept in the world.
 // Each life has its own journey (Q40): `newLife` starts the list and the counters again, and what earlier lives built does not count.
-// The family ones (a mate, kits, a guide) are the author's own list (Q38).
+// The family ones (a mate, kits, a guide) are the author's own list (Q38). Growing up, Visit home and Hand down are three more of
+// the family list in #220 that the game can see.
 import { STORE_CAPACITY, stockTotal, storeCondition } from './food';
 import { damCondition, damWhole, levelOf, type Dam } from './dam';
 import { maxLevel } from './damSpots';
 import { lodgeComplete, lodgeCondition } from './lodge';
+import { formerParentIds, type Coat } from './family';
+import { stageAt } from './life';
 import { DAY_SECONDS, DAYS_PER_YEAR, dateAt } from './clock';
 import { mateOf } from './partners';
 import { kitDue, type WorldState } from './state';
 
-export type AchievementId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide';
+export type AchievementId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide' | 'grownUp' | 'visitHome' | 'handDown';
 
 /** The order they are listed and shown in. */
-export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide'];
+export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide', 'grownUp', 'visitHome', 'handDown'];
 
 /** Trees to fell for the wood achievement (Q39). */
 export const WOOD_TREES = 30;
@@ -24,7 +27,7 @@ export const HAULER_LOADS = 30;
 /** Pieces mended back to new for the handy beaver. */
 export const HANDY_MENDS = 1;
 
-type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey' | 'partners' | 'bornAt' | 'rescued'>;
+type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey' | 'partners' | 'bornAt' | 'rescued' | 'formerHomes' | 'parentCoats' | 'met'>;
 
 /** Trees felled in this life. */
 export const treesThisLife = (w: Pick<WorldState, 'felled' | 'journey'>): number => w.felled.length - w.journey.felled;
@@ -39,6 +42,15 @@ export const rescuesThisLife = (w: Pick<WorldState, 'rescued' | 'journey'>): num
 };
 
 const mine = (w: Facts, id: string): boolean => !w.journey.inherited.includes(id);
+
+const sameCoat = (a: Coat, b: Coat): boolean => a.coat === b.coat && a.shade === b.shade;
+
+/**
+ * This life talked to Mama or Papa at the home it grew up in, after it left (Q60). That home is the former home whose parents
+ * are this life's parents; its parents have their own ids (`formerParentIds`), so a talk while still at home does not count.
+ */
+export const visitedHome = (w: Pick<WorldState, 'formerHomes' | 'parentCoats' | 'met'>): boolean =>
+  w.formerHomes.some((h) => sameCoat(h.parents[0], w.parentCoats[0]) && sameCoat(h.parents[1], w.parentCoats[1]) && formerParentIds(h).some((id) => w.met[id] !== undefined));
 
 const RULES: Record<AchievementId, (w: Facts) => boolean> = {
   wood: (w) => treesThisLife(w) >= WOOD_TREES,
@@ -60,6 +72,11 @@ const RULES: Record<AchievementId, (w: Facts) => boolean> = {
   // The kit is due: the step that wins this holds the birth one step (`step.ts`), so the toast shows before the kit's own list starts.
   kits: (w) => kitDue(w),
   guide: (w) => rescuesThisLife(w) >= 1,
+  // This life began as a baby and is a teenager now (or grown).
+  grownUp: (w) => stageAt(w.journey.start, w.bornAt) === 'baby' && stageAt(w.clock, w.bornAt) !== 'baby',
+  visitHome: (w) => visitedHome(w),
+  // The kit is due, so the kit gets the lodge, and a dam this life built stands (whole, or raised, which needs it whole first).
+  handDown: (w) => kitDue(w) && w.dams.some((d) => mine(w, `dam:${d.spot}`) && (damWhole(d) || levelOf(d) > 1)),
 };
 
 /** The achievements the world has now won that it did not have yet, in the order to show them. */
@@ -110,6 +127,9 @@ export const ACHIEVEMENT_TEXT: Record<AchievementId, string> = {
   mate: 'Mate achievement: a partner lives in your lodge',
   kits: 'Kits achievement: a kit of your own',
   guide: 'Guide achievement: a beaver you dug out shows the way',
+  grownUp: 'Growing up achievement: from baby to teenager',
+  visitHome: 'Visit home achievement: you met your family again',
+  handDown: 'Hand down achievement: your kit gets your lodge and dam',
 };
 
 /** The names for the list in the test menu. */
@@ -127,6 +147,9 @@ export const ACHIEVEMENT_NAME: Record<AchievementId, string> = {
   mate: 'Mate',
   kits: 'Kits',
   guide: 'Guide',
+  grownUp: 'Growing up',
+  visitHome: 'Visit home',
+  handDown: 'Hand down',
 };
 
 /** The list for the test menu: one line per achievement, with a mark for won and the count where there is one. */

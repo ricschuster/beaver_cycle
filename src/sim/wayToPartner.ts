@@ -33,6 +33,11 @@ export function farWord(d: number): 'close by' | 'a little swim away' | 'a long 
   return d <= LITTLE_SWIM ? 'a little swim away' : 'a long way off';
 }
 
+/** Where a point lies from where the player looks, in kid words: "to your left, close by". Used by the partner's remarks and the coach. */
+export function placeWords(dx: number, dz: number, facing: number): string {
+  return `${sideWord(dx, dz, facing)}, ${farWord(Math.hypot(dx, dz))}`;
+}
+
 /** Up or down the hill, or null when the two are about as high. */
 export function hillWord(fromY: number, toY: number): 'up the hill' | 'down the hill' | null {
   if (toY - fromY >= HILL) return 'up the hill';

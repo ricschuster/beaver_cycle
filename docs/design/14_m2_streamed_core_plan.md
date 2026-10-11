@@ -400,6 +400,25 @@ in the game's own code, not the GPU. Frames over 35 ms: 11 at the start.
   8 tiles, not for each tile that arrives, and the ground colour table is built once. Allocation fell to 0.48 GB, frames
   over 35 ms to 0 or 1, and the frame count in 12 s rose from about 710 to 910.
 
+### Triangles after the art pass (2026-10-11, #105)
+
+Read from `__game.stats()` in a desktop browser (software drawing, so it says nothing about frame time), 5 s after a jump
+to each location with the test menu, in summer and in winter (day 4, the full look). The count includes the far backdrop,
+the trees with their snow, and the shrubs. The beaver adds about 8,800 and the lodge and dam a few thousand.
+
+| Location | Summer | Winter | Shrubs |
+| --- | --- | --- | --- |
+| core | 1.50 M | 1.62 M | 35k |
+| north | 1.65 M | 1.75 M | 35k |
+| south | 1.45 M | 1.61 M | 69k |
+| east-oedseen | 1.66 M | 1.78 M | 116k |
+| vorderer-springbach | 1.65 M | 1.82 M | 0 |
+| hinterer-springbach | 1.77 M | 1.91 M | 1k |
+
+The busiest view is 1.91 M, under the 2.5 M budget with room for the lodge and animals. Shrubs cost at most 116k. Winter
+is about 0.1 to 0.17 M more than summer, because the bare trees are drawn with their snow. The tablet frame rate with
+these numbers is still to be seen on the tablet.
+
 ### Options, not yet decided
 
 - Measured (session 72, #109, below). Build the parts apart first.

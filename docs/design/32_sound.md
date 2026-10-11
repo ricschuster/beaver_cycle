@@ -80,6 +80,17 @@ A new `src/audio/` folder. The rules are the same as for `render/`:
   under water hears none of the four (water itself is dulled, as in slice 1).
 - The test menu has a switch for each layer.
 
+## Slice 3, the beaver's group, as built
+
+- The sim has no event stream, so `watchBeaver` (`src/audio/effects.ts`) compares each frame's world with the last and gives
+  cues: a gnaw every half second of chopping, the fall of the tree, a tail slap, a splash going into the water (softer coming
+  out), a stroke now and then while swimming, a crunch when something is eaten, and a pickup or set down for a piece, mud, a rock or
+  a log. The first frame gives none, so a loaded game starts silent.
+- All eight are **made in code** (`src/audio/effectsSynth.ts`), so no file and no licence line. They load on first use.
+- At most **4 one-shots** play at once (`MAX_ONE_SHOTS`), the ambient layers taking the rest of the 8. A new sound with no free
+  voice takes the place of the quietest if it is louder, and is dropped if not. The test menu has a **One-shots** switch.
+- Not yet: the building group (dam, lodge, repair, #407) and the animals and predator warnings. Warnings keep their toasts.
+
 ## Slices
 
 Each slice is its own pull request, and each can stay silent in tests.

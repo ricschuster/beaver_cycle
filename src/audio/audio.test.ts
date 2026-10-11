@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { birdsGain, cricketsGain, effectsGain, musicGain, owlGain, waterGain, windGain, STREAM_HEARD, type Hearing } from './mix';
 import { DEFAULT_SOUND, SOUND_KEY, loadSound, parseSound, saveSound } from './settings';
-import { createSound, wireBrowser } from './sound';
+import { createSound, wireBrowser, MAX_ONE_SHOTS } from './sound';
+import { DURATION, createVoices, watchBeaver, type Cue, type Effect } from './effects';
+import { effectSamples } from './effectsSynth';
+import { createWorld } from '../sim/state';
 import { fakeSoundOut } from './soundOut';
-import { birdsLoop, cricketsLoop, owlLoop } from './synth';
+import { SYNTH_RATE, birdsLoop, cricketsLoop, owlLoop } from './synth';
 
 const far: Hearing = { streamDistance: Infinity, onWater: false, inLodge: false, underwater: false, daylight: 1, season: 'spring' };
 
@@ -145,5 +148,90 @@ describe('wireBrowser', () => {
     doc.visibilityState = 'hidden';
     doc.dispatchEvent(new Event('visibilitychange'));
     expect(out.suspended).toBe(true);
+  });
+});
+
+describe('the beaver cues', () => {
+  const dry = createWorld({ heightAt: () => 0, waterDepth: () => 0, isWater: () => false } as never, 0, 0);
+  const effects = (cues: Cue[]): string[] => cues.map((c) => c.effect);
+  it('gives nothing on the first frame, and nothing while the world stands still', () => {
+    const watch = watchBeaver();
+    expect(watch(dry, 0)).toEqual([]);
+    expect(watch(dry, 0.1)).toEqual([]);
+  });
+  it('gnaws once every half second of chopping, and a tree falls with its own sound', () => {
+    const watch = watchBeaver();
+    watch(dry, 0);
+    const chop = (progress: number) => ({ ...dry, chop: { id: 't', x: 1, z: 1, wood: 1, progress } });
+    expect(effects(watch(chop(0), 0.1))).toEqual(['chop']);
+    expect(watch(chop(0.2), 0.2)).toEqual([]);
+    expect(effects(watch(chop(0.55), 0.3))).toEqual(['chop']);
+    expect(effects(watch({ ...dry, felled: ['t'] }, 0.4))).toEqual(['fall']);
+  });
+  it('slaps once per slap, splashes going into the water and softer coming out, and strokes while it swims', () => {
+    const watch = watchBeaver();
+    watch(dry, 0);
+    expect(effects(watch({ ...dry, lastSlap: { time: 5, x: 0, z: 0 } }, 0.1))).toEqual(['slap']);
+    expect(watch({ ...dry, lastSlap: { time: 5, x: 0, z: 0 } }, 0.2)).toEqual([]);
+    const swim = (x: number) => ({ ...dry, beaver: { ...dry.beaver, mode: 'swim' as const, x } });
+    const splash = watch(swim(0), 1);
+    expect(splash.map((c) => c.effect)).toEqual(['splash']);
+    expect(effects(watch(swim(0.5), 1.5))).toEqual([]);
+    expect(effects(watch(swim(1), 2))).toEqual(['stroke']);
+    expect(effects(watch(swim(1), 3))).toEqual([]);
+    const out = watch(dry, 3.1);
+    expect(out[0]!.effect).toBe('splash');
+    expect(out[0]!.gain).toBeLessThan(splash[0]!.gain);
+  });
+  it('eats, picks up and sets down', () => {
+    const watch = watchBeaver();
+    watch(dry, 0);
+    const lily = { kind: 'lily' } as never;
+    expect(effects(watch({ ...dry, carry: lily }, 0.1))).toEqual(['pickup']);
+    expect(effects(watch(dry, 0.2))).toEqual(['setdown']);
+    watch({ ...dry, carry: lily }, 0.3);
+    expect(effects(watch({ ...dry, carry: null, eaten: 1 }, 0.4))).toEqual(['eat']);
+    expect(effects(watch({ ...dry, drag: 'log' }, 0.5))).toEqual(['pickup']);
+    expect(effects(watch(dry, 0.6))).toEqual(['setdown']);
+  });
+});
+
+describe('the voice limit', () => {
+  it('drops a quieter sound when full, takes the place of a quieter playing one, and frees a voice when it ends', () => {
+    const v = createVoices(2);
+    expect(v.admit({ effect: 'fall', gain: 0.5 }, 0)).toBe(true);
+    expect(v.admit({ effect: 'splash', gain: 0.8 }, 0)).toBe(true);
+    expect(v.admit({ effect: 'stroke', gain: 0.4 }, 0.1)).toBe(false);
+    expect(v.admit({ effect: 'slap', gain: 0.9 }, 0.1)).toBe(true);
+    expect(v.admit({ effect: 'eat', gain: 0.1 }, 0.2)).toBe(false);
+    expect(v.admit({ effect: 'eat', gain: 0.1 }, 5)).toBe(true);
+  });
+});
+
+describe('the one-shots through Sound', () => {
+  it('plays the cues within MAX_ONE_SHOTS and none when the switch is off', () => {
+    const out = fakeSoundOut();
+    const sound = createSound(out, null);
+    sound.cue(Array.from({ length: 6 }, () => ({ effect: 'fall' as const, gain: 0.5 })), 0);
+    expect(out.played).toHaveLength(MAX_ONE_SHOTS);
+    sound.setOneShotsOn(false);
+    sound.cue([{ effect: 'slap', gain: 1 }], 10);
+    expect(out.played).toHaveLength(MAX_ONE_SHOTS);
+  });
+});
+
+describe('effectSamples', () => {
+  const all: Effect[] = ['chop', 'fall', 'splash', 'slap', 'stroke', 'eat', 'pickup', 'setdown'];
+  it('makes every effect as long as its duration, audible, in range, and silent at the end', () => {
+    for (const e of all) {
+      const s = effectSamples(e);
+      expect(s.length, e).toBe(Math.floor(SYNTH_RATE * DURATION[e]));
+      expect(Math.max(...s.map(Math.abs)), e).toBeGreaterThan(0.1);
+      expect(Math.max(...s.map(Math.abs)), e).toBeLessThanOrEqual(0.9001);
+      expect(Math.abs(s[s.length - 1]!), e).toBeLessThan(1e-3);
+    }
+  });
+  it('is the same every time', () => {
+    expect(effectSamples('splash')).toEqual(effectSamples('splash'));
   });
 });

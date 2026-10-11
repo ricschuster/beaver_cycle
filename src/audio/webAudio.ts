@@ -3,6 +3,8 @@
 // the other loops are made in code (synth.ts and looped noise), so they need no file and have no licence.
 
 import { SYNTH_RATE, birdsLoop, cricketsLoop, owlLoop } from './synth';
+import { effectSamples } from './effectsSynth';
+import type { Effect } from './effects';
 import type { Layer, SoundOut } from './soundOut';
 
 type Ctx = AudioContext;
@@ -44,6 +46,8 @@ export function createWebAudio(): SoundOut {
   let effects: GainNode | null = null;
   let music: GainNode | null = null;
   const layers = new Map<Layer, GainNode>();
+  // Effects are made the first time they are needed, and kept.
+  const buffers = new Map<Effect, AudioBuffer>();
   // What was asked before the context existed.
   let wantEffects = 0;
   let wantMusic = 0;
@@ -131,6 +135,22 @@ export function createWebAudio(): SoundOut {
     setLayer(layer, gain) {
       wantLayers.set(layer, gain);
       apply();
+    },
+    play(effect, gain) {
+      if (!ctx || !effects || suspended || ctx.state !== 'running') return;
+      let buf = buffers.get(effect);
+      if (!buf) {
+        const samples = effectSamples(effect);
+        buf = ctx.createBuffer(1, samples.length, SYNTH_RATE);
+        buf.copyToChannel(samples, 0);
+        buffers.set(effect, buf);
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.value = gain;
+      src.connect(g).connect(effects);
+      src.start();
     },
     setSuspended(s) {
       suspended = s;

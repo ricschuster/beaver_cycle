@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { CHOCOLATE_LEVEL, LEAP_TIME, MALLOW_COLOURS, dreamHeight, newDream, type PropKind } from '../sim/dream';
 import { cameraSpot, sweetHeight } from './dreamView';
-import { FAR_MALLOW, HOP_SQUASH_SECONDS, dreamPlayer, flatten, hopSquash, leapPitch, mallowFar, mallowModel } from './dreamBeavers';
+import { FAR_MALLOW, HOP_SQUASH_SECONDS, dreamPlayer, flatten, hopSquash, leapPitch, mallowFar, mallowModel, rainbowHue } from './dreamBeavers';
 import { pathStones, propShape, propsGeometry, resample, sweetShapes, swirlDisc, twistedTube } from './dreamProps';
 import { groundColour, groundGeometry } from './dreamScenery';
 import { createBeaverModel } from './beaverModel';
@@ -88,7 +88,30 @@ describe('the beavers of the dream', () => {
     const after = drawn(mallow.group).length;
     expect(before).toBeGreaterThan(20);
     expect(after).toBeLessThanOrEqual(8);
-    expect(drawn(dreamPlayer({ coat: 2, shade: 0.3 }).group).length).toBeLessThanOrEqual(8);
+    expect(drawn(dreamPlayer().group).length).toBeLessThanOrEqual(8);
+  });
+
+  it('makes the player a marshmallow beaver in the colours of the rainbow, red at the nose to violet at the tail', () => {
+    expect(rainbowHue(0.7)).toBe(0);
+    expect(rainbowHue(-0.9)).toBeCloseTo(0.8, 5);
+    const hues = new Set<number>();
+    let dark = 0;
+    let white = 0;
+    const c = new THREE.Color();
+    const hsl = { h: 0, s: 0, l: 0 };
+    for (const mesh of drawn(dreamPlayer().group)) {
+      const colours = mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+      for (let i = 0; i < colours.count; i++) {
+        c.fromBufferAttribute(colours, i).getHSL(hsl);
+        if (hsl.s > 0.5) hues.add(Math.round(hsl.h * 10));
+        if (hsl.l < 0.1) dark++;
+        if (hsl.l > 0.99) white++;
+      }
+    }
+    // Red through orange, yellow, green, and blue to violet, and the eyes and teeth as they were.
+    expect(hues.size).toBeGreaterThanOrEqual(7);
+    expect(dark).toBeGreaterThan(0);
+    expect(white).toBeGreaterThan(0);
   });
 
   it('keeps the shape and size of the model when merging', () => {

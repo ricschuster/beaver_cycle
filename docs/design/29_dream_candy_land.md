@@ -28,13 +28,14 @@ in the chocolate river.
   beaver in. A chocolate river winds across it. A little path of round candy stones leads from where the beaver wakes up in
   the dream, past lollipop trees, gumdrop bushes, candy canes, cupcake hills, ice cream cones, and marshmallow rocks, down to
   the river bank. Every night the river, the path, the props, and the sweets are laid out new from a seed.
-- **The beaver** walks on land and swims in the chocolate (no diving under, no breath). The Dive control makes it hop on land
+- **The beaver** is a marshmallow beaver too, in the colours of the rainbow from nose to tail (the author, session 81), so
+  it stands out among the pastel ones. It walks on land and swims in the chocolate (no diving under, no breath). The Dive control makes it hop on land
   and leap out of the chocolate like a dolphin. The tail slap splashes chocolate.
 - **Sweets** lie along the path and float in the river: candy drops, swirls, and now and then a golden star. Touching one
   collects it. A star gives a sugar rush, a few seconds of extra speed. The count shows on screen while the beaver dreams.
 - **Marshmallow beavers**, seven or eight, in pastel colours (pink, mint, lemon, sky, lilac, peach, white), each with a name.
   They wander along the path and the river, hop when happy, and come to say hello the first time the beaver is near.
-- **Play** is the Build control, as for talking in the waking game. Near a marshmallow beaver it starts a game: in the
+- **Play** is the Do control, as for talking in the waking game. Near a marshmallow beaver it starts a game: in the
   chocolate it is tag, on land it is hide and seek. The prompt says which ("Play tag with Puff").
 - **Tag** is in the river. The marshmallow beavers near the player join. One of them is "it" first and chases the player,
   a little slower than the player can swim. Whoever is caught is it, and the player tags back by touching. A marshmallow
@@ -54,7 +55,7 @@ in the chocolate river.
 | Move | WASD or arrows | stick | walk and swim |
 | Dive | Space | Dive | hop, leap |
 | Slap | T | Slap | splash |
-| Build | B | Build (shown as Play) | start tag or hide and seek |
+| Do | E | Do (shown as Play) | start tag or hide and seek |
 
 ## How it is built
 
@@ -63,7 +64,8 @@ The dream is its own small world with its own rules, scene, and screen, so it ne
 - `src/sim/dream.ts`: the dream's state and rules, pure and seeded (the land, the beaver, the sweets, the marshmallow
   beavers, tag, hide and seek), with unit tests.
 - `src/render/dreamView.ts`: the candy land scene in three.js with its own canvas, made when a dream starts and thrown away on
-  waking. Marshmallow beavers are the game's beaver model in pastel colours.
+  waking. Marshmallow beavers are the game's beaver model in pastel colours, and the player's is the same model painted
+  with a rainbow (`dreamPlayer` in `src/render/dreamBeavers.ts`).
 - `src/ui/dreamScreen.ts`: the dream screen over the game, with the sweet count, the prompt, game lines, the touch buttons,
   and Wake up. `main.ts` stops the waking game's step and drawing while the dream screen is open.
 

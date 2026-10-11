@@ -114,6 +114,19 @@ A new `src/audio/` folder. The rules are the same as for `render/`:
   one for a star and the shower), a **giggle** for a greeting, a catch, a find and the hide and seek giggles, a **cheer** when a game ends, and a splash.
 - All made in code, first drafts, to tune on the tablet. Music (slice 6, #410) is still open and optional.
 
+## Checking sound
+
+Sounds made in code cannot be judged by a test, so the check has two halves.
+
+- **Measured (a test, no ears).** `src/audio/analyze.ts` measures the samples: peak, clipping, loudness, silence at the ends, DC
+  offset and the spectral centroid. `analyze.test.ts` guards every one-shot effect (no clipping, loudness between -32 and -14 dB)
+  and every ambient loop (no click at the join). `SOUND_REPORT=dir npx vitest run src/audio/analyze.test.ts` also writes a WAV of
+  each sound and a table of the measurements to `dir`.
+- **Heard (the author).** `/tools/sound-preview/` plays every effect and layer through the game's own Web Audio code, with the
+  measurements beside it. Each sound is rated ok, thin, harsh or wrong with a note, kept in the browser, and exported as markdown
+  with the worst first. Do it on the tablet over the dev server, then play the game for the mix.
+- **Then decide per sound:** leave it, tune the synth, or after one round of tuning replace it with a CC0 file.
+
 ## Slices
 
 Each slice is its own pull request, and each can stay silent in tests.

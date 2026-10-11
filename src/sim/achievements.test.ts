@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions } from '../actions/actions';
+import { noIntent, type Intent } from './buttons';
 import { ACHIEVEMENT_IDS, ACHIEVEMENT_TEXT, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, tally } from './achievements';
 import { DAY_SECONDS, DAYS_PER_YEAR, START_CLOCK } from './clock';
 import { LEVEL1_COST, LEVEL_COST } from './dam';
@@ -88,7 +88,7 @@ describe('the counts', () => {
 });
 
 describe('in a step', () => {
-  const build = { ...noActions(), build: true };
+  const build: Intent = { ...noIntent(), do: 'build' };
   it('counts a load of mud put on a dam, and wins the first dam when it completes', () => {
     const w0 = { ...base(), dams: [{ ...whole, mud: LEVEL1_COST.mud - 1 }], haul: { kind: 'mud' as const } };
     const w1 = step(w0, build, 0.1, dry);

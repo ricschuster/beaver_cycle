@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions } from '../actions/actions';
+import { noIntent, type Intent } from './buttons';
 import { ROCK_REACH, canScoopMud, reachableRock, rockGround, rocksNear } from './haul';
 import { createWorld } from './state';
 import { step } from './step';
@@ -65,8 +65,10 @@ describe('mud', () => {
   });
 });
 
-const gnaw = { ...noActions(), chop: true };
-const drag = { ...noActions(), grab: true };
+const scoop: Intent = { ...noIntent(), take: 'mud' };
+const pick: Intent = { ...noIntent(), take: 'rock' };
+const retake: Intent = { ...noIntent(), take: 'item' };
+const drag: Intent = { ...noIntent(), take: 'drop' };
 
 describe('streams', () => {
   it('give mud on the stream and at its edge, and rocks on its bed and banks', () => {
@@ -78,22 +80,22 @@ describe('streams', () => {
     const rocks = rocksNear(creek, 0, 0, 200);
     expect(rocks.length).toBeGreaterThan(0);
     for (const r of rocks) expect(Math.abs(r.x)).toBeLessThanOrEqual(4.5);
-    expect(step(createWorld(creek, 0.5, 0), { ...noActions(), chop: true }, 0.1, creek).haul).not.toBeNull();
+    expect(step(createWorld(creek, 0.5, 0), { ...noIntent(), take: 'mud' }, 0.1, creek).haul).not.toBeNull();
   });
 });
 
 describe('hauling', () => {
-  it('gnawing at the water edge scoops mud into the mouth, once', () => {
+  it('scooping at the water edge scoops mud into the mouth, once', () => {
     let w = createWorld(bank, 5, 0);
-    w = step(w, gnaw, 0.1, bank);
+    w = step(w, scoop, 0.1, bank);
     expect(w.haul).toEqual({ kind: 'mud' });
-    expect(step(w, gnaw, 0.1, bank).haul).toEqual({ kind: 'mud' });
+    expect(step(w, scoop, 0.1, bank).haul).toEqual({ kind: 'mud' });
   });
 
-  it('gnawing next to a rock picks it up, and it is no longer there', () => {
+  it('scooping next to a rock picks it up, and it is no longer there', () => {
     const rock = rocksNear(steep, 0, 0, 100)[0]!;
     let w = createWorld(steep, rock.x - ROCK_REACH / 2, rock.z);
-    w = step(w, gnaw, 0.1, steep);
+    w = step(w, pick, 0.1, steep);
     expect(w.haul?.kind).toBe('rock');
     expect(w.rocksTaken).toEqual([rock.id]);
     expect(reachableRock(steep, rock.x, rock.z, w.rocksTaken)).toBeNull();
@@ -102,7 +104,7 @@ describe('hauling', () => {
   it('puts a rock or mud down where the beaver stands, and it can be picked up again there', () => {
     const rock = rocksNear(steep, 0, 0, 100)[0]!;
     let w = createWorld(steep, rock.x, rock.z);
-    w = step(w, gnaw, 0.1, steep);
+    w = step(w, pick, 0.1, steep);
     const taken = w.rocksTaken;
     w = { ...w, beaver: { ...w.beaver, x: rock.x + 30, z: rock.z, heading: 0 } };
     w = step(w, drag, 0.1, steep);
@@ -111,27 +113,27 @@ describe('hauling', () => {
     expect(w.dropped).toHaveLength(1);
     expect(w.dropped[0]).toMatchObject({ kind: 'rock', x: rock.x + 30 });
     expect(Math.hypot(w.dropped[0]!.z - rock.z, w.dropped[0]!.x - (rock.x + 30))).toBeCloseTo(0.8);
-    w = step(w, gnaw, 0.1, steep);
+    w = step(w, retake, 0.1, steep);
     expect(w.haul?.kind).toBe('rock');
     expect(w.dropped).toEqual([]);
-    let m = step(createWorld(bank, 5, 0), gnaw, 0.1, bank);
+    let m = step(createWorld(bank, 5, 0), scoop, 0.1, bank);
     m = step(m, drag, 0.1, bank);
     expect(m.haul).toBeNull();
     expect(m.dropped).toMatchObject([{ kind: 'mud', x: 5 }]);
   });
 
-  it('does not take a second thing, and a full mouth cannot gnaw food or a tree', () => {
+  it('does not take a second thing, and a full mouth cannot scoop food or a tree', () => {
     let w = createWorld(bank, 5, 0);
-    w = step(w, gnaw, 0.1, bank);
-    const again = step(w, gnaw, 0.1, bank);
+    w = step(w, scoop, 0.1, bank);
+    const again = step(w, scoop, 0.1, bank);
     expect(again.haul).toEqual({ kind: 'mud' });
     expect(again.carry).toBeNull();
     expect(again.chop).toBeNull();
   });
 
   it('does not scoop mud from dry ground, and not when diving', () => {
-    expect(step(createWorld(dry, 0, 0), gnaw, 0.1, dry).haul).toBeNull();
+    expect(step(createWorld(dry, 0, 0), scoop, 0.1, dry).haul).toBeNull();
     const deep = { ...lake, waterDepth: () => 1.5 };
-    expect(step(createWorld(deep, 0, 0), gnaw, 0.1, deep).haul).toBeNull();
+    expect(step(createWorld(deep, 0, 0), scoop, 0.1, deep).haul).toBeNull();
   });
 });

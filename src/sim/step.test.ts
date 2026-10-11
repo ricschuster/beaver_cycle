@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { flatTerrain, type Terrain } from './terrain';
 import { BREATH_MIN_START, BREATH_REFILL_TIME, BREATH_TIME, SLAP_COOLDOWN, DIVE_FLOOR, DIVE_MIN_DEPTH, DIVE_RATE, DIVE_SPEED, SWIM_ENTER_DEPTH, SWIM_EXIT_DEPTH, SWIM_SINK, SWIM_SPEED, WALK_SPEED, createWorld, setSpeedMultiplier, teleport } from './state';
 import { step } from './step';
@@ -8,7 +8,7 @@ const flat = flatTerrain(0);
 
 describe('step', () => {
   it('stands still without actions', () => {
-    const w = step(createWorld(flat), noActions(), 1, flat);
+    const w = step(createWorld(flat), noIntent(), 1, flat);
     expect(w.beaver.x).toBe(0);
     expect(w.beaver.z).toBe(0);
     expect(w.time).toBe(1);
@@ -133,9 +133,9 @@ describe('step', () => {
       let w = createWorld(lake, 0, 20);
       for (let i = 0; i < 4; i++) w = step(w, dive, 0.25, lake);
       const low = w.beaver.y;
-      w = step(w, noActions(), 0.25, lake);
+      w = step(w, noIntent(), 0.25, lake);
       expect(w.beaver.y).toBeCloseTo(low + DIVE_RATE * 0.25);
-      for (let i = 0; i < 20; i++) w = step(w, noActions(), 0.25, lake);
+      for (let i = 0; i < 20; i++) w = step(w, noIntent(), 0.25, lake);
       expect(w.beaver.y).toBeCloseTo(surface);
       expect(w.beaver.mode).toBe('swim');
     });
@@ -235,7 +235,7 @@ describe('step', () => {
     });
 
     it('has no slap before the first', () => {
-      expect(step(createWorld(flat), noActions(), 1, flat).lastSlap).toBeNull();
+      expect(step(createWorld(flat), noIntent(), 1, flat).lastSlap).toBeNull();
     });
 
     it('does not slap again during the cooldown, then does', () => {
@@ -250,7 +250,7 @@ describe('step', () => {
     it('keeps the last slap while the button is not pressed', () => {
       let w = step(createWorld(flat), slap, 0.1, flat);
       const first = w.lastSlap;
-      w = step(w, noActions(), 5, flat);
+      w = step(w, noIntent(), 5, flat);
       expect(w.lastSlap).toBe(first);
     });
 

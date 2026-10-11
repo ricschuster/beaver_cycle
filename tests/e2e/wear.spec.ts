@@ -78,7 +78,7 @@ test.describe('a worn lodge and store', () => {
     await page.waitForFunction(() => (window as any).__game.world().carry === 'branch', null, { polling: 100, timeout: 8000 });
     await walkToStore(page);
     expect(await hudText(page)).toContain('store 0 of 40');
-    await tap(page, 'KeyB');
+    await tap(page, 'KeyE');
     await page.waitForFunction(() => (window as any).__game.world().stashOpen, null, { polling: 100, timeout: 5000 });
     await page.locator('button[data-slot="39"]').click();
     await page.waitForFunction(() => (window as any).__game.world().store[39] === 'branch', null, { polling: 100, timeout: 5000 });
@@ -114,8 +114,8 @@ test.describe('mending', () => {
       expect(id).not.toBeNull();
       await dragLog(page, id!);
       await walkToStore(page);
-      expect(await hudText(page)).toContain('press Build to add it');
-      await tap(page, 'KeyB');
+      expect(await hudText(page)).toContain('press Mend to add it');
+      await tap(page, 'KeyE');
       await page.waitForFunction((i) => (window as any).__game.world().drag === null && !(window as any).__game.world().logs.some((l: any) => l.id === i), id, { polling: 100, timeout: 5000 });
     }
     const w = await world(page);
@@ -186,7 +186,7 @@ test.describe('dams', () => {
     const spot = (await world(page)).spots.find((s: any) => s.id === before.dam.spot);
     await walkToPoint(page, spot.bed, 2, 60_000);
     expect(await hudText(page)).toContain('press Build to add it');
-    await tap(page, 'KeyB');
+    await tap(page, 'KeyE');
     await page.waitForFunction((i) => !(window as any).__game.world().logs.some((l: any) => l.id === i), id, { polling: 100, timeout: 5000 });
     const w = await world(page);
     expect(damCondition(w.dams.find((d: any) => d.spot === spot.id), w.clock)).toBeGreaterThan(level0 + 0.05);

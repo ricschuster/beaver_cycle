@@ -7,8 +7,8 @@ import type { Stage } from '../sim/life';
 import { mateOf } from '../sim/partners';
 import type { WorldState } from '../sim/state';
 
-/** The touch button a step points at, by its element id suffix (`touch-chop`), or null. */
-export type CoachButton = 'dive' | 'slap' | 'chop' | 'grab' | 'build' | null;
+/** The touch button a step points at, by its element id suffix (`touch-do`), or null. */
+export type CoachButton = 'dive' | 'slap' | 'take' | 'do' | null;
 
 /** What the coach remembers between frames: the things a step needs that the world does not keep. */
 export interface CoachState {
@@ -73,9 +73,9 @@ const BABY: readonly CoachStep[] = [
   {
     id: 'leave',
     title: 'Swim out',
-    touch: 'You are home in the lodge. Walk to the water hole in the floor and press Build to swim out.',
-    keys: 'You are home in the lodge. Press W A S D to walk to the water hole in the floor and press B to swim out.',
-    button: 'build',
+    touch: 'You are home in the lodge. Walk to the water hole in the floor and press Dive to swim out.',
+    keys: 'You are home in the lodge. Press W A S D to walk to the water hole in the floor and press Space to swim out.',
+    button: 'dive',
     done: (_w, s) => s.out,
   },
   SWIM,
@@ -117,25 +117,25 @@ const TEENAGER: readonly CoachStep[] = [
   {
     id: 'pad',
     title: 'Find a lily pad',
-    touch: 'Swim out and find a lily pad on the water. Stand still next to it and press Gnaw.',
-    keys: 'Swim out and find a lily pad on the water. Stay next to it and press E.',
-    button: 'chop',
+    touch: 'Swim out and find a lily pad on the water. Stand still next to it and press Take.',
+    keys: 'Swim out and find a lily pad on the water. Stay next to it and press G.',
+    button: 'take',
     done: (w) => w.carry !== null || w.eaten > 0 || stockTotal(w.store) > 0,
   },
   {
     id: 'eat',
     title: 'Have a snack',
-    touch: 'Carry the food into the lodge, and press Gnaw inside to eat it.',
-    keys: 'Carry the food into the lodge, and press E inside to eat it.',
-    button: 'chop',
+    touch: 'Carry the food into the lodge, and press Eat inside.',
+    keys: 'Carry the food into the lodge, and press E inside to eat.',
+    button: 'do',
     done: (w) => w.eaten > 0,
   },
   {
     id: 'store',
     title: 'Fill the food store',
-    touch: 'Bring another lily pad or a branch. Swim to the food store by the door and press Build. Tap a place to put the food in. It keeps food for winter.',
-    keys: 'Bring another lily pad or a branch. Swim to the food store by the door and press B. Click a place to put the food in. It keeps food for winter.',
-    button: 'build',
+    touch: 'Bring another lily pad or a branch. Swim to the food store by the door and press Store. Tap a place to put the food in. It keeps food for winter.',
+    keys: 'Bring another lily pad or a branch. Swim to the food store by the door and press E. Click a place to put the food in. It keeps food for winter.',
+    button: 'do',
     done: (w) => stockTotal(w.store) > 0,
   },
   {
@@ -143,15 +143,15 @@ const TEENAGER: readonly CoachStep[] = [
     title: 'Gnaw a tree',
     touch: 'Walk to a tree on the bank and stand still. Press Gnaw until the tree falls.',
     keys: 'Walk to a tree on the bank and stand still. Press E until the tree falls.',
-    button: 'chop',
+    button: 'do',
     done: (w) => w.felled.length > 0 || w.drag !== null,
   },
   {
     id: 'drag',
     title: 'Take the log',
-    touch: 'Stand at the log and press Drag to take it in your teeth.',
+    touch: 'Stand at the log and press Take to take it in your teeth.',
     keys: 'Stand at the log and press G to take it in your teeth.',
-    button: 'grab',
+    button: 'take',
     done: (w) => w.drag !== null || started(w) || w.dams.length > 0,
   },
   {
@@ -166,16 +166,16 @@ const TEENAGER: readonly CoachStep[] = [
     id: 'build',
     title: 'Start the dam',
     touch: 'You are in the ring. Press Build to put the log in the dam.',
-    keys: 'You are in the ring. Press B to put the log in the dam.',
-    button: 'build',
+    keys: 'You are in the ring. Press E to put the log in the dam.',
+    button: 'do',
     done: (w) => started(w),
   },
   {
     id: 'fill',
     title: 'Finish the dam',
-    touch: 'It needs mud and rocks too. Gnaw mud at the water edge, or a rock, then press Build in the ring. The top left says what is missing.',
-    keys: 'It needs mud and rocks too. Press E at the water edge for mud, or at a rock, then press B in the ring. The top left says what is missing.',
-    button: 'build',
+    touch: 'It needs mud and rocks too. Take mud at the water edge, or a rock, then press Build in the ring. The top left says what is missing.',
+    keys: 'It needs mud and rocks too. Press G at the water edge for mud, or at a rock, then press E in the ring. The top left says what is missing.',
+    button: 'do',
     done: (w) => w.dams.some((d) => damWhole(d)),
   },
   {
@@ -201,16 +201,16 @@ const ADULT: readonly CoachStep[] = [
     id: 'lodge',
     title: 'Start a lodge',
     touch: 'Drag a log to shallow water. Face the water and press Build. A lodge needs about ten pieces of wood, so bring more logs.',
-    keys: 'Drag a log to shallow water. Face the water and press B. A lodge needs about ten pieces of wood, so bring more logs.',
-    button: 'build',
+    keys: 'Drag a log to shallow water. Face the water and press E. A lodge needs about ten pieces of wood, so bring more logs.',
+    button: 'do',
     done: (w) => w.lodge !== null,
   },
   {
     id: 'lodge-finish',
     title: 'Finish the lodge',
     touch: 'Drag more logs to the lodge and press Build next to it. The top left says how much is missing.',
-    keys: 'Drag more logs to the lodge and press B next to it. The top left says how much is missing.',
-    button: 'build',
+    keys: 'Drag more logs to the lodge and press E next to it. The top left says how much is missing.',
+    button: 'do',
     done: (w) => lodgeComplete(w.lodge),
   },
   {

@@ -1,6 +1,6 @@
 import { FOOD_ROT, MUD_DRY } from './haul';
 import { describe, expect, it } from 'vitest';
-import { noActions, type Actions } from '../actions/actions';
+import { noIntent, type Intent } from './buttons';
 import { BRANCH_BOOST, BRANCH_BOOST_TIME, PAD_BOOST, PAD_BOOST_TIME, STORE_CAPACITY, STORE_DISTANCE, branchFactor, branchesOf, emptyStock, lilyShare, padFactor, stockMeals, stockOf, stockTotal, storeFill, storeSpot, tapped, trimmed, type Food, type Stock } from './food';
 import { LOG_ROT } from './logs';
 import { LODGE_WOOD } from './lodge';
@@ -12,7 +12,7 @@ import type { Terrain } from './terrain';
 /** Dry land for z < 0, then a lake that is deep from z = 3 (as in lodge.test.ts). */
 const shore: Terrain = { heightAt: () => 0, isWater: (_x, z) => z >= 0, waterDepth: (_x, z) => Math.max(0, z * 0.5) };
 
-const press = (a: Partial<Actions>): Actions => ({ ...noActions(), ...a });
+const press = (a: Partial<Intent>): Intent => ({ ...noIntent(), ...a });
 const log = (id: string, length: number, z = -2): Log => ({ id, x: 0, y: 0, z, heading: 0, length, floating: false });
 
 /** A whole lodge facing deep water, and the beaver on dry land at z = -1 with a log lying in reach. */
@@ -84,33 +84,33 @@ describe('stripping branches', () => {
   it('puts a branch in the mouth, one a metre of log, until the log has none left', () => {
     let w = world();
     expect(branchesOf(w.logs[0]!)).toBe(4);
-    w = step(w, press({ chop: true }), 0.1, shore);
+    w = step(w, press({ do: 'strip' }), 0.1, shore);
     expect(w.carry).toBe('branch');
     expect(w.stripped['a']).toBe(1);
     // the mouth is full: another press takes nothing more
-    w = step(w, press({ chop: true }), 0.1, shore);
+    w = step(w, press({ do: 'strip' }), 0.1, shore);
     expect(w.stripped['a']).toBe(1);
     const spent = { ...world(), stripped: { a: 4 } };
-    expect(step(spent, press({ chop: true }), 0.1, shore).carry).toBeNull();
+    expect(step(spent, press({ do: 'strip' }), 0.1, shore).carry).toBeNull();
   });
 
   it('needs a log within reach, and cannot be done while dragging one', () => {
     const far = { ...world(), logs: [log('a', 4, -10)] };
-    expect(step(far, press({ chop: true }), 0.1, shore).carry).toBeNull();
+    expect(step(far, press({ do: 'strip' }), 0.1, shore).carry).toBeNull();
     const drag = { ...world(), drag: 'a' };
-    expect(step(drag, press({ chop: true }), 0.1, shore).carry).toBeNull();
+    expect(step(drag, press({ do: 'strip' }), 0.1, shore).carry).toBeNull();
   });
 
   it('does not take hold of a log while a piece is in the mouth, but puts the piece down', () => {
-    const w = step({ ...world(), carry: 'branch' }, press({ grab: true }), 0.1, shore);
+    const w = step({ ...world(), carry: 'branch' }, press({ take: 'drop' }), 0.1, shore);
     expect(w.drag).toBeNull();
     expect(w.carry).toBeNull();
     expect(w.dropped).toMatchObject([{ kind: 'branch' }]);
   });
 
   it('picks a dropped piece up again with Gnaw', () => {
-    const down = step({ ...world(), carry: 'lily' }, press({ grab: true }), 0.1, shore);
-    const up = step(down, press({ chop: true }), 0.1, shore);
+    const down = step({ ...world(), carry: 'lily' }, press({ take: 'drop' }), 0.1, shore);
+    const up = step(down, press({ take: 'item' }), 0.1, shore);
     expect(up.carry).toBe('lily');
     expect(up.dropped).toEqual([]);
   });
@@ -139,16 +139,16 @@ describe('a log', () => {
 describe('the stash', () => {
   it('opens with Build at the store, with a piece in the mouth or without, and only at the store', () => {
     const w = { ...world(), carry: 'branch' as const };
-    expect(step(w, press({ build: true }), 0.1, shore).stashOpen).toBe(false);
-    const at = step(atTheStore(w), press({ build: true }), 0.1, shore);
+    expect(step(w, press({ do: 'store' }), 0.1, shore).stashOpen).toBe(false);
+    const at = step(atTheStore(w), press({ do: 'store' }), 0.1, shore);
     expect(at.stashOpen).toBe(true);
     expect(at.carry).toBe('branch');
-    expect(step(atTheStore(world()), press({ build: true }), 0.1, shore).stashOpen).toBe(true);
-    expect(step(atTheStore(world()), press({ grab: true }), 0.1, shore).stashOpen).toBe(false);
+    expect(step(atTheStore(world()), press({ do: 'store' }), 0.1, shore).stashOpen).toBe(true);
+    expect(step(atTheStore(world()), press({ take: 'log' }), 0.1, shore).stashOpen).toBe(false);
   });
 
   it('moves pieces by taps, and keeps the beaver still while it is open', () => {
-    let w = step(atTheStore({ ...world(), carry: 'branch' as const }), press({ build: true }), 0.1, shore);
+    let w = step(atTheStore({ ...world(), carry: 'branch' as const }), press({ do: 'store' }), 0.1, shore);
     const at = { x: w.beaver.x, z: w.beaver.z };
     w = step(w, press({ stashTap: 4, move: { x: 1, z: 0 } }), 0.1, shore);
     expect(w.store[4]).toBe('branch');
@@ -174,19 +174,19 @@ describe('the stash', () => {
 describe('eating', () => {
   it('eats the piece inside the lodge, and not outside it', () => {
     const w = { ...world(), carry: 'branch' as const };
-    const outside = step(w, press({ chop: true }), 0.1, shore);
+    const outside = step(w, press({ do: 'eat' }), 0.1, shore);
     expect(outside.eaten).toBe(0);
-    const inside = step({ ...w, inLodge: true, beaver: { ...w.beaver, x: 0, z: 2 + 3 } }, press({ chop: true }), 0.1, shore);
+    const inside = step({ ...w, inLodge: true, beaver: { ...w.beaver, x: 0, z: 2 + 3 } }, press({ do: 'eat' }), 0.1, shore);
     expect(inside.carry).toBeNull();
     expect(inside.eaten).toBe(1);
   });
 
   it('gives a pad a swim boost and a branch a felling boost, which wear off', () => {
     const inLodge = (carry: 'branch' | 'lily') => ({ ...world(), carry, inLodge: true, clock: 1000, beaver: { ...world().beaver, x: 0, z: 5 } });
-    const pad = step(inLodge('lily'), press({ chop: true }), 0.1, shore);
+    const pad = step(inLodge('lily'), press({ do: 'eat' }), 0.1, shore);
     expect(pad.padAt).toBe(1000);
     expect(pad.branchAt).toBeNull();
-    const branch = step(inLodge('branch'), press({ chop: true }), 0.1, shore);
+    const branch = step(inLodge('branch'), press({ do: 'eat' }), 0.1, shore);
     expect(branch.branchAt).toBe(1000);
     expect(branch.padAt).toBeNull();
     expect(padFactor(1000, 1000 + PAD_BOOST_TIME - 1)).toBe(PAD_BOOST);
@@ -208,6 +208,6 @@ describe('eating', () => {
   it('carries the piece into the lodge', () => {
     // the piece in the mouth stays there through the swim in
     const w = { ...world(), carry: 'branch' as const, inLodge: true };
-    expect(step(w, noActions(), 0.1, shore).carry).toBe('branch');
+    expect(step(w, noIntent(), 0.1, shore).carry).toBe('branch');
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DAYS_PER_SEASON, DAYS_PER_YEAR, DAY_FRACTION, DAY_SECONDS, LODGE_CLOCK_RATE, START_CLOCK, dateAt, daylight, isNight, nextDawn, withSeason, withTimeOfDay } from './clock';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { canSleep, createWorld, setInLodge, sleep } from './state';
 import { step } from './step';
 import { flatTerrain } from './terrain';
@@ -41,18 +41,18 @@ describe('daylight', () => {
 
 describe('world clock', () => {
   it('starts a little after dawn and runs at full rate outside', () => {
-    const w = step(createWorld(flat), noActions(), 10, flat);
+    const w = step(createWorld(flat), noIntent(), 10, flat);
     expect(w.clock).toBeCloseTo(START_CLOCK + 10);
   });
 
   it('runs at half rate in the lodge', () => {
-    const w = step(setInLodge(createWorld(flat), true), noActions(), 10, flat);
+    const w = step(setInLodge(createWorld(flat), true), noIntent(), 10, flat);
     expect(w.clock).toBeCloseTo(START_CLOCK + 10 * LODGE_CLOCK_RATE);
   });
 
   it('is not scaled by the test speed multiplier', () => {
     const w0 = { ...createWorld(flat), speedMultiplier: 20 };
-    expect(step(w0, noActions(), 1, flat).clock).toBeCloseTo(START_CLOCK + 1);
+    expect(step(w0, noIntent(), 1, flat).clock).toBeCloseTo(START_CLOCK + 1);
   });
 
   it('can sleep only in the lodge and at night', () => {

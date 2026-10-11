@@ -7,7 +7,7 @@ const SIZES = [
   { name: 'landscape', width: 1280, height: 800 },
   { name: 'portrait', width: 800, height: 1280 },
 ];
-const CONTROLS = ['#touch-stick', '#touch-dive', '#touch-slap', '#touch-chop', '#touch-grab', '#touch-build'];
+const CONTROLS = ['#touch-stick', '#touch-dive', '#touch-slap', '#touch-take', '#touch-do'];
 
 type Box = { x: number; y: number; width: number; height: number };
 const overlaps = (a: Box, b: Box): boolean => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;

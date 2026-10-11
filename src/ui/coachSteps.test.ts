@@ -135,21 +135,21 @@ describe('moving through the steps by hand', () => {
 describe('the wording', () => {
   it('names the keys the game really uses, and the buttons it really has', () => {
     const keys = KEY_HINTS.map(([k]) => k).join(' ');
-    for (const k of ['Space', 'E', 'G', 'B', 'T']) expect(keys).toContain(k);
+    for (const k of ['Space', 'E', 'G', 'T']) expect(keys).toContain(k);
     for (const stage of STAGES) {
       expect(STEPS[stage].length).toBeGreaterThan(0);
       expect(COACH_DONE[stage]).not.toContain(String.fromCharCode(0x2014));
       for (const s of STEPS[stage]) {
         expect(s.touch.length).toBeGreaterThan(0);
         expect(s.keys).not.toContain(String.fromCharCode(0x2014));
-        if (s.button) expect(['dive', 'slap', 'chop', 'grab', 'build']).toContain(s.button);
+        if (s.button) expect(['dive', 'slap', 'take', 'do']).toContain(s.button);
       }
     }
   });
 
   it('asks a baby only for what a baby may do', () => {
     // Gnawing, dragging and building are for a teenager (STAGE_RULES.baby.works is false).
-    for (const s of STEPS.baby) expect(['chop', 'grab']).not.toContain(s.button);
+    for (const s of STEPS.baby) expect(['take', 'do']).not.toContain(s.button);
   });
 });
 

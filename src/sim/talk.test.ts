@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS, dateAt, withSeason } from './clock';
 import { LODGE_WOOD, HOLE, type Lodge } from './lodge';
-import { LONG_AWAY, MAX_ASKS, TALK_RANGE, buildIsFree, choicesFor, factsFor, greeting, homeJob, nearestSpeaker, noteTalk, pickLine, replyLine, roleOf, speakersOf, type Reply, type Speaker, type TalkFacts } from './talk';
+import { LONG_AWAY, MAX_ASKS, TALK_RANGE, choicesFor, factsFor, greeting, homeJob, nearestSpeaker, noteTalk, pickLine, replyLine, roleOf, speakersOf, type Reply, type Speaker, type TalkFacts } from './talk';
 import { createWorld, newLife, setStage, type WorldState } from './state';
 import { emptyStock } from './food';
 import type { Terrain } from './terrain';
@@ -245,18 +245,5 @@ describe('roleOf', () => {
     expect(roleOf({ kind: 'papa', place: 'north pond' })).toBe('papa of the north pond');
     expect(roleOf({ kind: 'kit' })).toBe('kit');
     expect(roleOf({ kind: 'home-mama' })).toBe('your mama');
-  });
-});
-
-describe('buildIsFree', () => {
-  it('is free in the open and busy with a log, a load, or at the water hole of the lodge', () => {
-    const w = createWorld(land, 0, 0);
-    expect(buildIsFree(w)).toBe(true);
-    expect(buildIsFree({ ...w, drag: 'log' })).toBe(false);
-    expect(buildIsFree({ ...w, haul: { kind: 'mud' } })).toBe(false);
-    const lodge = { x: 10, z: 10 } as unknown as NonNullable<typeof w.lodge>;
-    const inside = { ...w, inLodge: true, lodge, beaver: { ...w.beaver, x: 10 + HOLE.x, z: 10 + HOLE.z } };
-    expect(buildIsFree(inside)).toBe(false);
-    expect(buildIsFree({ ...inside, beaver: { ...inside.beaver, x: 10 + 4, z: 10 + 4 } })).toBe(true);
   });
 });

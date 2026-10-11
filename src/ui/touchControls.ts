@@ -1,7 +1,9 @@
-// Touch controls (M3, ADR 0005): a stick at the bottom left, a held dive button
-// and a tail slap button at the bottom right. DOM only. They produce the same
-// Actions as the keyboard; dragging the empty view turns the camera (cameraRig).
-// The breath bar sits at the bottom centre, so the buttons stay at the sides.
+// Touch controls (M3, ADR 0005): a stick at the bottom left, and at the bottom
+// right a held Dive, Slap, Take, and Do (#341, docs/design/30_buttons.md). Take and
+// Do change their word with what they do here, and a button that can do nothing
+// is greyed out in its place. DOM only. They produce the same Actions as the
+// keyboard; dragging the empty view turns the camera (cameraRig). The breath bar
+// sits at the bottom centre, so the buttons stay at the sides.
 
 import { noActions, type Actions } from '../actions/actions';
 import { stickMove, touchTuning } from '../actions/stick';
@@ -13,6 +15,10 @@ export interface TouchControls {
   setVisible(visible: boolean): void;
   /** Show or hide the beaver's buttons, keeping the stick (the free fly view has no use for them). */
   setActionsVisible(visible: boolean): void;
+  /** The word on a button, such as Do reading "Talk". Only changes the page when the word does. */
+  setLabel(button: TouchButton, label: string): void;
+  /** Grey a button out when it can do nothing here, or bring it back. */
+  setEnabled(button: TouchButton, enabled: boolean): void;
 }
 
 /** True on devices that report touch, or when the page asks for it with ?touch=1. */
@@ -23,10 +29,10 @@ export function wantsTouchControls(nav: Pick<Navigator, 'maxTouchPoints'>, query
 const GLASS = 'background:rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.6);color:#fff;font:600 14px sans-serif;';
 
 /** The beaver's buttons, by the action each one gives. */
-export type TouchButton = 'dive' | 'slap' | 'chop' | 'grab' | 'build';
+export type TouchButton = 'dive' | 'slap' | 'take' | 'do';
 
 export interface TouchOptions {
-  /** Other labels for some buttons, or null to leave a button out (the dream shows Dive as Hop and has no Gnaw). */
+  /** Other labels for some buttons, or null to leave a button out (the dream shows Dive as Hop and has no Take). */
   labels?: Partial<Record<TouchButton, string | null>>;
   /** The start of the element ids, 'touch' by default, so a second set (the dream's) does not repeat the game's ids. */
   idPrefix?: string;
@@ -57,13 +63,13 @@ export function createTouchControls(parent: HTMLElement, visible: boolean, { lab
     b.style.cssText = `${GLASS}position:absolute;right:${right};bottom:${bottom};width:${buttonSize}px;height:${buttonSize}px;border-radius:50%;pointer-events:auto;touch-action:none;`;
     return b;
   };
+  // Dive at the corner, Slap beside it, Do above Slap, and Take to their left, halfway up.
   const dive = button('dive', 'Dive', 'max(32px,env(safe-area-inset-right))', '48px');
   const slap = button('slap', 'Slap', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, '88px');
-  const chop = button('chop', 'Gnaw', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, `calc(88px + ${buttonSize + 12}px)`);
-  const grab = button('grab', 'Drag', `calc(max(32px,env(safe-area-inset-right)) + ${(buttonSize + 20) * 2}px)`, '88px');
-  const build = button('build', 'Build', `calc(max(32px,env(safe-area-inset-right)) + ${(buttonSize + 20) * 2}px)`, `calc(88px + ${buttonSize + 12}px)`);
+  const act = button('do', 'Do', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, `calc(88px + ${buttonSize + 12}px)`);
+  const take = button('take', 'Take', `calc(max(32px,env(safe-area-inset-right)) + ${(buttonSize + 20) * 2}px)`, `calc(88px + ${Math.round((buttonSize + 12) / 2)}px)`);
   // A button labelled null is made but never shown, so it gives nothing.
-  const buttons = { dive, slap, chop, grab, build };
+  const buttons: Record<TouchButton, HTMLButtonElement> = { dive, slap, take, do: act };
   const shown = (Object.keys(buttons) as TouchButton[]).filter((k) => labels[k] !== null).map((k) => buttons[k]);
   root.append(base, ...shown);
   parent.appendChild(root);
@@ -126,19 +132,20 @@ export function createTouchControls(parent: HTMLElement, visible: boolean, { lab
     slapped = true;
   });
 
-  let chopped = false;
-  chop.addEventListener('pointerdown', () => {
-    chopped = true;
+  let acted = false;
+  act.addEventListener('pointerdown', () => {
+    acted = true;
   });
 
-  let grabbed = false;
-  grab.addEventListener('pointerdown', () => {
-    grabbed = true;
+  let taken = false;
+  take.addEventListener('pointerdown', () => {
+    taken = true;
   });
 
-  let built = false;
-  build.addEventListener('pointerdown', () => {
-    built = true;
+  // The dive goes down once per press, for the water hole in the lodge, even while it stays held.
+  let diveTapped = false;
+  dive.addEventListener('pointerdown', () => {
+    diveTapped = true;
   });
 
   // A long press on a button would open the browser's context menu.
@@ -148,15 +155,16 @@ export function createTouchControls(parent: HTMLElement, visible: boolean, { lab
     read() {
       const a = noActions();
       a.move = stickMove(offset.x, offset.y);
-      a.dive = diveId !== null;
+      // A press shorter than a frame still dives for one read, as on the keys.
+      a.dive = diveId !== null || diveTapped;
+      a.diveTap = diveTapped;
+      diveTapped = false;
       a.slap = slapped;
       slapped = false;
-      a.chop = chopped;
-      chopped = false;
-      a.grab = grabbed;
-      grabbed = false;
-      a.build = built;
-      built = false;
+      a.act = acted;
+      acted = false;
+      a.take = taken;
+      taken = false;
       return a;
     },
     setVisible(v) {
@@ -164,6 +172,19 @@ export function createTouchControls(parent: HTMLElement, visible: boolean, { lab
     },
     setActionsVisible(v) {
       for (const b of shown) b.style.display = v ? '' : 'none';
+    },
+    setLabel(id, label) {
+      const b = buttons[id];
+      if (b.textContent === label) return;
+      b.textContent = label;
+      b.setAttribute('aria-label', label);
+    },
+    setEnabled(id, enabled) {
+      const b = buttons[id];
+      const opacity = enabled ? '' : '0.35';
+      if (b.style.opacity === opacity) return;
+      b.style.opacity = opacity;
+      b.setAttribute('aria-disabled', String(!enabled));
     },
   };
 }

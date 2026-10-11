@@ -1,4 +1,5 @@
-import { mergeActions, noActions, relativeToView } from './actions/actions';
+import { mergeActions, relativeToView } from './actions/actions';
+import { DO_LABEL, doHere, noIntent, takeHere, takeLabel, type Around, type DoKind } from './sim/buttons';
 import { createHeldKeys, createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { fly as flyStep, flyTarget, glide, look as lookAround, pickGround, zoomFree, type FlyTarget } from './render/flyCam';
@@ -17,7 +18,7 @@ import { nameOf, pondName } from './sim/names';
 import { DIG_REACH, DIG_TIME, HEAR_RANGE, escortBeaver, nearestStuck, rescue, startEscort, stepEscort, stuckBeaver, stuckNow, whereTo, digging } from './sim/escort';
 import { answerNews, type Surroundings } from './sim/news';
 import { CALL_SLOT, deedsFor, giftThanks, greetingFor, overheard, partnerRemark } from './sim/chatter';
-import { BYE_SECONDS, TALK_END, LINE_SECONDS, buildIsFree, choicesFor, factsFor, greeting, nearestSpeaker, noteTalk, replyLine, roleOf, speakersOf, type Reply, type Speaker, type TalkFacts } from './sim/talk';
+import { BYE_SECONDS, TALK_END, LINE_SECONDS, choicesFor, factsFor, greeting, nearestSpeaker, noteTalk, replyLine, roleOf, speakersOf, type Reply, type Speaker, type TalkFacts } from './sim/talk';
 import { REPLY_LABEL } from './sim/talkLines';
 import { createTalkBubble } from './ui/talkBubble';
 import { giftFamilies, greetedBy, familyMood, familyTrust, reactFamilies, spreadWord, startleFamilies } from './sim/familyMoods';
@@ -109,8 +110,9 @@ async function start(): Promise<void> {
   // The free fly view needs neither the sun's shadows nor its disc: shadows are the costliest part of a frame.
   const free = query.get('fly') === 'free';
   const readKeyboard = createKeyboardInput(window);
-  const touch = createTouchControls(document.body, wantsTouchControls(navigator, query));
-  createKeyHints(document.body, window, !wantsTouchControls(navigator, query) && !free);
+  const touchOn = wantsTouchControls(navigator, query);
+  const touch = createTouchControls(document.body, touchOn);
+  const keyHints = createKeyHints(document.body, window, !touchOn && !free);
   // The "?" button opens the manual (public/manual.html), and the first start shows a welcome card.
   // Storage can be blocked, so a failed read counts as not seen and a failed write is ignored.
   const remembered = (key: string): boolean => {
@@ -441,10 +443,11 @@ async function start(): Promise<void> {
   let readBolt = false;
   const sniffed = new Set<string>();
   const talkBubble = createTalkBubble(hud);
-  let buildPressed = false; // the build button went down this frame (a talk may start)
+  let doPressed: DoKind | null = null; // what a press of Do did this frame: a talk or a dig starts here, not in step
+  let doShown: DoKind | null = null; // what the Do button says this frame
+  let nearby: Around = { speaker: false, drift: false }; // someone to talk to and a drift to dig, from the last frame
   let talkingTo: Speaker | null = null;
   let talks = 0;
-  let gnawPressed = false; // the gnaw button went down this frame (a dig may start)
   let movingNow = false;
   let dug = 0;
   const heardStuck = new Set<string>();
@@ -546,10 +549,21 @@ async function start(): Promise<void> {
       const actions = { ...mergeActions(readKeyboard(), touch.read()), stashTap, stashClose };
       stashTap = undefined;
       stashClose = false;
-      buildPressed = !!actions.build;
-      gnawPressed = !!actions.chop;
       movingNow = actions.move.x !== 0 || actions.move.z !== 0;
       const move = relativeToView(actions.move, rig.view.yaw);
+      // What Do and Take mean here (#341): the words on the buttons, and what a press of each does this frame.
+      const doNow = doHere(world, terrain, trees, nearby);
+      const takeNow = takeHere(world, withPonds(terrain, world.ponds), terrain);
+      touch.setLabel('do', doNow ? DO_LABEL[doNow] : 'Do');
+      touch.setEnabled('do', doNow !== null);
+      touch.setLabel('take', takeLabel(takeNow));
+      touch.setEnabled('take', takeNow !== null);
+      const b = world.beaver;
+      touch.setEnabled('dive', world.inLodge ? !!world.lodge && atHole(world.lodge, b.x, b.z) : b.mode !== 'walk');
+      touch.setEnabled('slap', !world.inLodge && b.mode !== 'dive');
+      keyHints.setWords(doNow ? DO_LABEL[doNow] : null, takeNow ? takeLabel(takeNow) : null);
+      doShown = doNow;
+      doPressed = actions.act ? doNow : null;
       if (free && rig.view.free) {
         // The drone leaves the beaver, which stands still. Any move or climb cancels a tap's glide; the streamer follows the drone.
         const climb = (held('Space') || held('KeyE') ? 1 : 0) - (held('ShiftLeft') || held('ShiftRight') || held('KeyQ') ? 1 : 0) + flyButtons.read();
@@ -557,17 +571,17 @@ async function start(): Promise<void> {
         if (glideTo) {
           if (glide(rig.view, glideTo, dt)) glideTo = null;
         } else flyStep(rig.view, actions.move, climb, dt, surface);
-        world = step(world, noActions(), dt, terrain, trees);
+        world = step(world, noIntent(), dt, terrain, trees);
         streamer?.update(rig.view.free.x, rig.view.free.z);
       } else if (fly) {
         // The view leaves the beaver, which stands still; the stick or WASD moves the view's own point, Q and E zoom.
         const speed = FLY_BASE_SPEED + rig.view.dist * FLY_SPEED_PER_M;
         const at = rig.view.focus ?? { x: world.beaver.x, z: world.beaver.z };
         rig.view.focus = { x: at.x + move.x * speed * dt, z: at.z + move.z * speed * dt };
-        world = step(world, noActions(), dt, terrain, trees);
+        world = step(world, noIntent(), dt, terrain, trees);
         streamer?.update(rig.view.focus.x, rig.view.focus.z);
       } else {
-        world = step(world, { move, dive: actions.dive, slap: actions.slap, chop: actions.chop, grab: actions.grab, build: actions.build, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
+        world = step(world, { move, dive: actions.dive, diveTap: actions.diveTap, slap: actions.slap, do: doPressed, take: actions.take ? takeNow : null, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
         streamer?.update(world.beaver.x, world.beaver.z);
         rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
       }
@@ -688,17 +702,17 @@ async function start(): Promise<void> {
       greeted.add(hello);
     }
     if (slappedNow) world = startle(world, around);
-    // Talking: a press of Build where nothing else wants it starts a talk with the nearest beaver in reach (#344).
+    // Talking: a press of Do when it reads Talk starts a talk with the nearest beaver in reach (#344, buttons.ts says when).
     const parents = [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats, homeDam(world.lodge, world.spots, world.dams)), ...formerParentsAt(world.formerHomes, world.clock, ponded)];
     // A baby cannot work, but it talks to its own people from day 1 (Mama and Papa; siblings are not in the game yet).
     const grown = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works;
-    const near = buildIsFree(world) ? nearestSpeaker(speakersOf(grown ? familyBeavers : [], parents, grown ? world.partners : [], nameOf, placeOf), world.beaver) : null;
+    const near = !world.stashOpen ? nearestSpeaker(speakersOf(grown ? familyBeavers : [], parents, grown ? world.partners : [], nameOf, placeOf), world.beaver) : null;
     if (talkingTo && Math.hypot(talkingTo.x - world.beaver.x, talkingTo.z - world.beaver.z) > TALK_END) {
       talkBubble.hush();
       talkingTo = null;
     }
     // A press while already talking to this beaver does not start over. The greeting reads what the beaver remembers before this talk.
-    if (near && buildPressed && !(talkBubble.talking() && talkingTo?.id === near.id)) {
+    if (near && doPressed === 'talk' && !(talkBubble.talking() && talkingTo?.id === near.id)) {
       talkingTo = near;
       asked = [];
       talkFacts = factsFor(world, near);
@@ -706,7 +720,6 @@ async function start(): Promise<void> {
       world = noteTalk(world, near.id);
       speak(near, said(near, 'greet', text), LINE_SECONDS * 1.5, talkFacts);
     }
-    buildPressed = false;
     // A call and its reply between two beavers of a family near the player, once in a slot of the clock (#345), and else now and
     // then a word from the partner. The two lines go into the toast queue together, so the reply follows the call.
     const callSlot = Math.floor(world.clock / CALL_SLOT);
@@ -721,7 +734,7 @@ async function start(): Promise<void> {
         if (remark) toast.show(`${remark.who}: "${remark.text}"`);
       }
     }
-    talkBubble.prompt(near?.name ?? null, 'Build');
+    talkBubble.prompt(near && doShown === 'talk' ? near.name : null, touchOn ? 'Talk' : 'E');
     talkBubble.tick(dt);
     // Winter: a beaver stuck in a drift calls for help, the player digs it out by gnawing beside it, and it becomes a guide (#346).
     const homeAt = world.formerHomes.at(-1) ?? world.lodge ?? world.beaver;
@@ -732,7 +745,9 @@ async function start(): Promise<void> {
       toast.show(`Someone is calling for help in the snow${fam ? ` by the ${pondName(fam.lodge, homeAt)}` : ''}. Gnaw the drift to dig`);
     }
     const drift = nearestStuck(stuckList, world.beaver, DIG_REACH);
-    dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, gnawPressed, movingNow, dt) : 0;
+    dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, doPressed === 'dig', movingNow, dt) : 0;
+    nearby = { speaker: near !== null, drift: drift !== null };
+    doPressed = null;
     if (drift && dug >= DIG_TIME) {
       world = rescue(world, drift);
       dug = 0;

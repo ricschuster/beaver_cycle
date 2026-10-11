@@ -55,7 +55,7 @@
 <h2 id="baby">Your first day</h2>
 <p>You start as a baby beaver, at home in the lodge with Mama and Papa. The little card at the top left shows what to do. Its buttons are <b>Back</b>, <b>Next</b> and <b>Close</b>.</p>
 <ol class="steps">
-  <li><b>Swim out.</b> Walk to the water hole in the floor and press <span class="btn">Build</span> (<kbd>B</kbd>).</li>
+  <li><b>Swim out.</b> Walk to the water hole in the floor and press <span class="btn">Dive</span> (<kbd>Space</kbd>).</li>
   <li><b>Swim and dive.</b> Hold <span class="btn">Dive</span> (<kbd>Space</kbd>) to go under water.</li>
   <li><b>Slap your tail.</b> Press <span class="btn">Slap</span> (<kbd>T</kbd>) at the water surface.</li>
   <li><b>Go home and sleep.</b> Dive in at the door, which is under water. Walk to the nest and pick <i>Sleep until teenager</i>.</li>
@@ -63,7 +63,7 @@
 <p class="done">Now you are a teenager, and you can gnaw, drag and build.</p>
 
 <h2 id="start">Your first dam</h2>
-<p>A teenager does these things. First have a snack in the lodge: gnaw a lily pad, carry it in and press <span class="btn">Gnaw</span> (<kbd>E</kbd>) to eat it. Put another in the food store by the door. Then, in this order:</p>
+<p>A teenager does these things. First have a snack in the lodge: take a lily pad, carry it in and press <span class="btn">Eat</span> (<kbd>E</kbd>) to eat it. Put another in the food store by the door. Then, in this order:</p>
 
 <ol class="steps">
   <li>
@@ -78,7 +78,7 @@
   </li>
   <li>
     <b>Take the log</b>
-    <p>The tree is now a log. Stand at the log and press <span class="btn">Drag</span> (<kbd>G</kbd>) to hold it in your teeth. Press it again to let go.</p>
+    <p>The tree is now a log. Stand at the log and press <span class="btn">Take</span> (<kbd>G</kbd>) to hold it in your teeth. Press it again (it now says Drop) to let go.</p>
     <figure><img src="manual/log.jpg" alt="A felled log lying on the shore next to the beaver" loading="lazy" /></figure>
   </li>
   <li>
@@ -88,12 +88,12 @@
   </li>
   <li>
     <b>Press Build</b>
-    <p>Stand in the ring and press <span class="btn">Build</span> (<kbd>B</kbd>). The dam also needs <b>mud</b> and <b>rocks</b>. Read the top left to see what is missing.</p>
+    <p>Stand in the ring and press <span class="btn">Build</span> (<kbd>E</kbd>). The dam also needs <b>mud</b> and <b>rocks</b>. Read the top left to see what is missing.</p>
     <figure><img src="manual/ring.jpg" alt="A white ring on the ground with a log in it, and the top left saying the dam needs wood, mud and rocks" loading="lazy" /><figcaption>The top left tells you what the dam still needs.</figcaption></figure>
   </li>
   <li>
     <b>Mud and rocks</b>
-    <p>Stand in the shallows and press <span class="btn">Gnaw</span> to scoop mud. Walk up to a rock and press <span class="btn">Gnaw</span> to pick it up. Carry it into the ring and press <span class="btn">Build</span>.</p>
+    <p>Stand in the shallows and press <span class="btn">Take</span> to scoop mud. Walk up to a rock and press <span class="btn">Take</span> to pick it up. Carry it into the ring and press <span class="btn">Build</span>.</p>
   </li>
   <li>
     <b>Watch the pond</b>
@@ -107,12 +107,12 @@
 <p>Tap a question.</p>
 <div class="help">
   <details><summary>The top left has words. What are they?</summary>
-    <p>They tell you what each button would do <b>right now</b>. For example: <i>press Gnaw to pick a lily pad</i>. When you are not sure, read them.</p>
+    <p>They tell you what each button would do <b>right now</b>. For example: <i>press Take to pick a lily pad</i>. When you are not sure, read them.</p>
   </details>
-  <details><summary>Nothing happens when I press Gnaw</summary>
+  <details><summary>Nothing happens when I press Take or Do</summary>
     <ul>
       <li>Stand still. Gnawing does not work while you walk.</li>
-      <li>Your mouth may be full. You can carry one thing. Press <span class="btn">Drag</span> to put it down.</li>
+      <li>Your mouth may be full. You can carry one thing. Press <span class="btn">Drop</span> (the Take button) to put it down.</li>
       <li>Get closer to the tree, rock, lily pad or mud.</li>
     </ul>
   </details>
@@ -148,10 +148,9 @@
   <tr><td>Zoom</td><td>Pinch</td><td>Mouse wheel</td></tr>
   <tr><td>Dive (hold)</td><td><span class="btn">Dive</span></td><td><kbd>Space</kbd></td></tr>
   <tr><td>Tail slap</td><td><span class="btn">Slap</span></td><td><kbd>T</kbd></td></tr>
-  <tr><td>Gnaw a tree, pick up, eat</td><td><span class="btn">Gnaw</span></td><td><kbd>E</kbd></td></tr>
-  <tr><td>Drag a log, or put something down</td><td><span class="btn">Drag</span></td><td><kbd>G</kbd></td></tr>
-  <tr><td>Build, go in or out of the lodge, open the store</td><td><span class="btn">Build</span></td><td><kbd>B</kbd></td></tr>
-</table></div>
+  <tr><td>Pick up a log, a lily pad, mud or a rock, or put it down</td><td><span class="btn">Take</span> (<span class="btn">Drop</span> when you hold something)</td><td><kbd>G</kbd></td></tr>
+  <tr><td>Do the thing at hand: Gnaw, Build, Mend, Store, Eat, Talk, Dig</td><td><span class="btn">Do</span> (the word on it changes)</td><td><kbd>E</kbd></td></tr>
+  </table></div>
 <p>The <b>?</b> button at the top right opens this page. In here, <b>Show the first steps</b> brings the little card back.</p>
 
 <h2 id="more">Read more</h2>
@@ -165,16 +164,16 @@
 
 <details><summary>Your lodge</summary>
   <p>A lodge is made of ten pieces of wood. It sits in the water. Its door is <b>under water</b>: dive at the door to go in.</p>
-  <p>Inside you can eat, rest on the nest and sleep. To go out, stand at the water hole in the floor and press <span class="btn">Build</span>.</p>
-  <p>Dams, the lodge and the food store wear out over time. A worn one shows gaps and a gold ring. Stand next to it, bring what the top left asks for and press <span class="btn">Build</span>. If you wait too long it breaks, and you build it again. Nobody is hurt.</p>
+  <p>Inside you can eat, rest on the nest and sleep. To go out, stand at the water hole in the floor and press <span class="btn">Dive</span>.</p>
+  <p>Dams, the lodge and the food store wear out over time. A worn one shows gaps and a gold ring. Stand next to it, bring what the top left asks for and press <span class="btn">Mend</span>. If you wait too long it breaks, and you build it again. Nobody is hurt.</p>
 </details>
 
 <details><summary>Food and the store</summary>
   <ul>
-    <li><b>Lily pads:</b> swim next to one and press <span class="btn">Gnaw</span>. They die back in winter and grow back in spring.</li>
+    <li><b>Lily pads:</b> swim next to one and press <span class="btn">Take</span>. They die back in winter and grow back in spring.</li>
     <li><b>Branches:</b> press <span class="btn">Gnaw</span> at a fallen log to strip a branch.</li>
-    <li><b>Eating:</b> carry the food into the lodge and press <span class="btn">Gnaw</span>. A lily pad makes you swim faster for a minute. A branch fills you up: you gnaw trees faster for a day.</li>
-    <li><b>The food store:</b> when the lodge is whole, a food store sits in the water by the door. Swim to it and press <span class="btn">Build</span>. Tap a place to move food between the store and your mouth.</li>
+    <li><b>Eating:</b> carry the food into the lodge and press <span class="btn">Eat</span>. A lily pad makes you swim faster for a minute. A branch fills you up: you gnaw trees faster for a day.</li>
+    <li><b>The food store:</b> when the lodge is whole, a food store sits in the water by the door. Swim to it and press <span class="btn">Store</span>. Tap a place to move food between the store and your mouth.</li>
   </ul>
   <p>The store keeps food for winter. Nothing bad happens if it is empty.</p>
 </details>
@@ -196,8 +195,8 @@
     <li><b>The path:</b> follow the little path of candy stones. It leads past lollipop trees and gumdrop bushes down to a river of chocolate.</li>
     <li><b>Sweets:</b> walk or swim into a sweet to collect it. The count is at the top left. A golden star gives you a sugar rush, so you go extra fast for a moment. The sweets are only for this dream.</li>
     <li><b>Marshmallow beavers:</b> soft beavers in pink, mint, lemon and more. Each has a name. They come to say hello.</li>
-    <li><b>Tag:</b> swim up to a marshmallow beaver in the chocolate river and press <span class="btn">Play</span> (<kbd>B</kbd>). Whoever is it chases the others. Touch someone to make them it. After a minute everyone cheers and sweets rain down.</li>
-    <li><b>Hide and seek:</b> walk up to a marshmallow beaver on land and press <span class="btn">Play</span> (<kbd>B</kbd>). You count to ten while they hide. Listen for a giggle. Walk up to a hiding beaver to find it. Find them all for a shower of sweets.</li>
+    <li><b>Tag:</b> swim up to a marshmallow beaver in the chocolate river and press <span class="btn">Play</span> (<kbd>E</kbd>). Whoever is it chases the others. Touch someone to make them it. After a minute everyone cheers and sweets rain down.</li>
+    <li><b>Hide and seek:</b> walk up to a marshmallow beaver on land and press <span class="btn">Play</span> (<kbd>E</kbd>). You count to ten while they hide. Listen for a giggle. Walk up to a hiding beaver to find it. Find them all for a shower of sweets.</li>
   </ul>
   <p>The buttons are almost the same as in the valley. The stick or <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> walks and swims. <span class="btn">Hop</span> (<kbd>Space</kbd>) hops on land and leaps out of the chocolate. <span class="btn">Splash</span> (<kbd>T</kbd>) splashes with your tail.</p>
   <p>The dream lasts as long as you like. Press <b>Wake up</b> at the top right to wake. It is morning in the lodge.</p>
@@ -217,8 +216,8 @@
   <ul>
     <li><b>Deer and ducks</b> are shy. Put a lily pad down near one and it will eat it and trust you more. A tail slap makes them jump.</li>
     <li><b>Beaver families</b> live in lodges on other ponds. At first they are shy and keep away. Put a branch or a lily pad down near them and they trust you more. When they trust you, the kits swim over to look. A tail slap scares them. Families talk about you, and news of a kind deed gets around: when you help one family, the others you know trust you a little more too.</li>
-    <li><b>Talking:</b> walk up to a beaver, such as Mama, Papa, your partner or a neighbour who trusts you. A line at the bottom says <i>Press Build to talk</i>. Press <span class="btn">Build</span> and it answers. Even a baby can talk to Mama and Papa. You can talk to Mama and Papa inside the lodge too. It does not work when Build has another job, such as at the water hole, at the food store or with a log. The first time, a beaver tells you its name and its pond. Next time it knows you. Then you can tap a question. <b>What are you doing?</b> tells you what the beaver is busy with. <b>Any news?</b> gets you something true from a beaver who trusts you: where lily pads grow, that a fox is near, or that a dam needs mending. <b>Can I help?</b> gives you a job. A family may ask for a branch or a lily pad put down near them. Mama and Papa tell you what your home needs. You can ask two questions. Tap <b>Bye</b> and the beaver says goodbye. You may also hear a family call to each other.</li>
-    <li><b>Stuck in the snow:</b> in winter you may hear someone calling for help. A beaver from a family that knows you is stuck in a snowdrift by its pond. Stand next to the drift, press <span class="btn">Gnaw</span>, and keep still until it is dug out. Then talk to it and tap <b>Show me the way</b>. It leads you to a lone beaver, a free dam spot, or home, and waits if you fall behind.</li>
+    <li><b>Talking:</b> walk up to a beaver, such as Mama, Papa, your partner or a neighbour who trusts you. A line at the bottom says <i>Willow is here, press Talk</i>, for example. Press <span class="btn">Talk</span> (the Do button) and it answers. Even a baby can talk to Mama and Papa. You can talk to Mama and Papa inside the lodge too. Talk comes before Gnaw, so by the trees step a little away from the beaver to gnaw. The first time, a beaver tells you its name and its pond. Next time it knows you. Then you can tap a question. <b>What are you doing?</b> tells you what the beaver is busy with. <b>Any news?</b> gets you something true from a beaver who trusts you: where lily pads grow, that a fox is near, or that a dam needs mending. <b>Can I help?</b> gives you a job. A family may ask for a branch or a lily pad put down near them. Mama and Papa tell you what your home needs. You can ask two questions. Tap <b>Bye</b> and the beaver says goodbye. You may also hear a family call to each other.</li>
+    <li><b>Stuck in the snow:</b> in winter you may hear someone calling for help. A beaver from a family that knows you is stuck in a snowdrift by its pond. Stand next to the drift, press <span class="btn">Dig</span>, and keep still until it is dug out. Then talk to it and tap <b>Show me the way</b>. It leads you to a lone beaver, a free dam spot, or home, and waits if you fall behind.</li>
     <li><b>Otters and kingfishers</b> lead you to lily pads. Follow them. They wait if you fall behind.</li>
     <li><b>Foxes and owls</b> may come for your food or chase you. Slap your tail to scare them away. They can only frighten you, never hurt you. A pond is a safe place.</li>
     <li><b>Other beaver families</b> live in ponds around the valley.</li>

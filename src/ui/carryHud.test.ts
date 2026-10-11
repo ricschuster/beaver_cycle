@@ -36,7 +36,7 @@ describe('carry hud', () => {
   });
 
   it('says what the lodge room offers while inside', () => {
-    expect(formatCarry(1, false, null, 1, null, 'hole')).toBe('in the lodge, press Build to dive out through the water hole');
+    expect(formatCarry(1, false, null, 1, null, 'hole')).toBe('in the lodge, press Dive to dive out through the water hole');
     expect(formatCarry(1, false, null, 1, null, 'room')).toBe('in the lodge, the water hole is the way out');
     expect(formatCarry(1, false, null, 1, null, null)).toBe('1 of 30 trees felled, lodge done');
   });
@@ -47,7 +47,7 @@ describe('food line', () => {
 
   it('says what is in the mouth, the store, and what a press does', () => {
     const info = { carry: 'branch' as const, haul: null, dam: null, store: { total: 12, capacity: 40, meals: 18 }, repair: null, hint: 'store' as const };
-    expect(formatCarry(2, false, null, 1, null, null, info)).toBe('2 of 30 trees felled, lodge done, carrying a branch, store 12 of 40, 18 meals, press Build to open the store');
+    expect(formatCarry(2, false, null, 1, null, null, info)).toBe('2 of 30 trees felled, lodge done, carrying a branch, store 12 of 40, 18 meals, press Store to open the store');
     expect(formatCarry(2, false, null, null, null, 'nest', { carry: null, haul: null, dam: null, store: null, repair: null, hint: null })).toBe('in the lodge, on the nest');
   });
 
@@ -67,7 +67,7 @@ describe('food line', () => {
     const info = foodInfoOf(w, flatTerrain(0))!;
     expect(info.store!.capacity).toBe(24);
     expect(info.repair).toEqual({ what: 'store', percent: 25, wood: 8, broken: false });
-    expect(formatCarry(0, true, null, 1, null, null, info)).toBe('0 of 30 trees felled, lodge done, dragging a log, store worn 25%, needs 8 wood (a long log is 2), press Build to add it');
+    expect(formatCarry(0, true, null, 1, null, null, info)).toBe('0 of 30 trees felled, lodge done, dragging a log, store worn 25%, needs 8 wood (a long log is 2), press Mend to add it');
   });
 });
 

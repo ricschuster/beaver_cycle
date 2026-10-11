@@ -20,10 +20,10 @@ export function createKeyboardInput(target: Window): () => Actions {
     if (down.has('KeyA') || down.has('ArrowLeft')) a.move.x += 1;
     // A tap shorter than a frame still counts for one read, so the dream's hop is not lost.
     a.dive = down.has('Space') || pressed.has('Space');
+    a.diveTap = pressed.has('Space');
     a.slap = pressed.has('KeyT');
-    a.chop = pressed.has('KeyE');
-    a.grab = pressed.has('KeyG');
-    a.build = pressed.has('KeyB');
+    a.act = pressed.has('KeyE');
+    a.take = pressed.has('KeyG');
     pressed.clear();
     return a;
   };

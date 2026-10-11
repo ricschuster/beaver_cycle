@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions, type Actions } from '../actions/actions';
+import { noIntent, type Intent } from './buttons';
 import { DOOR_DISTANCE, HOLE, INTERIOR_RADIUS, NEST, LODGE_REACH, LODGE_WOOD, SOLID_RADIUS, addWood, atHole, atNest, doorPoint, findSite, checkSite, lodgeComplete, lodgeProgress, lodgeSite, logWood, followPond } from './lodge';
 import type { Log } from './logs';
 import { isNight } from './clock';
@@ -14,7 +14,8 @@ const shore: Terrain = {
   waterDepth: (_x, z) => Math.max(0, z * 0.5),
 };
 
-const build: Actions = { ...noActions(), build: true };
+const build: Intent = { ...noIntent(), do: 'build' };
+const tapDive: Intent = { ...noIntent(), diveTap: true };
 const log = (id: string, length: number): Log => ({ id, x: 0, y: 0, z: -2, heading: 0, length, floating: false });
 
 /** A beaver on dry land at z = -1 facing the water, dragging a log of this length. */
@@ -130,7 +131,7 @@ describe('solid lodge', () => {
   it('stops a beaver walking into the dome', () => {
     let w = step(dragging(6), build, 0.1, shore);
     w = { ...w, beaver: { ...w.beaver, x: 8, z: w.lodge!.z } };
-    for (let i = 0; i < 40; i++) w = step(w, { ...noActions(), move: { x: -1, z: 0 } }, 0.1, shore);
+    for (let i = 0; i < 40; i++) w = step(w, { ...noIntent(), move: { x: -1, z: 0 } }, 0.1, shore);
     expect(Math.hypot(w.beaver.x - w.lodge!.x, w.beaver.z - w.lodge!.z)).toBeGreaterThanOrEqual(SOLID_RADIUS - 1e-6);
     expect(w.inLodge).toBe(false);
   });
@@ -138,14 +139,14 @@ describe('solid lodge', () => {
   it('keeps a diver out of an unfinished lodge', () => {
     let w = wholeLodge();
     w = { ...w, lodge: { ...w.lodge!, wood: 2 } };
-    const toward = { ...noActions(), move: { x: -Math.sin(w.lodge!.door), z: -Math.cos(w.lodge!.door) }, dive: true };
+    const toward = { ...noIntent(), move: { x: -Math.sin(w.lodge!.door), z: -Math.cos(w.lodge!.door) }, dive: true };
     expect(step(w, toward, 0.1, shore).inLodge).toBe(false);
   });
 
   it('lets a diver swim in at the entrance of a whole lodge, and only there', () => {
     const w = wholeLodge();
     const door = w.lodge!.door;
-    const toward = { ...noActions(), move: { x: -Math.sin(door), z: -Math.cos(door) }, dive: true };
+    const toward = { ...noIntent(), move: { x: -Math.sin(door), z: -Math.cos(door) }, dive: true };
     const inside = step(w, toward, 0.1, shore);
     expect(inside.inLodge).toBe(true);
     expect(inside.beaver.mode).toBe('walk');
@@ -159,23 +160,23 @@ describe('solid lodge', () => {
   it('stays in the room and walks round the water hole', () => {
     const w = wholeLodge();
     const door = w.lodge!.door;
-    let inside = step(w, { ...noActions(), move: { x: -Math.sin(door), z: -Math.cos(door) }, dive: true }, 0.1, shore);
+    let inside = step(w, { ...noIntent(), move: { x: -Math.sin(door), z: -Math.cos(door) }, dive: true }, 0.1, shore);
     const l = w.lodge!;
-    for (let i = 0; i < 60; i++) inside = step(inside, { ...noActions(), move: { x: 0, z: 1 } }, 0.1, shore);
+    for (let i = 0; i < 60; i++) inside = step(inside, { ...noIntent(), move: { x: 0, z: 1 } }, 0.1, shore);
     expect(Math.hypot(inside.beaver.x - l.x, inside.beaver.z - l.z)).toBeLessThanOrEqual(INTERIOR_RADIUS + 1e-6);
     expect(Math.hypot(inside.beaver.x - l.x - HOLE.x, inside.beaver.z - l.z - HOLE.z)).toBeGreaterThanOrEqual(HOLE.radius + 0.5 - 1e-6);
     expect(inside.inLodge).toBe(true);
   });
 
-  it('leaves only by the water hole: build at the hole dives out the entrance', () => {
+  it('leaves only by the water hole: Dive at the hole dives out the entrance', () => {
     const w = wholeLodge();
     const l = w.lodge!;
-    const inside = step(w, { ...noActions(), move: { x: -Math.sin(l.door), z: -Math.cos(l.door) }, dive: true }, 0.1, shore);
-    expect(step(inside, build, 0.1, shore).inLodge).toBe(true);
-    expect(step({ ...inside, beaver: { ...inside.beaver, x: l.x + 3, z: l.z + 3 } }, build, 0.1, shore).inLodge).toBe(true);
+    const inside = step(w, { ...noIntent(), move: { x: -Math.sin(l.door), z: -Math.cos(l.door) }, dive: true }, 0.1, shore);
+    expect(step(inside, tapDive, 0.1, shore).inLodge).toBe(true);
+    expect(step({ ...inside, beaver: { ...inside.beaver, x: l.x + 3, z: l.z + 3 } }, tapDive, 0.1, shore).inLodge).toBe(true);
     const atPool = { ...inside, beaver: { ...inside.beaver, x: l.x + HOLE.x, z: l.z + HOLE.z - HOLE.radius - 0.5 } };
     expect(atHole(l, atPool.beaver.x, atPool.beaver.z)).toBe(true);
-    const out = step(atPool, build, 0.1, shore);
+    const out = step(atPool, tapDive, 0.1, shore);
     expect(out.inLodge).toBe(false);
     expect(Math.hypot(out.beaver.x - l.x, out.beaver.z - l.z)).toBeGreaterThan(SOLID_RADIUS);
     expect(out.beaver.mode).toBe('dive');
@@ -184,7 +185,7 @@ describe('solid lodge', () => {
   it('sleeps only on the nest', () => {
     const w = { ...wholeLodge(), clock: 0.8 * 480 };
     const l = w.lodge!;
-    const inside = step(w, { ...noActions(), move: { x: -Math.sin(l.door), z: -Math.cos(l.door) }, dive: true }, 0.1, shore);
+    const inside = step(w, { ...noIntent(), move: { x: -Math.sin(l.door), z: -Math.cos(l.door) }, dive: true }, 0.1, shore);
     expect(isNight(inside.clock)).toBe(true);
     expect(canSleep(inside)).toBe(false);
     const onNest = { ...inside, beaver: { ...inside.beaver, x: l.x + NEST.x, z: l.z + NEST.z } };

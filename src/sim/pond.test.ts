@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { noActions } from '../actions/actions';
+import { noIntent } from './buttons';
 import { LEVEL1_COST } from './dam';
 import type { DamSpot } from './damSpots';
 import { MIN_CREST, crestOf, floodPond, lodgeGround, pondAt, pondDepthAt, pondsAt, pondsOf, withPonds } from './pond';
@@ -78,7 +78,7 @@ describe('placing the last piece', () => {
   it('makes the pond', () => {
     const t = valley();
     const dams = [{ spot: spot.id, wood: 8, mud: 4, rock: 1 }];
-    const w = step({ ...createWorld(t, 2, 0), spots: [spot], dams, haul: { kind: 'rock' as const } }, { ...noActions(), build: true }, 0.1, t);
+    const w = step({ ...createWorld(t, 2, 0), spots: [spot], dams, haul: { kind: 'rock' as const } }, { ...noIntent(), do: 'build' }, 0.1, t);
     expect(w.dams[0]).toMatchObject({ rock: 2 });
     expect(w.ponds).toHaveLength(1);
     expect(w.ponds[0]!.level).toBeCloseTo(1);

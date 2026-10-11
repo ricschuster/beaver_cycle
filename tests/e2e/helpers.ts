@@ -150,7 +150,7 @@ export async function buildLodge(page: Page, opts: { maxTrips?: number } = {}): 
       await walkToPoint(page, back, 1.5, 60_000);
       await walkTo(page, async () => lodge, 3.4, 10_000);
       const before = (await world(page)).lodge?.wood ?? 0;
-      await tap(page, 'KeyB');
+      await tap(page, 'KeyE');
       placed = await page.waitForFunction((b) => ((window as any).__game.world().lodge?.wood ?? 0) > b, before, { polling: 100, timeout: 2000 }).then(() => true, () => false);
     }
     expect(placed, 'the log went on the lodge').toBe(true);
@@ -184,7 +184,7 @@ export async function pickPad(page: Page, pad: { id: string; x: number; z: numbe
   for (let attempt = 0; attempt < 4; attempt++) {
     await walkToPoint(page, pad, 0.8 + attempt * 0.2, 40_000);
     await page.waitForTimeout(300);
-    await tap(page, 'KeyE');
+    await tap(page, 'KeyG');
     const got = await page.waitForFunction(() => (window as any).__game.world().carry === 'lily', null, { polling: 100, timeout: 3000 }).then(() => true, () => false);
     if (got) return Object.keys((await world(page)).picked).find((id) => !before.includes(id))!;
   }
@@ -199,7 +199,7 @@ export async function openStash(page: Page): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt++) {
     await walkToPoint(page, spot, 1.2, 40_000);
     await page.waitForTimeout(300);
-    await tap(page, 'KeyB');
+    await tap(page, 'KeyE');
     const open = await page.waitForFunction(() => (window as any).__game.world().stashOpen === true, null, { polling: 100, timeout: 2000 }).then(() => true, () => false);
     if (open) return;
   }
@@ -266,7 +266,7 @@ export async function scoopLoad(page: Page, spot: { bed: Point }): Promise<'mud'
         return g.nearestTree(b.x, b.z, 3.2) === null;
       });
       if (!clear) continue;
-      await tap(page, 'KeyE');
+      await tap(page, 'KeyG');
       await page.waitForTimeout(300);
       const haul = (await world(page)).haul;
       if (haul) return haul.kind;
@@ -286,12 +286,12 @@ export async function menuClick(page: Page, selector: string): Promise<void> {
 /** Mama and Papa as the game draws them now (`__game.parents`): the player's own while young, and those of former homes. */
 export const parentsNow = (page: Page): Promise<any[]> => page.evaluate(() => JSON.parse(JSON.stringify((window as any).__game.parents())));
 
-/** From inside the lodge, walk to the water hole and press the build button there, which dives out through the entrance. */
+/** From inside the lodge, walk to the water hole and press Dive (Space) there, which dives out through the entrance. */
 export async function leaveLodgeByHole(page: Page): Promise<void> {
   const lodge = (await world(page)).lodge;
   expect(lodge, 'a lodge to leave').toBeTruthy();
   await walkToPoint(page, { x: lodge.x + HOLE.x, z: lodge.z + HOLE.z - HOLE.radius - 0.5 }, 0.5, 15_000);
-  await tap(page, 'KeyB');
+  await tap(page, 'Space');
   await page.waitForFunction(() => !(window as any).__game.world().inLodge, null, { polling: 100, timeout: 5000 });
 }
 

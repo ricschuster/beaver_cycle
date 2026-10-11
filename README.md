@@ -77,7 +77,7 @@ The game ships as a sideloaded Android APK built with Capacitor
   the WLAN, so a code change needs no APK rebuild. For development.
 - [`tools/standalone-apk/`](tools/standalone-apk/README.md) bundles the built
   game in an APK that plays with no computer. Debug build, for local testing
-  only: the tiles come from OpenStreetMap data, whose licence is not settled
+  only: the tiles come from OpenStreetMap data, so they are ODbL
   ([ADR 0003](docs/decisions/0003-openstreetmap-data-use.md)).
 
 ## Layout
@@ -122,11 +122,15 @@ labels (needs the GitHub CLI with admin access).
   ([copyright](https://www.openstreetmap.org/copyright)). The repo holds no
   OpenStreetMap extract; `tools/area-editor/build_data.py` downloads it into
   untracked `data/raw/`, and the game tiles built from it are untracked too
+  (published as the `tiles` release and on the Pages site, under the ODbL)
   ([ADR 0003](docs/decisions/0003-openstreetmap-data-use.md)). The screenshots
   in `public/manual/` are drawn from it and credited in the manual.
 - Terrain: BEV, Austria (CC BY 4.0), see [ADR 0002](docs/decisions/0002-terrain-source.md).
 
 ## License
 
-Copyright (c) 2026 Richard Schuster. All rights reserved. See `LICENSE`.
-The project may be opened up under a different license later.
+Copyright (c) 2026 Richard Schuster. The code and the author's own content are
+licensed under the GNU Affero General Public License v3 (`LICENSE`): you may
+use and change them, but a changed version that others play, also as a web
+page, must be shared under the same licence. Map data, terrain and sounds from
+others keep their own licences, see [`NOTICE.md`](NOTICE.md).

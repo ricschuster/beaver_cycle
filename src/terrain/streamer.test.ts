@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  RETRY_FIRST_MS,
+  RETRY_MAX_MS,
   Streamer,
   defaultStreamerOptions as o,
   distToTile,
   levelFor,
+  retryWait,
   shownLevel,
   type FetchTile,
 } from './streamer';
@@ -141,21 +144,51 @@ describe('Streamer', () => {
     expect(store.has(0, 0, 0)).toBe(true);
   });
 
-  it('does not retry a tile that failed', async () => {
+  it('tries a failed tile again only after a wait that grows, and keeps it once it comes', async () => {
     const store = new TileStore(makeIndex([0, 0], [0, 0]));
     let calls = 0;
+    let fail = true;
+    let clock = 0;
     const warn = console.warn;
     console.warn = () => {};
-    const streamer = new Streamer(store, () => {
-      calls++;
-      return Promise.reject(new Error('nope'));
-    });
-    for (let i = 0; i < 4; i++) {
+    const streamer = new Streamer(
+      store,
+      (level, tx, tz) => {
+        calls++;
+        return fail ? Promise.reject(new Error('nope')) : Promise.resolve(makeTile(tx, tz, level, () => 0));
+      },
+      o,
+      undefined,
+      () => clock,
+    );
+    const pass = async (): Promise<void> => {
       streamer.update(0, 0);
       await new Promise((r) => setTimeout(r, 0));
-    }
+    };
+    for (let i = 0; i < 4; i++) await pass();
+    expect(calls).toBe(2); // level 2 and level 0, once each, not every frame
+    clock = RETRY_FIRST_MS - 1;
+    await pass();
+    expect(calls).toBe(2);
+    clock = RETRY_FIRST_MS;
+    await pass();
+    expect(calls).toBe(4); // both again, and both fail again
+    clock += retryWait(2) - 1;
+    await pass();
+    expect(calls).toBe(4); // the second wait is longer
+    fail = false;
+    clock += 1;
+    for (let i = 0; i < 4; i++) await pass();
     console.warn = warn;
-    expect(calls).toBe(2); // level 2 and level 0, once each
+    expect(calls).toBe(6);
+    expect(store.has(0, 0, 2)).toBe(true);
+    expect(store.has(0, 0, 0)).toBe(true);
+  });
+
+  it('waits twice as long after each failure in a row, up to a minute', () => {
+    expect(retryWait(1)).toBe(RETRY_FIRST_MS);
+    expect(retryWait(2)).toBe(2 * RETRY_FIRST_MS);
+    expect(retryWait(20)).toBe(RETRY_MAX_MS);
   });
 });
 

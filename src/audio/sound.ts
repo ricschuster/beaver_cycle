@@ -2,6 +2,7 @@
 // loop calls `update` with what the beaver can hear. No DOM here except the events that unlock the sound.
 
 import { waterGain, windGain, birdsGain, cricketsGain, owlGain, effectsGain, musicGain, type Hearing } from './mix';
+import { createVoices, type Cue } from './effects';
 import { loadSound, saveSound, type SoundSettings } from './settings';
 import type { Layer, SoundOut } from './soundOut';
 
@@ -13,9 +14,17 @@ export interface Sound {
   /** Switch a layer on or off (a test menu switch). */
   setLayerOn(layer: Layer, on: boolean): void;
   layerOn(layer: Layer): boolean;
+  /** Switch the one-shot effects on or off (a test menu switch). */
+  setOneShotsOn(on: boolean): void;
+  oneShotsOn(): boolean;
+  /** Play the cues of this frame, within the limit of voices. `now` is real time in seconds. */
+  cue(cues: Cue[], now: number): void;
   /** Called every frame with what the beaver can hear. */
   update(h: Hearing): void;
 }
+
+/** The tablet plays at most this many one-shots at once; the ambient layers take the rest of the 8 (design note, "Tablet budget"). */
+export const MAX_ONE_SHOTS = 4;
 
 export const LAYERS: readonly Layer[] = ['water', 'wind', 'birds', 'crickets', 'owl'];
 
@@ -31,6 +40,8 @@ export function createSound(out: SoundOut, storage: Pick<Storage, 'getItem' | 's
     push();
   };
   push();
+  const voices = createVoices(MAX_ONE_SHOTS);
+  let oneShots = true;
   return {
     settings: () => s,
     setMuted: (muted) => change({ ...s, muted }),
@@ -40,6 +51,14 @@ export function createSound(out: SoundOut, storage: Pick<Storage, 'getItem' | 's
       on.set(layer, v);
     },
     layerOn: (layer) => on.get(layer) ?? false,
+    setOneShotsOn: (v) => {
+      oneShots = v;
+    },
+    oneShotsOn: () => oneShots,
+    cue(cues, now) {
+      if (!oneShots) return;
+      for (const c of cues) if (voices.admit(c, now)) out.play(c.effect, c.gain);
+    },
     update(h) {
       for (const layer of LAYERS) out.setLayer(layer, on.get(layer) ? GAINS[layer](h) : 0);
     },

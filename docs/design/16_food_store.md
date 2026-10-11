@@ -62,7 +62,7 @@ Built in session 28. The sim is in `src/sim/food.ts`, the heap is drawn by
   centre, thick in the middle and thin at the edge. About 7 in 10 cells of 40 m
   hold a patch, but only where the water at its centre is 0.3 to 2.5 m deep, so
   patches lie in shallow bays and not on steep banks. The same places every
-  time, nothing saved. Gnaw within 1.8 m of a pad, at the surface or on foot,
+  time, nothing saved. Take within 1.8 m of a pad, at the surface or on foot,
   with an empty mouth, picks it into the mouth. It goes in the store and is
   eaten like a branch. They die back in winter (Q45) and a picked pad grows
   back the next year (`WorldState.picked`).

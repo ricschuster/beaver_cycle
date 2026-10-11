@@ -192,8 +192,8 @@ const ADULT: readonly CoachStep[] = [
   {
     id: 'partner',
     title: 'Find a lone beaver',
-    touch: 'Mama says it is time for a family of your own. Find a lone beaver in another pond and swim near it. A message says which way to go.',
-    keys: 'Mama says it is time for a family of your own. Find a lone beaver in another pond and swim near it. A message says which way to go.',
+    touch: 'Mama says it is time for a family of your own. Find a lone beaver in another pond and swim near it. A message says which way to go, and sparkles show the way.',
+    keys: 'Mama says it is time for a family of your own. Find a lone beaver in another pond and swim near it. A message says which way to go, and sparkles show the way.',
     button: null,
     done: (w) => w.partners.some((p) => p.state !== 'alone'),
   },

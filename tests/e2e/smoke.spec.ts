@@ -10,6 +10,20 @@ test('the game page renders a canvas', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('the minimap trial shows when asked for, and the test menu turns it off', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  // An automated browser starts without it (docs/design/31_minimap.md), so the other tests and the manual's pictures keep their look.
+  await page.goto('/?shadows=0&minimap=1');
+  await expect(page.locator('#minimap')).toBeVisible();
+  await page.getByRole('button', { name: 'Test menu' }).click();
+  await page.locator('button[data-action="minimap"]').click();
+  await expect(page.locator('button[data-action="minimap"]')).toHaveText('North up');
+  await page.locator('button[data-action="minimap"]').click();
+  await expect(page.locator('#minimap')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
 test('tiles stream in when they have been built', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));

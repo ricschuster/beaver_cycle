@@ -26,7 +26,8 @@ import { FEED_TRUST, banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore,
 import { lead, leaderAnimal } from './sim/guides';
 import { pondGuests, trackPonds } from './sim/pondGuests';
 import { isPredator, meetPredators, predatorAnimals, type PredatorEvent } from './sim/predators';
-import { CUE_EVERY, HEARD_DISTANCE, follower, mateOf, partnerCue } from './sim/partners';
+import { CUE_EVERY, HEARD_DISTANCE, follower, mateOf } from './sim/partners';
+import { LONE_NEWS, loneBeaverWay, pointerDots, pointerTarget, startPointer, type WayPointer } from './sim/wayToPartner';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
 import { CHOP_TIME, noTrees, type TreeSource } from './sim/trees';
@@ -49,6 +50,7 @@ import { createSleepPrompt } from './ui/sleepPrompt';
 import { createDreamScreen } from './ui/dreamScreen';
 import { createTestMenu } from './ui/testMenu';
 import { createFlyButtons } from './ui/flyButtons';
+import { createMinimap, minimapMode, nextMode, type MinimapMode } from './ui/minimap';
 import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
 import { lodgeGround, pondsOf, withPonds } from './sim/pond';
@@ -305,6 +307,9 @@ async function start(): Promise<void> {
   let jump: { x: number; z: number; deadline: number; spawn: { x: number; z: number } | null } | null = null;
   // Locations first, then the named markers (the lake, the bog, the inflows) as test jump points.
   const anchors = store?.index.anchors ?? [];
+  // The minimap trial (docs/design/31_minimap.md): on, turning with the camera; ?minimap=north keeps north up, ?minimap=0 or the test menu turns it off, and an automated browser needs ?minimap=1.
+  const minimap = createMinimap(free ? document.createElement('div') : document.body, minimapMode(query.get('minimap'), navigator.webdriver));
+  const MAP_LABEL: Record<MinimapMode, string> = { north: 'North up', turn: 'Turning', off: 'Off' };
   const menu = createTestMenu(document.body, {
     speeds: [1, 2, 5, 20, 100],
     locations: anchors.map((a) => ({ id: a.id, name: a.name, enabled: a.inTiles })),
@@ -354,6 +359,13 @@ async function start(): Promise<void> {
       renderer.setShadows(on);
     },
     damSites: damSitesFile.length > 0 ? { initiallyOn: query.get('damsites') === '1', onToggle: setDamSites } : undefined,
+    minimap: {
+      label: MAP_LABEL[minimap.mode()],
+      onNext() {
+        minimap.setMode(nextMode(minimap.mode()));
+        return MAP_LABEL[minimap.mode()];
+      },
+    },
     damTools:
       damSpots.length > 0
         ? {
@@ -411,6 +423,9 @@ async function start(): Promise<void> {
   let lastSeason = dateAt(world.clock).season;
   const heardBefore = new Set<string>();
   let cueIn = 0; // seconds until the next word on where a lone beaver is
+  let wayPointer: WayPointer | null = null; // the sparkles toward a lone beaver after a hint, not saved
+  // Where the player looks, in the heading convention: the camera looks at the beaver from `yaw`.
+  const facing = (): number => rig.view.yaw + Math.PI;
   let padSeen: number | null | undefined; // undefined until the first frame
   let branchSeen: number | null | undefined;
   let wonShown = -1; // set on the first frame, so achievements already won in a loaded game give no toast
@@ -471,7 +486,7 @@ async function start(): Promise<void> {
       }
     }
     const threat = lastAmbient.filter((a) => isPredator(a.kind) && Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) < 100).sort((a, c) => Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) - Math.hypot(c.x - world.beaver.x, c.z - world.beaver.z))[0];
-    return { pad, predator: threat ? { x: threat.x, z: threat.z, kind: threat.kind } : null };
+    return { pad, predator: threat ? { x: threat.x, z: threat.z, kind: threat.kind } : null, facing: facing() };
   };
   // The talk: the beaver greets the player, who may ask what it is doing, for news, for a job, or to be shown the way, at most two
   // questions, and says bye; the beaver answers each, and says goodbye before the card closes (#344, #345).
@@ -513,6 +528,9 @@ async function start(): Promise<void> {
     const trusting = !who.family || familyMood(world, who.family) === 'curious';
     const text = reply === 'news' ? answerNews(world, surroundings(), trusting, talks++, before(who, 'news'), who.kind) : replyLine(reply, who, talkFacts, talks++, before(who, reply));
     speak(who, said(who, reply, text), LINE_SECONDS * 1.5, talkFacts);
+    // News of a lone beaver: sparkles show the way to it.
+    const lone = text.startsWith(LONE_NEWS) ? loneBeaverWay(world, facing()) : null;
+    if (lone) wayPointer = startPointer(lone.partner.id, world.time);
   };
   // A family's pond is named for where it lies from the home, as in the call for help in the snow.
   const placeOf = (family: string): string | null => {
@@ -637,15 +655,17 @@ async function start(): Promise<void> {
       if (p.state === 'alone' && !heardBefore.has(p.id) && Math.hypot(p.x - world.beaver.x, p.z - world.beaver.z) <= HEARD_DISTANCE) {
         heardBefore.add(p.id);
         toast.show('A tail slaps in the distance. A lone beaver?');
+        wayPointer = startPointer(p.id, world.time);
       }
     }
     // Out of earshot, now and then a word on which way the nearest lone beaver is (#254).
     cueIn -= dt;
     if (cueIn <= 0 && world.partners.length > 0) {
-      const cue = partnerCue(world.partners, world.beaver);
-      if (cue && cue.metres > HEARD_DISTANCE) {
+      const lone = loneBeaverWay(world, facing());
+      if (lone && lone.d > HEARD_DISTANCE) {
         cueIn = CUE_EVERY;
-        toast.show(`A lone beaver lives far to the ${cue.direction}, about ${cue.metres} m`);
+        toast.show(`A lone beaver lives ${lone.words}. Follow the sparkles`);
+        wayPointer = startPointer(lone.partner.id, world.time);
       }
     }
     const season = dateAt(world.clock).season;
@@ -796,7 +816,12 @@ async function start(): Promise<void> {
     if (world.leader) engaged.add(world.leader.id);
     const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded), ...(world.leader ? [leaderAnimal(world.leader, ponded, world)] : [])];
     const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : [])];
+    // The sparkles toward a lone beaver, until time is up or the player is close.
+    const wayTo = pointerTarget(wayPointer, world);
+    if (!wayTo) wayPointer = null;
+    renderer.setWayDots(wayTo && !world.inLodge ? pointerDots(world.beaver, wayTo, ponded) : [], world.time);
     renderer.draw(world, rig.view, parents, animals, drawnFamily, stuckList.map((st) => ({ x: st.x, y: ponded.heightAt(st.x, st.z), z: st.z })), dug > 0);
+    minimap.update(now, { ground: ponded, pondsKey: world.ponds, beaver: world.beaver, yaw: rig.view.yaw, lodge: world.lodge });
     if (now - lastReadout > 500) {
       lastReadout = now;
       const stats = renderer.terrain?.stats() ?? null;

@@ -5,7 +5,7 @@
 import { mergeActions, noActions, relativeToView, type Actions } from '../actions/actions';
 import { createCameraRig, type CameraRig } from '../render/cameraRig';
 import { createDreamView, type DreamView } from '../render/dreamView';
-import { newDream, playPrompt, stepDream, type DreamEvent, type DreamInput, type DreamState } from '../sim/dream';
+import { hideOrSeek, newDream, playPrompt, stepDream, type DreamEvent, type DreamInput, type DreamState } from '../sim/dream';
 import { DARK_MS, FADE_MS } from './sleepPrompt';
 import { createTouchControls, type TouchControls } from './touchControls';
 
@@ -32,10 +32,13 @@ const LINE_SECONDS = 2.6;
 const LINE_SECONDS_BUSY = 1.4;
 const LINE_QUEUE = 3;
 
-/** The dream's input from the player's actions: the move turned to the view, and a hop only on the frame Dive goes down. */
-export function dreamInput(actions: Actions, yaw: number, diveBefore: boolean): DreamInput {
-  return { move: relativeToView(actions.move, yaw), hop: !!actions.dive && !diveBefore, slap: !!actions.slap, play: !!actions.act };
+/** The dream's input from the player's actions: the move turned to the view, a hop only on the frame Dive goes down, and a pick of hide or seek. */
+export function dreamInput(actions: Actions, yaw: number, diveBefore: boolean, pick?: DreamInput['pick']): DreamInput {
+  return { move: relativeToView(actions.move, yaw), hop: !!actions.dive && !diveBefore, slap: !!actions.slap, play: !!actions.act, pick };
 }
+
+/** The keys for the two picks, by `KeyboardEvent.code`. */
+export const PICK_KEYS: Readonly<Record<string, 'hide' | 'seek'>> = { Digit1: 'hide', Numpad1: 'hide', Digit2: 'seek', Numpad2: 'seek' };
 
 /** A marshmallow beaver's name from an event, which may carry its id or its name. 'player' stays 'player'. */
 export function mallowName(state: DreamState, who: string): string {
@@ -83,6 +86,21 @@ export function dreamLine(event: DreamEvent, state: DreamState, n: number): stri
     }
     case 'seekEnd':
       return pick(['Everyone found! Sweets for all!', 'You found them all! Hooray!', 'All found! What a seeker!'], n);
+    case 'hideStart': {
+      const who = event.seekers === 1 ? 'Your friend counts' : `${event.seekers} friends count`;
+      return pick([`${who} to ten. Run and hide!`, 'They are counting! Quick, hide!', 'Hide behind a big candy!'], n);
+    }
+    case 'hideGo':
+      return pick(['Ready or not, here we come!', 'Shh! They are looking!', 'Here they come! Stay hidden!'], n);
+    case 'spotted': {
+      const name = mallowName(state, event.who);
+      if (event.left === 0) return pick([`${name} found you! Hee hee!`, `Peekaboo! ${name} found you!`], n);
+      return pick([`${name} found you! Hee hee! ${event.left} still looking`, `Peekaboo! ${name} found you! ${event.left} still looking`], n);
+    }
+    case 'hideEnd':
+      if (event.found === event.seekers) return pick(['Everyone found you! Sweets for all!', 'Found you! What a game!'], n);
+      if (event.found === 0) return pick(['Time is up! Nobody found you! What a hider!', 'Time is up! Super hiding!'], n);
+      return pick(['Time is up! What a game!', `Time is up! ${event.found} of ${event.seekers} found you`], n);
     case 'shower':
       return pick(['Sweets rain down! Grab them!', 'A shower of sweets!', 'Sweets everywhere!'], n);
     default:
@@ -101,6 +119,11 @@ export function dreamStatus(state: DreamState): { top: string | null; big: strin
   if (g.kind === 'seek') {
     if (g.phase === 'counting') return { top: 'Hide and seek', big: `Counting... ${Math.max(1, Math.ceil(g.until - state.time))}` };
     return { top: `Find them! ${g.found.length} of ${g.hiders.length} found`, big: null };
+  }
+  if (g.kind === 'hide') {
+    if (g.phase === 'counting') return { top: 'Run and hide!', big: `Hide! ${Math.max(1, Math.ceil(g.until - state.time))}` };
+    const left = `${Math.max(0, Math.ceil(g.until - state.time))} s left`;
+    return { top: g.found.length === 0 ? `Shh! They are looking. ${left}` : `${g.found.length} of ${g.seekers.length} found you. ${left}`, big: null };
   }
   return { top: null, big: null };
 }
@@ -137,6 +160,8 @@ interface Open {
     line: HTMLElement;
     prompt: HTMLElement;
     promptText: HTMLElement;
+    choice: HTMLElement;
+    choiceText: HTMLElement;
   };
   state: DreamState;
   diveBefore: boolean;
@@ -146,6 +171,9 @@ interface Open {
   said: number;
   /** Play was tapped on the screen's own button, for the next frame. */
   playTapped: boolean;
+  /** Hide or seek was tapped or keyed, for the next frame. */
+  picked: DreamInput['pick'];
+  onKey: (e: KeyboardEvent) => void;
   waking: boolean;
 }
 
@@ -161,6 +189,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     o.root.style.opacity = '0';
     o.root.style.pointerEvents = 'none';
     opts.onWake();
+    window.removeEventListener('keydown', o.onKey);
     setTimeout(() => {
       o.view.dispose();
       o.root.remove();
@@ -199,7 +228,26 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       wakeButton.textContent = 'Wake up';
       wakeButton.dataset.action = 'dream-wake';
       wakeButton.addEventListener('click', wake);
-      root.append(countBox, status, big, line, prompt, wakeButton);
+      // Play on land asks: hide or seek? Two big buttons, and the keys 1 and 2.
+      const choice = el('div', `${PILL};position:absolute;left:50%;bottom:${opts.touch ? 24 : 56}px;transform:translateX(-50%);z-index:2;display:none;flex-direction:column;align-items:center;gap:10px;padding:12px 16px;border-radius:28px;font-size:20px;pointer-events:none;${opts.touch ? 'max-width:min(600px,calc(100vw - 440px))' : 'white-space:nowrap'}`, 'dream-choice');
+      const choiceText = el('span', 'text-align:center');
+      const choiceRow = el('div', 'display:flex;gap:14px;justify-content:center;flex-wrap:wrap');
+      for (const [want, label, key, colour, edge] of [
+        ['hide', 'I hide', '1', '#8fd6bd', '#5fb79a'],
+        ['seek', 'I seek', '2', '#ff8fc1', '#e06aa3'],
+      ] as const) {
+        const b = el('button', `min-width:120px;min-height:64px;padding:8px 22px;border-radius:999px;border:3px solid #fff;background:${colour};color:#fff;font-size:22px;cursor:pointer;pointer-events:auto;touch-action:none;box-shadow:0 4px 0 ${edge};${FONT}`) as HTMLButtonElement;
+        b.type = 'button';
+        b.textContent = opts.touch ? label : `${label} (${key})`;
+        b.dataset.action = `dream-${want}`;
+        b.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          if (open) open.picked = want;
+        });
+        choiceRow.append(b);
+      }
+      choice.append(choiceText, choiceRow);
+      root.append(countBox, status, big, line, prompt, choice, wakeButton);
 
       let touch: TouchControls | null = null;
       if (opts.touch) {
@@ -219,6 +267,11 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         keys.textContent = 'WASD move, Space hop, T splash, E play';
         root.append(keys);
       }
+      const onKey = (e: KeyboardEvent): void => {
+        const want = PICK_KEYS[e.code];
+        if (want && open && !open.waking && hideOrSeek(open.state) !== null) open.picked = want;
+      };
+      window.addEventListener('keydown', onKey);
       // Read the layout once so the fade starts from 0.
       void root.offsetWidth;
       root.style.opacity = '1';
@@ -227,13 +280,15 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         view,
         rig,
         touch,
-        hud: { count, status, big, line, prompt, promptText },
+        hud: { count, status, big, line, prompt, promptText, choice, choiceText },
         state,
         diveBefore: false,
         lines: [],
         lineLeft: 0,
         said: 0,
         playTapped: false,
+        picked: undefined,
+        onKey,
         waking: false,
       };
     } catch (e) {
@@ -274,6 +329,9 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     const ask = playPrompt(state);
     hud.prompt.style.display = ask ? 'flex' : 'none';
     if (ask) text(hud.promptText, opts.touch ? ask : `${ask} (E)`);
+    const asked = hideOrSeek(state);
+    hud.choice.style.display = asked ? 'flex' : 'none';
+    if (asked) text(hud.choiceText, `Hide and seek with ${asked}! Do you hide or seek?`);
   };
 
   return {
@@ -299,7 +357,8 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       const merged = mergeActions(actions, o.touch?.read() ?? noActions());
       if (o.playTapped) merged.act = true;
       o.playTapped = false;
-      const input = dreamInput(merged, o.rig.view.yaw, o.diveBefore);
+      const input = dreamInput(merged, o.rig.view.yaw, o.diveBefore, o.picked);
+      o.picked = undefined;
       o.diveBefore = !!merged.dive;
       const countBefore = o.state.count;
       const stepped = stepDream(o.state, input, dt);

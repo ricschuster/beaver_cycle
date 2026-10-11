@@ -92,7 +92,8 @@ export interface DreamBeaver {
   leap?: boolean;
 }
 
-export type MallowState = 'wander' | 'greet' | 'follow' | 'chase' | 'flee' | 'hide' | 'hidden' | 'found';
+/** `count`, `seek` and `home` are for hide and seek with the player hiding: counting at the base, looking, and back at the base. */
+export type MallowState = 'wander' | 'greet' | 'follow' | 'chase' | 'flee' | 'hide' | 'hidden' | 'found' | 'count' | 'seek' | 'home';
 
 export interface Mallow extends DreamBeaver {
   id: string;
@@ -114,6 +115,9 @@ export interface Mallow extends DreamBeaver {
   nextAt?: number;
   /** Which way it dodges while fleeing in tag, -1 to 1. */
   jink?: number;
+  /** A seeker: the prop it is going to look behind, and the props it has looked behind this round. */
+  peek?: string;
+  looked?: string[];
 }
 
 export type DreamGame =
@@ -134,8 +138,15 @@ export type DreamGame =
       /** Dream time the player left the chocolate, while out of it. */
       dryAt?: number;
     }
+  /** Play on land asks first: does the player hide or seek? `with` is the marshmallow beaver Play was pressed by. */
+  | { kind: 'choose'; with: string }
   /** Counting: the player counts to ten while the hiders run off. Seeking: until all are found. */
-  | { kind: 'seek'; phase: 'counting' | 'seeking'; until: number; hiders: string[]; found: string[] };
+  | { kind: 'seek'; phase: 'counting' | 'seeking'; until: number; hiders: string[]; found: string[] }
+  /**
+   * The player hides. Counting: the seekers count to ten at `base` while the player runs off. Seeking: they look until all
+   * have found the player or `until`, a minute on. `found` is the seekers that have found the player.
+   */
+  | { kind: 'hide'; phase: 'counting' | 'seeking'; until: number; base: DreamPoint; seekers: string[]; found: string[] };
 
 export interface DreamState {
   land: DreamLand;
@@ -162,6 +173,8 @@ export interface DreamInput {
   slap: boolean;
   /** The Build control went down this frame: start a game with the nearest marshmallow beaver. */
   play: boolean;
+  /** The player picked this frame, while asked: hide or seek. */
+  pick?: 'hide' | 'seek';
 }
 
 export type DreamEvent =
@@ -178,6 +191,12 @@ export type DreamEvent =
   | { what: 'giggle'; who: string; x: number; z: number }
   | { what: 'found'; who: string; left: number }
   | { what: 'seekEnd' }
+  | { what: 'hideStart'; seekers: number }
+  | { what: 'hideGo' }
+  /** A seeker found the hiding player; `left` are still looking. */
+  | { what: 'spotted'; who: string; left: number }
+  /** The player's hiding is over: `found` of the `seekers` found them. */
+  | { what: 'hideEnd'; found: number; seekers: number }
   | { what: 'shower'; count: number };
 
 /** Pastel coats for the marshmallow beavers: fur, darker fur for legs and ears, and belly, as in `COATS` of the beaver model. */
@@ -259,6 +278,22 @@ const FIND_REACH = 2.5;
 const POP_TIME = 0.8;
 /** After the last is found, they follow the player this long before they wander off. */
 const FOLLOW_AFTER = 4;
+/**
+ * Hiding from them: the choice closes when the player walks this far from the one asked, at most this many seek, they walk
+ * a little slower than the player, and stop to look behind a prop this long. They see the player this near unless a hiding
+ * prop is in the way, and find them anyway this near; now and then they go straight to the prop nearest the player. Near
+ * the player they giggle. The seeking lasts a minute.
+ */
+const CHOOSE_REACH = 8;
+const SEEKERS = 4;
+export const SEEK_SPEED = 3.2;
+const PEEK_TIME = 1;
+export const SEE_REACH = 7;
+const SPOT_REACH = 1.8;
+const HUNCH = 0.2;
+const LOOK_FAR = 50;
+const NEAR_GIGGLE = 10;
+export const HIDE_TIME = 60;
 /** Sweets in the shower at the end of a game. */
 export const SHOWER = 12;
 
@@ -436,9 +471,11 @@ export function stepDream(state: DreamState, input: DreamInput, dt: number): { s
   let s: DreamState = { ...state, time, beaver: moveBeaver(state, input, time, dt, events) };
   s = collect(s, events);
   if (input.play && s.game.kind === 'none') s = startGame(s, rand, events);
+  if (s.game.kind === 'choose') s = chooseRules(s, s.game, input.pick, rand, events);
   s = { ...s, mallows: stepMallows(s, rand, dt, events) };
   if (s.game.kind === 'tag') s = tagRules(s, s.game, rand, events);
   else if (s.game.kind === 'seek') s = seekRules(s, s.game, rand, events);
+  else if (s.game.kind === 'hide') s = hideRules(s, s.game, rand, events);
   return { state: { ...s, rng: rng.state() }, events };
 }
 
@@ -544,13 +581,42 @@ export function playPrompt(state: DreamState): string | null {
   return inChocolate(state) ? `Play tag with ${m.name}` : `Play hide and seek with ${m.name}`;
 }
 
+/** The marshmallow beaver's name while the player is asked to hide or seek, else null. */
+export function hideOrSeek(state: DreamState): string | null {
+  const g = state.game;
+  return g.kind === 'choose' ? state.mallows.find((m) => m.id === g.with)?.name ?? null : null;
+}
+
+/** In the chocolate Play starts tag. On land it asks first whether the player hides or seeks. */
 function startGame(s: DreamState, rand: () => number, events: DreamEvent[]): DreamState {
   const chosen = playmate(s);
   if (!chosen) return s;
-  return inChocolate(s) ? startTag(s, chosen, rand, events) : startSeek(s, chosen, rand, events);
+  return inChocolate(s) ? startTag(s, chosen, rand, events) : { ...s, game: { kind: 'choose', with: chosen.id } };
 }
 
-const backToWander = (m: Mallow): Mallow => ({ ...m, state: 'wander', goal: undefined, until: undefined, nextAt: undefined, jink: undefined, hideAt: undefined });
+/** The player's pick starts the game; walking off, or the one asked being gone, drops the question. */
+function chooseRules(s: DreamState, g: Extract<DreamGame, { kind: 'choose' }>, pick: DreamInput['pick'], rand: () => number, events: DreamEvent[]): DreamState {
+  const chosen = s.mallows.find((m) => m.id === g.with);
+  if (!chosen || dist2(chosen, s.beaver) > CHOOSE_REACH * CHOOSE_REACH) return { ...s, game: { kind: 'none' } };
+  if (pick === 'seek') {
+    const started = startSeek(s, chosen, rand, events);
+    return started.game.kind === 'seek' ? started : { ...s, game: { kind: 'none' } };
+  }
+  if (pick === 'hide') return startHide(s, chosen, events);
+  return s;
+}
+
+const backToWander = (m: Mallow): Mallow => ({
+  ...m,
+  state: 'wander',
+  goal: undefined,
+  until: undefined,
+  nextAt: undefined,
+  jink: undefined,
+  hideAt: undefined,
+  peek: undefined,
+  looked: undefined,
+});
 
 function startTag(s: DreamState, chosen: Mallow, rand: () => number, events: DreamEvent[]): DreamState {
   const t = s.time;
@@ -731,6 +797,17 @@ function stepMallow(s: DreamState, m: Mallow, rand: () => number, dt: number, ev
       events.push({ what: 'giggle', who: m.name, x: m.x, z: m.z });
       return { ...next, giggleAt: t };
     }
+    case 'count':
+    case 'home': {
+      // At the base: counting with their faces to it, or back after finding the player and watching them.
+      const g = m.goal ?? m;
+      const d = Math.sqrt(dist2(m, g));
+      if (d > 0.4) return go(s, m, g.x - m.x, g.z - m.z, Math.min(HIDE_SPEED, 0.5 + d * 3), dt);
+      const game = s.game;
+      return face(s, m, m.state === 'count' && game.kind === 'hide' ? game.base : b, dt);
+    }
+    case 'seek':
+      return seek(s, m, rand, dt, events);
     case 'found': {
       const faced = face(s, m, b, dt);
       return m.until === undefined || t >= m.until ? { ...faced, state: 'follow', until: undefined } : faced;
@@ -766,6 +843,8 @@ function pickSpot(land: DreamLand, m: Mallow, rand: () => number): DreamPoint {
 function wander(s: DreamState, m: Mallow, rand: () => number, dt: number, events: DreamEvent[]): Mallow {
   const b = s.beaver;
   const t = s.time;
+  // The one asked waits for the answer, looking at the player.
+  if (s.game.kind === 'choose' && s.game.with === m.id) return face(s, { ...m, met: true }, b, dt);
   if (!m.met && dist2(m, b) < GREET_REACH * GREET_REACH) {
     events.push({ what: 'greet', who: m.name });
     return settle(s.land, { ...m, state: 'greet', met: true, until: t + GREET_TIME, hopAt: t, leap: m.mode === 'swim', goal: undefined }, t);
@@ -907,6 +986,123 @@ function seekRules(s: DreamState, g: Extract<DreamGame, { kind: 'seek' }>, rand:
   events.push({ what: 'seekEnd' });
   const freed = mallows.map((m): Mallow => (found.includes(m.id) ? { ...m, state: 'follow', until: t + FOLLOW_AFTER } : m));
   return shower({ ...s, mallows: freed, game: { kind: 'none' } }, rand, events, false);
+}
+
+/** The player hides: the one asked and the nearest others within 35 m, four at most, gather where the player stands and count to ten. */
+function startHide(s: DreamState, chosen: Mallow, events: DreamEvent[]): DreamState {
+  const b = s.beaver;
+  const others = s.mallows.filter((m) => m !== chosen && dist2(m, b) < SEEK_JOIN * SEEK_JOIN).sort((p, q) => dist2(p, b) - dist2(q, b));
+  const seekers = [chosen, ...others].slice(0, SEEKERS).map((m) => m.id);
+  const base = { x: b.x, z: b.z };
+  const mallows = s.mallows.map((m): Mallow => {
+    const k = seekers.indexOf(m.id);
+    return k < 0 ? m : { ...backToWander(m), state: 'count', met: true, goal: ring(base, k, seekers.length) };
+  });
+  events.push({ what: 'hideStart', seekers: seekers.length });
+  return { ...s, mallows, game: { kind: 'hide', phase: 'counting', until: s.time + COUNT_TIME, base, seekers, found: [] } };
+}
+
+/** A seeker's place at the base, on a small ring round it. */
+function ring(base: DreamPoint, k: number, n: number): DreamPoint {
+  const a = (k / Math.max(1, n)) * TAU;
+  return { x: clamp(base.x + Math.sin(a) * 1.6, -INNER, INNER), z: clamp(base.z + Math.cos(a) * 1.6, -INNER, INNER) };
+}
+
+/** A seeker sees the player: right next to them, or near with no hiding prop in between. */
+function sees(land: DreamLand, m: DreamPoint, b: DreamPoint): boolean {
+  const d2 = dist2(m, b);
+  if (d2 < SPOT_REACH * SPOT_REACH) return true;
+  if (d2 > SEE_REACH * SEE_REACH) return false;
+  const dx = b.x - m.x;
+  const dz = b.z - m.z;
+  return !land.props.some((p) => {
+    if (!p.hide) return false;
+    const r = Math.max(0.6, PROP_RADIUS[p.kind] * p.size) + 0.2;
+    const k = clamp(((p.x - m.x) * dx + (p.z - m.z) * dz) / d2, 0, 1);
+    return (m.x + dx * k - p.x) ** 2 + (m.z + dz * k - p.z) ** 2 < r * r;
+  });
+}
+
+/** A seeker goes from hiding prop to hiding prop and looks behind each a moment. Near the player it giggles. */
+function seek(s: DreamState, m: Mallow, rand: () => number, dt: number, events: DreamEvent[]): Mallow {
+  const g = s.game;
+  if (g.kind !== 'hide') return backToWander(m);
+  const t = s.time;
+  let next = m;
+  if (dist2(m, s.beaver) < NEAR_GIGGLE * NEAR_GIGGLE && (m.nextAt === undefined || t >= m.nextAt)) {
+    events.push({ what: 'giggle', who: m.name, x: m.x, z: m.z });
+    next = { ...next, giggleAt: t, nextAt: t + 2 + rand() * 2 };
+  }
+  if (next.until !== undefined) {
+    const prop = s.land.props.find((p) => p.id === next.peek);
+    if (t < next.until) return prop ? face(s, next, prop, dt) : stand(s, next, dt);
+    next = { ...next, until: undefined, goal: undefined, peek: undefined, looked: [...(next.looked ?? []), ...(next.peek ? [next.peek] : [])] };
+  }
+  if (!next.goal) {
+    const look = lookNext(s, g, next, rand);
+    if (!look) return stand(s, next, dt);
+    next = { ...next, peek: look.prop, goal: look.spot, looked: look.again ? [] : next.looked };
+  }
+  const goal = next.goal!;
+  const d = Math.sqrt(dist2(next, goal));
+  if (d < 0.5) return stand(s, { ...next, until: t + PEEK_TIME }, dt);
+  return go(s, next, goal.x - next.x, goal.z - next.z, Math.min(SEEK_SPEED, 0.5 + d * 3), dt);
+}
+
+/**
+ * The next prop a seeker looks behind, from the hiding props within 50 m of the base that no other seeker is going to: now
+ * and then the one nearest the player, else mostly a near one it has not looked behind yet. When it has looked behind them
+ * all it starts again (`again`). It looks from beside the prop, a quarter turn round from where it comes.
+ */
+function lookNext(s: DreamState, g: Extract<DreamGame, { kind: 'hide' }>, m: Mallow, rand: () => number): { prop: string; spot: DreamPoint; again: boolean } | null {
+  const others = new Set(s.mallows.flatMap((o) => (o.id !== m.id && o.state === 'seek' && o.peek ? [o.peek] : [])));
+  const all = s.land.props.filter((p) => p.hide && dist2(p, g.base) < LOOK_FAR * LOOK_FAR && !others.has(p.id));
+  if (all.length === 0) return null;
+  const looked = new Set(m.looked ?? []);
+  let open = all.filter((p) => !looked.has(p.id));
+  const again = open.length === 0;
+  if (again) open = all;
+  let pick = open[0]!;
+  if (rand() < HUNCH) {
+    for (const p of open) if (dist2(p, s.beaver) < dist2(pick, s.beaver)) pick = p;
+  } else {
+    let best = Infinity;
+    for (const p of open) {
+      const score = Math.sqrt(dist2(p, m)) + rand() * 12;
+      if (score < best) {
+        best = score;
+        pick = p;
+      }
+    }
+  }
+  const r = Math.max(0.5, PROP_RADIUS[pick.kind] * pick.size) + 1.2;
+  const a = Math.atan2(m.x - pick.x, m.z - pick.z) + ((rand() < 0.5 ? 1 : -1) * Math.PI) / 2;
+  const spot = { x: clamp(pick.x + Math.sin(a) * r, -INNER, INNER), z: clamp(pick.z + Math.cos(a) * r, -INNER, INNER) };
+  return { prop: pick.id, spot, again };
+}
+
+function hideRules(s: DreamState, g: Extract<DreamGame, { kind: 'hide' }>, rand: () => number, events: DreamEvent[]): DreamState {
+  const t = s.time;
+  if (g.phase === 'counting') {
+    if (t < g.until) return s;
+    events.push({ what: 'hideGo' });
+    const mallows = s.mallows.map((m): Mallow => (g.seekers.includes(m.id) ? { ...backToWander(m), state: 'seek', looked: [] } : m));
+    return { ...s, mallows, game: { ...g, phase: 'seeking', until: t + HIDE_TIME } };
+  }
+  // A seeker that sees the player has found them: it giggles, cheers with a hop, and goes back to the base.
+  let found = g.found;
+  const mallows = s.mallows.map((m): Mallow => {
+    if (m.state !== 'seek' || !g.seekers.includes(m.id) || !sees(s.land, m, s.beaver)) return m;
+    found = [...found, m.id];
+    events.push({ what: 'spotted', who: m.name, left: g.seekers.length - found.length });
+    const home = ring(g.base, g.seekers.indexOf(m.id), g.seekers.length);
+    return { ...backToWander(m), state: 'home', hopAt: t, leap: false, giggleAt: t, goal: home };
+  });
+  if (found.length < g.seekers.length && t < g.until) return found === g.found ? s : { ...s, mallows, game: { ...g, found } };
+  // All have found the player, or the minute is up: sweets either way.
+  events.push({ what: 'hideEnd', found: found.length, seekers: g.seekers.length });
+  const done = mallows.map((m): Mallow => (g.seekers.includes(m.id) ? { ...backToWander(m), state: 'follow', until: t + FOLLOW_AFTER } : m));
+  return shower({ ...s, mallows: done, game: { kind: 'none' } }, rand, events, false);
 }
 
 /** A shower of sweets round the player at the end of a game: floating after tag, on land after hide and seek. */

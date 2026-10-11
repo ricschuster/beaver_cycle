@@ -116,6 +116,16 @@ never run on the updated branch. Rotate the token before it expires.
 `scripts/bootstrap-repo-settings.sh` sets branch protection, auto-merge, and
 labels (needs the GitHub CLI with admin access).
 
+## Data sources
+
+- Water and land cover: &copy; OpenStreetMap contributors, ODbL
+  ([copyright](https://www.openstreetmap.org/copyright)). The repo holds no
+  OpenStreetMap extract; `tools/area-editor/build_data.py` downloads it into
+  untracked `data/raw/`, and the game tiles built from it are untracked too
+  ([ADR 0003](docs/decisions/0003-openstreetmap-data-use.md)). The screenshots
+  in `public/manual/` are drawn from it and credited in the manual.
+- Terrain: BEV, Austria (CC BY 4.0), see [ADR 0002](docs/decisions/0002-terrain-source.md).
+
 ## License
 
 Copyright (c) 2026 Richard Schuster. All rights reserved. See `LICENSE`.

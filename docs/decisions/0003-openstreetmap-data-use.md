@@ -41,6 +41,20 @@ This is not legal advice. Nothing is released yet, so no obligation applies yet.
   rebuilt by a script (M2). Whether handing the APK to a few friends counts as
   public is unconfirmed, so check before doing it.
 
+## Update 2026-10-11: public repository
+
+The source repository may become public. A check of the tree and the full git
+history found no OSM extract, tile, or OSM geometry: `data/areas/` holds play
+polygons and travel routes computed on BEV terrain. What goes public:
+
+- The tools that download OSM at build time (code only).
+- Six manual screenshots drawn from OSM-derived tiles. They are Produced Works,
+  so the manual and README now credit OpenStreetMap contributors and link the
+  copyright page.
+
+Tiles, `data/raw/`, and any APK stay unpublished. The release decision above
+still applies to them, and to handing the APK to friends.
+
 ## Consequences
 
 - No licence risk today, and the editor stays simple.

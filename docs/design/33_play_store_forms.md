@@ -51,7 +51,10 @@ Full description:
 Graphics: use real screenshots from the game (`MANUAL_SHOTS`, tablet size). Do not use child-style cartoon art that the
 game does not show.
 
+## Contact
+
+The store listing and the privacy page use <ric.schuster@gmail.com> (chosen by the author, 2026-10-11). Play may show it publicly.
+
 ## Still open
 
-- A contact email for the store listing (Play requires one and may show it); the privacy page uses the GitHub issues link.
 - Whether to keep INTERNET in the app manifest (the tiles are inside the app, so it may not be needed).

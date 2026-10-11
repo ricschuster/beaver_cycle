@@ -14,7 +14,7 @@ export interface RockView {
 /** Rocks are drawn this far round the beaver, in metres, and rebuilt after it moves an eighth of that. */
 const DRAW_RADIUS = 120;
 const REBUILD_DISTANCE = DRAW_RADIUS / 8;
-const MAX_ROCKS = 600;
+const MAX_ROCKS = 1000;
 const MAX_MOUNDS = 200;
 const MAX_FOOD = 100;
 /** A drawn rock is this many times the radius the sim uses, so it reads from a distance. */

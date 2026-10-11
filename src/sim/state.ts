@@ -296,7 +296,7 @@ export function intoLodge(world: WorldState): WorldState {
 }
 
 /** A kit is due on the first day of spring after the partner moved into a whole lodge (note 23). */
-export function kitDue(world: WorldState): boolean {
+export function kitDue(world: Pick<WorldState, 'partners' | 'lodge' | 'clock' | 'bornAt'>): boolean {
   const mate = mateOf(world.partners);
   return mate !== null && mate.homeAt !== null && lodgeComplete(world.lodge) && world.clock >= nextSpringStart(mate.homeAt) && stageAt(world.clock, world.bornAt) === 'adult';
 }

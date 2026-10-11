@@ -22,9 +22,9 @@ for f in sys.argv[1:]:
 
 chosen = sorted(f for f, r in rating.items() if r == "ok")
 manifest = {"effects": {}, "layers": {}}
-if OUT.exists():
-    shutil.rmtree(OUT)
-OUT.mkdir(parents=True)
+OUT.mkdir(parents=True, exist_ok=True)
+for old in OUT.glob("*.ogg"):  # CREDITS.md stays
+    old.unlink()
 for f in chosen:
     if not (SRC / f).exists():
         print("missing", f)

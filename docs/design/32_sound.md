@@ -143,9 +143,11 @@ replace them. Only `done` and the three chimes stay in code. Babble and chirp st
   fall, cheer, more splashes) both write into `public/audio-candidates/`; `fetch_packs.sh` downloads the sources.
 - **Water slap.** The tail slap on land (`slap`) and in water (`slapwater`, when the beaver is swimming or diving) are two effects.
   The sim has no depth for a splash, so all splash clips, shallow or deep, share one pool.
-- **Credits.** `public/audio/CREDITS.md` lists source, author and licence. One clip (the cheer) is CC-BY 4.0 and needs the credit;
-  the rest are CC0. A credits line in the game is still to do if more CC-BY clips are chosen.
-- **Budget.** 3.4 MB for the 68 clips of round 1, inside the 5 MB budget.
+- **Credits.** `public/audio/CREDITS.md` lists source, author and licence. Sources and licences were re-checked on each
+  page in session 91. One clip (the cheer) is CC-BY 4.0 and needs the credit; the rest are CC0. The manual (the ? button) ends with a
+  sounds credit line. `pick_from_ratings.py` clears only the old `.ogg` files, so `CREDITS.md` survives a rebuild.
+- **Round 2 (session 91).** The author rated the gap clips (`tools/sound-preview/ratings-round2.md`, which includes the round 1 oks).
+  104 clips, 3.8 MB, inside the 5 MB budget. `fall` has no ok clip yet and plays the code sound.
 
 ## Slices
 

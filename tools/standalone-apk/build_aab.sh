@@ -9,6 +9,10 @@ KEYSTORE="${KEYSTORE:-$HOME/.beaver-cycle-keys/upload.jks}"
 ALIAS="${KEY_ALIAS:-upload}"
 PASSWORD="${KEYSTORE_PASSWORD:-$(cat "$(dirname "$KEYSTORE")/password.txt")}"
 cd "$(dirname "$0")/android"
+# Lean release: the unrated sound candidates are not used by the game, and Capacitor serves the app from the device, so the
+# game needs no INTERNET permission. Both edits are to the synced copy only and are safe to repeat.
+rm -rf app/src/main/assets/public/audio-candidates
+sed -i '/android.permission.INTERNET/d' app/src/main/AndroidManifest.xml
 ./gradlew bundleRelease -q
 out=app/build/outputs/bundle/release
 version=$(sed -n 's/.*versionName "\(.*\)".*/\1/p' app/build.gradle)

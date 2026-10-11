@@ -29,6 +29,8 @@ export interface Coach {
 
 export interface CoachOptions {
   touch: boolean;
+  /** Where the player looks (heading convention), for the way to the nearest ring. */
+  facing?(): number;
   /** Called when the player closes the coach for good (Close, or the last card), so the caller can remember it and stop starting runs. */
   onClose(): void;
 }
@@ -96,7 +98,7 @@ export function createCoach(parent: HTMLElement, opts: CoachOptions): Coach {
     const steps = stepsOf(state.chapter);
     const finished = state.step >= steps.length;
     const step = finished ? null : steps[state.step]!;
-    const line = step ? stepText(step, opts.touch, world) : COACH_DONE[state.chapter];
+    const line = step ? stepText(step, opts.touch, world, opts.facing?.()) : COACH_DONE[state.chapter];
     // Redraw only when the words change, as the other readouts do. The ring step's distance changes the words as the beaver walks.
     const key = `${state.chapter}:${state.step}:${line}`;
     if (key === shown) return;

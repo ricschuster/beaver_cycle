@@ -6,6 +6,7 @@ import { lodgeComplete } from '../sim/lodge';
 import type { Stage } from '../sim/life';
 import { mateOf } from '../sim/partners';
 import type { WorldState } from '../sim/state';
+import { placeWords } from '../sim/wayToPartner';
 
 /** The touch button a step points at, by its element id suffix (`touch-do`), or null. */
 export type CoachButton = 'dive' | 'slap' | 'take' | 'do' | null;
@@ -42,10 +43,8 @@ export interface CoachStep {
   done(world: WorldState, state: CoachState): boolean;
 }
 
-const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'] as const;
-
-/** The nearest free or started dam spot as compass words and metres to the nearest 10, or null when there is none. North is -z. */
-export function nearestRing(world: WorldState): { direction: string; metres: number } | null {
+/** The nearest free or started dam spot as the way from the player's view, or null when there is none. */
+export function nearestRing(world: WorldState, facing: number = world.beaver.heading): string | null {
   let best: { dx: number; dz: number; d: number } | null = null;
   for (const s of world.spots) {
     const dx = s.bed.x - world.beaver.x;
@@ -53,9 +52,7 @@ export function nearestRing(world: WorldState): { direction: string; metres: num
     const d = Math.hypot(dx, dz);
     if (best === null || d < best.d) best = { dx, dz, d };
   }
-  if (best === null) return null;
-  const bearing = (Math.atan2(best.dx, -best.dz) + 2 * Math.PI) % (2 * Math.PI);
-  return { direction: COMPASS[Math.round(bearing / (Math.PI / 4)) % 8] ?? 'north', metres: Math.round(best.d / 10) * 10 };
+  return best === null ? null : placeWords(best.dx, best.dz, facing);
 }
 
 const started = (w: WorldState): boolean => w.dams.some((d) => d.wood + d.mud + d.rock > 0);
@@ -296,10 +293,10 @@ export function coachBack(state: CoachState): CoachState {
   return state.step > 0 ? { ...state, step: state.step - 1 } : state;
 }
 
-/** The text of a step: the line, with the way to the nearest ring added while the player looks for one. */
-export function stepText(step: CoachStep, touch: boolean, world: WorldState): string {
+/** The text of a step: the line, with the way to the nearest ring in kid words added while the player looks for one. */
+export function stepText(step: CoachStep, touch: boolean, world: WorldState, facing?: number): string {
   const line = touch ? step.touch : step.keys;
   if (step.id !== 'ring') return line;
-  const ring = nearestRing(world);
-  return ring ? `${line} The nearest ring is about ${ring.metres} m to the ${ring.direction}.` : line;
+  const ring = nearestRing(world, facing);
+  return ring ? `${line} The nearest ring is ${ring}.` : line;
 }

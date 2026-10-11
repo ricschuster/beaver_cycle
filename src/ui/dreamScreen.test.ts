@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { noActions } from '../actions/actions';
 import type { DreamEvent, DreamGame, DreamState, Mallow } from '../sim/dream';
-import { dreamInput, dreamLine, dreamStatus, mallowName } from './dreamScreen';
+import { PICK_KEYS, dreamInput, dreamLine, dreamStatus, mallowName } from './dreamScreen';
 
 const mallow = (id: string, name: string): Mallow => ({
   id,
@@ -48,6 +48,14 @@ const EVENTS: DreamEvent[] = [
   { what: 'found', who: 'm1', left: 3 },
   { what: 'found', who: 'm1', left: 0 },
   { what: 'seekEnd' },
+  { what: 'hideStart', seekers: 4 },
+  { what: 'hideStart', seekers: 1 },
+  { what: 'hideGo' },
+  { what: 'spotted', who: 'm0', left: 2 },
+  { what: 'spotted', who: 'm0', left: 0 },
+  { what: 'hideEnd', found: 4, seekers: 4 },
+  { what: 'hideEnd', found: 0, seekers: 4 },
+  { what: 'hideEnd', found: 2, seekers: 4 },
   { what: 'shower', count: 12 },
 ];
 
@@ -94,6 +102,17 @@ describe('dream lines', () => {
     expect(dreamLine({ what: 'tagEnd', catches: 1 }, s, 0)).toBe('What a game! 1 catch');
     expect(dreamLine({ what: 'seekEnd' }, s, 0)).toBe('Everyone found! Sweets for all!');
   });
+
+  it('tells the hiding player who found them, and cheers them either way at the end', () => {
+    const s = dream();
+    expect(dreamLine({ what: 'hideStart', seekers: 3 }, s, 0)).toBe('3 friends count to ten. Run and hide!');
+    expect(dreamLine({ what: 'hideStart', seekers: 1 }, s, 0)).toBe('Your friend counts to ten. Run and hide!');
+    expect(dreamLine({ what: 'spotted', who: 'm1', left: 2 }, s, 0)).toBe('Squish found you! Hee hee! 2 still looking');
+    expect(dreamLine({ what: 'spotted', who: 'm1', left: 0 }, s, 0)).toBe('Squish found you! Hee hee!');
+    expect(dreamLine({ what: 'hideEnd', found: 3, seekers: 3 }, s, 0)).toBe('Everyone found you! Sweets for all!');
+    expect(dreamLine({ what: 'hideEnd', found: 0, seekers: 3 }, s, 0)).toBe('Time is up! Nobody found you! What a hider!');
+    expect(dreamLine({ what: 'hideEnd', found: 1, seekers: 3 }, s, 1)).toBe('Time is up! 1 of 3 found you');
+  });
 });
 
 describe('dream status', () => {
@@ -114,6 +133,19 @@ describe('dream status', () => {
     const seeking: DreamGame = { kind: 'seek', phase: 'seeking', until: 10, hiders: ['m0', 'm1'], found: ['m1'] };
     expect(dreamStatus(dream(seeking, 12))).toEqual({ top: 'Find them! 1 of 2 found', big: null });
   });
+
+  it('while the player hides, counts down to hide, then the seconds left and who found them', () => {
+    const base = { x: 0, z: 0 };
+    const counting: DreamGame = { kind: 'hide', phase: 'counting', until: 10, base, seekers: ['m0', 'm1'], found: [] };
+    expect(dreamStatus(dream(counting, 3.5))).toEqual({ top: 'Run and hide!', big: 'Hide! 7' });
+    const seeking: DreamGame = { kind: 'hide', phase: 'seeking', until: 70, base, seekers: ['m0', 'm1'], found: [] };
+    expect(dreamStatus(dream(seeking, 25.5))).toEqual({ top: 'Shh! They are looking. 45 s left', big: null });
+    expect(dreamStatus(dream({ ...seeking, found: ['m1'] }, 69.5)).top).toBe('1 of 2 found you. 1 s left');
+  });
+
+  it('shows nothing at the top while asking hide or seek', () => {
+    expect(dreamStatus(dream({ kind: 'choose', with: 'm0' }))).toEqual({ top: null, big: null });
+  });
 });
 
 describe('dream input', () => {
@@ -122,6 +154,13 @@ describe('dream input', () => {
     expect(dreamInput(a, Math.PI, false)).toMatchObject({ hop: true, slap: true, play: true });
     expect(dreamInput(a, Math.PI, true).hop).toBe(false);
     expect(dreamInput(noActions(), Math.PI, true)).toMatchObject({ hop: false, slap: false, play: false });
+  });
+
+  it('passes the pick of hide or seek, from the buttons or the keys 1 and 2', () => {
+    expect(dreamInput(noActions(), Math.PI, false, 'hide').pick).toBe('hide');
+    expect(dreamInput(noActions(), Math.PI, false).pick).toBeUndefined();
+    expect(PICK_KEYS.Digit1).toBe('hide');
+    expect(PICK_KEYS.Digit2).toBe('seek');
   });
 
   it('turns the move to the view, so forward walks away from the camera', () => {

@@ -38,15 +38,27 @@ in the chocolate river.
 - **Marshmallow beavers**, seven or eight, in pastel colours (pink, mint, lemon, sky, lilac, peach, white), each with a name.
   They wander along the path and the river, hop when happy, and come to say hello the first time the beaver is near.
 - **Play** is the Do control, as for talking in the waking game. Near a marshmallow beaver it starts a game: in the
-  chocolate it is tag, on land it is hide and seek. The prompt says which ("Play tag with Puff").
+  chocolate it is tag, on land it is hide and seek. The prompt says which ("Play tag with Puff"). For hide and seek it asks
+  first (the author, session 81, #394): "Do you hide or seek?", with two big buttons, I hide and I seek, and the keys 1 and
+  2. The marshmallow beaver waits, looking at the player. Walking off drops the question.
 - **Tag** is in the river. The marshmallow beavers near the player join. One of them is "it" first and chases the player,
   a little slower than the player can swim. Whoever is caught is it, and the player tags back by touching. A marshmallow
   beaver that is it chases, the others flee and dodge. Nobody loses: each catch is a giggle, and the round ends after a minute
   with a cheer and a shower of sweets.
-- **Hide and seek** is on land. The player counts to ten while the marshmallow beavers run off to hide behind props within
-  about 40 m. Hidden ones giggle now and then, shown as a little "hee hee" above their hiding place when the player is near
-  enough to hear it. Walking up to one finds it, and it pops out and follows the player. When all are found there is a cheer
-  and a shower of sweets.
+- **Hide and seek, I seek** is on land. The player counts to ten while the marshmallow beavers run off to hide behind props
+  within about 40 m. Hidden ones giggle now and then, shown as a little "hee hee" above their hiding place when the player is
+  near enough to hear it. Walking up to one finds it, and it pops out and follows the player. When all are found there is a
+  cheer and a shower of sweets.
+- **Hide and seek, I hide.** The one asked and the nearest others within 35 m, four at most, gather where the player pressed
+  Play and count to ten while the player runs off to hide. Then they look: each goes from one hiding prop to the next within
+  about 50 m, looks from beside it for a moment, and now and then goes straight to the prop nearest the player. They walk a
+  little slower than the player (3.2 m/s to 4), so a player who sees one coming can sneak round to the other side. Near the
+  player (10 m) they giggle, so the player hears them coming. A seeker finds the player within 7 m when no hiding prop is in
+  between, and right next to them anyway. Being found is fun, not losing: the finder giggles, cheers with a hop, and goes
+  back to where they counted. The round ends when all have found the player, or after a minute, with a shower of sweets
+  either way. The issue's "when all have looked" is read as "when all have found you"; a player that stays well hidden
+  plays the whole minute. A first try puts the first find at about 5 s when hiding 12 m off, 10 to 15 s at 30 m, and at
+  45 m most of the minute goes by. Numbers to tune on a tablet.
 - **Waking** is only by the Wake up button. The waking game's clock stands still while the beaver dreams, and waking moves it
   to dawn as a plain sleep does.
 
@@ -58,18 +70,19 @@ in the chocolate river.
 | Dive | Space | Dive | hop, leap |
 | Slap | T | Slap | splash |
 | Do | E | Do (shown as Play) | start tag or hide and seek |
+| Hide or seek | 1 or 2 | I hide, I seek | pick, when hide and seek asks |
 
 ## How it is built
 
 The dream is its own small world with its own rules, scene, and screen, so it never touches the waking game's state.
 
 - `src/sim/dream.ts`: the dream's state and rules, pure and seeded (the land, the beaver, the sweets, the marshmallow
-  beavers, tag, hide and seek), with unit tests.
+  beavers, tag, hide and seek both ways), with unit tests.
 - `src/render/dreamView.ts`: the candy land scene in three.js with its own canvas, made when a dream starts and thrown away on
   waking. Marshmallow beavers are the game's beaver model in pastel colours, and the player's is the same model painted
   with a rainbow (`dreamPlayer` in `src/render/dreamBeavers.ts`).
-- `src/ui/dreamScreen.ts`: the dream screen over the game, with the sweet count, the prompt, game lines, the touch buttons,
-  and Wake up. `main.ts` stops the waking game's step and drawing while the dream screen is open.
+- `src/ui/dreamScreen.ts`: the dream screen over the game, with the sweet count, the prompt, the hide or seek buttons, game
+  lines, the touch buttons, and Wake up. `main.ts` stops the waking game's step and drawing while the dream screen is open.
 
 ## Open questions
 

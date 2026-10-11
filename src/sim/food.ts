@@ -88,6 +88,19 @@ export function trimmed(stock: Stock, capacity: number): Stock {
 }
 
 /**
+ * The store with its empty places filled with branches, in order, until all but `leave` of the first `capacity` places
+ * are full. A test tool (the test menu), so the last piece can go in by hand and win the Pantry. Pieces already in stay.
+ */
+export function filledBut(stock: Stock, capacity: number, leave: number): Stock {
+  let missing = Math.max(0, Math.min(capacity, stock.length) - leave - stockTotal(stock.slice(0, capacity)));
+  return stock.map((f, i) => {
+    if (f !== null || i >= capacity || missing === 0) return f;
+    missing--;
+    return 'branch';
+  });
+}
+
+/**
  * One tap on a place of the stash screen. A filled place with an empty mouth gives its piece to the mouth, an empty
  * place takes the piece from a full mouth, and a filled place with a full mouth swaps the two. A place the store has
  * lost to wear (from `capacity` on) and an empty place with an empty mouth do nothing.

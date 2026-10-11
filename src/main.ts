@@ -39,7 +39,7 @@ import { ACHIEVEMENT_TEXT, achievementLines } from './sim/achievements';
 import { createToast } from './ui/toast';
 import { createClockHud } from './ui/clockHud';
 import { createStashPanel } from './ui/stashPanel';
-import { storeCapacity, storeCondition } from './sim/food';
+import { filledBut, storeCapacity, storeCondition } from './sim/food';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createKeyHints } from './ui/keyHints';
 import { WELCOME_KEY, createHelpPanel, wantsWelcome } from './ui/helpPanel';
@@ -55,6 +55,7 @@ import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
 import { lodgeGround, pondsOf, withPonds } from './sim/pond';
 import { lilyPadsNear } from './sim/lily';
+import { rocksNear } from './sim/haul';
 import { withNewSpots } from './sim/newSpots';
 import { firstSpots, nearestQualifying, spawnNear } from './sim/damSpots';
 import { treeTuning } from './terrain/trees';
@@ -322,6 +323,12 @@ async function start(): Promise<void> {
     },
     onRemoveLodge() {
       world = { ...setInLodge(world, false), lodge: null };
+    },
+    onBreathLow() {
+      world = { ...world, beaver: { ...world.beaver, breath: Math.min(world.beaver.breath, 0.05) } };
+    },
+    onFillStore() {
+      world = { ...world, store: filledBut(world.store, storeCapacity(storeCondition(world.storeWear, world.clock)), 1) };
     },
     onTimeOfDay(t) {
       world = setClock(world, withTimeOfDay(world.clock, t));
@@ -855,6 +862,9 @@ async function start(): Promise<void> {
     // Where a playtest can find things to work on: the nearest standing tree, and the nearest spot a lodge could start.
     nearestTree: (x: number, z: number, reach: number) => trees.nearest(x, z, reach, new Set(world.felled)),
     lilyPadsNear: (radius: number) => lilyPadsNear(terrain, world.beaver.x, world.beaver.z, radius, world.clock, world.picked),
+    // The rocks still lying within `radius` metres of the beaver, and the bare ground height at a point (to see a log climbed).
+    rocksNear: (radius: number) => rocksNear(withPonds(terrain, world.ponds), world.beaver.x, world.beaver.z, radius, world.rocksTaken),
+    groundAt: (x: number, z: number) => terrain.heightAt(x, z),
     // Mama and Papa as drawn now: of the player's lodge while young, and of every lodge the family has left.
     parents: () => [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds), world.parentCoats, homeDam(world.lodge, world.spots, world.dams)), ...formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds))],
     formerParents: () => formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds)),

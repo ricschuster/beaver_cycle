@@ -106,6 +106,8 @@ test('at night in the lodge the bedtime panel offers sleep and the dream, and bo
   // The dream opens candy land over the game, and its Wake up wakes at dawn.
   await page.locator('button[data-time="night"]').click();
   await expect(page.locator('button[data-action="sleep-dream"]')).toBeVisible();
+  // The open test menu can cover the bedtime panel as it grows, so close it first.
+  await page.getByRole('button', { name: 'Test menu' }).click();
   await page.locator('button[data-action="sleep-dream"]').click();
   await expect(page.locator('#dream')).toBeVisible();
   await page.locator('button[data-action="dream-wake"]').click();

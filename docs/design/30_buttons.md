@@ -49,7 +49,8 @@ One press. The label is the word for what it does; greyed, it reads **Do**. The 
 8. By a log: **Gnaw** strips a branch off it into the mouth.
 
 Not under water, except Talk and Eat. A baby only eats and talks. Talk comes before Gnaw so a beaver by the trees can still be
-talked to; walk a step away to gnaw.
+talked to; walk a step away to gnaw. The exception is a partner who follows: it is always close, so Gnaw (and Strip) come
+first while a tree or log is in reach, and Talk otherwise.
 
 ## Dive and Slap
 

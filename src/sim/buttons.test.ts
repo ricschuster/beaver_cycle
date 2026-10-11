@@ -29,6 +29,12 @@ describe('Do', () => {
     expect(doHere(world(), flat, trees, { speaker: true, drift: true })).toBe('dig');
   });
 
+  it('gnaws a tree with a partner following, and talks to the follower when there is no tree', () => {
+    const follows = { speaker: true, following: true, drift: false };
+    expect(doHere(world(), flat, trees, follows)).toBe('gnaw');
+    expect(doHere(world(), flat, noTrees, follows)).toBe('talk');
+  });
+
   it('strips a branch off a log by the beaver when there is no tree', () => {
     expect(doHere({ ...world(), logs: [log] }, flat, noTrees, none)).toBe('strip');
   });

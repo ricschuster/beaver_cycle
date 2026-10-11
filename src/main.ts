@@ -774,7 +774,7 @@ async function start(): Promise<void> {
     }
     const drift = nearestStuck(stuckList, world.beaver, DIG_REACH);
     dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, doPressed === 'dig', movingNow, dt) : 0;
-    nearby = { speaker: near !== null, drift: drift !== null };
+    nearby = { speaker: near !== null, following: near?.kind === 'partner' && near.id === follower(world.partners)?.id, drift: drift !== null };
     doPressed = null;
     if (drift && dug >= DIG_TIME) {
       world = rescue(world, drift);

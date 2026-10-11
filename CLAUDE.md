@@ -31,8 +31,8 @@ latest `docs/handoffs/` file says where the last session stopped.
 
 A calm game with no death and no losing, set on real terrain, faster than life
 and stylized, not photoreal. Not a beaver simulation, not all six locations at
-once (core first), and no release of OpenStreetMap derived data before its
-licence is settled. Do not expand scope without a design note in
+once (core first), and OpenStreetMap derived data only as ODbL with its credit
+([ADR 0003](docs/decisions/0003-openstreetmap-data-use.md)). The code is AGPL-3.0, see `NOTICE.md`. Do not expand scope without a design note in
 `docs/design/` or an ADR in `docs/decisions/`.
 
 ## Stack

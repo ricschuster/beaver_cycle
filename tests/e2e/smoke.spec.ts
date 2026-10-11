@@ -18,7 +18,8 @@ test('tiles stream in when they have been built', async ({ page }) => {
   const stats = await page.evaluate(() => (window as any).__game.stats());
   // Tiles are built locally and absent in CI, where the flat fallback is used.
   if (stats) {
-    expect(stats.meshes).toBeGreaterThan(0);
+    // The streamer builds the first meshes over the next frames, so wait for them rather than read them at once.
+    await page.waitForFunction(() => (window as any).__game.stats().meshes > 0, null, { polling: 200, timeout: 30_000 });
     const y = await page.evaluate(() => (window as any).__game.world().beaver.y);
     expect(y).toBeGreaterThan(500); // standing on the real ground, not at 0
   }

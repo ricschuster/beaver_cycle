@@ -206,6 +206,7 @@ export function createWebAudio(): SoundOut {
       if (rec === null) return;
       const src = ctx.createBufferSource();
       const g = ctx.createGain();
+      let stopAt: number | null = null; // a stop is set after the start: before it the browser throws
       if (rec) {
         const v = variation(Math.random(), Math.random());
         src.buffer = rec;
@@ -219,7 +220,7 @@ export function createWebAudio(): SoundOut {
           const t = ctx.currentTime;
           g.gain.setValueAtTime(gain * v.gain, t + Math.max(0, voice.seconds - 0.1));
           g.gain.linearRampToValueAtTime(0, t + voice.seconds);
-          src.stop(t + voice.seconds);
+          stopAt = t + voice.seconds;
         }
       } else {
         let buf = voice ? undefined : buffers.get(effect);
@@ -234,6 +235,7 @@ export function createWebAudio(): SoundOut {
       }
       src.connect(g).connect(effects);
       src.start();
+      if (stopAt !== null) src.stop(stopAt);
     },
     setSuspended(s) {
       suspended = s;

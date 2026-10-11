@@ -55,6 +55,7 @@ import { watchBeaver, watchWorld } from './audio/effects';
 import { babbleCue, dreamCues } from './audio/talkDream';
 import { LAYERS, createSound, wireBrowser } from './audio/sound';
 import { createMuteButton } from './ui/muteButton';
+import { createOsmCredit } from './ui/osmCredit';
 import { createFlyButtons } from './ui/flyButtons';
 import { createMinimap, minimapMode, nextMode, type MinimapMode } from './ui/minimap';
 import { loadDamSites } from './render/damSites';
@@ -155,6 +156,7 @@ async function start(): Promise<void> {
         },
       });
   if (!free) {
+    createOsmCredit(document.body);
     const help = createHelpPanel(document.body, {
       manualUrl: `${import.meta.env.BASE_URL}manual.html`,
       touch: wantsTouchControls(navigator, query),

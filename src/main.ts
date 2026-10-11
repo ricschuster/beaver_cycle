@@ -581,14 +581,23 @@ async function start(): Promise<void> {
     if (warmer) toast.show(`Word gets around. The ${pondName(warmer.lodge, homeAt)} family trusts you more too`);
   };
 
+  // One bad frame must not freeze the game: log the error and schedule the next frame anyway.
   function frame(now: number): void {
+    try {
+      frameBody(now);
+    } catch (err) {
+      console.error('frame failed', err);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function frameBody(now: number): void {
     // Cap dt so a paused tab does not teleport the beaver. The first frame timestamp can come before `last`, so dt is never negative.
     const dt = Math.max(0, Math.min((now - last) / 1000, 0.1));
     last = now;
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
     if (dreamScreen.active()) {
       dreamScreen.frame(dt, mergeActions(readKeyboard(), touch.read()));
-      requestAnimationFrame(frame);
       return;
     }
     if (jump && streamer) {
@@ -886,7 +895,6 @@ async function start(): Promise<void> {
       });
     }
     if (saving && performance.now() - savedAt > AUTOSAVE_EVERY * 1000) saveNow();
-    requestAnimationFrame(frame);
   }
   saveNow();
   requestAnimationFrame(frame);

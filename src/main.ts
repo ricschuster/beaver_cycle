@@ -141,6 +141,7 @@ async function start(): Promise<void> {
     ? null
     : createCoach(document.body, {
         touch: wantsTouchControls(navigator, query),
+        facing: () => facing(),
         onClose: () => {
           coachOn = false;
           remember(COACH_KEY);
@@ -750,7 +751,7 @@ async function start(): Promise<void> {
         toast.show(`${said.call.who}: "${said.call.text}"`);
         toast.show(`${said.reply.who}: "${said.reply.text}"`);
       } else if (!talkBubble.talking()) {
-        const remark = partnerRemark(world, surroundings().pad);
+        const remark = partnerRemark(world, surroundings().pad, facing());
         if (remark) toast.show(`${remark.who}: "${remark.text}"`);
       }
     }

@@ -70,10 +70,10 @@ describe('the teenager steps', () => {
 
   it('points at the ring: the way and the distance', () => {
     const w = { ...world(), spots: [spot] };
-    expect(nearestRing(w)).toEqual({ direction: 'north', metres: 100 });
+    expect(nearestRing(w, 0)).toBe('behind you, close by');
     const ring = STEPS.teenager.find((s) => s.id === 'ring')!;
-    expect(stepText(ring, true, w)).toContain('about 100 m to the north');
-    expect(stepText(ring, true, world())).not.toContain('about');
+    expect(stepText(ring, true, w, 0)).toContain('The nearest ring is behind you, close by.');
+    expect(stepText(ring, true, world())).not.toContain('nearest ring');
   });
 });
 

@@ -34,6 +34,10 @@ export interface TestMenuOptions {
   onLodge(inLodge: boolean): void;
   /** Take the lodge and its wear away, so a new one can be started (for instance in a pond). */
   onRemoveLodge(): void;
+  /** Leave the beaver with almost no breath, to see it come up and wait before it dives again. */
+  onBreathLow(): void;
+  /** Fill the food store but one place, so the last piece can go in by hand (the Pantry achievement). */
+  onFillStore(): void;
   /** Sleep through the night; only does something in the lodge at night. */
   onSleep(): void;
   /** Open a dream now, at any time and place (docs/design/29_dream_candy_land.md). */
@@ -173,6 +177,12 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   style(lifeButton);
   lifeButton.onclick = () => opts.onNewLife();
   stageRow.appendChild(lifeButton);
+  const breathButton = document.createElement('button');
+  breathButton.textContent = 'Out of breath';
+  breathButton.dataset.action = 'breath-low';
+  style(breathButton);
+  breathButton.onclick = () => opts.onBreathLow();
+  row('Beaver').appendChild(breathButton);
   const viewRow = row('View');
   const views: [FlyMode, string][] = [
     ['off', 'Beaver'],
@@ -271,7 +281,12 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
     showLodge();
     opts.onRemoveLodge();
   };
-  lodgeRow.append(lodgeButton, sleepButton, dreamButton, removeButton);
+  const fillStoreButton = document.createElement('button');
+  fillStoreButton.textContent = 'Fill store but one';
+  fillStoreButton.dataset.action = 'store-fill';
+  style(fillStoreButton);
+  fillStoreButton.onclick = () => opts.onFillStore();
+  lodgeRow.append(lodgeButton, sleepButton, dreamButton, removeButton, fillStoreButton);
 
   const jumpRow = row('Jump to');
   for (const loc of opts.locations) {

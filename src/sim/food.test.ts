@@ -1,7 +1,7 @@
 import { FOOD_ROT, MUD_DRY } from './haul';
 import { describe, expect, it } from 'vitest';
 import { noIntent, type Intent } from './buttons';
-import { BRANCH_BOOST, BRANCH_BOOST_TIME, PAD_BOOST, PAD_BOOST_TIME, STORE_CAPACITY, STORE_DISTANCE, branchFactor, branchesOf, emptyStock, lilyShare, padFactor, stockMeals, stockOf, stockTotal, storeFill, storeSpot, tapped, trimmed, type Food, type Stock } from './food';
+import { BRANCH_BOOST, BRANCH_BOOST_TIME, PAD_BOOST, PAD_BOOST_TIME, STORE_CAPACITY, STORE_DISTANCE, branchFactor, branchesOf, emptyStock, filledBut, lilyShare, padFactor, stockMeals, stockOf, stockTotal, storeFill, storeSpot, tapped, trimmed, type Food, type Stock } from './food';
 import { LOG_ROT } from './logs';
 import { LODGE_WOOD } from './lodge';
 import type { Log } from './logs';
@@ -53,6 +53,27 @@ describe('the store', () => {
     expect(stockTotal(trimmed(s, 10))).toBe(10);
     expect(trimmed(s, STORE_CAPACITY)).toBe(s);
     expect(stockTotal(trimmed(s, 0))).toBe(0);
+  });
+
+  it('is filled to all but some places by the test tool, keeping what is there and the places it lost', () => {
+    const s: Stock = emptyStock().map((f, i) => (i === 3 ? 'lily' : f));
+    const full = filledBut(s, STORE_CAPACITY, 1);
+    expect(stockTotal(full)).toBe(STORE_CAPACITY - 1);
+    expect(full[3]).toBe('lily');
+    expect(full.indexOf(null)).toBe(STORE_CAPACITY - 1);
+    expect(stockTotal(filledBut(s, 10, 2))).toBe(8);
+    expect(filledBut(s, 10, 2).slice(10).every((f) => f === null)).toBe(true);
+    expect(stockTotal(filledBut(full, STORE_CAPACITY, 5))).toBe(STORE_CAPACITY - 1);
+    expect(stockTotal(filledBut(s, 0, 1))).toBe(1);
+  });
+
+  it('wins the Pantry when the last place is filled by hand', () => {
+    let w: WorldState = { ...atTheStore({ ...world(), carry: 'lily' as const }), stashOpen: true, storeWear: { level: 1, since: 0, mend: 0 } };
+    w = { ...w, store: filledBut(w.store, STORE_CAPACITY, 1) };
+    expect(step(w, press({}), 0.1, shore).achievements).not.toContain('pantry');
+    w = step(w, press({ stashTap: STORE_CAPACITY - 1 }), 0.1, shore);
+    expect(stockTotal(w.store)).toBe(STORE_CAPACITY);
+    expect(w.achievements).toContain('pantry');
   });
 });
 

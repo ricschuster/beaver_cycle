@@ -97,7 +97,13 @@ export function parentsAt(lodge: Lodge | null, bornAt: number, clock: number, in
  * it like the parents of a young player.
  */
 export function formerParentsAt(homes: readonly FormerHome[], clock: number, terrain: Terrain): Parent[] {
-  return homes.flatMap((h) => familyAt(h, clock, false, terrain, h.parents, [`mama@${Math.round(h.x)},${Math.round(h.z)}`, `papa@${Math.round(h.x)},${Math.round(h.z)}`]));
+  return homes.flatMap((h) => familyAt(h, clock, false, terrain, h.parents, formerParentIds(h)));
+}
+
+/** The ids of the two parents of a former home, by where it stands, so a talk with them is remembered (`met`). */
+export function formerParentIds(home: Pick<FormerHome, 'x' | 'z'>): [ParentId, ParentId] {
+  const at = `${Math.round(home.x)},${Math.round(home.z)}`;
+  return [`mama@${at}`, `papa@${at}`];
 }
 
 /** A lodge the family has left, and who still lives in the pond: the coats of the two parents. */

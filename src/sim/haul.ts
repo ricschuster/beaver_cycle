@@ -51,9 +51,11 @@ export function reachableDropped(dropped: readonly Dropped[], x: number, z: numb
 }
 
 /** A rock is looked for in cells of this many metres a side, at most one a cell. */
-export const ROCK_CELL = 10;
-/** The share of cells that hold a rock, if the ground there is right. A tuning number. */
-export const ROCK_CHANCE = 0.4;
+export const ROCK_CELL = 5;
+/** The share of cells that hold a rock where the ground is wet or beside water: streams, banks, shores. A tuning number. */
+export const ROCK_CHANCE_WATER = 0.75;
+/** The share of cells that hold a rock on steep stony ground away from water. A tuning number. */
+export const ROCK_CHANCE_STONY = 0.25;
 /** The beaver reaches a rock within this many metres of its centre. */
 export const ROCK_REACH = 1.8;
 /** Radius of a rock in metres, for drawing. */
@@ -88,19 +90,23 @@ function hash(cx: number, cz: number, salt: number): number {
 /** Wet ground: shallow lake water, or in a stream. */
 const wet = (terrain: Terrain, x: number, z: number): boolean => terrain.waterDepth(x, z) > WET || (terrain.streamDistance?.(x, z, STREAM_HALF_WIDTH) ?? Infinity) <= STREAM_HALF_WIDTH;
 
-/** True where a rock makes sense (Q76): on a stream bed or a bank, or on steep stony ground. Not on a lake floor, not on flat open ground, and not on a dry meadow (the stream bed itself may cross one). */
-export function rockGround(terrain: Terrain, x: number, z: number): boolean {
+/** How likely a cell holds a rock at a point (Q76): high on a stream bed, a bank or a shore, lower on steep stony ground, none on a lake floor, flat open ground or a dry meadow (the stream bed itself may cross one). */
+export function rockChance(terrain: Terrain, x: number, z: number): number {
   const depth = terrain.waterDepth(x, z);
-  if (depth > ROCK_MAX_DEPTH) return false;
-  if (wet(terrain, x, z)) return true;
-  if (terrain.coverAt?.(x, z) === COVER_MEADOW) return false;
+  if (depth > ROCK_MAX_DEPTH) return 0;
+  if (wet(terrain, x, z)) return ROCK_CHANCE_WATER;
+  if (terrain.coverAt?.(x, z) === COVER_MEADOW) return 0;
   const h = terrain.heightAt(x, z);
+  let stony = false;
   for (const [dx, dz] of [[LOOK, 0], [-LOOK, 0], [0, LOOK], [0, -LOOK]] as const) {
-    if (wet(terrain, x + dx, z + dz)) return true;
-    if (Math.abs(terrain.heightAt(x + dx, z + dz) - h) / LOOK > ROCK_STEEP) return true;
+    if (wet(terrain, x + dx, z + dz)) return ROCK_CHANCE_WATER;
+    if (Math.abs(terrain.heightAt(x + dx, z + dz) - h) / LOOK > ROCK_STEEP) stony = true;
   }
-  return false;
+  return stony ? ROCK_CHANCE_STONY : 0;
 }
+
+/** True where a rock can lie at all. */
+export const rockGround = (terrain: Terrain, x: number, z: number): boolean => rockChance(terrain, x, z) > 0;
 
 /** The rocks within `radius` metres of a point that are still lying there: not in `taken`. */
 export function rocksNear(terrain: Terrain, x: number, z: number, radius: number, taken: readonly string[] = []): Rock[] {
@@ -112,12 +118,13 @@ export function rocksNear(terrain: Terrain, x: number, z: number, radius: number
   const cz1 = Math.floor((z + radius) / ROCK_CELL);
   for (let cx = cx0; cx <= cx1; cx++) {
     for (let cz = cz0; cz <= cz1; cz++) {
-      if (hash(cx, cz, 20) >= ROCK_CHANCE) continue;
+      const roll = hash(cx, cz, 20);
+      if (roll >= ROCK_CHANCE_WATER) continue;
       const rx = (cx + 0.1 + 0.8 * hash(cx, cz, 21)) * ROCK_CELL;
       const rz = (cz + 0.1 + 0.8 * hash(cx, cz, 22)) * ROCK_CELL;
       if (Math.hypot(rx - x, rz - z) > radius) continue;
       const id = `rock:${cx}:${cz}`;
-      if (gone.has(id) || !rockGround(terrain, rx, rz)) continue;
+      if (gone.has(id) || roll >= rockChance(terrain, rx, rz)) continue;
       rocks.push({ id, x: rx, z: rz });
     }
   }

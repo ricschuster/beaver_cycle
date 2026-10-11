@@ -32,6 +32,9 @@ export interface Sound {
 /** The tablet plays at most this many one-shots at once; the ambient layers take the rest of the 8 (design note, "Tablet budget"). */
 export const MAX_ONE_SHOTS = 4;
 
+/** The music takes its night colour when the daylight is below this (0 at night to 1 at midday). */
+export const NIGHT_BELOW = 0.25;
+
 export const LAYERS: readonly Layer[] = ['water', 'wind', 'birds', 'crickets', 'owl'];
 
 const GAINS: Record<Layer, (h: Hearing) => number> = { water: waterGain, wind: windGain, birds: birdsGain, crickets: cricketsGain, owl: owlGain };
@@ -84,6 +87,7 @@ export function createSound(out: SoundOut, storage: Pick<Storage, 'getItem' | 's
       }
     },
     update(h) {
+      out.setColour({ season: h.season, night: h.daylight < NIGHT_BELOW });
       for (const layer of LAYERS) out.setLayer(layer, on.get(layer) ? GAINS[layer](h) : 0);
     },
   };

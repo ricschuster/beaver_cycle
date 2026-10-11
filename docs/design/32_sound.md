@@ -174,7 +174,8 @@ replace them. Only `done` and the three chimes stay in code. Chirp and babble ha
 - **Frame rate:** the music gives way after 4 s under 22 fps and returns after 12 s over 32 fps (`createFrameWatch`).
 - The Music slider and the mute button act on the music bus; the test menu has a Music switch.
 - `/tools/music-preview/` plays the music alone, with sliders and the ambient layers to switch on beneath it.
-- First draft, to tune on the tablet: the chords, the gaps, the loudness against the ambient layers. Season and night colour are not done.
+- First draft, to tune on the tablet: the chords, the gaps, the loudness against the ambient layers.
+- **Season and night colour** (session 97): the valley music is bent by the season and the clock, set from `update` (`setColour`, night below 0.25 daylight). Summer waits less between notes and plays a step higher, autumn leans to the flute, winter waits longer and plays two steps lower; night waits 1.6 times longer, plays two steps lower and softer, with more flute and longer chords. The dream is not coloured. The preview page has season and day/night buttons.
 
 ## Slices
 

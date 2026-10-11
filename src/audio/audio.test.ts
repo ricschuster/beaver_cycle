@@ -103,6 +103,16 @@ describe('the settings', () => {
 });
 
 describe('createSound', () => {
+  it('gives the music the season and the night from what the beaver hears', () => {
+    const out = fakeSoundOut();
+    const sound = createSound(out, memory());
+    const h = { streamDistance: Infinity, onWater: false, inLodge: false, underwater: false, daylight: 1, season: 'autumn' as const };
+    sound.update(h);
+    expect(out.colour).toEqual({ season: 'autumn', night: false });
+    sound.update({ ...h, daylight: 0.1 });
+    expect(out.colour).toEqual({ season: 'autumn', night: true });
+  });
+
   it('sends the saved volumes to the out at the start and on each change', () => {
     const m = memory();
     saveSound(m, { effects: 0.3, music: 0.4, muted: false });

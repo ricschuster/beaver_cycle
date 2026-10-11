@@ -57,7 +57,15 @@ export function createSound(out: SoundOut, storage: Pick<Storage, 'getItem' | 's
     oneShotsOn: () => oneShots,
     cue(cues, now) {
       if (!oneShots) return;
-      for (const c of cues) if (voices.admit(c, now)) out.play(c.effect, c.gain, c.voice);
+      for (const c of cues) {
+        if (!voices.admit(c, now)) continue;
+        // Sound must never stop the frame loop: a play that throws is logged and the game goes on.
+        try {
+          out.play(c.effect, c.gain, c.voice);
+        } catch (e) {
+          console.error('sound play failed', c.effect, e);
+        }
+      }
     },
     update(h) {
       for (const layer of LAYERS) out.setLayer(layer, on.get(layer) ? GAINS[layer](h) : 0);

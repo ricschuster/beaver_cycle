@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { birdsGain, cricketsGain, effectsGain, musicGain, owlGain, waterGain, windGain, STREAM_HEARD, type Hearing } from './mix';
 import { DEFAULT_SOUND, SOUND_KEY, loadSound, parseSound, saveSound } from './settings';
 import { createSound, wireBrowser, MAX_ONE_SHOTS } from './sound';
@@ -133,6 +133,23 @@ describe('createSound', () => {
     expect(out.layers.get('birds')).toBe(0);
     expect(out.layers.get('wind')).toBeGreaterThan(0);
     expect([...out.layers.keys()].sort()).toEqual(['birds', 'crickets', 'owl', 'water', 'wind']);
+  });
+});
+
+describe('cue', () => {
+  it('does not throw into the caller when a play throws, and plays the later cues', () => {
+    const out = fakeSoundOut();
+    const real = out.play.bind(out);
+    out.play = (effect, gain, voice) => {
+      if (effect === 'chop') throw new Error('boom');
+      real(effect, gain, voice);
+    };
+    const sound = createSound(out, null);
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => sound.cue([{ effect: 'chop', gain: 1 }, { effect: 'splash', gain: 1 }], 0)).not.toThrow();
+    expect(out.played.map((p) => p.effect)).toEqual(['splash']);
+    expect(err).toHaveBeenCalled();
+    err.mockRestore();
   });
 });
 

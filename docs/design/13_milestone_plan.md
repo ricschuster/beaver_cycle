@@ -174,8 +174,8 @@ the quality budget (#120).
   lodge per world. Numbers are a first guess. Wear and the glowing repair circle
   came later (`src/sim/wear.ts`, `15_build_and_repair.md`).
 
-- Achievements (`21_achievements.md`): ten, with a toast and a list in the test menu. The first tasks are not built; the
-  author's list (a mate, kits, the guides) is M6. What is left is in #220. The wear numbers, drag speed, and other first
+- Achievements (`21_achievements.md`): thirteen, with a toast and a list in the test menu. The author's list (a mate, kits,
+  the guides, Q38) is built as three of them. What is left is in #220. The wear numbers, drag speed, and other first
   guesses still need a try on the tablet.
 
 ## M6: One life, then the next

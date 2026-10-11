@@ -1,11 +1,11 @@
 # Achievements
 
-The first ten achievements. The goal of the game is to finish every task and win every achievement (Q38), and after that
+The achievements: the first ten, and three for the family. The goal of the game is to finish every task and win every achievement (Q38), and after that
 play goes on, with each baby starting its own journey (Q40). So an achievement is never lost, and none can be missed for
 good: each one can be won at any time by playing on. Nothing here has a timer, a fail state, or a rival.
 
-Only the wood achievement (30 trees, Q39) is the author's. The other nine are proposals for the author to keep, change,
-or drop. The family achievements (a mate, kits, the guides, Q38) wait for M6 and are not in this list.
+The wood achievement (30 trees, Q39) and the three family ones (a mate, kits, the guides, Q38) are the author's. The other
+nine are proposals for the author to keep, change, or drop.
 
 ## Rules for all of them
 
@@ -34,6 +34,29 @@ or drop. The family achievements (a mate, kits, the guides, Q38) wait for M6 and
 | `handy` | Handy beaver | A worn dam, store, or lodge is mended back to new | the end of a mend (`repairing` turns off, the store or lodge wear returns to 1) | `WorldState.mended: number`, counted at that moment |
 | `hauler` | Hauler | 30 loads of mud and rock put down on dams | each mud or rock placed at a dam | `WorldState.hauled: number`, counted in the build step |
 | `year` | A full year | The game clock is one year (`DAYS_PER_YEAR`) past the start | `clock - START_CLOCK` | none |
+
+## The family three (Q38)
+
+The author's tasks were "get a mate, have kits, find the guides" (Q38). Built once partners, kits, and the rescue were in the
+game (`23_leaving_and_next_baby.md`, `27_families_and_dialog.md`).
+
+| Id | Name | Won when | Counted from | New state |
+| --- | --- | --- | --- | --- |
+| `mate` | Mate | A partner lives in the lodge | `mateOf(partners)` | none |
+| `kits` | Kits | A kit is due: the first day of spring after the partner moved into a whole lodge | `kitDue` | none |
+| `guide` | Guide | A stuck beaver is dug out of the snow in this life, and so becomes a guide | `world.rescued`, the year in each id | none |
+
+- **Mate** is a partner that moved in, not one that only follows: a follower goes back to being alone when the player meets
+  another, and moving in is for good. A kit's life starts with no partners (`birth`), so it finds its own.
+- **Kits** is won on the step the kit is due. The player then plays the kit, whose list starts empty (Q40), so the step that
+  wins it holds the birth for one step (`step.ts`): the old life's list has it for a frame, and its toast shows before the
+  kit's own journey starts. It is never in the list of the life being played after that, which is how per life lists work.
+- **Guide** is the reading chosen for "find the guides": a rescued beaver is the one that becomes a guide (Q20 to Q22,
+  Q51), so finding a guide is digging one out (`rescue` in `escort.ts`). One rescue is enough. Another reading would be
+  asking a guide to show the way once; the author can change it. A rescue's id ends in the year of its winter, and a kit is
+  born on the first day of spring, so a rescue in the year the life started or later is this life's (`rescuesThisLife`, the
+  same reading the talk uses for "You dug me out"). A rescue by an earlier life does not count. Old saves need no change:
+  the rule reads `rescued` and `partners`, which saves already keep.
 
 ## Notes on each
 
@@ -68,6 +91,9 @@ Short, in the game's plain voice, no em dashes:
 - Handy beaver: "Handy beaver achievement: mended and good as new"
 - Hauler: "Hauler achievement: 30 loads on the dams"
 - A full year: "A full year achievement: all four seasons"
+- Mate: "Mate achievement: a partner lives in your lodge"
+- Kits: "Kits achievement: a kit of your own"
+- Guide: "Guide achievement: a beaver you dug out shows the way"
 
 ## What the HUD shows
 
@@ -83,7 +109,8 @@ The author agreed on the list, and on these three points:
   when the beaver finishes a lodge (`?lodge=0` for a new game without the test one).
 - **A list of the achievements** is in the test menu (`achievementLines`), with the count for wood, water gardener, and
   hauler. A proper screen waits for the art pass (#105).
-- **The family and guide achievements** wait for M6.
+- **The family and guide achievements** (Q38) are built: Mate, Kits, and Guide, above. Which moment each one is won at
+  (a partner moved in, the kit due, a rescue) is a first reading for the author to keep or change.
 
 Built in `src/sim/achievements.ts`: one rule per achievement, checked each step by `tally`. Counters in `WorldState`:
 `padsPicked`, `mended`, `hauled`. `DamSpot.found` marks a spot a pond found. A piece counts as mended when it was worn

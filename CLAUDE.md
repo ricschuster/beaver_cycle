@@ -60,7 +60,7 @@ Everyday (gate means CI blocks a merge on it):
 - `npm run build` - type check and production build into `dist/` (gate)
 - `npm run test:e2e` - Playwright browser smoke test (gate; `E2E_PORT=5191` if 5173 is taken; first run
   `npx playwright install chromium`)
-- `npx playwright test tests/e2e/cycle.spec.ts` (also `build`, `dam`, `life`, `locations`) - playtests that play the real game with the keys and the test
+- `npx playwright test tests/e2e/cycle.spec.ts` (also `build`, `dam`, `life`, `locations`, `moves`) - playtests that play the real game with the keys and the test
   menu on the real valley; they skip without the local tiles, so CI skips them. `build` and `cycle` take 6 to 10 minutes; `locations` (a dam raised to level 2 or 3 and a lodge pond in each of the six locations, about 7 minutes; `PLAYTEST_BUILD=1` adds a hand built lodge, not yet run);
   `PLAYTEST_SHOTS=dir` keeps screenshots, `PLAYTEST_DEBUG=1` prints misses. Helpers are in `tests/e2e/helpers.ts`
 - `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore LICENSE` -

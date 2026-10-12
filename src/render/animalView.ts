@@ -185,12 +185,110 @@ function deerModel(): AnimalModel {
 
 /** The red fox: orange with a white chest and chin, pointed black-backed ears, dark socks, and a bushy tail with a white tip. */
 function foxModel(): AnimalModel {
-  return canidModel({ fur: 0xd2702a, pale: 0xe8b07a, sock: 0x2c2018, white: 0xf2eadc, eye: 0xd88a28 }, 1);
+  return canidModel({ fur: 0xd2702a, pale: 0xe8b07a, sock: 0x2c2018, white: 0xf2eadc, eye: 0xd88a28 });
 }
 
-/** The grey wolf: the fox's build, a third as big again, in grey with a pale chest and chin, dark socks and a dark tail tip. */
+/**
+ * The timber wolf: a lean grey-brown animal with long legs, a deep chest, a thick neck ruff, a broad head with a long pale muzzle,
+ * small upright ears, and a bushy tail that hangs low with a dark tip. A dark saddle runs over the back, the legs are tawny, the belly pale.
+ */
 function wolfModel(): AnimalModel {
-  return canidModel({ fur: 0x7c7770, pale: 0xa8a294, sock: 0x2a2724, white: 0xcfc9bb, eye: 0xd0a030 }, 1.35);
+  const FUR = 0x7d766a;
+  const DARK = 0x37332e;
+  const PALE = 0xc9c0ac;
+  const LEG = 0xa48d68;
+  const PAW = 0x2a2622;
+  const SHIN = 0x6f5d42;
+  const group = new THREE.Group();
+  const body = new THREE.Group();
+  group.add(body);
+  // The trunk: deep at the chest, tucked up at the flank, with a dark saddle on top and a pale belly.
+  body.add(
+    tube(
+      path([0, 0.74, -0.55], [0, 0.76, -0.2], [0, 0.72, 0.2], [0, 0.8, 0.5]),
+      (t) => {
+        const d = dome(t, 0.15, 0.2);
+        return [0.15 * d, (0.2 - 0.04 * smoothstep(0.35, 0.65, t) + 0.05 * smoothstep(0.7, 1, t)) * d];
+      },
+      (t, up) => mix(FUR, DARK, smoothstep(0.2, 0.9, up) * smoothstep(0.05, 0.3, t) * (1 - smoothstep(0.75, 1, t))).lerp(new THREE.Color(PALE), smoothstep(-0.3, -0.75, up)),
+      'fur',
+      14,
+      20,
+    ),
+  );
+  // A thick neck and ruff that carry the head level with the back.
+  body.add(tube(path([0, 0.78, 0.4], [0, 0.84, 0.55], [0, 0.88, 0.68]), (t) => [0.15 - 0.03 * t, 0.17 - 0.04 * t], (_t, up) => mix(FUR, PALE, smoothstep(-0.2, -0.7, up)), 'fur', 12, 6));
+  const head = hinge(0, 0.88, 0.68);
+  head.name = 'head';
+  body.add(head);
+  // A broad skull and a long, deep muzzle, paler below.
+  head.add(
+    tube(
+      path([0, 0.0, -0.13], [0, -0.005, 0.02], [0, -0.04, 0.16], [0, -0.065, 0.32]),
+      (t) => {
+        const d = dome(t, 0.3, 0.1);
+        return [0.115 * d * (1 - 0.45 * smoothstep(0.25, 1, t)), 0.115 * d * (1 - 0.5 * smoothstep(0.3, 1, t))];
+      },
+      (t, up) => mix(FUR, PALE, smoothstep(0.1, -0.4, up) * smoothstep(0.2, 0.5, t)),
+      'fur',
+      12,
+      14,
+    ),
+  );
+  head.add(blob(0.03, 0.024, 0.026, 0x0d0a08, 0, -0.058, 0.325, 8, null));
+  for (const s of [-1, 1]) {
+    // Fur ruffs on the cheeks, an amber eye set close to the muzzle, and a small upright ear with a rounded tip.
+    const cheek = blob(0.05, 0.075, 0.09, FUR, s * 0.105, -0.06, -0.05, 8);
+    cheek.rotation.z = s * 0.3;
+    head.add(cheek);
+    head.add(eye(0.02, s, 0.065, 0.03, 0.1, 0xd9a82a));
+    const ear = coated(earShape(0.085, 0.12, FUR, DARK, 0.45), 0xffffff);
+    ear.position.set(s * 0.075, 0.09, -0.07);
+    ear.rotation.set(-0.1, s * 0.15, -s * 0.12);
+    head.add(ear);
+  }
+  const front = (x: number): THREE.Group => {
+    const l = limb(x, 0.6, 0.4, path([0, 0.12, 0], [0, -0.28, 0.01], [0, -0.58, 0.02]), [0.075, 0.09], 0.036, LEG, SHIN);
+    l.add(blob(0.05, 0.03, 0.068, PAW, 0, -0.59, 0.045, 8));
+    return l;
+  };
+  const hind = (x: number): THREE.Group => {
+    const l = limb(x, 0.6, -0.42, path([0, 0.14, 0.02], [0, -0.13, -0.07], [0, -0.35, -0.13], [0, -0.58, -0.06]), [0.085, 0.115], 0.036, FUR, SHIN);
+    l.add(blob(0.05, 0.03, 0.068, PAW, 0, -0.59, -0.025, 8));
+    return l;
+  };
+  const legs = [front(-0.1), front(0.1), hind(-0.1), hind(0.1)];
+  group.add(...legs);
+  // A bushy tail that hangs low behind the hocks, dark at the tip.
+  const tail = hinge(0, 0.74, -0.58);
+  body.add(tail);
+  tail.add(
+    tube(
+      path([0, 0, 0.03], [0, -0.1, -0.15], [0, -0.3, -0.26], [0, -0.52, -0.3]),
+      (t) => {
+        const r = (0.05 + 0.05 * smoothstep(0, 0.5, t)) * dome(t, 0, 0.3);
+        return [r, r * 1.1];
+      },
+      (t) => mix(FUR, DARK, smoothstep(0.75, 0.9, t)),
+      'fur',
+      12,
+      14,
+    ),
+  );
+  const walk = easer();
+  return {
+    group,
+    pose(time, moving, seed) {
+      const w = walk(moving ? 1 : 0, time);
+      const phase = time * 7 + seed;
+      body.position.y = Math.abs(Math.sin(phase)) * 0.025 * w;
+      swingLegs(legs, phase, 0.6 * w);
+      // Standing, the wolf looks about with its head level; trotting, the head is low and the tail hangs and sways.
+      head.rotation.y = Math.sin(time * 0.7 + seed) * 0.45 * (1 - w);
+      head.rotation.x = 0.18 * w - Math.sin(time * 0.5 + seed) * 0.06 * (1 - w);
+      tail.rotation.x = 0.1 * w + Math.sin(time * 1.6 + seed) * 0.06;
+    },
+  };
 }
 
 interface CanidColours {
@@ -201,13 +299,12 @@ interface CanidColours {
   eye: number;
 }
 
-function canidModel(c: CanidColours, scale: number): AnimalModel {
+function canidModel(c: CanidColours): AnimalModel {
   const FUR = c.fur;
   const PALE = c.pale;
   const SOCK = c.sock;
   const WHITE = c.white;
   const group = new THREE.Group();
-  group.scale.setScalar(scale);
   const body = new THREE.Group();
   group.add(body);
   body.add(

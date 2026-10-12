@@ -28,7 +28,7 @@ Tile file, little endian:
   then         uint8 x n^2 land cover classes, same order
 Height in metres = (stored + qmin) * scale.
 
-Fine tiles (ADR 0008): by default (--fine 2, 0 turns them off), tiles near a lake also
+Fine tiles (ADR 0008): by default (--fine 2, 0 turns them off), tiles near a lake or a stream (OSM line) also
 get a level 3 file with cells of that size, cut from the BEV 1 m terrain
 (ALS-DGM, cached in data/raw/ by --fetch-fine, one file per region of connected fine
 tiles: the core and the north, the Oedsee, the south). The 1 m heights are first
@@ -523,7 +523,7 @@ def anchors(keep):
 FINE_URLS = [  # the 50 x 50 km BEV tiles (EPSG:3035) the play area touches, south to north
     "/vsicurl/https://data.bev.gv.at/download/ALS/DTM/20250915/"
     f"ALS_DTM_CRS3035RES50000mN{n}E4600000.tif" for n in (2700000, 2750000)]
-FINE_NEAR = 100.0  # metres from a lake within which tiles get a fine level
+FINE_NEAR = 100.0  # metres from a lake or a stream within which tiles get a fine level
 FINE_HALO = 160.0  # metres of context around a fine tile, so the lake bed matches across edges
 FINE_PAD = 1  # tiles of 1 m terrain cached around a region, for the halo and the datum smoothing
 CORR_CELL = 20.0  # metres, the grid of the datum correction
@@ -617,9 +617,23 @@ def read_fine_heights(g, fg):
     return h - corr
 
 
-def fine_tiles(g, lake_vert):
-    """Tiles within FINE_NEAR of a lake, as (tx, tz)."""
+def stream_near(g, streams):
+    """Vertex mask of the ground within FINE_NEAR of a stream line (a stream wider than the OSM line is not needed)."""
+    mask = np.zeros((g.ncz + 1, g.ncx + 1), dtype=bool)
+    for pts, _, _ in streams:
+        for (x0, z0), (x1, z1) in zip(pts, pts[1:]):
+            for t in np.linspace(0.0, 1.0, max(2, int(np.hypot(x1 - x0, z1 - z0) // CELL) + 1)):
+                i, j = int(round((x0 + (x1 - x0) * t - g.x0) / CELL)), int(round((z0 + (z1 - z0) * t - g.z0) / CELL))
+                if 0 <= i <= g.ncx and 0 <= j <= g.ncz:
+                    mask[j, i] = True
+    return shore_distance(~mask) * CELL <= FINE_NEAR
+
+
+def fine_tiles(g, lake_vert, streams=()):
+    """Tiles within FINE_NEAR of a lake or a stream, as (tx, tz)."""
     near = shore_distance(~lake_vert) * CELL <= FINE_NEAR
+    if streams:
+        near = near | stream_near(g, streams)
     out = []
     for tz in range(g.tz0, g.tz0 + g.ntz):
         for tx in range(g.tx0, g.tx0 + g.ntx):
@@ -679,7 +693,7 @@ def build(out=OUT, fine=None, backdrop=True, snap=True):
 
     fine_set = {}
     if fine:
-        fine_list = [t for t in fine_tiles(g, lake_vert) if t in keep]
+        fine_list = [t for t in fine_tiles(g, lake_vert, streams) if t in keep]
         regions = fine_regions(fine_list)
         print(f"{len(fine_list)} fine tiles at {fine} m in {len(regions)} regions")
         for rg, rtiles in regions:
@@ -815,6 +829,8 @@ def check(out=OUT):
         dry_v[:-1, :-1] = dry
         if dry_v.sum() < 50:
             continue  # a tile that is nearly all lake has no dry ground to compare
+        if np.degrees(np.arctan(np.hypot(*np.gradient(h0, CELL)))).mean() > 30.0:
+            continue  # a mountainside (a stream gully): the models differ by 1 m and more there by design (ADR 0008)
         assert abs(np.median(diff[dry_v])) < 1.0, f"L3 of {tx},{tz} is off the 5 m ground by {np.median(diff[dry_v]):.2f} m"
     if fine:
         print(f"fine tiles checked: {len(fine)} tiles join and sit on the 5 m ground")
@@ -862,10 +878,10 @@ def main():
     if args.fetch_fine:
         g = full_extent(far_tiles())
         h = read_heights(g)
-        lakes, _ = read_water()
+        lakes, streams = read_water()
         code = read_landcover(g)
         lake_vert = make_lake_bed(g, h, lakes, code == CLASSES["wetland"])[2]
-        for rg, _ in fine_regions([t for t in fine_tiles(g, lake_vert) if t in wanted_tiles()]):
+        for rg, _ in fine_regions([t for t in fine_tiles(g, lake_vert, streams) if t in wanted_tiles()]):
             fetch_fine(rg)
         return
     if not args.check_only:

@@ -122,8 +122,8 @@ blocky at 5 m. Decided, using the datum check and the prototype above:
   when a 205,000 triangle tile is built). Revisit them for dam and lodge sites
   in M5, with smaller fine tiles (for example 80 m) or mesh building spread over
   several frames.
-- Not decided here: fine tiles beyond the lake shores (streams, the lodge
-  site). Cutting the water surface at the true shoreline was a follow up and is
+- Fine tiles beyond the lake shores: streams were added in #487 (see
+  Update 2026-10-12). The lodge site is not decided. Cutting the water surface at the true shoreline was a follow up and is
   done (#90).
 
 ## Consequences
@@ -140,3 +140,22 @@ blocky at 5 m. Decided, using the datum check and the prototype above:
   hidden mostly by the skirts. Trees are placed again on the fine tile, so they
   move when it loads.
 - Attribution to BEV is required in both cases.
+
+## Update 2026-10-12 (#487): fine ground near streams
+
+Fine 2 m ground only near lakes left the five play locations outside the core
+with 5 m ground at their dam sites, which sit on streams. Tiles within 100 m of
+an OSM stream line now get the fine level as well (`stream_near` in
+`build_tiles.py`). The rules are unchanged: 2 m cells, the smoothed datum
+correction, the 5 m lake level.
+
+- Fine tiles: 70 before, 298 after (of 569 in the play area). The regions are
+  4, one of them 30 x 33 tiles (a 384 MB cache of the 1 m model in `data/raw/`,
+  7 minutes to download). A band of 60 m instead of 100 m saves almost nothing.
+- Cost: 299 fine tiles (23 MB), `public/tiles` 29 MB before and 46 MB after,
+  a build of 2 minutes once the 1 m cache exists. Dam sites found by the scan:
+  94 before, 107 after. Not yet checked on the tablet.
+- The tile check (`--check-only`) skips tiles with a mean slope over 30 degrees
+  when it compares the datum. Stream gullies on mountainsides differ by 1 m and
+  more between the models by design, and a slope filter inside a tile only picks
+  the filled gully floors.

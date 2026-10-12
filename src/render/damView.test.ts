@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { createDamView, shownShare, wallSpan } from './damView';
+import { createDamView, damAt, shownShare, wallSpan } from './damView';
 import { POND_CELL, floodPond } from '../sim/pond';
 import type { Dam } from '../sim/dam';
 import type { DamSpot } from '../sim/damSpots';
@@ -11,6 +11,23 @@ describe('shownShare', () => {
     expect(shownShare(0.5)).toBe(1);
     expect(shownShare(0)).toBeCloseTo(1 / 3);
     expect(shownShare(0.25)).toBeCloseTo(2 / 3);
+  });
+});
+
+describe('damAt', () => {
+  const spot: DamSpot = { id: 's', bed: { x: 0, z: 0 }, channel: { x: 6, z: 6 }, bedY: 10, flow: { x: 0, z: 1 }, maxCrest: 2, pondM2: 0 };
+
+  it('stands on the stream line when the ground there is near the bed', () => {
+    expect(damAt(spot, () => 10.5)).toEqual(spot.bed);
+  });
+
+  it('stands across the channel when the stream line lies on a bank (the Oedsee east spot, 3 m up)', () => {
+    expect(damAt(spot, () => 13.2)).toEqual(spot.channel);
+  });
+
+  it('stands on the stream line when the scan found no channel', () => {
+    const { channel: _c, ...plain } = spot;
+    expect(damAt(plain, () => 13.2)).toEqual(plain.bed);
   });
 });
 

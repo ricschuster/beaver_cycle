@@ -911,6 +911,14 @@ async function start(): Promise<void> {
   // Read only view for tests and the coming test menu.
   (window as unknown as { __game: unknown }).__game = {
     world: () => world,
+    // Jump to a dam spot by id, as the test menu's "To nearest spot" does for the nearest (a playtest wants the nearest spot that
+    // holds a level 2 dam, which may be far off).
+    goToSpot: (id: string) => {
+      const spot = world.spots.find((s) => s.id === id);
+      if (!spot || !streamer) return false;
+      jump = { x: spot.bed.x, z: spot.bed.z, deadline: performance.now() + 8000, spawn: null };
+      return true;
+    },
     view: () => rig.view,
     stats: () => renderer.terrain?.stats() ?? null,
     // Per part tile build times since the last call, for the tablet bench.

@@ -113,15 +113,15 @@ def snap_line(pts, ground, blocked=None):
 
 
 def snap_streams(streams, ground, lake_mask=None):
-    """Snap every (points, name) stream. Returns (streams, report) with the report a dict of numbers.
+    """Snap every (points, name, ...) stream; what follows the name is passed through. Returns (streams, report) with the report a dict of numbers.
 
     `lake_mask` is a boolean vertex lattice of the lakes on the same lattice as `ground`.
     """
     blocked = (lambda x, z: ground.mask_at(lake_mask, x, z)) if lake_mask is not None else None
     out, moves, big = [], [], []
-    for pts, name in streams:
+    for pts, name, *rest in streams:
         new, o = snap_line(pts, ground, blocked)
-        out.append((new, name))
+        out.append((new, name, *rest))
         moves.append(np.abs(o))
         for q, d in zip(new, np.abs(o)):
             if d > BIG_MOVE:

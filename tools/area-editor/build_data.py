@@ -301,7 +301,7 @@ def to_geojson(osm):
             if tags.get("natural") == "water" and len(pts) > 3 and pts[0] == pts[-1]:
                 lakes.append((ring_polygon(pts), name))
             else:  # streams, and open natural=water ways such as the Alm river
-                lines.append((pts, name))
+                lines.append((pts, name, {k: tags[k] for k in ("waterway", "intermittent", "width") if k in tags}))
         elif el["type"] == "relation" and tags.get("natural") == "water":
             outers = [[[p["lon"], p["lat"]] for p in m["geometry"]]
                       for m in el.get("members", []) if m.get("role") == "outer" and m.get("geometry")]
@@ -321,7 +321,7 @@ def to_geojson(osm):
         union = poly if union is None else union.Union(poly)
         feats.append({"type": "Feature", "properties": {"kind": "water", "name": name},
                       "geometry": json.loads(poly.ExportToJson(["COORDINATE_PRECISION=6"]))})
-    for pts, name in lines:
+    for pts, name, tag in lines:
         line = ogr.Geometry(ogr.wkbLineString)
         for x, y in pts:
             line.AddPoint_2D(x, y)
@@ -329,7 +329,7 @@ def to_geojson(osm):
             line = line.Difference(union)
         if line.IsEmpty():
             continue
-        feats.append({"type": "Feature", "properties": {"kind": "stream", "name": name},
+        feats.append({"type": "Feature", "properties": {"kind": "stream", "name": name, **tag},
                       "geometry": json.loads(line.ExportToJson(["COORDINATE_PRECISION=6"]))})
     return {"type": "FeatureCollection", "features": feats}
 

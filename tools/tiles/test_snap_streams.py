@@ -76,10 +76,15 @@ def test_off_the_data_keeps_the_line():
 
 def test_snap_streams_reports_names_and_moves():
     out, report = ss.snap_streams([(line_at(8.0), "Bach"), (line_at(0.0), "Graben")], valley(0.0))
-    assert [n for _, n in out] == ["Bach", "Graben"]
+    assert [o[1] for o in out] == ["Bach", "Graben"]
     assert report["points"] > 0 and report["max_m"] >= 5.0 and report["max_m"] <= ss.CORRIDOR
     assert report["median_m"] <= report["p90_m"] <= report["max_m"]
     assert all(name == "Bach" for name, *_ in report["big_moves"])
+
+
+def test_snap_streams_passes_the_width_through():
+    out, _ = ss.snap_streams([(line_at(0.0), "Bach", 8.0)], valley(0.0))
+    assert out[0][2] == 8.0
 
 
 def test_a_degenerate_line_comes_back_unchanged():

@@ -271,6 +271,22 @@ def read_heights(g):
     return h
 
 
+RIVER_WIDTH_M, STREAM_WIDTH_M, SEASONAL_WIDTH_M = 8.0, 2.5, 1.8
+
+
+def stream_width(props):
+    """Drawn width in metres of an OSM line: its width tag, else by kind (river, stream, seasonal stream)."""
+    try:
+        w = float(str(props.get("width", "")).split()[0].replace(",", "."))
+        if 0.5 <= w <= 40:
+            return w
+    except (ValueError, IndexError):
+        pass
+    if props.get("waterway") == "river":
+        return RIVER_WIDTH_M
+    return SEASONAL_WIDTH_M if props.get("intermittent") == "yes" else STREAM_WIDTH_M
+
+
 def read_water():
     """Lake polygons (local rings, name) and stream lines (local points, name)."""
     src = RAW_WATER.read_text()
@@ -285,7 +301,7 @@ def read_water():
             g = f["geometry"]
             lines = [g["coordinates"]] if g["type"] == "LineString" else g["coordinates"]
             for line in lines:
-                streams.append((local_pts(line), name))
+                streams.append((local_pts(line), name, stream_width(f["properties"])))
     return lakes, streams
 
 
@@ -416,7 +432,7 @@ def clip_lines(streams, tx, tz):
         f"POLYGON(({tx*TILE} {tz*TILE},{(tx+1)*TILE} {tz*TILE},{(tx+1)*TILE} {(tz+1)*TILE},"
         f"{tx*TILE} {(tz+1)*TILE},{tx*TILE} {tz*TILE}))")
     out = []
-    for pts, name in streams:
+    for pts, name, width in streams:
         line = ogr.Geometry(ogr.wkbLineString)
         for x, z in pts:
             line.AddPoint_2D(x, z)
@@ -427,8 +443,8 @@ def clip_lines(streams, tx, tz):
             [cut.GetGeometryRef(i) for i in range(cut.GetGeometryCount())]
         for p in parts:
             if p.GetPointCount() >= 2 and p.GetGeometryType() == ogr.wkbLineString:
-                out.append({"name": name, "pts": [[round(p.GetX(i), 1), round(p.GetY(i), 1)]
-                                                 for i in range(p.GetPointCount())]})
+                out.append({"name": name, "w": width, "pts": [[round(p.GetX(i), 1), round(p.GetY(i), 1)]
+                                                             for i in range(p.GetPointCount())]})
     return out
 
 

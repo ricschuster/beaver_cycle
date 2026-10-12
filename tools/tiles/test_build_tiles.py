@@ -114,3 +114,11 @@ def test_fine_regions_group_touching_tiles_and_pad_them():
     assert [r[1] for r in regions] == [[(0, 0), (1, 1)], [(5, 5), (5, 6)]]
     grid = regions[0][0]
     assert (grid.tx0, grid.tz0, grid.ntx, grid.ntz) == (-1, -1, 4, 4)
+
+
+def test_stream_width_by_kind():
+    assert bt.stream_width({"waterway": "river"}) == bt.RIVER_WIDTH_M
+    assert bt.stream_width({"waterway": "stream"}) == bt.STREAM_WIDTH_M
+    assert bt.stream_width({"waterway": "stream", "intermittent": "yes"}) == bt.SEASONAL_WIDTH_M
+    assert bt.stream_width({"waterway": "stream", "width": "4 m"}) == 4.0
+    assert bt.stream_width({"waterway": "river", "width": "junk"}) == bt.RIVER_WIDTH_M

@@ -122,3 +122,7 @@ def test_stream_width_by_kind():
     assert bt.stream_width({"waterway": "stream", "intermittent": "yes"}) == bt.SEASONAL_WIDTH_M
     assert bt.stream_width({"waterway": "stream", "width": "4 m"}) == 4.0
     assert bt.stream_width({"waterway": "river", "width": "junk"}) == bt.RIVER_WIDTH_M
+    assert bt.stream_width({"waterway": "river", "name": "Alm"}) == 10.0
+    assert bt.stream_width({"waterway": "river", "name": "Straneggbach"}) == 3.0
+    assert bt.stream_width({"waterway": "stream", "name": "Aagbach"}) == 5.0
+    assert bt.stream_width({"waterway": "stream", "name": "Aagbach", "width": "7"}) == 7.0

@@ -10,11 +10,12 @@ The tile tool gives each stream line a drawn width `w` in metres, and the render
 | OSM line | Width |
 | --- | --- |
 | `width` tag, 0.5 to 40 m | the tag |
-| `waterway=river` (the Alm) | 8 m |
-| `waterway=stream`, `intermittent=yes` (most small streams, the Aagbach) | 1.8 m |
+| a name in `NAMED_WIDTH_M` | Alm 10 m, Steyr and Salza 12 m, Steyrling 6 m, Aagbach 5 m; Straneggbach, Ostrawitzbach, Schwarzgraben and Grimming 3 m (OSM tags them `river` but they are brooks) |
+| other `waterway=river` | 8 m |
+| `waterway=stream`, `intermittent=yes` (most small streams) | 1.8 m |
 | other `waterway=stream` | 2.5 m |
 
-Only 12 lines carry a `width` tag. The numbers are a first guess to be judged on the tablet.
+Only 12 lines carry a `width` tag. The numbers are a first guess, seen from above in a desktop render of the Alm, Aagbach, Straneggbach and two small streams (they looked right against a beaver); still to be judged on the tablet.
 
 ## Not done
 

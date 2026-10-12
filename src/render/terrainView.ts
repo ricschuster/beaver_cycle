@@ -282,7 +282,8 @@ const STEEP_ROCK = 0x857f76;
 /** Snow on the trees. */
 const SNOW = 0xf2f6f8;
 
-const STREAM_HALF_WIDTH = 1.25;
+/** Width of a stream without a `w` in its tile, metres. */
+const STREAM_WIDTH = 2.5;
 const STREAM_STEP = 5;
 const STREAM_LIFT = 0.3;
 
@@ -294,6 +295,7 @@ export function buildStreamGeometry(
   const pos: number[] = [];
   const index: number[] = [];
   for (const s of water.streams) {
+    const half = (s.w ?? STREAM_WIDTH) / 2;
     // resample the line every few metres so the ribbon follows the ground
     const pts: [number, number][] = [];
     for (let k = 0; k + 1 < s.pts.length; k++) {
@@ -310,8 +312,8 @@ export function buildStreamGeometry(
       const [px, pz] = pts[Math.max(k - 1, 0)]!;
       const [qx, qz] = pts[Math.min(k + 1, pts.length - 1)]!;
       const len = Math.hypot(qx - px, qz - pz) || 1;
-      const nx = (-(qz - pz) / len) * STREAM_HALF_WIDTH;
-      const nz = ((qx - px) / len) * STREAM_HALF_WIDTH;
+      const nx = (-(qz - pz) / len) * half;
+      const nz = ((qx - px) / len) * half;
       for (const side of [-1, 1]) {
         const wx = x + nx * side;
         const wz = z + nz * side;

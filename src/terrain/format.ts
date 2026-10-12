@@ -77,7 +77,8 @@ export function decodeTile(tx: number, tz: number, buf: ArrayBuffer): DecodedTil
 /** Streams of a tile, as cut by the tile tool: polylines in world metres. */
 export interface TileWater {
   lakeLevel_m: number | null;
-  streams: { name: string; pts: [number, number][] }[];
+  /** `w` is the drawn width in metres, absent in older tiles. */
+  streams: { name: string; w?: number; pts: [number, number][] }[];
 }
 
 /**

@@ -67,6 +67,22 @@ describe('water geometry', () => {
     }
   });
 
+  it('draws a ribbon as wide as the stream says, 2.5 m without a width', () => {
+    const span = (w?: number): number => {
+      const geo = buildStreamGeometry({ lakeLevel_m: null, streams: [{ name: 'b', w, pts: [[0, 0], [100, 0]] }] }, () => 0)!;
+      const p = geo.getAttribute('position');
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let k = 0; k < p.count; k++) {
+        lo = Math.min(lo, p.getZ(k));
+        hi = Math.max(hi, p.getZ(k));
+      }
+      return hi - lo;
+    };
+    expect(span()).toBeCloseTo(2.5, 3);
+    expect(span(8)).toBeCloseTo(8, 3);
+  });
+
   it('draws no ribbon when a tile has no streams', () => {
     expect(buildStreamGeometry({ lakeLevel_m: 580, streams: [] }, () => 0)).toBeNull();
   });

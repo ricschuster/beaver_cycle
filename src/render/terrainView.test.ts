@@ -67,6 +67,12 @@ describe('water geometry', () => {
     }
   });
 
+  it('lights a stream ribbon from above all along, not by chance', () => {
+    const geo = buildStreamGeometry({ lakeLevel_m: null, streams: [{ name: 'b', pts: [[0, 0], [50, 30], [100, 0]] }] }, (x, z) => 500 + x * 0.1 + Math.sin(z) * 3)!;
+    const n = geo.getAttribute('normal');
+    for (let k = 0; k < n.count; k++) expect([n.getX(k), n.getY(k), n.getZ(k)]).toEqual([0, 1, 0]);
+  });
+
   it('draws a ribbon as wide as the stream says, 2.5 m without a width', () => {
     const span = (w?: number): number => {
       const geo = buildStreamGeometry({ lakeLevel_m: null, streams: [{ name: 'b', w, pts: [[0, 0], [100, 0]] }] }, () => 0)!;

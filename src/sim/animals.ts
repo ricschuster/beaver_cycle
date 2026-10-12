@@ -114,7 +114,7 @@ export function homeOf(t: Terrain, cx: number, cz: number): Home | null {
   const woodKind: AnimalKind = wood < 0.7 ? 'owl' : wood < 0.85 ? 'lynx' : 'bear';
   // One cell in twelve of the water cells holds a guide, an otter or a kingfisher, in place of a duck or a heron.
   const guide: AnimalKind = hash(cx, cz, 6) < 0.5 ? 'otter' : 'kingfisher';
-  const order: AnimalKind[] = pick >= 0.5 && pick < 0.57 ? [guide, 'duck'] : pick < 0.35 ? ['deer', 'fox'] : pick < 0.5 ? ['fox', 'deer'] : pick < 0.8 ? ['duck', 'heron'] : pick < 0.93 ? ['heron', 'duck'] : [woodKind, 'fox'];
+  const order: AnimalKind[] = pick >= 0.5 && pick < 0.57 ? [guide, 'duck'] : pick < 0.35 ? ['deer'] : pick < 0.4 ? ['fox', 'deer'] : pick < 0.5 ? [] : pick < 0.8 ? ['duck', 'heron'] : pick < 0.93 ? ['heron', 'duck'] : [woodKind];
   for (const kind of order) {
     for (let i = 0; i < TRIES; i++) {
       const x = (cx + hash(cx, cz, 10 + i * 2)) * CELL;

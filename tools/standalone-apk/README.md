@@ -19,7 +19,7 @@ npm run build                      # from the repo root, writes dist/
 cd tools/standalone-apk
 npm install
 npx cap add android                # once
-python3 make_icon.py               # the beaver icon, after every cap add (needs Pillow)
+python3 apply_icon.py              # the beaver icon, after every cap add
 npx cap sync android               # after every game build
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 cd android && ./gradlew assembleDebug
@@ -31,10 +31,11 @@ also be copied to a tablet and installed from there, if the tablet allows it.
 Each game change needs a new build and install. For quick edit and reload
 loops use `tools/tablet-live` instead.
 
-The app icon (a beaver face with its chin in the water) is drawn by `make_icon.py`, because the generated `android/` folder is
-untracked and `cap add android` brings back the stock Capacitor icon. The script keeps `icon/foreground.png` (the adaptive icon
-layer) and `icon/icon.png` (the whole icon, also the source of the 512 px Play Store icon) in the repo and writes the mipmaps and the
-background colour into `android/`. Without it the tablet shows the default symbol.
+The app icon (a beaver face with its chin in the water) is copied into the generated project by `apply_icon.py`, because the
+`android/` folder is untracked and `cap add android` brings back the stock Capacitor icon. The PNGs in `icon/mipmap-*` are the
+originals of the first standalone build, taken from an installed APK (the script that drew them was never committed), so they are
+the only source: keep them. The adaptive background is the flat colour #7EC4D6 in the script. Without this step the tablet shows the
+default symbol. The Play Store listing needs a 512 px icon: build it from `ic_launcher_foreground.png` (432 px) on that colour.
 
 ## Release bundle for Google Play
 

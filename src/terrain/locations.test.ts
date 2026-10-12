@@ -74,13 +74,15 @@ describe.skipIf(!HAVE_TILES)('the play locations on the real tiles', () => {
     it(`${id}: animals live round the anchor`, () => {
       const field = new AnimalField();
       const a = anchor();
-      // Several cells wide, at noon, so the count does not hang on one hash. Some valleys show a single kind (hinterer-springbach: fox).
+      // Several cells wide, at noon, so the count does not hang on one hash.
       const kinds = new Set<string>();
       for (const [dx, dz] of [[0, 0], [300, 0], [-300, 0], [0, 300], [0, -300]]) {
         for (const animal of field.near(store, a.x + dx!, a.z + dz!, 0.3 * 600, 40, 200)) kinds.add(animal.kind);
       }
       console.log(id, 'animal kinds', [...kinds].sort().join(','));
       expect(kinds.size).toBeGreaterThanOrEqual(1);
+      // Deer browse the forest too, so even the dense forest of hinterer-springbach has more than foxes (#315).
+      if (id === 'hinterer-springbach') expect(kinds.has('deer')).toBe(true);
     });
 
     it(`${id}: other families are found along the water`, () => {

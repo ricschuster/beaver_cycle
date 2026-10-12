@@ -159,6 +159,9 @@ export function buildTileGeometry(tile: DecodedTile, size: number): THREE.Buffer
   return geo;
 }
 
+/** How far, in metres, the lake water reaches over ground below its level beyond the cells the land cover marks. */
+const LAKE_REACH_M = 8;
+
 /**
  * Flat water at the lake level, cut where the ground rises through it. It covers
  * the lake cells and their neighbours, and each ground triangle is clipped to the
@@ -170,14 +173,35 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
   const { n, classes, heights: h } = tile;
   const w = n + 1;
   const cell = size / n;
-  const near = (i: number, j: number): boolean => {
-    for (let cj = Math.max(j - 1, 0); cj <= Math.min(j + 1, n - 1); cj++) {
-      for (let ci = Math.max(i - 1, 0); ci <= Math.min(i + 1, n - 1); ci++) {
-        if (classes[cj * n + ci] === CLASS_LAKE) return true;
+  // The land cover marks the lake coarsely, so ground below the level can lie several cells beyond it. The water
+  // reaches LAKE_REACH_M over such ground (every cell within one cell of the lake is kept, as before), and the clip
+  // below cuts it at the true shoreline, instead of at the edge of the reach, which showed as steps.
+  const reach = Math.max(1, Math.round(LAKE_REACH_M / cell));
+  const lowCell = (i: number, j: number): boolean =>
+    h[j * w + i]! < level || h[j * w + i + 1]! < level || h[(j + 1) * w + i]! < level || h[(j + 1) * w + i + 1]! < level;
+  const wet = new Uint8Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (classes[j * n + i] === CLASS_LAKE) wet[j * n + i] = 1;
+  // spread the wet cells outward one cell at a time, onto the cells below the level
+  for (let step = 0; step < reach; step++) {
+    const grown = wet.slice();
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        if (wet[j * n + i]) continue;
+        let beside = false;
+        for (let cj = Math.max(j - 1, 0); cj <= Math.min(j + 1, n - 1) && !beside; cj++) {
+          for (let ci = Math.max(i - 1, 0); ci <= Math.min(i + 1, n - 1); ci++) {
+            if (wet[cj * n + ci]) {
+              beside = true;
+              break;
+            }
+          }
+        }
+        if (beside && (step === 0 || lowCell(i, j))) grown[j * n + i] = 1;
       }
     }
-    return false;
-  };
+    wet.set(grown);
+  }
+  const near = (i: number, j: number): boolean => wet[j * n + i] === 1;
   let pos = new Float32Array(3 * 3 * 1024);
   let depth = new Float32Array(3 * 1024);
   let used = 0;

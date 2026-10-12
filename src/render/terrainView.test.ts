@@ -30,6 +30,16 @@ describe('water geometry', () => {
     expect(p.count).toBe(4 * 6); // the lake cell and its three neighbours
   });
 
+  it('reaches over low ground beside the lake mask by the reach, but not far down a valley', () => {
+    // 5 m cells; only the first column is marked lake, the ground is below the level everywhere
+    const tile = makeTile(0, 0, 0, () => 570, 1);
+    for (let j = 0; j < 64; j++) tile.classes[j * 64] = CLASS_LAKE;
+    const p = buildLakeGeometry(tile, 320, 580)!.getAttribute('position');
+    let maxX = -Infinity;
+    for (let k = 0; k < p.count; k++) maxX = Math.max(maxX, p.getX(k));
+    expect(maxX).toBe(15); // the lake cell, then the 8 m reach rounded to 2 cells of 5 m
+  });
+
   it('keeps the depth of the water at each vertex, 0 on the shoreline', () => {
     // the same slope as above: the water is 160 m deep at x = 0 and 0 deep at the shore, x = 160
     const tile = makeTile(0, 0, 2, (x) => 580 + (x - 160), CLASS_LAKE);

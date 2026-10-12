@@ -109,6 +109,19 @@ def test_flat_shelf_shore_has_no_cliff():
     assert np.nanmax(h2 - level) <= 0.2 + 1e-9  # the shelf is never raised
 
 
+def test_steep_bare_ground_turns_to_rock_and_the_rest_stays():
+    ground, forest, meadow = bt.CLASSES["ground"], bt.CLASSES["forest"], bt.CLASSES["meadow"]
+    h = np.zeros((7, 7))
+    h[:, 3:] = (np.arange(7)[3:] - 3) * 5.0
+    code = np.full((6, 6), ground, dtype=np.uint8)
+    code[0, 5] = forest
+    code[1, 5] = meadow
+    n = bt.steep_ground_to_rock(code, h, 5.0)
+    assert (code[:, :2] == ground).all()  # flat ground stays
+    assert code[2, 5] == bt.CLASSES["rock"] and n > 0
+    assert code[0, 5] == forest and code[1, 5] == meadow  # mapped cover is not touched
+
+
 @pytest.mark.skipif(not list(bt.ROOT.glob("data/raw/dtm1_*_31287.tif")), reason="BEV 1 m terrain not cached (run build_tiles.py once)")
 def test_fine_tiles_join_and_sit_on_the_5m_ground(tmp_path):
     index = bt.build(tmp_path, fine=2)

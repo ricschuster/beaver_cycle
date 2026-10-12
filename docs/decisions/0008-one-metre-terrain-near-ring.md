@@ -159,3 +159,10 @@ correction, the 5 m lake level.
   when it compares the datum. Stream gullies on mountainsides differ by 1 m and
   more between the models by design, and a slope filter inside a tile only picks
   the filled gully floors.
+
+### Steep bare ground is rock (#487)
+
+OSM leaves cliffs and scree untagged, so about a quarter of the ground within 1.2 km of the South extension came out as flat tan
+"ground" (mean slope 39 degrees, 773 m). `steep_ground_to_rock` turns ground (no OSM cover) steeper than 35 degrees into rock,
+on the 5 m grid and on the fine tiles. Gentler bare ground, and every mapped class, stay as they are. It changes the colour and
+ground texture only: trees and animals do not use the rock class, and loose rocks come from slope and water (`rockChance`).

@@ -351,6 +351,22 @@ def read_landcover(g):
     return code
 
 
+ROCK_SLOPE = 35.0  # degrees: bare ground steeper than this is rock (an OSM wood polygon gap on a cliff or scree)
+
+
+def steep_ground_to_rock(code, h, cell):
+    """Turn bare ground (class ground, no OSM cover) on steep slopes into rock, in place. Returns the number of cells.
+
+    `h` is the vertex heights (one more row and column than `code`). OSM leaves the cliffs and scree above the valleys untagged,
+    so they came out as flat tan ground (session 112, the south had 25 % of it). Gentler bare ground stays as it is.
+    """
+    dx = ((h[:-1, 1:] + h[1:, 1:]) - (h[:-1, :-1] + h[1:, :-1])) / (2 * cell)
+    dz = ((h[1:, :-1] + h[1:, 1:]) - (h[:-1, :-1] + h[:-1, 1:])) / (2 * cell)
+    steep = (np.degrees(np.arctan(np.hypot(dx, dz))) > ROCK_SLOPE) & (code == CLASSES["ground"])
+    code[steep] = CLASSES["rock"]
+    return int(steep.sum())
+
+
 def shore_distance(mask):
     """Distance in cells from each lake cell to the nearest non lake cell."""
     drv = gdal.GetDriverByName("MEM")
@@ -654,6 +670,7 @@ def build_fine(out, g, cell, tiles, lakes, lake_levels):
         code = read_landcover(fg)
         h, lake_cells, _, _, _, _ = make_lake_bed(fg, h, lakes, code == CLASSES["wetland"], lake_levels)
         code[lake_cells] = CLASSES["lake"]
+        steep_ground_to_rock(code, h, cell)
         q = np.rint(h / SCALE).astype(np.int64)[halo:halo + n + 1, halo:halo + n + 1]
         ct = code[halo:halo + n, halo:halo + n]
         write_tile(out / "L3" / f"{tx}_{tz}.bin", 3, q, ct)
@@ -687,6 +704,7 @@ def build(out=OUT, fine=None, backdrop=True, snap=True):
     h, lake_cells, lake_vert, lake_level, lake_list, lake_levels = make_lake_bed(
         g, h, lakes, code == CLASSES["wetland"])
     code[lake_cells] = CLASSES["lake"]
+    print(f"{steep_ground_to_rock(code, h, g.cell)} cells of steep bare ground turned to rock")
     if snap:
         streams = snap_stream_lines(streams, h, g, lake_vert)
     q = np.rint(h / SCALE).astype(np.int64)

@@ -66,6 +66,14 @@ FAR_STEP = 8  # 40 m cells, 8 per tile side
 LAKE_BED_SLOPE = 0.06  # metres of depth per metre from the shore
 LAKE_BED_MAX = 5.0
 LAKE_BED_OFFSET = 0.6  # metres the bed sits below the lake level at the shore
+# The outline of a lake is a staircase of cells, and a flat shelf beside it lies within a few decimetres of the lake level, so a
+# hard edge there reads as stair-steps on the shore. The shore is smoothed and tapered instead: the bed rises to the lake level
+# over SHORE_RAMP_M, and flat land within SHORE_BAND_M rises from the level at SHORE_BEACH_SLOPE.
+SHORE_SMOOTH_M = 4.0  # metres of blur radius (twice) on the signed distance to the lake outline
+SHORE_RAMP_M = 3.0  # metres from the smoothed shoreline over which the bed reaches its full offset
+SHORE_BAND_M = 8.0  # metres from the shoreline within which gentle land is tapered
+SHORE_BEACH_SLOPE = 0.35  # metres of rise per metre inland
+SHORE_BEACH_MAX = 1.0  # metres above the level; land higher than this is a bank and stays as it is
 # The south end is a shallow bog (03_location.md): water under 50 cm. The bed is
 # made shallow by two weights, the larger wins. One ramps up along the lake
 # toward the south (z grows southward) and only in the lakes of `BOG_RAMP_LAKES`, the other
@@ -374,6 +382,32 @@ def shallow_weight(g, wetland, ramp_vert=None):
     return np.maximum(south, near)
 
 
+def box_blur(a, radius, times=2):
+    """Separable box blur with edge clamping, numpy only."""
+    k = 2 * radius + 1
+    for _ in range(times):
+        for axis in (0, 1):
+            pad = [(0, 0), (0, 0)]
+            pad[axis] = (radius, radius)
+            c = np.cumsum(np.pad(a, pad, mode="edge"), axis=axis, dtype=np.float64)
+            c = np.concatenate([np.zeros_like(np.take(c, [0], axis=axis)), c], axis=axis)
+            n = c.shape[axis]
+            a = (np.take(c, range(k, n), axis=axis) - np.take(c, range(0, n - k), axis=axis)) / k
+    return a
+
+
+def spread_level(level, steps):
+    """Copy the lake level onto the land vertices within `steps` cells of a lake, so the shore can be tapered to it."""
+    lv = level.copy()
+    for _ in range(steps):
+        pad = np.pad(lv, 1, constant_values=np.nan)
+        stack = np.stack([pad[1 + dj:pad.shape[0] - 1 + dj, 1 + di:pad.shape[1] - 1 + di]
+                          for dj in (-1, 0, 1) for di in (-1, 0, 1)])
+        near = np.where(np.isnan(stack), -np.inf, stack).max(axis=0)
+        lv = np.where(np.isnan(lv) & np.isfinite(near), near, lv)
+    return lv
+
+
 def make_lake_bed(g, h, lakes, wetland, levels=None):
     """Lower the lake floor below a flat level. BEV has a flat lake, the game's is deeper.
 
@@ -404,7 +438,18 @@ def make_lake_bed(g, h, lakes, wetland, levels=None):
     w = shallow_weight(g, wetland, ramp_vert)
     depth = np.minimum(dist * g.cell * LAKE_BED_SLOPE, LAKE_BED_MAX) * (1.0 - w)
     offset = LAKE_BED_OFFSET + (BOG_BED_OFFSET - LAKE_BED_OFFSET) * w
-    h = np.where(vert, level - offset - depth, h)
+    if vert.any() and not vert.all():
+        # signed metres to the outline, positive in the lake, smoothed so the raster staircase goes
+        s = np.where(vert, dist - 0.5, -(shore_distance(~vert) - 0.5)) * g.cell
+        s = box_blur(s, max(1, round(SHORE_SMOOTH_M / g.cell)))
+        lv = spread_level(level, int(np.ceil((SHORE_BAND_M + SHORE_SMOOTH_M) / g.cell)) + 1)
+        bed = lv - offset * np.clip(s / SHORE_RAMP_M, 0.0, 1.0) - depth
+        beach = lv + SHORE_BEACH_SLOPE * np.maximum(-s, 0.0)
+        gentle = (-s <= SHORE_BAND_M) & (h - lv < SHORE_BEACH_MAX)
+        land = np.where(s > 0, np.minimum(h, bed), np.where(gentle, np.minimum(h, beach), h))
+        h = np.where(vert, np.where(s > 0, bed, lv), np.where(np.isnan(lv), h, land))
+    else:
+        h = np.where(vert, level - offset - depth, h)
     cell = g.raster([r for r, _ in lakes], vertices=False)
     return h, cell, vert, level, found, used
 

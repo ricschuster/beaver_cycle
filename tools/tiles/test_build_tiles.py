@@ -98,6 +98,17 @@ def test_south_ramp_acts_on_the_almsee_only():
     assert np.nanmax(depth[:, 56:]) > 3.0  # the other lake keeps open water depth
 
 
+def test_flat_shelf_shore_has_no_cliff():
+    # A lake with a slanted outline beside a shelf 0.2 m above the level: the bed must taper to the level, not drop 0.8 m.
+    g = bt.Grid.window(0.0, 0.0, 100, 100, 2.0)
+    h = np.full((g.ncz + 1, g.ncx + 1), 500.2)
+    ring = [[(0.0, 0.0), (80.0, 0.0), (140.0, 200.0), (0.0, 200.0)]]
+    h2, _, vert, level, _, _ = bt.make_lake_bed(g, h, [(ring, "Elmsee")], np.zeros((g.ncz, g.ncx), bool))
+    step = np.maximum(np.abs(np.diff(h2, axis=0))[:, :-1], np.abs(np.diff(h2, axis=1))[:-1, :])
+    assert vert.any() and step.max() < 0.5
+    assert np.nanmax(h2 - level) <= 0.2 + 1e-9  # the shelf is never raised
+
+
 @pytest.mark.skipif(not list(bt.ROOT.glob("data/raw/dtm1_*_31287.tif")), reason="BEV 1 m terrain not cached (run build_tiles.py once)")
 def test_fine_tiles_join_and_sit_on_the_5m_ground(tmp_path):
     index = bt.build(tmp_path, fine=2)

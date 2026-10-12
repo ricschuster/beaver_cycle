@@ -17,15 +17,17 @@ The tile tool gives each stream line a drawn width `w` in metres, and the render
 
 Only 12 lines carry a `width` tag. The numbers are a first guess, seen from above in a desktop render of the Alm, Aagbach, Straneggbach and two small streams (they looked right against a beaver); still to be judged on the tablet.
 
-## Mouth flare
+## Delta at a lake mouth
 
-A stream whose last point lies within 1.5 m of its tile's lake level is drawn flaring over its last 60 m to 2.2 times its width
-(`MOUTH_FLARE`, `buildStreamGeometry`), so the Aagbach opens into the Almsee instead of ending as a straight band. Renderer
-only, so no tile rebuild. Seen from above in a desktop render, it reads as a funnel, not yet as a braided delta.
+A stream whose last point lies within 1.5 m of its tile's lake level braids (`buildStreamGeometry`). Where the main channel is
+60 m from the lake, up to three arms split off it. Each is a straight run, half as wide as the channel, to the nearest lake
+land cover within 120 m, at least 0.35 radians from the main channel and from the other arms. An arm that finds no water is not
+drawn. Renderer only, so no tile rebuild. At the Aagbach it gives four channels fanning into the two bays of the Almsee.
+Seen from above in a desktop render, not yet on the tablet. The arms are straight, with no banks or islands.
 
 ## Not done
 
 - Colour, banks and flow stay as they are until they are judged on the tablet (#174). The dark East-Oedseen water could not be reproduced on the desktop.
-- The Aagbach delta: OSM has no delta shape, only thin lines. A first step is the mouth flare above. Real arms, a fan of
-  several channels, would need a hand drawn shape and are not done.
+- The Aagbach delta: OSM has no delta shape, only thin lines. The delta above is made by rule, so it shows at every lake
+  mouth and not only at the Aagbach.
 - Wading and dam rules still use their own width (`STREAM_HALF_WIDTH` in `src/sim/haul.ts`).

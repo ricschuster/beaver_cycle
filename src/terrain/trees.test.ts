@@ -18,6 +18,21 @@ describe('placeTrees', () => {
     expect(count(placeTrees(makeTile(0, 0, 0, () => 0, CLASS_LAKE), 320))).toBe(0);
   });
 
+  it('keeps trees out of the lake shallows', () => {
+    // forest on a slope from 595 m (below a 600 m lake) to 605 m, with a lake cell at the west edge
+    const tile = makeTile(0, 0, 0, (x) => 595 + (x / 320) * 10, 2);
+    tile.classes[0] = CLASS_LAKE;
+    const dry = placeTrees(tile, 320, undefined, null);
+    const wet = placeTrees(tile, 320, undefined, 600);
+    expect(count(wet)).toBeLessThan(count(dry));
+    // only the cells at the lake cell are cut: trees on low ground elsewhere stay
+    expect(count(dry) - count(wet)).toBeLessThan(10);
+    for (let k = 0; k < count(wet); k++) {
+      const [x, y, z] = [wet[k * 5]!, wet[k * 5 + 1]!, wet[k * 5 + 2]!];
+      if (x < 10 && z < 10) expect(y).toBeGreaterThanOrEqual(600.3);
+    }
+  });
+
   it('keeps trees inside their tile, standing on the ground', () => {
     const t = placeTrees(makeTile(1, 2, 0, (x) => 500 + x * 0.1, 2), 320);
     for (let k = 0; k < count(t); k++) {

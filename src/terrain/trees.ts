@@ -14,6 +14,8 @@ const DENSITY: Record<number, Record<number, number>> = {
 };
 /** Coarser levels draw fewer, bigger trees so the woods keep their mass. */
 const LEVEL_SCALE = [1, 1.8];
+/** Trees keep this many metres above the lake level, so none stands in the lake's shallows. */
+const LAKE_CLEARANCE = 0.3;
 /** Test knob: multiplies every density (the stress runs for the tablet budgets set it from the URL). */
 export const treeTuning = { densityScale: 1 };
 /** Cone of a tree at scale 1, by shown level: base radius, height, and base height above the ground. */
@@ -92,7 +94,7 @@ function seedFor(tx: number, tz: number, level: number): number {
 }
 
 /** Trees of a tile as x, y, z, scale, kind per tree, in world metres. */
-export function placeTrees(tile: DecodedTile, size: number, felled?: ReadonlySet<string>): Float32Array {
+export function placeTrees(tile: DecodedTile, size: number, felled?: ReadonlySet<string>, lakeLevel: number | null = null): Float32Array {
   // a fine tile has the trees of level 0, on its own finer ground
   const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
   const density = DENSITY[shown];
@@ -101,10 +103,18 @@ export function placeTrees(tile: DecodedTile, size: number, felled?: ReadonlySet
   const cell = size / n;
   const rand = mulberry32(seedFor(tile.tx, tile.tz, tile.level));
   const out: number[] = [];
+  // the lake's edge is the ground below its level in a lake cell or beside one, as in `TileStore.waterDepth`
+  const lakeAt = (i: number, j: number): boolean => {
+    for (let cj = Math.max(j - 1, 0); cj <= Math.min(j + 1, n - 1); cj++) {
+      for (let ci = Math.max(i - 1, 0); ci <= Math.min(i + 1, n - 1); ci++) if (classes[cj * n + ci] === CLASS_LAKE) return true;
+    }
+    return false;
+  };
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
       const cls = classes[j * n + i]!;
       const d = density[cls];
+      const nearLake = lakeLevel !== null && lakeAt(i, j);
       // one roll per cell, taken before the class check, decides the fractional tree
       const roll = rand();
       if (!d || cls === CLASS_LAKE) continue;
@@ -118,7 +128,9 @@ export function placeTrees(tile: DecodedTile, size: number, felled?: ReadonlySet
         const z = tile.tz * size + v * cell;
         // the roll above still ran, so a felled tree never moves the others
         if (felled?.has(treeId(x, z))) continue;
-        out.push(x, sampleHeight(tile, u, v), z, scale, treeKind(x, z));
+        const y = sampleHeight(tile, u, v);
+        if (nearLake && y < lakeLevel! + LAKE_CLEARANCE) continue;
+        out.push(x, y, z, scale, treeKind(x, z));
       }
     }
   }

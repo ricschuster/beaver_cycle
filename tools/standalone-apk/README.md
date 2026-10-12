@@ -19,6 +19,7 @@ npm run build                      # from the repo root, writes dist/
 cd tools/standalone-apk
 npm install
 npx cap add android                # once
+python3 make_icon.py               # the beaver icon, after every cap add (needs Pillow)
 npx cap sync android               # after every game build
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 cd android && ./gradlew assembleDebug
@@ -29,6 +30,11 @@ The APK (about 24 MB) is `app/build/outputs/apk/debug/app-debug.apk`. It can
 also be copied to a tablet and installed from there, if the tablet allows it.
 Each game change needs a new build and install. For quick edit and reload
 loops use `tools/tablet-live` instead.
+
+The app icon (a beaver face with its chin in the water) is drawn by `make_icon.py`, because the generated `android/` folder is
+untracked and `cap add android` brings back the stock Capacitor icon. The script keeps `icon/foreground.png` (the adaptive icon
+layer) and `icon/icon.png` (the whole icon, also the source of the 512 px Play Store icon) in the repo and writes the mipmaps and the
+background colour into `android/`. Without it the tablet shows the default symbol.
 
 ## Release bundle for Google Play
 

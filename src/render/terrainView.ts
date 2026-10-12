@@ -420,10 +420,11 @@ function buildTrees(
   size: number,
   materials: { conifer: THREE.Material; broadleaf: THREE.Material; broadleafDepth: THREE.Material },
   felled: ReadonlySet<string>,
+  lakeLevel: number | null,
 ): { meshes: THREE.InstancedMesh[]; grid: TreeGrid } | null {
   const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
   const conifers = CONIFER_GEOMETRY[shown];
-  const trees = conifers ? placeTrees(tile, size, felled) : new Float32Array(0);
+  const trees = conifers ? placeTrees(tile, size, felled, lakeLevel) : new Float32Array(0);
   if (!conifers || trees.length === 0) return null;
   const conifer: number[] = [];
   const broadleaf: number[] = [];
@@ -844,7 +845,7 @@ export function createTerrainView(
             break;
           }
           default: {
-            const trees = timed('trees', job.level, () => buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds));
+            const trees = timed('trees', job.level, () => buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds, store.tileInfo(job.tx, job.tz)?.lakeLevel_m ?? null));
             if (trees) group.add(...trees.meshes);
             const old = meshes.get(key);
             if (old) disposeGroup(scene, old.group);

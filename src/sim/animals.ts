@@ -70,7 +70,7 @@ const RING = 8;
 /** Spots tried in a cell for a kind. A shore is a narrow strip of a cell, so the heron needs many. */
 const TRIES = 16;
 
-/** True when a point suits the kind: deer and fox on dry land (meadow when the ground tells), duck on shallow water, heron on a shore. */
+/** True when a point suits the kind: deer and fox on dry land (meadow or, for deer, forest, when the ground tells), duck on shallow water, heron on a shore. */
 function suits(kind: AnimalKind, t: Terrain, x: number, z: number): boolean {
   const water = t.isWater(x, z);
   if (kind === 'duck' || kind === 'otter') {
@@ -88,7 +88,8 @@ function suits(kind: AnimalKind, t: Terrain, x: number, z: number): boolean {
     return [[5, 0], [-5, 0], [0, 5], [0, -5], [3.5, 3.5], [-3.5, 3.5], [3.5, -3.5], [-3.5, -3.5]].some(([dx, dz]) => t.isWater(x + dx!, z + dz!));
   }
   const cover = t.coverAt?.(x, z);
-  return cover === undefined || cover === COVER_MEADOW || kind === 'fox';
+  // Deer browse the forest edge too, so a valley of dense forest (Hinterer Springbach) is not left with foxes and bears only.
+  return cover === undefined || cover === COVER_MEADOW || kind === 'fox' || (kind === 'deer' && cover === COVER_FOREST);
 }
 
 /** True when the whole path of the kind round its home suits it, so an animal never walks into the lake or a wood. */

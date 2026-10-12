@@ -6,7 +6,7 @@ import { fly as flyStep, flyTarget, glide, look as lookAround, pickGround, zoomF
 import { createRenderer } from './render/renderer';
 import { SEASON_FULL_DAY } from './render/seasonLook';
 import { newWear } from './sim/wear';
-import { LODGE_WOOD, findSite, atHole, atNest, checkSite, lodgeProgress } from './sim/lodge';
+import { LODGE_WOOD, findSite, atHole, atNest, checkSite, checkSpot, lodgeProgress } from './sim/lodge';
 import { DAY_SECONDS, dateAt, daylight, withSeason, withTimeOfDay } from './sim/clock';
 import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
@@ -916,7 +916,18 @@ async function start(): Promise<void> {
     // Per part tile build times since the last call, for the tablet bench.
     buildTimes: drainBuildTimes,
     // Where a playtest can find things to work on: the nearest standing tree, and the nearest spot a lodge could start.
-    nearestTree: (x: number, z: number, reach: number) => trees.nearest(x, z, reach, new Set(world.felled)),
+    // With `dry`, the nearest whose foot is not under water (the lake or a pond), so the beaver can gnaw it from the land; `skip`
+    // leaves out trees a playtest gave up on.
+    nearestTree: (x: number, z: number, reach: number, dry = false, skipIds: readonly string[] = []) => {
+      const skip = new Set([...world.felled, ...skipIds]);
+      const water = withPonds(terrain, world.ponds);
+      for (let i = 0; i < 64; i++) {
+        const tree = trees.nearest(x, z, reach, skip);
+        if (!tree || !dry || water.waterDepth(tree.x, tree.z) <= 0) return tree;
+        skip.add(tree.id);
+      }
+      return null;
+    },
     lilyPadsNear: (radius: number) => lilyPadsNear(terrain, world.beaver.x, world.beaver.z, radius, world.clock, world.picked),
     // The rocks still lying within `radius` metres of the beaver, and the bare ground height at a point (to see a log climbed).
     rocksNear: (radius: number) => rocksNear(withPonds(terrain, world.ponds), world.beaver.x, world.beaver.z, radius, world.rocksTaken),
@@ -932,6 +943,9 @@ async function start(): Promise<void> {
     predators: () => world.predators,
     hurtAt: () => world.hurtAt,
     lodgeSite: (radius: number) => findSite(lodgeGround(terrain, world.ponds), world.beaver.x, world.beaver.z, radius),
+    // Why a lodge cannot start at exactly (x, z), or null when it can; and the same for the spot ahead of the beaver, as the carry line shows it.
+    siteProblem: (x: number, z: number) => checkSpot(lodgeGround(terrain, world.ponds), x, z).problem,
+    siteAhead: () => checkSite(lodgeGround(terrain, world.ponds), world.beaver.x, world.beaver.z, world.beaver.heading),
     // The dream's state while one is open, else null.
     dream: () => dreamScreen.state(),
   };

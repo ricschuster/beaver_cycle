@@ -286,9 +286,16 @@ const SNOW = 0xf2f6f8;
 const STREAM_WIDTH = 2.5;
 const STREAM_STEP = 5;
 const STREAM_LIFT = 0.3;
-/** A stream that ends in a lake flares over its last metres to this many times its width, as a delta does. */
-export const MOUTH_FLARE = 2.2;
-export const MOUTH_FLARE_LENGTH_M = 60;
+/**
+ * A stream that ends in a lake braids over its last metres, as a delta does: from this far back, up to MOUTH_ARM_COUNT side
+ * arms split off the main channel, each a straight run to the water that is at least MOUTH_ARM_SPREAD radians from the main
+ * channel and from the other arms, and no longer than MOUTH_ARM_RANGE_M. Arms are narrower than the channel by this share.
+ */
+export const MOUTH_ARMS_LENGTH_M = 60;
+export const MOUTH_ARM_COUNT = 3;
+export const MOUTH_ARM_SPREAD = 0.35;
+export const MOUTH_ARM_RANGE_M = 120;
+const MOUTH_ARM_WIDTH = 0.5;
 /** A stream line ends in the lake when its last point lies this close to the lake level, metres. */
 const MOUTH_REACH_M = 1.5;
 
@@ -296,9 +303,32 @@ const MOUTH_REACH_M = 1.5;
 export function buildStreamGeometry(
   water: TileWater,
   heightAt: (x: number, z: number) => number,
+  /** Whether the land cover at a point is lake, to find the water the delta arms run to. Defaults to ground at or under the lake level. */
+  isLake: (x: number, z: number) => boolean = (x, z) => water.lakeLevel_m != null && heightAt(x, z) <= water.lakeLevel_m,
 ): THREE.BufferGeometry | null {
   const pos: number[] = [];
   const index: number[] = [];
+  /** One ribbon of this half width along the points, each a little above the ground beside it. */
+  const addRibbon = (pts: [number, number][], half: number): void => {
+    const base = pos.length / 3;
+    for (let k = 0; k < pts.length; k++) {
+      const [x, z] = pts[k]!;
+      const [px, pz] = pts[Math.max(k - 1, 0)]!;
+      const [qx, qz] = pts[Math.min(k + 1, pts.length - 1)]!;
+      const len = Math.hypot(qx - px, qz - pz) || 1;
+      const nx = (-(qz - pz) / len) * half;
+      const nz = ((qx - px) / len) * half;
+      for (const side of [-1, 1]) {
+        const wx = x + nx * side;
+        const wz = z + nz * side;
+        pos.push(wx, heightAt(wx, wz) + STREAM_LIFT, wz);
+      }
+    }
+    for (let k = 0; k + 1 < pts.length; k++) {
+      const a = base + k * 2;
+      index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  };
   for (const s of water.streams) {
     const half = (s.w ?? STREAM_WIDTH) / 2;
     // resample the line every few metres so the ribbon follows the ground
@@ -311,27 +341,40 @@ export function buildStreamGeometry(
     }
     if (s.pts.length < 2) continue;
     pts.push(s.pts[s.pts.length - 1]!);
+    addRibbon(pts, half);
     const [endX, endZ] = pts[pts.length - 1]!;
-    const inLake = water.lakeLevel_m != null && Math.abs(heightAt(endX, endZ) - water.lakeLevel_m) < MOUTH_REACH_M;
-    const base = pos.length / 3;
-    for (let k = 0; k < pts.length; k++) {
-      const [x, z] = pts[k]!;
-      const toEnd = Math.hypot(endX - x, endZ - z);
-      const flare = inLake ? 1 + (MOUTH_FLARE - 1) * Math.max(0, 1 - toEnd / MOUTH_FLARE_LENGTH_M) : 1;
-      const [px, pz] = pts[Math.max(k - 1, 0)]!;
-      const [qx, qz] = pts[Math.min(k + 1, pts.length - 1)]!;
-      const len = Math.hypot(qx - px, qz - pz) || 1;
-      const nx = (-(qz - pz) / len) * half * flare;
-      const nz = ((qx - px) / len) * half * flare;
-      for (const side of [-1, 1]) {
-        const wx = x + nx * side;
-        const wz = z + nz * side;
-        pos.push(wx, heightAt(wx, wz) + STREAM_LIFT, wz);
+    if (water.lakeLevel_m == null || Math.abs(heightAt(endX, endZ) - water.lakeLevel_m) >= MOUTH_REACH_M) continue;
+    // the delta: arms leave the main channel where it is MOUTH_ARMS_LENGTH_M from the lake and fan out into it
+    let from = pts.length - 1;
+    while (from > 0 && Math.hypot(endX - pts[from]![0], endZ - pts[from]![1]) < MOUTH_ARMS_LENGTH_M) from--;
+    const [sx, sz] = pts[from]!;
+    const heading = Math.atan2(endZ - sz, endX - sx);
+    // how far a straight run from the split point at this heading goes before the ground drops to the lake, or null
+    const runTo = (h: number): number | null => {
+      for (let d = STREAM_STEP; d <= MOUTH_ARM_RANGE_M; d += STREAM_STEP) {
+        if (isLake(sx + Math.cos(h) * d, sz + Math.sin(h) * d)) return d;
       }
+      return null;
+    };
+    const runs: { h: number; d: number }[] = [];
+    for (let off = -1.2; off <= 1.2001; off += 0.05) {
+      const d = runTo(heading + off);
+      if (d !== null) runs.push({ h: heading + off, d });
     }
-    for (let k = 0; k + 1 < pts.length; k++) {
-      const a = base + k * 2;
-      index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    runs.sort((p, q) => p.d - q.d);
+    const arms: number[] = [heading];
+    for (const r of runs) {
+      if (arms.length > MOUTH_ARM_COUNT) break;
+      if (arms.every((h) => Math.abs(h - r.h) >= MOUTH_ARM_SPREAD)) {
+        arms.push(r.h);
+        const path: [number, number][] = [];
+        const steps = Math.ceil(r.d / STREAM_STEP);
+        for (let k = 0; k <= steps; k++) {
+          const d = Math.min(k * STREAM_STEP, r.d);
+          path.push([sx + Math.cos(r.h) * d, sz + Math.sin(r.h) * d]);
+        }
+        addRibbon(path, half * MOUTH_ARM_WIDTH);
+      }
     }
   }
   if (pos.length === 0) return null;
@@ -781,7 +824,7 @@ export function createTerrainView(
             break;
           }
           case 2: {
-            const streams = job.level !== 2 && water ? timed('streams', job.level, () => buildStreamGeometry(water, (x, z) => store.heightAt(x, z))) : null;
+            const streams = job.level !== 2 && water ? timed('streams', job.level, () => buildStreamGeometry(water, (x, z) => store.heightAt(x, z), (x, z) => store.coverAt(x, z) === CLASS_LAKE)) : null;
             if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
             break;
           }

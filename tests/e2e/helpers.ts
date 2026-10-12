@@ -1,8 +1,8 @@
 // Shared helpers for the playtests in tests/e2e: drive the real game the way a player does, with the keys and the test menu,
 // and read its state through the read only `window.__game` hook (src/main.ts).
 import { expect, type Page } from '@playwright/test';
-import { costOf, needs } from '../../src/sim/dam';
-import { DOOR_DISTANCE, HOLE, NEST, doorPoint } from '../../src/sim/lodge';
+import { SPOT_REACH, costOf, needs } from '../../src/sim/dam';
+import { DOOR_DISTANCE, HOLE, LODGE_REACH, NEST, doorPoint } from '../../src/sim/lodge';
 
 export type Point = { x: number; z: number };
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -87,31 +87,54 @@ export async function walkTo(page: Page, target: () => Promise<Point>, near: num
 
 export const walkToPoint = (page: Page, p: Point, near = 1.5, maxMs = 60_000): Promise<boolean> => walkTo(page, async () => p, near, maxMs);
 
-/** Walk to the nearest standing tree within `reach` metres and gnaw it down. Returns the id felled, or null if there was none. */
+/**
+ * Walk to the nearest standing tree within `reach` metres that stands on dry ground and gnaw it down. Returns the id felled, or
+ * null if there was none. Do gnaws only on land, so a tree standing in the lake or a new pond is left out, and a tree that still
+ * cannot be felled after a few tries is given up for the next nearest.
+ */
 export async function fellNearestTree(page: Page, reach = 120): Promise<string | null> {
-  const tree = await page.evaluate((r) => {
-    const g = (window as any).__game;
-    const b = g.world().beaver;
-    return g.nearestTree(b.x, b.z, r);
-  }, reach);
-  if (!tree) return null;
+  const skip: string[] = [];
+  for (let pick = 0; pick < 3; pick++) {
+    const tree = await page.evaluate(
+      ({ r, s }) => {
+        const g = (window as any).__game;
+        const b = g.world().beaver;
+        return g.nearestTree(b.x, b.z, r, true, s);
+      },
+      { r: reach, s: skip },
+    );
+    if (!tree) return null;
+    if (await fellTree(page, tree)) return tree.id;
+    skip.push(tree.id);
+  }
+  throw new Error(`could not fell any of the trees ${skip.join(', ')}`);
+}
+
+async function fellTree(page: Page, tree: { id: string; x: number; z: number }): Promise<boolean> {
   // Stand still within reach and gnaw. A press while the beaver is still moving does nothing, so a miss tries again. A press
   // while the tree is still being gnawed, or once it is down, would strip a branch off the new log into the mouth, and a full
   // mouth stops the next Gnaw and Take, so a retry presses only when nothing is being gnawed.
   for (let attempt = 0; attempt < 4; attempt++) {
     await walkToPoint(page, tree, 2.2 + attempt * 0.2, 40_000);
+    // Still swimming by a tree at the shore: go round the trunk to its far side, which is on land.
+    if ((await world(page)).beaver.mode === 'swim') {
+      const b = (await world(page)).beaver;
+      const d = Math.hypot(tree.x - b.x, tree.z - b.z) || 1;
+      await walkToPoint(page, { x: tree.x + ((tree.x - b.x) / d) * 1.5, z: tree.z + ((tree.z - b.z) / d) * 1.5 }, 0.8, 10_000);
+    }
     await page.waitForTimeout(300);
     const w = await world(page);
-    if (w.felled.includes(tree.id)) return tree.id;
+    if (w.felled.includes(tree.id)) return true;
     if (!w.chop) await tap(page, 'KeyE');
     const done = await page.waitForFunction((id) => (window as any).__game.world().felled.includes(id), tree.id, { polling: 100, timeout: 15_000 }).then(() => true, () => false);
-    if (done) return tree.id;
+    if (done) return true;
     if (process.env.PLAYTEST_DEBUG) {
       const w = await world(page);
-      console.log('fell miss', JSON.stringify({ tree, beaver: w.beaver, chop: w.chop, d: Math.hypot(tree.x - w.beaver.x, tree.z - w.beaver.z) }));
+      const doLabel = await page.locator('#touch-do').textContent().catch(() => null);
+      console.log('fell miss', JSON.stringify({ tree, beaver: w.beaver, chop: w.chop, do: doLabel, d: Math.hypot(tree.x - w.beaver.x, tree.z - w.beaver.z) }));
     }
   }
-  throw new Error(`could not fell tree ${tree.id}`);
+  return false;
 }
 
 /** Grab the log of a felled tree, which the beaver drags by its end. It tries from where it stands, then closer to the log. */
@@ -139,7 +162,11 @@ export async function dragLog(page: Page, id: string): Promise<void> {
     await tap(page, 'KeyG');
     const got = await page.waitForFunction((i) => (window as any).__game.world().drag === i, id, { polling: 100, timeout: 1500 }).then(() => true, () => false);
     if (got) return;
-    if (process.env.PLAYTEST_DEBUG) console.log('grab miss', JSON.stringify({ log, beaver: (await world(page)).beaver }));
+    if (process.env.PLAYTEST_DEBUG) {
+      const w = await world(page);
+      const take = await page.locator('#touch-take').textContent().catch(() => null);
+      console.log('grab miss', JSON.stringify({ log, beaver: w.beaver, carry: w.carry, haul: w.haul, chop: w.chop, take, dropped: w.dropped.filter((d: any) => Math.hypot(d.x - w.beaver.x, d.z - w.beaver.z) < 4) }));
+    }
     await walkToPoint(page, along[Math.min(attempt, along.length - 1)]!, 1.5, 10_000);
     await page.waitForTimeout(200);
   }
@@ -147,8 +174,77 @@ export async function dragLog(page: Page, id: string): Promise<void> {
 }
 
 /**
- * Fell trees, drag the logs to the nearest lodge site, and build until the lodge is whole. The first log starts the lodge, where
- * the beaver stands facing the water, so each trip ends by walking toward the site from the land side.
+ * A place near `site` (found by `__game.lodgeSite`) where a lodge can start with room to spare: the spot itself and the ground a
+ * little round it all pass. `lodgeSite` finds the nearest good spot, which is often right at the edge of the good water, and the
+ * beaver cannot stop that exactly, so a press there can land on dry ground ("no lodge spot, face the water"). It also keeps away
+ * from the dam spots if it can: in a spot's ring Do puts the log on the dam (mending it) instead. Falls back to `site`.
+ */
+async function roomySite(page: Page, site: { x: number; z: number; door: number }): Promise<Point> {
+  return page.evaluate((s: { x: number; z: number; door: number; reach: number }) => {
+    const g = (window as any).__game;
+    const ax = { x: Math.sin(s.door), z: Math.cos(s.door) };
+    const side = { x: ax.z, z: -ax.x };
+    const at = (p: { x: number; z: number }, along: number, across: number) => ({ x: p.x + ax.x * along + side.x * across, z: p.z + ax.z * along + side.z * across });
+    const ok = (p: { x: number; z: number }) => g.siteProblem(p.x, p.z) === null;
+    // Far enough from every dam spot that the beaver, 3 m short of it, stands out of the spot's ring.
+    const clear = (p: { x: number; z: number }) => g.world().spots.every((o: any) => Math.hypot(o.bed.x - p.x, o.bed.z - p.z) > s.reach + 3.5);
+    for (const needClear of [true, false]) {
+      for (const along of [0, 0.5, 1, 1.5, 2, 2.5, 3, -0.5, -1]) {
+        for (const across of [0, 0.5, -0.5, 1, -1, 1.5, -1.5, 2, -2, 3, -3, 4, -4]) {
+          const p = at(s, along, across);
+          if (needClear && !clear(p)) continue;
+          if ([[0, 0], [-0.8, 0], [1, 0], [0, 0.8], [0, -0.8], [0.5, 0.5], [0.5, -0.5]].every(([a, c]) => ok(at(p, a!, c!)))) return p;
+        }
+      }
+    }
+    return { x: s.x, z: s.z };
+  }, { ...site, reach: SPOT_REACH });
+}
+
+/** True when the beaver stands in the ring of a dam spot, where Do with a log builds or mends the dam, not the lodge. */
+async function atDamSpot(page: Page): Promise<boolean> {
+  const w = await world(page);
+  return w.spots.some((s: any) => Math.hypot(s.bed.x - w.beaver.x, s.bed.z - w.beaver.z) <= SPOT_REACH);
+}
+
+/**
+ * Start the lodge with the dragged log near `aim`. The lodge starts SITE_AHEAD (3 m) ahead of the beaver, where it faces, and the
+ * beaver faces the way it last moved, one of eight directions of the keys, so a walk rarely ends facing just right. So it goes to
+ * a few places about 3 m short of `aim`, and at each one turns with short steps in each of the eight directions, reading the spot
+ * ahead (`__game.siteAhead`, what the carry line shows) after each, and presses Do as soon as a lodge can start there.
+ */
+async function startLodge(page: Page, aim: Point, door: number): Promise<boolean> {
+  const placedSince = (before: number): Promise<boolean> =>
+    page.waitForFunction((b) => ((window as any).__game.world().lodge?.wood ?? 0) > b, before, { polling: 100, timeout: 2000 }).then(() => true, () => false);
+  for (const turn of [0, 1, -1, 2, -2, 4]) {
+    const a = door + (turn * Math.PI) / 8;
+    // From the land side: the door faces the deep water, so the land is behind the lodge.
+    await walkToPoint(page, { x: aim.x - Math.sin(a) * 6, z: aim.z - Math.cos(a) * 6 }, 1.5, 30_000);
+    await walkToPoint(page, { x: aim.x - Math.sin(a) * 3, z: aim.z - Math.cos(a) * 3 }, 0.6, 15_000);
+    for (const k of KEYS) {
+      if (!(await world(page)).drag) return false;
+      const ahead = await page.evaluate(() => (window as any).__game.siteAhead());
+      if (ahead.problem === null && !(await atDamSpot(page))) {
+        await tap(page, 'KeyE');
+        if (await placedSince(0)) return true;
+      }
+      for (const c of k.codes) await page.keyboard.down(c);
+      await page.waitForTimeout(80);
+      for (const c of k.codes) await page.keyboard.up(c);
+      await page.waitForTimeout(150);
+    }
+    if (process.env.PLAYTEST_DEBUG) {
+      const now = await world(page);
+      const ahead = await page.evaluate(() => (window as any).__game.siteAhead());
+      console.log('lodge miss', JSON.stringify({ aim, door, turn, beaver: now.beaver, drag: now.drag, ahead, hud: await hudText(page) }));
+    }
+  }
+  return false;
+}
+
+/**
+ * Fell trees, drag the logs to the nearest lodge site, and build until the lodge is whole. The first log starts the lodge (see
+ * `startLodge`); later logs only need the beaver within reach of the lodge, which it walks up to from the land side.
  */
 export async function buildLodge(page: Page, opts: { maxTrips?: number } = {}): Promise<void> {
   for (let trip = 0; trip < (opts.maxTrips ?? 12); trip++) {
@@ -157,20 +253,32 @@ export async function buildLodge(page: Page, opts: { maxTrips?: number } = {}): 
     const id = await fellNearestTree(page);
     expect(id, 'a tree to fell near the lodge site').not.toBeNull();
     await dragLog(page, id!);
-    const site = await page.evaluate(() => (window as any).__game.lodgeSite(300));
-    expect(site, 'a place a lodge can start').toBeTruthy();
-    const lodge = w.lodge ?? site;
-    // Approach from the land side: the door faces the deep water, so the land is behind it. The build button starts the lodge
-    // 3 m ahead of the beaver, so it must stand facing the site; a miss backs off further and tries again.
+    if (!w.lodge) {
+      const site = await page.evaluate(() => (window as any).__game.lodgeSite(300));
+      expect(site, 'a place a lodge can start').toBeTruthy();
+      let started = false;
+      for (let attempt = 0; attempt < 2 && !started; attempt++) {
+        if (!(await world(page)).drag) await dragLog(page, id!);
+        started = await startLodge(page, await roomySite(page, site), site.door);
+      }
+      expect(started, 'the first log started the lodge').toBe(true);
+      continue;
+    }
+    const lodge = w.lodge;
+    // Within reach of the lodge but out of the ring of a dam spot, where Do would put the log on the dam instead (to mend it).
+    // The land side first: the door faces the deep water.
     let placed = false;
-    for (let attempt = 0; attempt < 4 && !placed; attempt++) {
-      const run = 7 + attempt * 3;
-      const back = { x: lodge.x - Math.sin(lodge.door) * run, z: lodge.z - Math.cos(lodge.door) * run };
-      await walkToPoint(page, back, 1.5, 60_000);
-      await walkTo(page, async () => lodge, 3.4, 10_000);
-      const before = (await world(page)).lodge?.wood ?? 0;
+    for (const turn of [4, 3, 5, 2, 6, 1, 7, 0]) {
+      if (placed) break;
+      const a = lodge.door + (turn * Math.PI) / 4;
+      const at = { x: lodge.x + Math.sin(a) * (LODGE_REACH - 1.4), z: lodge.z + Math.cos(a) * (LODGE_REACH - 1.4) };
+      if ((await world(page)).spots.some((s: any) => Math.hypot(s.bed.x - at.x, s.bed.z - at.z) <= SPOT_REACH + 0.5)) continue;
+      if (!(await world(page)).drag) await dragLog(page, id!);
+      await walkToPoint(page, at, 0.8, 30_000);
+      const now = await world(page);
+      if (Math.hypot(now.beaver.x - lodge.x, now.beaver.z - lodge.z) > LODGE_REACH || (await atDamSpot(page))) continue;
       await tap(page, 'KeyE');
-      placed = await page.waitForFunction((b) => ((window as any).__game.world().lodge?.wood ?? 0) > b, before, { polling: 100, timeout: 2000 }).then(() => true, () => false);
+      placed = await page.waitForFunction((b) => ((window as any).__game.world().lodge?.wood ?? 0) > b, now.lodge.wood, { polling: 100, timeout: 3000 }).then(() => true, () => false);
     }
     expect(placed, 'the log went on the lodge').toBe(true);
   }

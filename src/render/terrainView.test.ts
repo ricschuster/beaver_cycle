@@ -3,7 +3,7 @@ import { CLASS_LAKE } from '../terrain/format';
 import { makeTile } from '../terrain/testing';
 import type { Pond } from '../sim/pond';
 import type { DamSpot } from '../sim/damSpots';
-import { buildLakeGeometry, buildStreamGeometry, buildTileGeometry, clearingsOf, farChunkKey, shrubHidden } from './terrainView';
+import { MOUTH_FLARE, buildLakeGeometry, buildStreamGeometry, buildTileGeometry, clearingsOf, farChunkKey, shrubHidden } from './terrainView';
 import { DETAIL } from './groundDetail';
 
 describe('water geometry', () => {
@@ -87,6 +87,23 @@ describe('water geometry', () => {
     };
     expect(span()).toBeCloseTo(2.5, 3);
     expect(span(8)).toBeCloseTo(8, 3);
+  });
+
+  it('flares a stream that ends in the lake, and only that one', () => {
+    const mouthSpan = (lakeLevel_m: number | null, endHeight: number): number => {
+      const geo = buildStreamGeometry({ lakeLevel_m, streams: [{ name: 'b', w: 5, pts: [[0, 0], [200, 0]] }] }, (x) => (x > 199 ? endHeight : 600))!;
+      const p = geo.getAttribute('position');
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let k = 0; k < p.count; k++) {
+        lo = Math.min(lo, p.getZ(k));
+        hi = Math.max(hi, p.getZ(k));
+      }
+      return hi - lo;
+    };
+    expect(mouthSpan(580, 580)).toBeCloseTo(5 * MOUTH_FLARE, 3);
+    expect(mouthSpan(580, 600)).toBeCloseTo(5, 3);
+    expect(mouthSpan(null, 580)).toBeCloseTo(5, 3);
   });
 
   it('draws no ribbon when a tile has no streams', () => {

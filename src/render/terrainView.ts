@@ -286,6 +286,11 @@ const SNOW = 0xf2f6f8;
 const STREAM_WIDTH = 2.5;
 const STREAM_STEP = 5;
 const STREAM_LIFT = 0.3;
+/** A stream that ends in a lake flares over its last metres to this many times its width, as a delta does. */
+export const MOUTH_FLARE = 2.2;
+export const MOUTH_FLARE_LENGTH_M = 60;
+/** A stream line ends in the lake when its last point lies this close to the lake level, metres. */
+const MOUTH_REACH_M = 1.5;
 
 /** Ribbons draped on the ground along the stream lines of a tile, or null when it has none. */
 export function buildStreamGeometry(
@@ -306,14 +311,18 @@ export function buildStreamGeometry(
     }
     if (s.pts.length < 2) continue;
     pts.push(s.pts[s.pts.length - 1]!);
+    const [endX, endZ] = pts[pts.length - 1]!;
+    const inLake = water.lakeLevel_m != null && Math.abs(heightAt(endX, endZ) - water.lakeLevel_m) < MOUTH_REACH_M;
     const base = pos.length / 3;
     for (let k = 0; k < pts.length; k++) {
       const [x, z] = pts[k]!;
+      const toEnd = Math.hypot(endX - x, endZ - z);
+      const flare = inLake ? 1 + (MOUTH_FLARE - 1) * Math.max(0, 1 - toEnd / MOUTH_FLARE_LENGTH_M) : 1;
       const [px, pz] = pts[Math.max(k - 1, 0)]!;
       const [qx, qz] = pts[Math.min(k + 1, pts.length - 1)]!;
       const len = Math.hypot(qx - px, qz - pz) || 1;
-      const nx = (-(qz - pz) / len) * half;
-      const nz = ((qx - px) / len) * half;
+      const nx = (-(qz - pz) / len) * half * flare;
+      const nz = ((qx - px) / len) * half * flare;
       for (const side of [-1, 1]) {
         const wx = x + nx * side;
         const wz = z + nz * side;

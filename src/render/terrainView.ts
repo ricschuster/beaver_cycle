@@ -322,14 +322,16 @@ export function buildStreamGeometry(
     }
     for (let k = 0; k + 1 < pts.length; k++) {
       const a = base + k * 2;
-      index.push(a, a + 2, a + 1, a + 1, a + 2, a + 3, a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
     }
   }
   if (pos.length === 0) return null;
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(pos), 3));
   geo.setIndex(index);
-  geo.computeVertexNormals();
+  // Water is lit as a flat sheet facing up. Every triangle faces up (counter-clockwise from above), so the double sided material
+  // never flips the normal over the top; a ribbon draped on a slope would otherwise take the slope's normal.
+  geo.setAttribute('normal', new THREE.BufferAttribute(Float32Array.from({ length: pos.length }, (_, i) => (i % 3 === 1 ? 1 : 0)), 3));
   geo.computeBoundingSphere();
   return geo;
 }

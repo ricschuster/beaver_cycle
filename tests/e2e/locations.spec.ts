@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildLodge, goToNearestSpot, hasTiles, shot, startGame, toggleMenu, walkToPoint, world } from './helpers';
+import { buildLodge, goToNearestSpot, hasTiles, nearestSpot, shot, startGame, toggleMenu, world } from './helpers';
 // Each play location on the real valley (#42): the test menu jumps there, finishes a dam at the nearest spot, and the pond has a
 // place a lodge can start. With PLAYTEST_BUILD=1 the beaver also fells trees and builds the lodge by hand, which is slow (a few
 // minutes a location). The unit test src/terrain/locations.test.ts checks the same ground without the browser; this one checks
@@ -26,14 +26,16 @@ for (const id of LOCATIONS) {
     await toggleMenu(page);
     let spot = await goToNearestSpot(page);
     expect(spot, 'a dam spot at the location').toBeTruthy();
-    // A lodge needs a level 2 pond (crest 1.5 m), and the nearest spot may hold only level 1 (north since the rescan in #385): walk
-    // toward the nearest spot that holds level 2, until it is the nearest, and go to it.
+    // A lodge needs a level 2 pond (crest 1.5 m), and the nearest spot may hold only level 1 (north since the rescan in #385, and the
+    // stream fine tiles of #487 add more shallow spots): jump to the nearest spot that holds level 2, which may be a kilometre off.
     if (spot.maxCrest < 1.5) {
       const b = (await world(page)).beaver;
       const deep = (await world(page)).spots.filter((s: any) => s.maxCrest >= 1.5).sort((p: any, q: any) => Math.hypot(p.bed.x - b.x, p.bed.z - b.z) - Math.hypot(q.bed.x - b.x, q.bed.z - b.z))[0];
       expect(deep, 'a spot at the location that holds a level 2 dam').toBeTruthy();
-      await walkToPoint(page, deep.bed, 40, 180_000);
-      spot = await goToNearestSpot(page);
+      expect(await page.evaluate((i) => (window as any).__game.goToSpot(i), deep.id), 'the game can jump there').toBe(true);
+      await page.waitForFunction((d) => { const w = (window as any).__game.world(); return Math.hypot(d.x - w.beaver.x, d.z - w.beaver.z) < 15; }, deep.bed, { polling: 200, timeout: 60_000 });
+      await page.waitForTimeout(1000);
+      spot = await nearestSpot(page);
       expect(spot.id, 'went to the spot that holds level 2').toBe(deep.id);
     }
     // A lodge sees only the pond of a level 2 dam or higher (design note 20, `lodgeGround`): a level 1 pond is too shallow for the

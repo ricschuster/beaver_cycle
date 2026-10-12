@@ -5,7 +5,7 @@
 import { COVER_FOREST, COVER_MEADOW, type Terrain } from './terrain';
 import { dateAt, isNight } from './clock';
 
-export type AnimalKind = 'deer' | 'fox' | 'duck' | 'heron' | 'owl' | 'lynx' | 'bear' | 'frog' | 'otter' | 'kingfisher';
+export type AnimalKind = 'deer' | 'fox' | 'duck' | 'heron' | 'owl' | 'lynx' | 'wolf' | 'bear' | 'frog' | 'otter' | 'kingfisher';
 
 export interface Animal {
   /** Stable while the animal is near: the cell it belongs to. */
@@ -38,6 +38,7 @@ const WANDER: Record<AnimalKind, { radius: number; rate: number }> = {
   heron: { radius: 1.5, rate: 0.03 },
   owl: { radius: 1, rate: 0.02 },
   lynx: { radius: 6, rate: 0.03 },
+  wolf: { radius: 9, rate: 0.05 },
   bear: { radius: 8, rate: 0.04 },
   // The frog is a pond guest (`pondGuests.ts`), never an ambient cell animal.
   frog: { radius: 0.8, rate: 0.05 },
@@ -78,8 +79,8 @@ function suits(kind: AnimalKind, t: Terrain, x: number, z: number): boolean {
     return water && d >= 0.4 && d <= 3;
   }
   if (water) return false;
-  // An owl perches in the forest, and the lynx and the bear live there (anywhere dry where the ground has no land cover).
-  if (kind === 'owl' || kind === 'lynx' || kind === 'bear') {
+  // An owl perches in the forest, and the lynx, the wolf and the bear live there (anywhere dry where the ground has no land cover).
+  if (kind === 'owl' || kind === 'lynx' || kind === 'wolf' || kind === 'bear') {
     const cover = t.coverAt?.(x, z);
     return cover === undefined || cover === COVER_FOREST;
   }
@@ -109,12 +110,12 @@ export function homeOf(t: Terrain, cx: number, cz: number): Home | null {
   if (hash(cx, cz, 1) >= CHANCE) return null;
   const pick = hash(cx, cz, 2);
   // Which kinds the cell is tried with, in order: the first that has a spot wins.
-  // The last seventh of cells are the forest's: mostly owls, then lynx, then bears.
+  // The last seventh of cells are the forest's: mostly owls, then lynx, wolves, and bears.
   const wood = hash(cx, cz, 5);
-  const woodKind: AnimalKind = wood < 0.7 ? 'owl' : wood < 0.85 ? 'lynx' : 'bear';
+  const woodKind: AnimalKind = wood < 0.65 ? 'owl' : wood < 0.8 ? 'lynx' : wood < 0.9 ? 'wolf' : 'bear';
   // One cell in twelve of the water cells holds a guide, an otter or a kingfisher, in place of a duck or a heron.
   const guide: AnimalKind = hash(cx, cz, 6) < 0.5 ? 'otter' : 'kingfisher';
-  const order: AnimalKind[] = pick >= 0.5 && pick < 0.57 ? [guide, 'duck'] : pick < 0.35 ? ['deer', 'fox'] : pick < 0.5 ? ['fox', 'deer'] : pick < 0.8 ? ['duck', 'heron'] : pick < 0.93 ? ['heron', 'duck'] : [woodKind, 'fox'];
+  const order: AnimalKind[] = pick >= 0.5 && pick < 0.57 ? [guide, 'duck'] : pick < 0.35 ? ['deer'] : pick < 0.4 ? ['fox', 'deer'] : pick < 0.5 ? [] : pick < 0.8 ? ['duck', 'heron'] : pick < 0.93 ? ['heron', 'duck'] : [woodKind];
   for (const kind of order) {
     for (let i = 0; i < TRIES; i++) {
       const x = (cx + hash(cx, cz, 10 + i * 2)) * CELL;
@@ -140,6 +141,8 @@ export function isAbout(home: Home, clock: number): boolean {
   // The kingfisher fishes by day.
   if (home.kind === 'kingfisher') return !isNight(clock);
   if (home.kind === 'lynx') return dateAt(clock).timeOfDay >= LYNX_FROM;
+  // The wolf is out all day in winter and, the rest of the year, as the lynx is, from dusk to dawn.
+  if (home.kind === 'wolf') return winter || dateAt(clock).timeOfDay >= LYNX_FROM;
   if (home.kind === 'bear') return !winter;
   if (isNight(clock) && (home.kind === 'duck' || home.kind === 'heron') && home.luck < 0.5) return false;
   return true;

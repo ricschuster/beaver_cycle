@@ -185,11 +185,29 @@ function deerModel(): AnimalModel {
 
 /** The red fox: orange with a white chest and chin, pointed black-backed ears, dark socks, and a bushy tail with a white tip. */
 function foxModel(): AnimalModel {
-  const FUR = 0xd2702a;
-  const PALE = 0xe8b07a;
-  const SOCK = 0x2c2018;
-  const WHITE = 0xf2eadc;
+  return canidModel({ fur: 0xd2702a, pale: 0xe8b07a, sock: 0x2c2018, white: 0xf2eadc, eye: 0xd88a28 }, 1);
+}
+
+/** The grey wolf: the fox's build, a third as big again, in grey with a pale chest and chin, dark socks and a dark tail tip. */
+function wolfModel(): AnimalModel {
+  return canidModel({ fur: 0x7c7770, pale: 0xa8a294, sock: 0x2a2724, white: 0xcfc9bb, eye: 0xd0a030 }, 1.35);
+}
+
+interface CanidColours {
+  fur: number;
+  pale: number;
+  sock: number;
+  white: number;
+  eye: number;
+}
+
+function canidModel(c: CanidColours, scale: number): AnimalModel {
+  const FUR = c.fur;
+  const PALE = c.pale;
+  const SOCK = c.sock;
+  const WHITE = c.white;
   const group = new THREE.Group();
+  group.scale.setScalar(scale);
   const body = new THREE.Group();
   group.add(body);
   body.add(
@@ -227,7 +245,7 @@ function foxModel(): AnimalModel {
   for (const s of [-1, 1]) {
     // White cheeks, an amber eye, and a big pointed ear, black at the back of the tip.
     head.add(blob(0.05, 0.045, 0.06, WHITE, s * 0.065, -0.045, 0.01, 8));
-    head.add(eye(0.019, s, 0.055, 0.03, 0.1, 0xd88a28));
+    head.add(eye(0.019, s, 0.055, 0.03, 0.1, c.eye));
     const ear = coated(earShape(0.1, 0.15, FUR, SOCK, 0.55), 0xffffff);
     ear.position.set(s * 0.055, 0.06, -0.03);
     ear.rotation.set(-0.15, s * 0.3, -s * 0.28);
@@ -913,7 +931,7 @@ function kingfisherModel(): AnimalModel {
   };
 }
 
-const MAKERS: Record<AnimalKind, () => AnimalModel> = { deer: deerModel, fox: foxModel, duck: duckModel, heron: heronModel, owl: owlModel, lynx: lynxModel, bear: bearModel, frog: frogModel, otter: otterModel, kingfisher: kingfisherModel };
+const MAKERS: Record<AnimalKind, () => AnimalModel> = { deer: deerModel, fox: foxModel, duck: duckModel, heron: heronModel, owl: owlModel, lynx: lynxModel, wolf: wolfModel, bear: bearModel, frog: frogModel, otter: otterModel, kingfisher: kingfisherModel };
 
 /** A fresh model of a kind, posed by its `pose`. The view keeps spares; the model preview and the tests make their own. */
 export function createAnimalModel(kind: AnimalKind): AnimalModel {
@@ -929,7 +947,7 @@ function seedOf(id: string): number {
 
 export function createAnimalView(scene: THREE.Scene, prepare: (m: THREE.Material) => void): AnimalView {
   // Spare models of each kind, and the ones now in use by animal id.
-  const spare: Record<AnimalKind, AnimalModel[]> = { deer: [], fox: [], duck: [], heron: [], owl: [], lynx: [], bear: [], frog: [], otter: [], kingfisher: [] };
+  const spare: Record<AnimalKind, AnimalModel[]> = { deer: [], fox: [], duck: [], heron: [], owl: [], lynx: [], wolf: [], bear: [], frog: [], otter: [], kingfisher: [] };
   const used = new Map<string, { kind: AnimalKind; model: AnimalModel; seed: number }>();
   const release = (id: string): void => {
     const entry = used.get(id)!;

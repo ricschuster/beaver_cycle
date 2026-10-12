@@ -963,6 +963,7 @@ function PREDATOR_TEXT(e: PredatorEvent): string {
   if (e.what === 'scared') return `Your tail slap scared the ${name} off`;
   if (e.kind === 'owl') return 'An owl hoots nearby. Get into the water';
   if (e.kind === 'lynx') return 'A lynx is stalking you. Get into the water, or slap your tail at the water\'s edge';
+  if (e.kind === 'wolf') return 'A wolf is stalking you. Get into the water, or slap your tail at the water\'s edge';
   if (e.kind === 'bear') return 'A bear has seen you. Keep moving or slap your tail';
   return 'A fox has seen you. Get into the water or slap your tail';
 }

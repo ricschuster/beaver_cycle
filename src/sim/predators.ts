@@ -1,4 +1,4 @@
-// Predators (docs/design/24_npcs_and_animals.md, slice 3): the fox, the owl, the lynx, and the bear. An ambient animal of those kinds becomes a
+// Predators (docs/design/24_npcs_and_animals.md, slice 3): the fox, the owl, the lynx, the wolf, and the bear. An ambient animal of those kinds becomes a
 // predator when it notices a beaver on land, and from then on it holds state (`world.predators`) until it walks off or
 // the beaver is out of reach. Notice, chase, caught, hurt. Nothing here can end a life: being caught costs what the
 // beaver carries and some speed, until a lily pad is eaten. No three.js and no DOM here.
@@ -8,7 +8,7 @@ import { putDown } from './haul';
 import type { Terrain } from './terrain';
 import type { WorldState } from './state';
 
-export type PredatorKind = Extract<AnimalKind, 'fox' | 'owl' | 'lynx' | 'bear'>;
+export type PredatorKind = Extract<AnimalKind, 'fox' | 'owl' | 'lynx' | 'wolf' | 'bear'>;
 
 /**
  * Where a predator is in its meeting with the beaver. `warn`: it has noticed the beaver and gives a sign (the owl calls, the
@@ -54,6 +54,8 @@ export const RULES: Record<PredatorKind, Rules> = {
   owl: { notice: 30, warn: 2.5, chase: 20, off: 8, giveUp: 5, stalk: 0, slapNeedsWater: false },
   // The lynx stalks: it creeps closer while it watches, then rushes, faster than a beaver, for a short way. Only the water saves the beaver.
   lynx: { notice: 26, warn: 3, chase: 16, off: 6, giveUp: 4, stalk: 2.5, slapNeedsWater: true },
+  // The wolf stalks like the lynx but is slower, so a beaver with a start can reach the water. Only the water saves it, as from the lynx.
+  wolf: { notice: 28, warn: 3, chase: 12, off: 6, giveUp: 6, stalk: 1.5, slapNeedsWater: true },
   // The bear is big and slow. It cannot catch a beaver that keeps moving, and it walks off when slapped at.
   bear: { notice: 20, warn: 2.5, chase: 5, off: 3, giveUp: 6, stalk: 0, slapNeedsWater: false },
 };
@@ -74,7 +76,7 @@ export const HURT_SPEED = 0.6;
 export const HURT_TIME = DAY_SECONDS;
 
 export function isPredator(kind: AnimalKind): kind is PredatorKind {
-  return kind === 'fox' || kind === 'owl' || kind === 'lynx' || kind === 'bear';
+  return kind === 'fox' || kind === 'owl' || kind === 'lynx' || kind === 'wolf' || kind === 'bear';
 }
 
 /** True when water lies within a few metres of the beaver, on the bank or at a pond's edge. */
@@ -171,7 +173,7 @@ export function meetPredators(world: WorldState, animals: readonly Animal[], sla
       continue;
     }
     const m = moved(p, heading, rules.chase * dt, ground);
-    // A fox, lynx or bear stopped by the water has lost the beaver. An owl comes down along the way as it nears.
+    // A fox, lynx, wolf or bear stopped by the water has lost the beaver. An owl comes down along the way as it nears.
     if (m.blocked) {
       predators.push(atEnd(p, { phase: 'off', since: world.time }));
       continue;

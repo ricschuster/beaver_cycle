@@ -12,6 +12,7 @@ const KINDS: Record<AnimalKind, { size: number; cap: number }> = {
   heron: { size: 1.6, cap: 2600 },
   owl: { size: 1.65, cap: 2600 },
   lynx: { size: 1.4, cap: 4000 },
+  wolf: { size: 2.1, cap: 4000 },
   bear: { size: 2.3, cap: 4000 },
   frog: { size: 0.27, cap: 2000 },
   otter: { size: 1.45, cap: 2600 },

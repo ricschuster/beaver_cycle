@@ -131,7 +131,7 @@ export function createVoices(max: number): { admit(cue: Cue, now: number): boole
 }
 
 /** Where each predator's warning is heard from, and the effect it gives. */
-const WARNING: Record<string, Effect> = { owl: 'hoot', fox: 'yap', lynx: 'growl', bear: 'rumble' };
+const WARNING: Record<string, Effect> = { owl: 'hoot', fox: 'yap', lynx: 'growl', wolf: 'growl', bear: 'rumble' };
 /** A predator is heard within this many metres. */
 const HEARD = 60;
 /** A duck is heard within this many metres, and calls about this often (real seconds) at the nearest. */

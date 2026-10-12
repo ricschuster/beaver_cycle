@@ -272,16 +272,23 @@ def read_heights(g):
 
 
 RIVER_WIDTH_M, STREAM_WIDTH_M, SEASONAL_WIDTH_M = 8.0, 2.5, 1.8
+# Drawn width by OSM name, for lines whose kind tag misleads (small brooks tagged river, a wide inflow tagged stream).
+NAMED_WIDTH_M = {
+    "Alm": 10.0, "Steyr": 12.0, "Salza": 12.0, "Steyrling": 6.0, "Aagbach": 5.0,
+    "Straneggbach": 3.0, "Ostrawitzbach": 3.0, "Schwarzgraben": 3.0, "Grimming": 3.0,
+}
 
 
 def stream_width(props):
-    """Drawn width in metres of an OSM line: its width tag, else by kind (river, stream, seasonal stream)."""
+    """Drawn width in metres of an OSM line: its width tag, else by name (NAMED_WIDTH_M), else by kind (river, stream, seasonal stream)."""
     try:
         w = float(str(props.get("width", "")).split()[0].replace(",", "."))
         if 0.5 <= w <= 40:
             return w
     except (ValueError, IndexError):
         pass
+    if props.get("name") in NAMED_WIDTH_M:
+        return NAMED_WIDTH_M[props["name"]]
     if props.get("waterway") == "river":
         return RIVER_WIDTH_M
     return SEASONAL_WIDTH_M if props.get("intermittent") == "yes" else STREAM_WIDTH_M

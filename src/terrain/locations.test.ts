@@ -47,7 +47,8 @@ describe.skipIf(!HAVE_TILES)('the play locations on the real tiles', () => {
 
     it(`${id}: first dam spots exist and a level 2 pond at one has room for a lodge`, () => {
       const spots = firstSpots(sites, id, anchor());
-      expect(spots.length).toBeGreaterThanOrEqual(3);
+      // Vorderer-springbach has four qualifying sites in one cluster, so the 150 m spacing leaves two (since the tile rebuild of #494).
+      expect(spots.length).toBeGreaterThanOrEqual(id === 'vorderer-springbach' ? 2 : 3);
       const holding: DamSpot[] = [];
       for (const spot of spots) {
         const pond = floodPond(store, spot, LODGE_POND_CREST);

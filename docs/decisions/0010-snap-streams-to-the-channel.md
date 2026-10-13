@@ -27,6 +27,10 @@ exist, their names and their rough route. The terrain decides the exact line.
 - It runs on the 5 m lattice in `build_tiles.py`, before the lines are cut per tile, so every consumer
   inherits it: the water files, `streamDistance`, the dam site scan and the pond. `--no-snap` turns it
   off. The build prints how far the lines moved and the points that moved more than 8 m.
+- A second pass runs on the 2 m fine ground (BEV 1 m on the 5 m datum, `snap_fine_lines` in `build_tiles.py`),
+  inside the fine tiles only: the already snapped lines are resampled every 2 m and searched 6 m each side, the
+  offset changing by 1.5 m per step. Outside the fine tiles the heights are NaN, so the 5 m line stays there and
+  the line agrees with the 5 m terrain of the coarse tiles. Lakes use the same 5 m mask. `--no-snap` skips both.
 - The heights are not changed. The terrain keeps the BEV values.
 - The dam site scan has a line gate (docs/design/20_dams_and_ponds.md): a site whose level 1 pond is not
   on the drawn stream is dropped.
@@ -41,5 +45,13 @@ exist, their names and their rough route. The terrain decides the exact line.
 - The lines are a mix of OSM geometry and terrain, which does not change ADR 0003: they stay an OSM
   derived dataset.
 - Spot ids come from rounded positions, so they changed with the new lines. Nothing saves them yet.
-- Open: snap on the 2 m data where a tile has it, and burn the channel into the heights if ponds still
-  run beside the line on the coarse tiles. Neither is needed so far.
+- Measured on the tiles (lines every 3 m, lowest ground across the line within 8 m, flat spots skipped): on the
+  fine tiles the share of line points within 3 m of the channel rose from 58 to 81 percent and the median offset
+  fell from 2.5 to 1.0 m. Dam sites that pass the line gate rose from 107 to 115.
+- Burning the channel into the heights is not needed: since #489 the fine tiles cover every tile within 100 m
+  of a stream line, so the coarse tiles that keep a stream are the far backdrop, where nothing is built. The
+  heights stay the BEV values. Revisit only if streams get dams outside the fine band.
+- The 5 m snap moves about 12000 of 74000 points over 8 m, 88 percent of them in the far backdrop and about
+  1400 in the play tiles, on steep gullies (median slope 28 degrees). In the play tiles the fine pass brings the
+  share within 3 m of the channel on those points from 27 to 53 percent. A third still sit at the edge of the
+  8 m window of the check, which on a one sided slope the check cannot judge; they want a look on screen.

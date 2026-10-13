@@ -90,3 +90,27 @@ def test_snap_streams_passes_the_width_through():
 def test_a_degenerate_line_comes_back_unchanged():
     new, o = ss.snap_line([(1.0, 1.0), (1.0, 1.0)], valley())
     assert new == [(1.0, 1.0), (1.0, 1.0)]
+
+
+def test_fine_pass_finds_a_channel_two_metres_off():
+    ground = valley(0.0, cell=2.0)  # a 2 m lattice
+    new, o = ss.snap_line(line_at(3.0), ground, corridor=6.0, step=2.0, offset_step=1.0, max_shift=1.5)
+    assert all(abs(x) <= 1.0 for x, z in new if abs(z) < 60)
+    assert np.abs(o).max() <= 6.0 + 1e-6
+    steps = np.hypot(np.diff([x for x, _ in new]), np.diff([z for _, z in new]))
+    assert steps.max() <= 2.0 + 1.5 + 1e-6
+
+
+def test_fine_pass_keeps_the_line_where_the_fine_ground_is_missing():
+    ground = valley(0.0, cell=2.0)
+    h = ground.h.copy()
+    h[:, : h.shape[1] // 2] = np.nan  # no fine ground west of x = 0
+    holey = ss.Heights(h, ground.x0, ground.z0, ground.cell)
+    new, o = ss.snap_line(line_at(-3.0), holey, corridor=6.0, step=2.0, offset_step=1.0, max_shift=1.5)
+    assert np.abs(o).max() == 0.0
+
+
+def test_snap_streams_leaves_a_line_off_the_ground_as_it_was():
+    line = line_at(8.0, 350.0, 550.0)  # the lattice ends at z = 300
+    out, report = ss.snap_streams([(line, "Bach")], valley(0.0))
+    assert out[0][0] == line and report["points"] == 0

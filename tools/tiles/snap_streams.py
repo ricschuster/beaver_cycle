@@ -67,16 +67,17 @@ def resample(pts, step):
     return p, np.c_[-d[:, 1], d[:, 0]]
 
 
-def snap_line(pts, ground, blocked=None):
+def snap_line(pts, ground, blocked=None, corridor=CORRIDOR, step=STEP, offset_step=OFFSET_STEP, max_shift=MAX_SHIFT):
     """The line `pts` moved onto the channel. Returns (new points, offsets in metres at each point).
 
     `ground` is a Heights, `blocked(x, z)` an optional function giving True where the line must stay
-    (a lake). Lines of fewer than two distinct points come back as they are.
+    (a lake). `corridor`, `step`, `offset_step` and `max_shift` default to the 5 m settings; the 2 m pass
+    (docs/decisions/0010) uses a narrower corridor and finer steps. Lines of fewer than two distinct points come back as they are.
     """
     if len(pts) < 2 or len({(round(x, 3), round(z, 3)) for x, z in pts}) < 2:
         return [tuple(p) for p in pts], np.zeros(len(pts))
-    p, nrm = resample(pts, STEP)
-    offs = np.arange(-CORRIDOR, CORRIDOR + 1e-9, OFFSET_STEP)
+    p, nrm = resample(pts, step)
+    offs = np.arange(-corridor, corridor + 1e-9, offset_step)
     k, m = len(offs), len(p)
     qx = p[:, 0, None] + nrm[:, 0, None] * offs[None, :]
     qz = p[:, 1, None] + nrm[:, 1, None] * offs[None, :]
@@ -96,7 +97,7 @@ def snap_line(pts, ground, blocked=None):
             cost[i] = np.minimum(col - col.min(), EVIDENCE_CAP) + OFFSET_COST * np.abs(offs)
     # Viterbi: the cheapest chain of offsets, each step moving the offset at most MAX_SHIFT.
     gap = np.abs(offs[:, None] - offs[None, :])
-    trans = np.where(gap <= MAX_SHIFT + 1e-9, SHIFT_COST * gap, np.inf)
+    trans = np.where(gap <= max_shift + 1e-9, SHIFT_COST * gap, np.inf)
     total = cost[0].copy()
     back = np.zeros((m, k), int)
     for i in range(1, m):
@@ -112,15 +113,21 @@ def snap_line(pts, ground, blocked=None):
     return [(float(x), float(z)) for x, z in out], o
 
 
-def snap_streams(streams, ground, lake_mask=None):
+def snap_streams(streams, ground, lake_mask=None, blocked=None, **settings):
     """Snap every (points, name, ...) stream; what follows the name is passed through. Returns (streams, report) with the report a dict of numbers.
 
-    `lake_mask` is a boolean vertex lattice of the lakes on the same lattice as `ground`.
+    `lake_mask` is a boolean vertex lattice of the lakes on the same lattice as `ground`; `blocked(x, z)` is
+    used instead when the lakes are on another lattice. `settings` go to `snap_line`. A line the ground does
+    not reach at all (NaN at every point) comes back as it was, not resampled.
     """
-    blocked = (lambda x, z: ground.mask_at(lake_mask, x, z)) if lake_mask is not None else None
+    if blocked is None and lake_mask is not None:
+        blocked = lambda x, z: ground.mask_at(lake_mask, x, z)  # noqa: E731
     out, moves, big = [], [], []
     for pts, name, *rest in streams:
-        new, o = snap_line(pts, ground, blocked)
+        if np.isnan(ground.at([p[0] for p in pts], [p[1] for p in pts])).all():
+            out.append((pts, name, *rest))
+            continue
+        new, o = snap_line(pts, ground, blocked, **settings)
         out.append((new, name, *rest))
         moves.append(np.abs(o))
         for q, d in zip(new, np.abs(o)):

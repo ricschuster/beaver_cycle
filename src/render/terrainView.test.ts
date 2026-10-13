@@ -100,6 +100,18 @@ describe('water geometry', () => {
     expect(ribbons(580, 600)).toBe(plain);
   });
 
+  it('bends a delta arm out of the channel instead of a ruler straight run', () => {
+    // a 200 m stream along +x ending in the lake; the lake is the ground at or under 580 beyond x 199 and the whole side z > 30
+    const h = (x: number, z: number): number => (x > 199 || z > 30 ? 580 : 600);
+    const pos = buildStreamGeometry({ lakeLevel_m: 580, streams: [{ name: 'b', w: 5, pts: [[0, 0], [200, 0]] }] }, h)!.getAttribute('position');
+    const mid = (k: number): [number, number] => [(pos.getX(2 * k) + pos.getX(2 * k + 1)) / 2, (pos.getZ(2 * k) + pos.getZ(2 * k + 1)) / 2];
+    const main = 41; // points of the main channel at a 5 m step; the first arm follows
+    const [ax, az] = mid(main);
+    const [bx, bz] = mid(main + 1);
+    // it leaves along the channel (+x) rather than at the angle of its run
+    expect(Math.abs(Math.atan2(bz - az, bx - ax))).toBeLessThan(0.35);
+  });
+
   it('draws no ribbon when a tile has no streams', () => {
     expect(buildStreamGeometry({ lakeLevel_m: 580, streams: [] }, () => 0)).toBeNull();
   });

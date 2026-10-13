@@ -367,11 +367,23 @@ export function buildStreamGeometry(
       if (arms.length > MOUTH_ARM_COUNT) break;
       if (arms.every((h) => Math.abs(h - r.h) >= MOUTH_ARM_SPREAD)) {
         arms.push(r.h);
+        // An arm leaves along the main channel and bends toward the water, with a little wobble, as a distributary does; it
+        // ends where the straight run does, so it still reaches the lake.
+        const ex = sx + Math.cos(r.h) * r.d;
+        const ez = sz + Math.sin(r.h) * r.d;
+        const cx = sx + Math.cos(heading) * r.d * 0.5;
+        const cz = sz + Math.sin(heading) * r.d * 0.5;
+        const wobble = Math.min(3, r.d * 0.05) * (arms.length % 2 === 0 ? 1 : -1);
         const path: [number, number][] = [];
-        const steps = Math.ceil(r.d / STREAM_STEP);
+        const steps = Math.max(2, Math.ceil(r.d / STREAM_STEP));
         for (let k = 0; k <= steps; k++) {
-          const d = Math.min(k * STREAM_STEP, r.d);
-          path.push([sx + Math.cos(r.h) * d, sz + Math.sin(r.h) * d]);
+          const t = k / steps;
+          const a = (1 - t) * (1 - t);
+          const b = 2 * (1 - t) * t;
+          const c = t * t;
+          const bend = Math.sin(t * Math.PI * 3) * Math.sin(t * Math.PI) * wobble;
+          // the bend is sideways to the arm's own run, so the end point stays on the straight run's end
+          path.push([a * sx + b * cx + c * ex - Math.sin(r.h) * bend, a * sz + b * cz + c * ez + Math.cos(r.h) * bend]);
         }
         addRibbon(path, half * MOUTH_ARM_WIDTH);
       }

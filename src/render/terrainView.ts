@@ -46,8 +46,6 @@ const BUILD_BUDGET_MS = 4;
 
 /** Far backdrop tiles are merged into chunks of this many tiles per side, one draw call each. */
 export const FAR_CHUNK = 8;
-/** A far chunk that is not whole is rebuilt once this many more of its tiles have loaded. */
-const FAR_BATCH = 8;
 
 /** Key of the far chunk a tile belongs to. */
 export function farChunkKey(tx: number, tz: number): string {
@@ -741,7 +739,7 @@ export function createTerrainView(
   // Tiles being built a part at a time, not in the scene yet.
   const building = new Map<string, { level: number; group: THREE.Group; stage: number; tile: DecodedTile; clearingVersion: number }>();
   // The far backdrop never changes level, so its tiles are merged into a mesh per chunk,
-  // rebuilt when more of the chunk has loaded. This is a few hundred draw calls fewer.
+  // built once the whole chunk has loaded. This is a few hundred draw calls fewer.
   const farChunks = new Map<string, { mesh: THREE.Mesh | null; built: number; tiles: { tx: number; tz: number }[] }>();
   for (const t of store.index.tiles) {
     if (!t.far) continue;
@@ -756,8 +754,8 @@ export function createTerrainView(
     for (const chunk of farChunks.values()) {
       if (chunk.built === chunk.tiles.length) continue; // level 2 is never dropped, so a whole chunk is done for good
       const loaded = chunk.tiles.filter((t) => store.has(t.tx, t.tz, 2));
-      // While tiles arrive one by one, wait for a handful so the chunk is not merged anew for each.
-      if (loaded.length === chunk.built || (loaded.length < chunk.tiles.length && loaded.length - chunk.built < FAR_BATCH)) continue;
+      // A chunk shows only once whole: with just some tiles in, they hang in the sky as torn islands and ribbons, each with its skirt.
+      if (loaded.length < chunk.tiles.length) continue;
       const geos = loaded.map((t) => buildTileGeometry(store.get(t.tx, t.tz, 2)!, size));
       const merged = mergeGeometries(geos);
       for (const g of geos) g.dispose();

@@ -3,7 +3,7 @@ import { CLASS_LAKE } from '../terrain/format';
 import { makeTile } from '../terrain/testing';
 import type { Pond } from '../sim/pond';
 import type { DamSpot } from '../sim/damSpots';
-import { MOUTH_ARM_COUNT, buildLakeGeometry, buildStreamGeometry, buildTileGeometry, clearingsOf, farChunkKey, shrubHidden } from './terrainView';
+import { MOUTH_ARM_COUNT, smoothLine, buildLakeGeometry, buildStreamGeometry, buildTileGeometry, clearingsOf, farChunkKey, shrubHidden } from './terrainView';
 import { DETAIL } from './groundDetail';
 
 describe('water geometry', () => {
@@ -87,6 +87,17 @@ describe('water geometry', () => {
     };
     expect(span()).toBeCloseTo(2.5, 3);
     expect(span(8)).toBeCloseTo(8, 3);
+  });
+
+  it('smooths the zigzag of a snapped stream line and keeps its ends', () => {
+    const zig: [number, number][] = [];
+    for (let k = 0; k <= 20; k++) zig.push([k * 2, k % 2 === 0 ? 0 : 1.5]);
+    const out = smoothLine(zig);
+    expect(out[0]).toEqual(zig[0]);
+    expect(out[20]).toEqual(zig[20]);
+    const wobble = (l: [number, number][]): number => Math.max(...l.slice(5, 16).map((p) => p[1])) - Math.min(...l.slice(5, 16).map((p) => p[1]));
+    expect(wobble(out)).toBeLessThan(wobble(zig) / 4);
+    expect(smoothLine([[0, 0], [100, 0]])).toEqual([[0, 0], [100, 0]]);
   });
 
   it('braids a stream that ends in the lake into arms, and only that one', () => {

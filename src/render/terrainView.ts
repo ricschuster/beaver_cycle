@@ -297,6 +297,24 @@ const MOUTH_ARM_WIDTH = 0.5;
 /** A stream line ends in the lake when its last point lies this close to the lake level, metres. */
 const MOUTH_REACH_M = 1.5;
 
+/**
+ * A stream line with its snapping jitter averaged out: the lines are snapped to the lowest cell, so they zigzag by a cell or two.
+ * Each pass moves every inner point to the weighted mean of itself and its neighbours; the two ends stay where they are, so a
+ * line still meets its tile edge and the lake.
+ */
+export function smoothLine(pts: readonly [number, number][], passes = STREAM_SMOOTH_PASSES): [number, number][] {
+  let line = pts.map((p): [number, number] => [p[0], p[1]]);
+  for (let pass = 0; pass < passes; pass++) {
+    const next = line.map((p): [number, number] => [p[0], p[1]]);
+    for (let k = 1; k + 1 < line.length; k++) {
+      next[k] = [(line[k - 1]![0] + 2 * line[k]![0] + line[k + 1]![0]) / 4, (line[k - 1]![1] + 2 * line[k]![1] + line[k + 1]![1]) / 4];
+    }
+    line = next;
+  }
+  return line;
+}
+const STREAM_SMOOTH_PASSES = 4;
+
 /** Ribbons draped on the ground along the stream lines of a tile, or null when it has none. */
 export function buildStreamGeometry(
   water: TileWater,
@@ -330,15 +348,16 @@ export function buildStreamGeometry(
   for (const s of water.streams) {
     const half = (s.w ?? STREAM_WIDTH) / 2;
     // resample the line every few metres so the ribbon follows the ground
+    const line = smoothLine(s.pts);
     const pts: [number, number][] = [];
-    for (let k = 0; k + 1 < s.pts.length; k++) {
-      const [ax, az] = s.pts[k]!;
-      const [bx, bz] = s.pts[k + 1]!;
+    for (let k = 0; k + 1 < line.length; k++) {
+      const [ax, az] = line[k]!;
+      const [bx, bz] = line[k + 1]!;
       const parts = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / STREAM_STEP));
       for (let p = 0; p < parts; p++) pts.push([ax + ((bx - ax) * p) / parts, az + ((bz - az) * p) / parts]);
     }
     if (s.pts.length < 2) continue;
-    pts.push(s.pts[s.pts.length - 1]!);
+    pts.push(line[line.length - 1]!);
     addRibbon(pts, half);
     const [endX, endZ] = pts[pts.length - 1]!;
     if (water.lakeLevel_m == null || Math.abs(heightAt(endX, endZ) - water.lakeLevel_m) >= MOUTH_REACH_M) continue;

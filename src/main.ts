@@ -612,6 +612,13 @@ async function start(): Promise<void> {
       } else if (!jump.spawn && (streamer.settled(jump.x, jump.z) || now > jump.deadline)) {
         world = teleport(world, terrain, jump.x, jump.z);
         if (fly) rig.view.focus = { x: world.beaver.x, z: world.beaver.z };
+        // The drone follows a jump the way it starts: high over the new spot and a little south of it, looking north.
+        if (free) {
+          const fz = world.beaver.z + FREE_START_BACK;
+          rig.view.yaw = 0;
+          rig.view.pitch = FREE_START_PITCH;
+          rig.view.free = { x: world.beaver.x, y: surface(world.beaver.x, fz) + FREE_START_HEIGHT, z: fz };
+        }
         jump = null;
         menu.setStatus('');
       }

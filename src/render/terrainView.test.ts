@@ -3,7 +3,7 @@ import { CLASS_LAKE } from '../terrain/format';
 import { makeTile } from '../terrain/testing';
 import type { Pond } from '../sim/pond';
 import type { DamSpot } from '../sim/damSpots';
-import { MOUTH_ARM_COUNT, smoothLine, buildLakeGeometry, buildStreamGeometry, buildTileGeometry, clearingsOf, farChunkKey, shrubHidden } from './terrainView';
+import { MOUTH_ARM_COUNT, despikeLine, isStub, smoothLine, buildLakeGeometry, buildStreamGeometry, buildTileGeometry, clearingsOf, farChunkKey, shrubHidden } from './terrainView';
 import { DETAIL } from './groundDetail';
 
 describe('water geometry', () => {
@@ -115,6 +115,21 @@ describe('water geometry', () => {
     const lastRim = (21 - 1) * 20 + 4;
     expect(mouth[lastRim]).toBeCloseTo(1, 5);
     expect(c[lastRim]).toBeCloseTo(0.8, 5);
+  });
+
+  it('drops a point the snap left on the bank, so the ribbon does not climb a hump', () => {
+    const pts: [number, number][] = [[0, 0], [2, 0], [4, 0], [6, 0], [8, 0]];
+    const ground = (x: number, z: number): number => (x === 4 && z === 0 ? 103 : 100 - x * 0.1);
+    expect(despikeLine(pts, ground)).toEqual([[0, 0], [2, 0], [6, 0], [8, 0]]);
+    // a steady slope in either direction keeps every point
+    expect(despikeLine(pts, (x) => 100 - x * 0.3)).toEqual(pts);
+    expect(despikeLine(pts, (x) => 100 + x * 0.3)).toEqual(pts);
+  });
+
+  it('skips a stub that goes out and comes back, and keeps a short real stream', () => {
+    expect(isStub([[3171, 511], [3170, 517], [3173, 515], [3171, 511]])).toBe(true);
+    expect(isStub([[0, 0], [10, 0], [20, 0]])).toBe(false);
+    expect(isStub([[0, 0], [0, 100], [0, 0]])).toBe(false);
   });
 
   it('braids a stream that ends in the lake into arms, and only that one', () => {

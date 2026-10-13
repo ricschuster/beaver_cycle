@@ -322,6 +322,26 @@ export function smoothLine(pts: readonly [number, number][], passes = STREAM_SMO
 }
 const STREAM_SMOOTH_PASSES = 4;
 
+/** A line that goes out and comes back to where it started within a few metres: a leftover of the snap, never a stream. */
+export function isStub(pts: readonly [number, number][]): boolean {
+  if (pts.length < 2) return false;
+  let length = 0;
+  for (let k = 1; k < pts.length; k++) length += Math.hypot(pts[k]![0] - pts[k - 1]![0], pts[k]![1] - pts[k - 1]![1]);
+  const first = pts[0]!;
+  const last = pts[pts.length - 1]!;
+  return length < 30 && Math.hypot(last[0] - first[0], last[1] - first[1]) < 1.5;
+}
+
+/**
+ * A stream line without its spurs: the snap sometimes leaves a point on the bank beside the channel, which drapes the ribbon over
+ * a hump. A point that stands more than `rise` metres above the points `reach` steps before and after it is dropped; the ends stay.
+ */
+export function despikeLine(pts: readonly [number, number][], heightAt: (x: number, z: number) => number, reach = 1, rise = 1): [number, number][] {
+  if (pts.length < 2 * reach + 1) return pts.map((p): [number, number] => [p[0], p[1]]);
+  const h = pts.map((p) => heightAt(p[0], p[1]));
+  return pts.filter((_, k) => k < reach || k >= pts.length - reach || h[k]! - Math.max(h[k - reach]!, h[k + reach]!) <= rise).map((p): [number, number] => [p[0], p[1]]);
+}
+
 /** Ribbons draped on the ground along the stream lines of a tile, or null when it has none. */
 export function buildStreamGeometry(
   water: TileWater,
@@ -368,7 +388,8 @@ export function buildStreamGeometry(
   for (const s of water.streams) {
     const half = (s.w ?? STREAM_WIDTH) / 2;
     // resample the line every few metres so the ribbon follows the ground
-    const line = smoothLine(s.pts);
+    if (isStub(s.pts)) continue;
+    const line = smoothLine(despikeLine(despikeLine(s.pts, heightAt), heightAt, 4, 1.5));
     const pts: [number, number][] = [];
     for (let k = 0; k + 1 < line.length; k++) {
       const [ax, az] = line[k]!;

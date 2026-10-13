@@ -1,13 +1,13 @@
 name: Pages
 
-# Publishes the game to https://ricschuster.github.io/beaver_cycle/ on every
-# push to main. The valley tiles are untracked (public/tiles/), so they come
+# Publishes the game to https://ricschuster.github.io/beaver_cycle/ when it is
+# run by hand (the author decided on 2026-10-13 that deploys are manual, not on
+# every push to main): `gh workflow run pages.yml --ref main`, or the Run
+# workflow button on the Actions page. The valley tiles are untracked (public/tiles/), so they come
 # from the release tagged `tiles`, built locally with tools/tiles/build_tiles.py
 # and uploaded as tiles.tar.gz. Refresh them with
 # `gh release upload tiles tiles.tar.gz --clobber`.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

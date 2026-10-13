@@ -284,6 +284,13 @@ const SNOW = 0xf2f6f8;
 const STREAM_WIDTH = 2.5;
 const STREAM_STEP = 5;
 const STREAM_LIFT = 0.3;
+/** The rim of a stream is this share of the water colour (darker), from this share of the half width out, and see through at the edge. */
+const STREAM_RIM = 0.8;
+const STREAM_RIM_AT = 0.6;
+/** The see through edge reaches this much past the stream's stated width, so the solid water keeps about the stated width. */
+const STREAM_EDGE = 1.25;
+/** The rim fades out over the last metres of a stream that ends in a lake. */
+const MOUTH_BLEND_M = 14;
 /**
  * A stream that ends in a lake braids over its last metres, as a delta does: from this far back, up to MOUTH_ARM_COUNT side
  * arms split off the main channel, each a straight run to the water that is at least MOUTH_ARM_SPREAD radians from the main
@@ -323,26 +330,39 @@ export function buildStreamGeometry(
   isLake: (x: number, z: number) => boolean = (x, z) => water.lakeLevel_m != null && heightAt(x, z) <= water.lakeLevel_m,
 ): THREE.BufferGeometry | null {
   const pos: number[] = [];
+  const color: number[] = [];
   const index: number[] = [];
-  /** One ribbon of this half width along the points, each a little above the ground beside it. */
-  const addRibbon = (pts: [number, number][], half: number): void => {
+  /**
+   * One ribbon of this half width along the points, each a little above the ground beside it. Across it there are five vertices:
+   * the outer edge on each side (see through), a darker rim just inside it, and the water's own colour along the middle, so the
+   * ribbon reads as a wet channel with a soft edge. `fadeEnd` metres before the end of the line the rim fades out (a mouth in a lake).
+   */
+  const addRibbon = (pts: [number, number][], half: number, fadeEnd = 0): void => {
     const base = pos.length / 3;
+    let along = 0;
+    const lengths = pts.map((p, k) => (along += k === 0 ? 0 : Math.hypot(p[0] - pts[k - 1]![0], p[1] - pts[k - 1]![1])));
     for (let k = 0; k < pts.length; k++) {
       const [x, z] = pts[k]!;
       const [px, pz] = pts[Math.max(k - 1, 0)]!;
       const [qx, qz] = pts[Math.min(k + 1, pts.length - 1)]!;
       const len = Math.hypot(qx - px, qz - pz) || 1;
-      const nx = (-(qz - pz) / len) * half;
-      const nz = ((qx - px) / len) * half;
-      for (const side of [-1, 1]) {
+      const nx = (-(qz - pz) / len) * half * STREAM_EDGE;
+      const nz = ((qx - px) / len) * half * STREAM_EDGE;
+      const toEnd = fadeEnd > 0 ? Math.min(1, (along - lengths[k]!) / fadeEnd) : 1;
+      const rim = 1 - (1 - STREAM_RIM) * toEnd;
+      // across the ribbon: where (share of the half width), the colour factor, and the opacity
+      for (const [side, factor, alpha] of [[-1, rim, 0], [-STREAM_RIM_AT, rim, 1], [0, 1, 1], [STREAM_RIM_AT, rim, 1], [1, rim, 0]] as const) {
         const wx = x + nx * side;
         const wz = z + nz * side;
         pos.push(wx, heightAt(wx, wz) + STREAM_LIFT, wz);
+        color.push(factor, factor, factor, alpha);
       }
     }
     for (let k = 0; k + 1 < pts.length; k++) {
-      const a = base + k * 2;
-      index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      for (let j = 0; j < 4; j++) {
+        const a = base + k * 5 + j;
+        index.push(a, a + 1, a + 5, a + 1, a + 6, a + 5);
+      }
     }
   };
   for (const s of water.streams) {
@@ -358,9 +378,10 @@ export function buildStreamGeometry(
     }
     if (s.pts.length < 2) continue;
     pts.push(line[line.length - 1]!);
-    addRibbon(pts, half);
     const [endX, endZ] = pts[pts.length - 1]!;
-    if (water.lakeLevel_m == null || Math.abs(heightAt(endX, endZ) - water.lakeLevel_m) >= MOUTH_REACH_M) continue;
+    const inLake = water.lakeLevel_m != null && Math.abs(heightAt(endX, endZ) - water.lakeLevel_m) < MOUTH_REACH_M;
+    addRibbon(pts, half, inLake ? MOUTH_BLEND_M : 0);
+    if (!inLake) continue;
     // the delta: arms leave the main channel where it is MOUTH_ARMS_LENGTH_M from the lake and fan out into it
     let from = pts.length - 1;
     while (from > 0 && Math.hypot(endX - pts[from]![0], endZ - pts[from]![1]) < MOUTH_ARMS_LENGTH_M) from--;
@@ -402,7 +423,7 @@ export function buildStreamGeometry(
           // the bend is sideways to the arm's own run, so the end point stays on the straight run's end
           path.push([a * sx + b * cx + c * ex - Math.sin(r.h) * bend, a * sz + b * cz + c * ez + Math.cos(r.h) * bend]);
         }
-        addRibbon(path, half * MOUTH_ARM_WIDTH);
+        addRibbon(path, half * MOUTH_ARM_WIDTH, MOUTH_BLEND_M);
       }
     }
   }
@@ -410,6 +431,7 @@ export function buildStreamGeometry(
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(pos), 3));
   geo.setIndex(index);
+  geo.setAttribute('color', new THREE.BufferAttribute(Float32Array.from(color), 4));
   // Water is lit as a flat sheet facing up. Every triangle faces up (counter-clockwise from above), so the double sided material
   // never flips the normal over the top; a ribbon draped on a slope would otherwise take the slope's normal.
   geo.setAttribute('normal', new THREE.BufferAttribute(Float32Array.from({ length: pos.length }, (_, i) => (i % 3 === 1 ? 1 : 0)), 3));
@@ -608,7 +630,8 @@ export function createTerrainView(
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
   });
-  const streamMaterial = new THREE.MeshLambertMaterial({ color: 0x3b8fb0, side: THREE.DoubleSide });
+  // Vertex colours darken the rim and fade the edge (buildStreamGeometry), so the material is see through and writes no depth.
+  const streamMaterial = new THREE.MeshLambertMaterial({ color: 0x3b8fb0, side: THREE.DoubleSide, vertexColors: true, transparent: true, depthWrite: false });
   // The conifer tiers are open underneath, so both sides are drawn: from below, a tier shows its dark underside.
   const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x2f5a2f, vertexColors: true, side: THREE.DoubleSide });
   const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x3f7a35, vertexColors: true });

@@ -546,6 +546,11 @@ CORR_CELL = 20.0  # metres, the grid of the datum correction
 CORR_SMOOTH = 5  # correction cells (100 m) averaged
 
 
+FINE_CORRIDOR = 6.0  # metres each side of the 5 m snapped line searched on the fine ground
+FINE_STEP = 2.0  # metres between resampled points on the fine ground
+FINE_SHIFT = 1.5  # metres the offset may change between neighbouring points on the fine ground
+
+
 def fine_regions(tiles):
     """Group fine tiles that touch (also diagonally) into regions. Returns a list of
     (region grid, tiles), the grid padded by FINE_PAD tiles. Each region has its own 1 m cache
@@ -693,6 +698,36 @@ def snap_stream_lines(streams, h, g, lake_vert):
     return streams
 
 
+def snap_fine_lines(streams, regions, fine, lake_vert, g):
+    """Snap the stream lines a second time on the fine ground (ADR 0010), inside the fine tiles only.
+
+    The 5 m snap leaves lines 2 to 3 m off the channel. The fine ground (BEV 1 m on the 5 m datum, cut at
+    `fine` metres) resolves it, so each region's lines are searched again in a narrow corridor. Outside the
+    fine tiles the heights are NaN, which keeps the 5 m line there, so the line stays consistent with the
+    5 m terrain that the coarse tiles draw."""
+    coarse = snap_streams.Heights(lake_vert, g.x0, g.z0, g.cell)
+    blocked = lambda x, z: coarse.mask_at(lake_vert, x, z)  # noqa: E731
+    for rg, rtiles in regions:
+        fetch_fine(rg)
+        n = int(round(rg.ncx * rg.cell / fine)), int(round(rg.ncz * rg.cell / fine))
+        win = Grid.window(rg.x0, rg.z0, n[0], n[1], fine)
+        h = read_fine_heights(rg, win)
+        tile = np.zeros((rg.ntz, rg.ntx), dtype=bool)
+        for tx, tz in rtiles:
+            tile[tz - rg.tz0, tx - rg.tx0] = True
+        per = int(round(TILE / fine))
+        mask = np.kron(tile, np.ones((per, per), dtype=bool))
+        mask = np.pad(mask, ((0, 1), (0, 1)), mode="edge")  # the last vertex row and column
+        h[~mask] = np.nan
+        ground = snap_streams.Heights(h, rg.x0, rg.z0, fine)
+        streams, rep = snap_streams.snap_streams(
+            streams, ground, blocked=blocked, corridor=FINE_CORRIDOR, step=FINE_STEP,
+            offset_step=fine / 2, max_shift=FINE_SHIFT)
+        print(f"  fine snap of region {rg.tx0},{rg.tz0}: {rep['points']} points, moved median {rep['median_m']:.1f} m, "
+              f"90th percentile {rep['p90_m']:.1f} m, max {rep['max_m']:.1f} m")
+    return streams
+
+
 def build(out=OUT, fine=None, backdrop=True, snap=True):
     out = Path(out)
     keep = wanted_tiles()
@@ -714,6 +749,8 @@ def build(out=OUT, fine=None, backdrop=True, snap=True):
         fine_list = [t for t in fine_tiles(g, lake_vert, streams) if t in keep]
         regions = fine_regions(fine_list)
         print(f"{len(fine_list)} fine tiles at {fine} m in {len(regions)} regions")
+        if snap and regions:
+            streams = snap_fine_lines(streams, regions, fine, lake_vert, g)
         for rg, rtiles in regions:
             fetch_fine(rg)
             fine_set.update(build_fine(out, rg, fine, rtiles, lakes, lake_levels))

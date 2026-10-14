@@ -3,6 +3,7 @@
 // (docs/design/14_m2_streamed_core_plan.md). No three.js here.
 import type { TreeRef, Trunk } from '../sim/trees';
 import { CLASS_LAKE, LEVEL_FINE, sampleHeight, type DecodedTile } from './format';
+import { STREAM_CLEARANCE } from './shrubs';
 
 const CLASS_FOREST = 2;
 const CLASS_SCRUB = 3;
@@ -93,8 +94,14 @@ function seedFor(tx: number, tz: number, level: number): number {
   return (Math.imul(tx + 1000, 73856093) ^ Math.imul(tz + 1000, 19349663) ^ Math.imul(level + 1, 83492791)) >>> 0;
 }
 
-/** Trees of a tile as x, y, z, scale, kind per tree, in world metres. */
-export function placeTrees(tile: DecodedTile, size: number, felled?: ReadonlySet<string>, lakeLevel: number | null = null): Float32Array {
+/** Trees of a tile as x, y, z, scale, kind per tree, in world metres. None stands in the lake or within `STREAM_CLEARANCE` of a stream. */
+export function placeTrees(
+  tile: DecodedTile,
+  size: number,
+  felled?: ReadonlySet<string>,
+  lakeLevel: number | null = null,
+  streamDistance?: (x: number, z: number, upTo: number) => number,
+): Float32Array {
   // a fine tile has the trees of level 0, on its own finer ground
   const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
   const density = DENSITY[shown];
@@ -130,6 +137,8 @@ export function placeTrees(tile: DecodedTile, size: number, felled?: ReadonlySet
         if (felled?.has(treeId(x, z))) continue;
         const y = sampleHeight(tile, u, v);
         if (nearLake && y < lakeLevel! + LAKE_CLEARANCE) continue;
+        // none stands in a stream, as with the shrubs
+        if (streamDistance && streamDistance(x, z, STREAM_CLEARANCE) < STREAM_CLEARANCE) continue;
         out.push(x, y, z, scale, treeKind(x, z));
       }
     }
@@ -144,6 +153,8 @@ export class TreeGrid {
   private readonly buckets = new Map<number, number[]>();
   private readonly shape: { radius: number; height: number; base: number };
   private readonly crown: { radius: number; centre: number; base: number };
+  /** 1 for a tree that has rotted away (it stood in a pond's water): the grid no longer sees it. */
+  private readonly dead: Uint8Array;
 
   constructor(
     private readonly trees: Float32Array,
@@ -151,11 +162,20 @@ export class TreeGrid {
   ) {
     this.shape = TREE_SHAPE[level]!;
     this.crown = BROADLEAF_SHAPE[level]!;
+    this.dead = new Uint8Array(trees.length / TREE_FLOATS);
     for (let o = 0; o < trees.length; o += TREE_FLOATS) {
       const key = this.key(Math.floor(trees[o]! / BUCKET), Math.floor(trees[o + 2]! / BUCKET));
       const list = this.buckets.get(key);
       if (list) list.push(o);
       else this.buckets.set(key, [o]);
+    }
+  }
+
+  /** Marks the trees that `rotted` says are gone, and the others as standing. */
+  setRotted(rotted: (x: number, y: number, z: number) => boolean): void {
+    for (let k = 0; k < this.dead.length; k++) {
+      const o = k * TREE_FLOATS;
+      this.dead[k] = rotted(this.trees[o]!, this.trees[o + 1]!, this.trees[o + 2]!) ? 1 : 0;
     }
   }
 
@@ -171,6 +191,7 @@ export class TreeGrid {
     for (let i = bi - 1; i <= bi + 1; i++) {
       for (let j = bj - 1; j <= bj + 1; j++) {
         for (const o of this.buckets.get(this.key(i, j)) ?? []) {
+          if (this.dead[o / TREE_FLOATS]) continue;
           const s = this.trees[o + 3]!;
           if (this.trees[o + 4] === KIND_BROADLEAF) {
             const c = this.crown;
@@ -197,6 +218,7 @@ export class TreeGrid {
     for (let i = bi - r; i <= bi + r; i++) {
       for (let j = bj - r; j <= bj + r; j++) {
         for (const o of this.buckets.get(this.key(i, j)) ?? []) {
+          if (this.dead[o / TREE_FLOATS]) continue;
           const tx = this.trees[o]!;
           const tz = this.trees[o + 2]!;
           if (Math.hypot(tx - x, tz - z) > reach || felled.has(treeId(tx, tz))) continue;
@@ -216,6 +238,7 @@ export class TreeGrid {
     for (let i = bi - r; i <= bi + r; i++) {
       for (let j = bj - r; j <= bj + r; j++) {
         for (const o of this.buckets.get(this.key(i, j)) ?? []) {
+          if (this.dead[o / TREE_FLOATS]) continue;
           const tx = this.trees[o]!;
           const tz = this.trees[o + 2]!;
           const d = Math.hypot(tx - x, tz - z);
@@ -237,6 +260,7 @@ export class TreeGrid {
     for (let i = bi - r; i <= bi + r; i++) {
       for (let j = bj - r; j <= bj + r; j++) {
         for (const o of this.buckets.get(this.key(i, j)) ?? []) {
+          if (this.dead[o / TREE_FLOATS]) continue;
           if (this.trees[o + 4] !== KIND_BROADLEAF) continue;
           if (Math.hypot(this.trees[o]! - x, this.trees[o + 2]! - z) > radius) continue;
           out.push(this.trees[o]!, this.trees[o + 1]!, this.trees[o + 2]!, this.trees[o + 3]!);

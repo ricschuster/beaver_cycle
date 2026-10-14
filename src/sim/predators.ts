@@ -95,6 +95,16 @@ export function hurtFactor(hurtAt: number | null, clock: number): number {
 }
 
 /** What a predator did to the beaver this step, for the game to tell the player. */
+/** A wolf comes in a pair: its mate has the lead's id with this added, and is the lead's shadow in the events (the game tells of one wolf). */
+const MATE = '+mate';
+/** Metres the mate runs beside the lead. */
+const MATE_SIDE = 4;
+
+/** True for the second wolf of a pair. */
+export function isMate(p: Pick<Predator, 'id'>): boolean {
+  return p.id.endsWith(MATE);
+}
+
 export type PredatorEvent = { id: string; kind: PredatorKind; what: 'noticed' | 'caught' | 'scared' };
 
 function toward(from: { x: number; z: number }, to: { x: number; z: number }): { d: number; heading: number } {
@@ -145,7 +155,7 @@ export function meetPredators(world: WorldState, animals: readonly Animal[], sla
     }
     const scared = slapped && d <= SLAP_SCARE && (!rules.slapNeedsWater || atWaterEdge(b, ground));
     if (scared) {
-      events.push({ id: p.id, kind: p.kind, what: 'scared' });
+      if (!isMate(p)) events.push({ id: p.id, kind: p.kind, what: 'scared' });
       predators.push(atEnd(p, { phase: 'off', since: world.time }));
       continue;
     }
@@ -168,7 +178,7 @@ export function meetPredators(world: WorldState, animals: readonly Animal[], sla
     }
     if (d <= CATCH_DISTANCE + rules.chase * dt) {
       caught = true;
-      events.push({ id: p.id, kind: p.kind, what: 'caught' });
+      if (!isMate(p)) events.push({ id: p.id, kind: p.kind, what: 'caught' });
       predators.push(atEnd(p, { x: b.x, z: b.z, phase: 'off', since: world.time, lift: 0 }));
       continue;
     }
@@ -189,6 +199,14 @@ export function meetPredators(world: WorldState, animals: readonly Animal[], sla
       if (d > RULES[a.kind].notice) continue;
       events.push({ id: a.id, kind: a.kind, what: 'noticed' });
       predators.push({ id: a.id, kind: a.kind, x: a.x, z: a.z, lift: a.kind === 'owl' ? 0.4 : 0, heading, phase: 'warn', since: world.time });
+      if (a.kind === 'wolf' && !taken.has(a.id + MATE)) {
+        // the mate stands beside the lead, on dry land, and does what it does
+        const side = heading + Math.PI / 2;
+        const x = a.x + Math.sin(side) * MATE_SIDE;
+        const z = a.z + Math.cos(side) * MATE_SIDE;
+        const dry = ground.waterDepth(x, z) < 0.4;
+        predators.push({ id: a.id + MATE, kind: 'wolf', x: dry ? x : a.x, z: dry ? z : a.z, lift: 0, heading, phase: 'warn', since: world.time });
+      }
     }
   }
   const same = predators.length === world.predators.length && predators.every((p, i) => p === world.predators[i]);

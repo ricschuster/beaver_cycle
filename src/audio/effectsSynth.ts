@@ -189,6 +189,11 @@ export function effectSamples(effect: Effect, rate = SYNTH_RATE, talk?: Cue['voi
       // A lynx: a rough, low snarl that swells.
       voice(out, 0, 1, 0.8, 120, 90, 12, rate, true);
       break;
+    case 'howl':
+      // A wolf: a long note that climbs, holds, and falls away.
+      voice(out, 0, 1, 0.7, 330, 540, 2, rate, true);
+      voice(out, 0.9, 1.5, 0.7, 540, 300, 2, rate, true);
+      break;
     case 'rumble':
       // A bear: very low, with a rolling edge.
       voice(out, 0, 1.3, 0.9, 65, 50, 18, rate, true);

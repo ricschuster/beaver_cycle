@@ -128,6 +128,8 @@ export function homeOf(t: Terrain, cx: number, cz: number): Home | null {
 
 /** The lynx comes out at this part of the day (dusk is at 0.625 less a little) and stays out through the night. */
 const LYNX_FROM = 0.5;
+/** The part of the wolves about outside winter: they show up more in winter (docs/design/24_npcs_and_animals.md). */
+const WOLF_SUMMER_SHARE = 0.6;
 
 /** Whether the animal is about at a clock time: the valley is quieter in winter, and deer and ducks rest at night. */
 export function isAbout(home: Home, clock: number): boolean {
@@ -141,8 +143,8 @@ export function isAbout(home: Home, clock: number): boolean {
   // The kingfisher fishes by day.
   if (home.kind === 'kingfisher') return !isNight(clock);
   if (home.kind === 'lynx') return dateAt(clock).timeOfDay >= LYNX_FROM;
-  // The wolf is out all day in winter and, the rest of the year, as the lynx is, from dusk to dawn.
-  if (home.kind === 'wolf') return winter || dateAt(clock).timeOfDay >= LYNX_FROM;
+  // The wolf is out all day in winter, every pack; the rest of the year only six packs in ten are about, and from dusk to dawn, as the lynx is.
+  if (home.kind === 'wolf') return winter || (home.luck < WOLF_SUMMER_SHARE && dateAt(clock).timeOfDay >= LYNX_FROM);
   if (home.kind === 'bear') return !winter;
   if (isNight(clock) && (home.kind === 'duck' || home.kind === 'heron') && home.luck < 0.5) return false;
   return true;

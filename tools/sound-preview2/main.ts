@@ -81,7 +81,7 @@ function rateRow(id: string, label: string, start: () => void): HTMLTableRowElem
 }
 
 // The effects made in code that the author may still want a recording for (done and the chimes were rated ok and are settled, chirp has recordings), the gaps without a recording: play the current sound, rate it ok, or wrong to want a recording.
-const SYNTH_GAPS: readonly Effect[] = [];
+const SYNTH_GAPS: readonly Effect[] = ['howl'];
 let ctx: AudioContext | undefined;
 function playSynth(effect: Effect): void {
   playing?.pause();

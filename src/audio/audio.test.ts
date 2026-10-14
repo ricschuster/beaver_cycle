@@ -327,7 +327,7 @@ describe('talk and dream cues', () => {
 });
 
 describe('effectSamples', () => {
-  const all: Effect[] = ['chop', 'fall', 'splash', 'slap', 'slapwater', 'stroke', 'eat', 'pickup', 'setdown', 'wood', 'mud', 'rock', 'done', 'quack', 'hoot', 'yap', 'growl', 'rumble', 'hurt', 'babble', 'chirp', 'chime', 'chimeHigh', 'chimeStar', 'giggle', 'cheer'];
+  const all: Effect[] = ['chop', 'fall', 'splash', 'slap', 'slapwater', 'stroke', 'eat', 'pickup', 'setdown', 'wood', 'mud', 'rock', 'done', 'quack', 'hoot', 'yap', 'growl', 'howl', 'rumble', 'hurt', 'babble', 'chirp', 'chime', 'chimeHigh', 'chimeStar', 'giggle', 'cheer'];
   it('makes every effect as long as its duration, audible, in range, and silent at the end', () => {
     for (const e of all.filter((x) => x !== 'babble')) {
       const s = effectSamples(e);

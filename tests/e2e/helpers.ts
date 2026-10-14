@@ -115,6 +115,11 @@ async function fellTree(page: Page, tree: { id: string; x: number; z: number }):
   // while the tree is still being gnawed, or once it is down, would strip a branch off the new log into the mouth, and a full
   // mouth stops the next Gnaw and Take, so a retry presses only when nothing is being gnawed.
   for (let attempt = 0; attempt < 4; attempt++) {
+    // A branch (or anything else) left in the mouth from the last log makes the button read Do, not Gnaw: put it down first.
+    if ((await world(page)).carry) {
+      await tap(page, 'KeyG');
+      await page.waitForFunction(() => !(window as any).__game.world().carry, null, { polling: 100, timeout: 3000 }).catch(() => undefined);
+    }
     await walkToPoint(page, tree, 2.2 + attempt * 0.2, 40_000);
     // Still swimming by a tree at the shore: go round the trunk to its far side, which is on land.
     if ((await world(page)).beaver.mode === 'swim') {

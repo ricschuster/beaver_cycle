@@ -902,7 +902,13 @@ export function createTerrainView(
           }
           case 2: {
             const streams = job.level !== 2 && water ? timed('streams', job.level, () => buildStreamGeometry(water, (x, z) => store.heightAt(x, z), (x, z) => store.coverAt(x, z) === CLASS_LAKE)) : null;
-            if (streams) group.add(own(new THREE.Mesh(streams, streamMaterial)));
+            if (streams) {
+              const ribbons = new THREE.Mesh(streams, streamMaterial);
+              // Drawn after the lake and the ponds (renderOrder 0), so the part of a ribbon under their water fails the depth test and
+              // does not show through as a pale stripe; drawn first, 15 percent of it would.
+              ribbons.renderOrder = 1;
+              group.add(own(ribbons));
+            }
             break;
           }
           case 3: {

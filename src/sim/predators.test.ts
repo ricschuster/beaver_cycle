@@ -3,7 +3,7 @@ import type { Animal } from './animals';
 import { AnimalField } from './animals';
 import { DAY_SECONDS } from './clock';
 import { noIntent } from './buttons';
-import { HURT_SPEED, HURT_TIME, RULES, hurtFactor, isHurt, meetPredators, predatorAnimals } from './predators';
+import { HURT_SPEED, HURT_TIME, RULES, isMate, hurtFactor, isHurt, meetPredators, predatorAnimals } from './predators';
 import { createWorld, WALK_SPEED, type WorldState } from './state';
 import { step } from './step';
 import { flatTerrain, type Terrain } from './terrain';
@@ -172,5 +172,33 @@ describe('hurt', () => {
     const w = { ...createWorld(land, 0, 0), hurtAt: 100, clock: 200, carry: 'lily' as const, inLodge: true };
     expect(step(w, { ...noIntent(), do: 'eat' }, 0.1, land).hurtAt).toBeNull();
     expect(step({ ...w, carry: 'branch' }, { ...noIntent(), do: 'eat' }, 0.1, land).hurtAt).toBe(100);
+  });
+});
+
+describe('the wolf pair', () => {
+  const wolf = (x: number, z: number): Animal => ({ id: 'a:5', kind: 'wolf', x, y: 0, z, heading: 0, moving: false });
+
+  it('comes as two, and tells of one', () => {
+    const { world, events } = run(createWorld(land, 0, 0), [wolf(20, 0)], 0.1);
+    expect(world.predators).toHaveLength(2);
+    expect(world.predators.filter(isMate)).toHaveLength(1);
+    expect(events.filter((e) => e === 'wolf:noticed')).toHaveLength(1);
+  });
+
+  it('both chase, and a catch is told once', () => {
+    const { world, events } = run(createWorld(land, 0, 0), [wolf(20, 0)], 12);
+    expect(events.filter((e) => e === 'wolf:caught')).toHaveLength(1);
+    expect(world.hurtAt).not.toBeNull();
+    expect(world.predators.every((p) => p.phase === 'off')).toBe(true);
+  });
+
+  it('both go off when slapped from the water', () => {
+    const { world, events } = run(createWorld(bank, 0, 0), [wolf(20, 0)], 1, bank, 0.5);
+    expect(events.filter((e) => e === 'wolf:scared')).toHaveLength(1);
+    expect(world.predators.every((p) => p.phase === 'off')).toBe(true);
+  });
+
+  it('the other kinds come alone', () => {
+    expect(run(createWorld(land, 0, 0), [lynx(20, 0)], 0.1).world.predators).toHaveLength(1);
   });
 });

@@ -1,6 +1,7 @@
 // One-shot effects (docs/design/32_sound.md, slice 3), the beaver's group: what the player did, as sound cues. The sim has no
 // event stream, so `watchBeaver` compares each frame's world with the last. Plain numbers only, so it is easy to test.
 
+import { isMate } from '../sim/predators';
 import type { WorldState } from '../sim/state';
 import type { Animal } from '../sim/animals';
 import { LODGE_WOOD } from '../sim/lodge';
@@ -11,7 +12,7 @@ export type Effect =
   // The building group: a log, a load of mud, a rock placed, and a piece finished or mended.
   | 'wood' | 'mud' | 'rock' | 'done'
   // The animals: a duck, and the warnings of the owl, the fox, the lynx and the bear, and the beaver hurt.
-  | 'quack' | 'hoot' | 'yap' | 'growl' | 'rumble' | 'hurt'
+  | 'quack' | 'hoot' | 'yap' | 'growl' | 'howl' | 'rumble' | 'hurt'
   // Talk: a babble per line (its pitch and length come with the cue), and the call of a partner or a lone beaver.
   | 'babble' | 'chirp'
   // The dream: a chime for each kind of sweet, a giggle and a cheer.
@@ -26,7 +27,7 @@ export interface Cue {
 }
 
 /** Seconds each effect lasts: the voice it takes is free again then. */
-export const DURATION: Record<Effect, number> = { chop: 0.5, fall: 1.5, splash: 0.7, slap: 0.3, slapwater: 0.5, stroke: 0.4, eat: 0.4, pickup: 0.15, setdown: 0.25, wood: 0.35, mud: 0.4, rock: 0.3, done: 0.9, quack: 0.45, hoot: 1.2, yap: 0.35, growl: 1.1, rumble: 1.4, hurt: 0.5, babble: 0, chirp: 0.45, chime: 0.8, chimeHigh: 0.8, chimeStar: 1.1, giggle: 0.8, cheer: 1.4 };
+export const DURATION: Record<Effect, number> = { chop: 0.5, fall: 1.5, splash: 0.7, slap: 0.3, slapwater: 0.5, stroke: 0.4, eat: 0.4, pickup: 0.15, setdown: 0.25, wood: 0.35, mud: 0.4, rock: 0.3, done: 0.9, quack: 0.45, hoot: 1.2, yap: 0.35, growl: 1.1, howl: 2.4, rumble: 1.4, hurt: 0.5, babble: 0, chirp: 0.45, chime: 0.8, chimeHigh: 0.8, chimeStar: 1.1, giggle: 0.8, cheer: 1.4 };
 
 /** Seconds a cue holds its voice. */
 export const cueSeconds = (c: Cue): number => c.voice?.seconds ?? DURATION[c.effect];
@@ -131,7 +132,7 @@ export function createVoices(max: number): { admit(cue: Cue, now: number): boole
 }
 
 /** Where each predator's warning is heard from, and the effect it gives. */
-const WARNING: Record<string, Effect> = { owl: 'hoot', fox: 'yap', lynx: 'growl', wolf: 'growl', bear: 'rumble' };
+const WARNING: Record<string, Effect> = { owl: 'hoot', fox: 'yap', lynx: 'growl', wolf: 'howl', bear: 'rumble' };
 /** A predator is heard within this many metres. */
 const HEARD = 60;
 /** A duck is heard within this many metres, and calls about this often (real seconds) at the nearest. */
@@ -188,7 +189,7 @@ export function watchWorld(): (w: WorldState, ambient: readonly Animal[], now: n
       if (rock) cues.push({ effect: 'rock', gain: 0.8 });
       if (done) cues.push({ effect: 'done', gain: 0.8 });
       for (const p of w.predators) {
-        if (p.phase === 'off' || warned.has(p.id)) continue;
+        if (p.phase === 'off' || warned.has(p.id) || isMate(p)) continue;
         const near = Math.hypot(p.x - w.beaver.x, p.z - w.beaver.z);
         if (near < HEARD) cues.push({ effect: WARNING[p.kind] ?? 'growl', gain: Math.max(0.3, 1 - near / HEARD) });
       }

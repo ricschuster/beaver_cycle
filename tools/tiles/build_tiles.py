@@ -84,8 +84,8 @@ BOG_RAMP_LAKES = ("Almsee",)  # lakes the south ramp acts on
 BOG_WETLAND_REACH = 30.0  # metres from a wetland cell over which the shallows fade out
 BOG_BED_OFFSET = 0.3  # metres below the lake level in full shallows
 LOCATION_IDS = {"core", "north", "south", "east-oedseen", "vorderer-springbach", "hinterer-springbach"}
-CLASSES = {"ground": 0, "meadow": 1, "forest": 2, "scrub": 3, "rock": 4, "wetland": 5, "lake": 9}
-PAINT_ORDER = ("meadow", "scrub", "forest", "wetland", "rock")  # later wins, as in the camera demo
+CLASSES = {"ground": 0, "meadow": 1, "forest": 2, "scrub": 3, "rock": 4, "wetland": 5, "gravel": 6, "lake": 9}
+PAINT_ORDER = ("meadow", "scrub", "forest", "wetland", "gravel", "rock")  # later wins, as in the camera demo
 OUT = ROOT / "public" / "tiles"
 
 wgs = osr.SpatialReference()

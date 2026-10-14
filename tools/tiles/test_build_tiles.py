@@ -150,3 +150,9 @@ def test_stream_width_by_kind():
     assert bt.stream_width({"waterway": "river", "name": "Straneggbach"}) == 3.0
     assert bt.stream_width({"waterway": "stream", "name": "Aagbach"}) == 5.0
     assert bt.stream_width({"waterway": "stream", "name": "Aagbach", "width": "7"}) == 7.0
+
+
+def test_shingle_is_gravel_not_rock():
+    import build_data
+    assert build_data.LANDCOVER[("natural", "shingle")] == "gravel"
+    assert "gravel" in bt.PAINT_ORDER and bt.CLASSES["gravel"] not in (bt.CLASSES["rock"], bt.CLASSES["ground"])

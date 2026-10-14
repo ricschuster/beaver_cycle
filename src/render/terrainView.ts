@@ -25,6 +25,7 @@ const CLASS_COLORS: Record<number, number> = {
   3: 0x6f8a45, // scrub
   4: 0x8d8a82, // rock
   5: 0x6d8a6a, // wetland
+  6: 0xb9ae93, // gravel (OSM shingle: stream gravel beds), lighter and warmer than rock
   9: 0x2f6f8f, // lake bed, until the water plane arrives
 };
 const FALLBACK = new THREE.Color(CLASS_COLORS[0]);

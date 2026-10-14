@@ -48,7 +48,7 @@ describe.skipIf(!HAVE_TILES)('the play locations on the real tiles', () => {
     it(`${id}: first dam spots exist and a level 2 pond at one has room for a lodge`, () => {
       const spots = firstSpots(sites, id, anchor());
       // Vorderer-springbach has four qualifying sites in one cluster, so the 150 m spacing leaves two (since the tile rebuild of #494).
-      // East-oedseen has three qualifying sites, two of them 85 m apart, so it leaves two as well.
+      // East-oedseen has five, four of them in one cluster on the Straneggbach, and also leaves two (since the stream smoothing of #506).
       expect(spots.length).toBeGreaterThanOrEqual(id === 'vorderer-springbach' || id === 'east-oedseen' ? 2 : 3);
       const holding: DamSpot[] = [];
       for (const spot of spots) {

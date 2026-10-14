@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildDamByHand, dragLog, fellNearestTree, goToNearestSpot, hasTiles, scoopLoad, shot, startGame, tap, toggleMenu, walkToPoint, world } from './helpers';
+import { buildDamByHand, dragLog, fellNearestTree, goToNearestSpot, goToSpotById, hasTiles, scoopLoad, shot, startGame, tap, toggleMenu, walkToPoint, world } from './helpers';
 // Dams by real play (docs/design/20_dams_and_ponds.md, 15_build_and_repair.md): at the nearest dam spot the beaver puts a log
 // and a load of mud on a dam, then the test menu finishes it. dam.spec.ts covers the menu-only path. Needs the valley tiles.
 
@@ -108,7 +108,8 @@ test('a first dam is built whole by real play, every log, load of mud and rock, 
 });
 
 // Pioneer: a pond opens a new spot, and a dam started there wins the achievement. Only some spots find one. In the south the first
-// spot finds one about 60 m off (a probe of all six locations, session 97), so the test uses it.
+// spot found one about 60 m off (a probe of all six locations, session 97). Since the second stream snap (#494) that spot finds none,
+// and the third south spot (south:-921:3595, a 2400 m2 pond) finds one, so the test goes there (probe of newSpotsFrom, session 116).
 test('a new pond opens a new dam spot, and a dam started there wins Pioneer', async ({ page }) => {
   test.setTimeout(400_000);
   const errors: string[] = [];
@@ -121,7 +122,7 @@ test('a new pond opens a new dam spot, and a dam started there wins Pioneer', as
   await page.waitForFunction((b) => { const w = (window as any).__game.world().beaver; return Math.hypot(w.x - b.x, w.z - b.z) > 500; }, start, { polling: 200, timeout: 60_000 });
   await page.waitForTimeout(2500);
   await toggleMenu(page);
-  const first = await goToNearestSpot(page);
+  const first = await goToSpotById(page, 'south:-921:3595');
   let w = await world(page);
   const before = w.spots.length;
   expect(w.spots.filter((s: any) => s.found)).toHaveLength(0);

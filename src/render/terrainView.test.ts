@@ -3,7 +3,7 @@ import { CLASS_LAKE } from '../terrain/format';
 import { makeTile } from '../terrain/testing';
 import type { Pond } from '../sim/pond';
 import type { DamSpot } from '../sim/damSpots';
-import { MOUTH_ARM_COUNT, buildLakeGeometry, buildStreamGeometry, buildTileGeometry, clearingsOf, farChunkKey, shrubHidden } from './terrainView';
+import { MOUTH_ARM_COUNT, despikeLine, isStub, smoothLine, buildLakeGeometry, buildStreamGeometry, buildTileGeometry, clearingsOf, farChunkKey, shrubHidden } from './terrainView';
 import { DETAIL } from './groundDetail';
 
 describe('water geometry', () => {
@@ -73,7 +73,7 @@ describe('water geometry', () => {
     for (let k = 0; k < n.count; k++) expect([n.getX(k), n.getY(k), n.getZ(k)]).toEqual([0, 1, 0]);
   });
 
-  it('draws a ribbon as wide as the stream says, 2.5 m without a width', () => {
+  it('draws a ribbon as wide as the stream says plus its soft edge, 2.5 m without a width', () => {
     const span = (w?: number): number => {
       const geo = buildStreamGeometry({ lakeLevel_m: null, streams: [{ name: 'b', w, pts: [[0, 0], [100, 0]] }] }, () => 0)!;
       const p = geo.getAttribute('position');
@@ -85,14 +85,57 @@ describe('water geometry', () => {
       }
       return hi - lo;
     };
-    expect(span()).toBeCloseTo(2.5, 3);
-    expect(span(8)).toBeCloseTo(8, 3);
+    // the see through edge reaches a quarter past the stated width
+    expect(span()).toBeCloseTo(2.5 * 1.25, 3);
+    expect(span(8)).toBeCloseTo(8 * 1.25, 3);
+  });
+
+  it('smooths the zigzag of a snapped stream line and keeps its ends', () => {
+    const zig: [number, number][] = [];
+    for (let k = 0; k <= 20; k++) zig.push([k * 2, k % 2 === 0 ? 0 : 1.5]);
+    const out = smoothLine(zig);
+    expect(out[0]).toEqual(zig[0]);
+    expect(out[20]).toEqual(zig[20]);
+    const wobble = (l: [number, number][]): number => Math.max(...l.slice(5, 16).map((p) => p[1])) - Math.min(...l.slice(5, 16).map((p) => p[1]));
+    expect(wobble(out)).toBeLessThan(wobble(zig) / 4);
+    expect(smoothLine([[0, 0], [100, 0]])).toEqual([[0, 0], [100, 0]]);
+  });
+
+  it('darkens the rim of a stream, fades its edge, and lets the rim blend out at a lake mouth', () => {
+    const color = (lakeLevel_m: number | null, endHeight: number): { c: Float32Array | number[]; points: number } => {
+      const geo = buildStreamGeometry({ lakeLevel_m, streams: [{ name: 'b', w: 4, pts: [[0, 0], [100, 0]] }] }, (x) => (x > 99 ? endHeight : 600), () => false)!;
+      return { c: geo.getAttribute('color').array as Float32Array, points: 21 };
+    };
+    const { c } = color(null, 600);
+    // per point five vertices of four numbers: outer, rim, middle, rim, outer
+    expect(Array.from(c.slice(0, 4))).toEqual([expect.closeTo(0.8), expect.closeTo(0.8), expect.closeTo(0.8), 0]);
+    expect(Array.from(c.slice(8, 12))).toEqual([1, 1, 1, 1]);
+    // a stream ending in the lake loses its rim toward the end, the same line elsewhere keeps it
+    const mouth = color(580, 580).c;
+    const lastRim = (21 - 1) * 20 + 4;
+    expect(mouth[lastRim]).toBeCloseTo(1, 5);
+    expect(c[lastRim]).toBeCloseTo(0.8, 5);
+  });
+
+  it('drops a point the snap left on the bank, so the ribbon does not climb a hump', () => {
+    const pts: [number, number][] = [[0, 0], [2, 0], [4, 0], [6, 0], [8, 0]];
+    const ground = (x: number, z: number): number => (x === 4 && z === 0 ? 103 : 100 - x * 0.1);
+    expect(despikeLine(pts, ground)).toEqual([[0, 0], [2, 0], [6, 0], [8, 0]]);
+    // a steady slope in either direction keeps every point
+    expect(despikeLine(pts, (x) => 100 - x * 0.3)).toEqual(pts);
+    expect(despikeLine(pts, (x) => 100 + x * 0.3)).toEqual(pts);
+  });
+
+  it('skips a stub that goes out and comes back, and keeps a short real stream', () => {
+    expect(isStub([[3171, 511], [3170, 517], [3173, 515], [3171, 511]])).toBe(true);
+    expect(isStub([[0, 0], [10, 0], [20, 0]])).toBe(false);
+    expect(isStub([[0, 0], [0, 100], [0, 0]])).toBe(false);
   });
 
   it('braids a stream that ends in the lake into arms, and only that one', () => {
     const ribbons = (lakeLevel_m: number | null, endHeight: number): number => {
       const geo = buildStreamGeometry({ lakeLevel_m, streams: [{ name: 'b', w: 5, pts: [[0, 0], [200, 0]] }] }, (x) => (x > 199 ? endHeight : 600))!;
-      // two vertices per point, so a count above one ribbon's means arms were added
+      // five vertices per point, so a count above one ribbon's means arms were added
       return geo.getAttribute('position').count;
     };
     const plain = ribbons(null, 580);
@@ -104,7 +147,7 @@ describe('water geometry', () => {
     // a 200 m stream along +x ending in the lake; the lake is the ground at or under 580 beyond x 199 and the whole side z > 30
     const h = (x: number, z: number): number => (x > 199 || z > 30 ? 580 : 600);
     const pos = buildStreamGeometry({ lakeLevel_m: 580, streams: [{ name: 'b', w: 5, pts: [[0, 0], [200, 0]] }] }, h)!.getAttribute('position');
-    const mid = (k: number): [number, number] => [(pos.getX(2 * k) + pos.getX(2 * k + 1)) / 2, (pos.getZ(2 * k) + pos.getZ(2 * k + 1)) / 2];
+    const mid = (k: number): [number, number] => [pos.getX(5 * k + 2), pos.getZ(5 * k + 2)]; // the middle vertex of five across
     const main = 41; // points of the main channel at a 5 m step; the first arm follows
     const [ax, az] = mid(main);
     const [bx, bz] = mid(main + 1);

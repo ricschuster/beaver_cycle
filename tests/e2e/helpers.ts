@@ -115,6 +115,11 @@ async function fellTree(page: Page, tree: { id: string; x: number; z: number }):
   // while the tree is still being gnawed, or once it is down, would strip a branch off the new log into the mouth, and a full
   // mouth stops the next Gnaw and Take, so a retry presses only when nothing is being gnawed.
   for (let attempt = 0; attempt < 4; attempt++) {
+    // A branch (or anything else) left in the mouth from the last log makes the button read Do, not Gnaw: put it down first.
+    if ((await world(page)).carry) {
+      await tap(page, 'KeyG');
+      await page.waitForFunction(() => !(window as any).__game.world().carry, null, { polling: 100, timeout: 3000 }).catch(() => undefined);
+    }
     await walkToPoint(page, tree, 2.2 + attempt * 0.2, 40_000);
     // Still swimming by a tree at the shore: go round the trunk to its far side, which is on land.
     if ((await world(page)).beaver.mode === 'swim') {
@@ -368,6 +373,22 @@ export async function goToNearestSpot(page: Page): Promise<any> {
   return nearestSpot(page);
 }
 
+/** Jump to a dam spot by its id (`__game.goToSpot`), wait until the beaver is there, and return the spot. */
+export async function goToSpotById(page: Page, id: string): Promise<any> {
+  expect(await page.evaluate((i) => (window as any).__game.goToSpot(i), id), `a dam spot ${id}`).toBe(true);
+  await page.waitForFunction(
+    (i) => {
+      const w = (window as any).__game.world();
+      const s = w.spots.find((x: any) => x.id === i);
+      return !!s && Math.hypot(s.bed.x - w.beaver.x, s.bed.z - w.beaver.z) < 15;
+    },
+    id,
+    { polling: 200, timeout: 60_000 },
+  );
+  await page.waitForTimeout(1000);
+  return nearestSpot(page);
+}
+
 /** The dam spot nearest the beaver, with its distance `d`. */
 export async function nearestSpot(page: Page): Promise<any> {
   const w = await world(page);
@@ -378,7 +399,21 @@ export async function nearestSpot(page: Page): Promise<any> {
  * Pick up a load of mud or a rock near a dam spot, away from trees (a tree within reach would be gnawed instead). It tries a ring
  * of places round the spot, each facing the spot where the stream is. Returns the kind in the mouth, or null.
  */
-export async function scoopLoad(page: Page, spot: { bed: Point }): Promise<'mud' | 'rock' | null> {
+export async function scoopLoad(page: Page, spot: { bed: Point }, opts: { rock?: boolean } = {}): Promise<'mud' | 'rock' | null> {
+  if (opts.rock) {
+    // A rock lies where the hash puts it, so it is walked to: the nearest ones round the spot, within the reach of the Take button.
+    const rocks: { id: string; x: number; z: number }[] = await page.evaluate(([x, z]) => {
+      const g = (window as any).__game;
+      return g.rocksNear(60).map((r: any) => ({ ...r, d: Math.hypot(r.x - x!, r.z - z!) })).sort((p: any, q: any) => p.d - q.d).slice(0, 4).map(({ id, x, z }: any) => ({ id, x, z }));
+    }, [spot.bed.x, spot.bed.z]);
+    for (const rock of rocks) {
+      await walkToPoint(page, rock, 1, 20_000);
+      await tap(page, 'KeyG');
+      await page.waitForTimeout(300);
+      const haul = (await world(page)).haul;
+      if (haul) return haul.kind;
+    }
+  }
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
     for (const r of [3.5, 6]) {
@@ -448,6 +483,7 @@ export async function buildDamByHand(page: Page, spot: { id: string; bed: Point 
   const max = opts.maxTrips ?? 40;
   for (let trip = 1; trip <= max; trip++) {
     let n = await left();
+    if (process.env.PLAYTEST_DEBUG) console.log('dam trip', trip, JSON.stringify(n));
     if (n.wood + n.mud + n.rock === 0) return trip - 1;
     const d = await dam();
     if (!d || n.wood > 0) {
@@ -461,7 +497,7 @@ export async function buildDamByHand(page: Page, spot: { id: string; bed: Point 
       continue;
     }
     n = await left();
-    const kind = await scoopLoad(page, spot);
+    const kind = await scoopLoad(page, spot, { rock: n.mud === 0 && n.rock > 0 });
     expect(kind, 'mud or a rock in the mouth').not.toBeNull();
     await walkToPoint(page, spot.bed, 3, 30_000);
     await tap(page, 'KeyE');
@@ -470,5 +506,5 @@ export async function buildDamByHand(page: Page, spot: { id: string; bed: Point 
       await tap(page, 'KeyG');
     });
   }
-  throw new Error(`the dam at ${spot.id} was not whole after ${max} trips`);
+  throw new Error(`the dam at ${spot.id} was not whole after ${max} trips, still needs ${JSON.stringify(await left())} of ${JSON.stringify(await dam())}`);
 }

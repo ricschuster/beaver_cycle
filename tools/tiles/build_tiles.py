@@ -755,6 +755,9 @@ def build(out=OUT, fine=None, backdrop=True, snap=True):
             fetch_fine(rg)
             fine_set.update(build_fine(out, rg, fine, rtiles, lakes, lake_levels))
 
+    if snap:  # whole lines, before they are cut into tiles, so the pieces meet at a tile edge without a kink
+        streams = snap_streams.smooth_streams(streams)
+
     modes = {step: block_mode(code, step) for step in sorted({*STEPS, FAR_STEP})}
     tiles = []
     for tz in range(g.tz0, g.tz0 + g.ntz):

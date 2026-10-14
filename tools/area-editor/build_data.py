@@ -164,7 +164,7 @@ LANDCOVER = {  # OSM tag -> game-relevant class
     ("landuse", "meadow"): "meadow",
     ("natural", "scree"): "rock",
     ("natural", "bare_rock"): "rock",
-    ("natural", "shingle"): "rock",
+    ("natural", "shingle"): "gravel",
 }
 
 

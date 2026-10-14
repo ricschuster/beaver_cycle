@@ -61,7 +61,7 @@ walking times in `06_locations.md` hold.
   the core anchor, as in the camera demo. Fixed in the tool and in the doc.
 - Per tile and level: heights as 16 bit integers with an offset and scale, a
   land cover class per cell (0 ground, 1 meadow, 2 forest, 3 scrub, 4 rock,
-  5 wetland, 9 lake, as in the demo), and a water polygon or stream line list.
+  5 wetland, 6 gravel (OSM shingle, added later), 9 lake, as in the demo), and a water polygon or stream line list.
 - A made up lake bed, deeper with distance from the shore, as the demo does,
   because BEV has a flat lake. Heights are the same on both sides of a tile
   edge so tiles join without cracks.

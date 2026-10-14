@@ -5,6 +5,28 @@ import { KIND_BROADLEAF, KIND_CONIFER, placeTrees, TREE_FLOATS, TreeGrid, treeId
 
 const count = (a: Float32Array): number => a.length / TREE_FLOATS;
 
+describe('trees and water', () => {
+  it('keeps trees out of a stream', () => {
+    const tile = makeTile(0, 0, 0, () => 600, 2);
+    const all = placeTrees(tile, 320);
+    // a stream along the line x = 160
+    const stream = (x: number, _z: number, upTo: number): number => Math.min(Math.abs(x - 160), upTo);
+    const dry = placeTrees(tile, 320, undefined, null, stream);
+    expect(dry.length).toBeLessThan(all.length);
+    for (let o = 0; o < dry.length; o += TREE_FLOATS) expect(Math.abs(dry[o]! - 160)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('a grid no longer sees a rotted tree', () => {
+    const grid = new TreeGrid(Float32Array.from([10, 0, 10, 1, KIND_CONIFER]), 0);
+    expect(grid.nearest(10, 10, 3, new Set())).not.toBeNull();
+    grid.setRotted(() => true);
+    expect(grid.nearest(10, 10, 3, new Set())).toBeNull();
+    expect(grid.trunksNear(10, 10, 3, new Set(), [])).toBeUndefined();
+    grid.setRotted(() => false);
+    expect(grid.nearest(10, 10, 3, new Set())).not.toBeNull();
+  });
+});
+
 describe('placeTrees', () => {
   it('places the same trees every time', () => {
     const a = placeTrees(makeTile(3, -2, 0, () => 600, 2), 320);

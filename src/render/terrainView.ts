@@ -473,21 +473,36 @@ function treeYaw(x: number, z: number): number {
   return (h - Math.floor(h)) * Math.PI * 2;
 }
 
-function instanced(geometry: THREE.BufferGeometry, material: THREE.Material, trees: number[], depth?: THREE.Material) {
-  const count = trees.length / TREE_FLOATS;
-  const mesh = new THREE.InstancedMesh(geometry, material, count);
-  mesh.castShadow = true;
-  if (depth) mesh.customDepthMaterial = depth;
+/** Sets the matrix of each tree of a mesh: turned and sized by its place, or hidden where `hidden` says it has rotted away. */
+function setTreeMatrices(mesh: THREE.InstancedMesh, trees: readonly number[], hidden?: (x: number, y: number, z: number) => boolean): void {
   const m = new THREE.Matrix4();
   const scale = new THREE.Matrix4();
-  for (let k = 0; k < count; k++) {
+  for (let k = 0; k < mesh.count; k++) {
     const o = k * TREE_FLOATS;
     const s = trees[o + 3]!;
+    if (hidden?.(trees[o]!, trees[o + 1]!, trees[o + 2]!)) {
+      mesh.setMatrixAt(k, HIDDEN);
+      continue;
+    }
     m.makeRotationY(treeYaw(trees[o]!, trees[o + 2]!)).multiply(scale.makeScale(s, s, s)).setPosition(trees[o]!, trees[o + 1]!, trees[o + 2]!);
     mesh.setMatrixAt(k, m);
   }
+  mesh.instanceMatrix.needsUpdate = true;
+}
+
+function instanced(geometry: THREE.BufferGeometry, material: THREE.Material, trees: number[], depth?: THREE.Material) {
+  const mesh = new THREE.InstancedMesh(geometry, material, trees.length / TREE_FLOATS);
+  mesh.castShadow = true;
+  if (depth) mesh.customDepthMaterial = depth;
+  setTreeMatrices(mesh, trees);
   mesh.computeBoundingSphere();
   return mesh;
+}
+
+/** The trees of one mesh of a tile: x, y, z, scale, kind per tree, in the order of the mesh's instances. */
+interface TreePart {
+  mesh: THREE.InstancedMesh;
+  at: number[];
 }
 
 function buildTrees(
@@ -496,20 +511,21 @@ function buildTrees(
   materials: { conifer: THREE.Material; broadleaf: THREE.Material; broadleafDepth: THREE.Material },
   felled: ReadonlySet<string>,
   lakeLevel: number | null,
-): { meshes: THREE.InstancedMesh[]; grid: TreeGrid } | null {
+  streamDistance?: (x: number, z: number, upTo: number) => number,
+): { meshes: THREE.InstancedMesh[]; parts: TreePart[]; grid: TreeGrid } | null {
   const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
   const conifers = CONIFER_GEOMETRY[shown];
-  const trees = conifers ? placeTrees(tile, size, felled, lakeLevel) : new Float32Array(0);
+  const trees = conifers ? placeTrees(tile, size, felled, lakeLevel, streamDistance) : new Float32Array(0);
   if (!conifers || trees.length === 0) return null;
   const conifer: number[] = [];
   const broadleaf: number[] = [];
   for (let o = 0; o < trees.length; o += TREE_FLOATS) {
     (trees[o + 4] === KIND_BROADLEAF ? broadleaf : conifer).push(...trees.subarray(o, o + TREE_FLOATS));
   }
-  const meshes: THREE.InstancedMesh[] = [];
-  if (conifer.length > 0) meshes.push(instanced(conifers, materials.conifer, conifer));
-  if (broadleaf.length > 0) meshes.push(instanced(BROADLEAF_GEOMETRY[shown]!, materials.broadleaf, broadleaf, materials.broadleafDepth));
-  return { meshes, grid: new TreeGrid(trees, shown) };
+  const parts: TreePart[] = [];
+  if (conifer.length > 0) parts.push({ mesh: instanced(conifers, materials.conifer, conifer), at: conifer });
+  if (broadleaf.length > 0) parts.push({ mesh: instanced(BROADLEAF_GEOMETRY[shown]!, materials.broadleaf, broadleaf, materials.broadleafDepth), at: broadleaf });
+  return { meshes: parts.map((p) => p.mesh), parts, grid: new TreeGrid(trees, shown) };
 }
 
 // One shrub model for the near levels (treeModels.ts), shared and never disposed. Coarser levels have no shrubs.
@@ -801,6 +817,7 @@ export function createTerrainView(
     level: number;
     streams: boolean;
     grid: TreeGrid | null;
+    treeParts: TreePart[];
     shrubs: { mesh: THREE.InstancedMesh; at: Float32Array } | null;
   }
   const meshes = new Map<string, Shown>();
@@ -810,6 +827,12 @@ export function createTerrainView(
   // Counts the changes, so a tile whose shrubs were placed before the last one sets them again when it is shown.
   let clearingVersion = 0;
   const hidden = (x: number, y: number, z: number): boolean => shrubHidden(ponds, clearings, x, y, z);
+  // A tree that stands in a pond's water rots away: it is not drawn, and the beaver, the camera, and the axe pass it by.
+  const rotted = (x: number, y: number, z: number): boolean => ponds.length > 0 && pondDepthAt(ponds, () => y, x, z) > 0;
+  const rotTrees = (grid: TreeGrid | null, parts: readonly TreePart[]): void => {
+    grid?.setRotted(rotted);
+    for (const part of parts) setTreeMatrices(part.mesh, part.at, rotted);
+  };
   const size = store.size;
   // Felled trees are left out when a tile's trees are placed; a tile that lost one is rebuilt.
   const felledIds = new Set<string>();
@@ -927,8 +950,11 @@ export function createTerrainView(
             break;
           }
           default: {
-            const trees = timed('trees', job.level, () => buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds, store.tileInfo(job.tx, job.tz)?.lakeLevel_m ?? null));
-            if (trees) group.add(...trees.meshes);
+            const trees = timed('trees', job.level, () => buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds, store.tileInfo(job.tx, job.tz)?.lakeLevel_m ?? null, (x, z, upTo) => store.streamDistance(x, z, upTo)));
+            if (trees) {
+              group.add(...trees.meshes);
+              if (ponds.length > 0) rotTrees(trees.grid, trees.parts);
+            }
             const old = meshes.get(key);
             if (old) disposeGroup(scene, old.group);
             scene.add(group);
@@ -940,6 +966,7 @@ export function createTerrainView(
               level: job.level,
               streams: job.level !== 2 && water !== undefined,
               grid: trees?.grid ?? null,
+              treeParts: trees?.parts ?? [],
               shrubs: shrubMesh ? { mesh: shrubMesh, at: shrubMesh.userData.shrubs as Float32Array } : null,
             });
             building.delete(key);
@@ -1007,10 +1034,12 @@ export function createTerrainView(
       clearings = nextClearings;
       clearingVersion++;
       for (const [k, shown] of meshes) {
-        if (!shown.shrubs) continue;
+        if (!shown.shrubs && shown.treeParts.length === 0) continue;
         const [tx, tz] = k.split('_').map(Number) as [number, number];
         const hit = boxes.some(([x0, z0, x1, z1]) => x1 >= tx * size && x0 <= (tx + 1) * size && z1 >= tz * size && z0 <= (tz + 1) * size);
-        if (hit) setShrubMatrices(shown.shrubs.mesh, shown.shrubs.at, hidden);
+        if (!hit) continue;
+        if (shown.shrubs) setShrubMatrices(shown.shrubs.mesh, shown.shrubs.at, hidden);
+        rotTrees(shown.grid, shown.treeParts);
       }
     },
     setFelled(ids) {

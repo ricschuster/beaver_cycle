@@ -751,6 +751,8 @@ def build(out=OUT, fine=None, backdrop=True, snap=True):
         print(f"{len(fine_list)} fine tiles at {fine} m in {len(regions)} regions")
         if snap and regions:
             streams = snap_fine_lines(streams, regions, fine, lake_vert, g)
+    if snap:  # whole lines, before they are cut into tiles, so the pieces meet at a tile edge without a kink
+        streams = snap_streams.smooth_streams(streams)
         for rg, rtiles in regions:
             fetch_fine(rg)
             fine_set.update(build_fine(out, rg, fine, rtiles, lakes, lake_levels))

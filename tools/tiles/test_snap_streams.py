@@ -114,3 +114,24 @@ def test_snap_streams_leaves_a_line_off_the_ground_as_it_was():
     line = line_at(8.0, 350.0, 550.0)  # the lattice ends at z = 300
     out, report = ss.snap_streams([(line, "Bach")], valley(0.0))
     assert out[0][0] == line and report["points"] == 0
+
+
+def test_smoothing_keeps_the_ends_and_flattens_a_zigzag():
+    zig = [(2.0 * k, 1.5 * (k % 2)) for k in range(21)]
+    out = ss.smooth_line(zig)
+    assert out[0] == zig[0] and out[-1] == zig[-1]
+    ys = [y for _, y in out[5:16]]
+    assert max(ys) - min(ys) < 1.5 / 4
+    assert ss.smooth_line([(0.0, 0.0), (9.0, 1.0)]) == [(0.0, 0.0), (9.0, 1.0)]
+
+
+def test_a_smoothed_line_cut_in_two_leaves_the_cut_on_one_curve():
+    zig = [(5.0 * k, 3.0 * (k % 3 == 0)) for k in range(41)]
+    whole = ss.smooth_line(zig)
+    k = 20
+    left, right = whole[:k + 1], whole[k:]
+    again_l, again_r = ss.smooth_line(left, 1), ss.smooth_line(right, 1)
+    a = np.subtract(again_l[-1], again_l[-2])
+    b = np.subtract(again_r[1], again_r[0])
+    turn = abs(np.degrees(np.arctan2(a[0] * b[1] - a[1] * b[0], a @ b)))
+    assert turn < 5.0

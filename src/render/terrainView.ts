@@ -306,6 +306,8 @@ const MOUTH_REACH_M = 1.5;
 
 /**
  * A stream line with its snapping jitter averaged out: the lines are snapped to the lowest cell, so they zigzag by a cell or two.
+ * The tile build smooths the whole line before it cuts it into tiles, so the two pieces at a tile edge leave on the same curve;
+ * this only evens out what despiking leaves, and few passes keep the seam kink small (each piece has its ends fixed).
  * Each pass moves every inner point to the weighted mean of itself and its neighbours; the two ends stay where they are, so a
  * line still meets its tile edge and the lake.
  */
@@ -320,7 +322,7 @@ export function smoothLine(pts: readonly [number, number][], passes = STREAM_SMO
   }
   return line;
 }
-const STREAM_SMOOTH_PASSES = 4;
+const STREAM_SMOOTH_PASSES = 1;
 
 /** A line that goes out and comes back to where it started within a few metres: a leftover of the snap, never a stream. */
 export function isStub(pts: readonly [number, number][]): boolean {

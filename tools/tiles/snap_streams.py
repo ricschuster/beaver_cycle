@@ -113,6 +113,28 @@ def snap_line(pts, ground, blocked=None, corridor=CORRIDOR, step=STEP, offset_st
     return [(float(x), float(z)) for x, z in out], o
 
 
+SMOOTH_PASSES = 4
+
+
+def smooth_line(pts, passes=SMOOTH_PASSES):
+    """The line with its snap jitter averaged out: each pass moves every inner point to the 1-2-1 weighted mean of itself and
+    its neighbours, the two ends stay. Done on the whole line before it is cut into tiles, so the two halves at a tile edge
+    leave on the same curve (the game smooths each tile's piece again, lightly)."""
+    p = np.array(pts, dtype=float)
+    for _ in range(passes):
+        if len(p) < 3:
+            break
+        q = p.copy()
+        q[1:-1] = (p[:-2] + 2 * p[1:-1] + p[2:]) / 4
+        p = q
+    return [(float(x), float(z)) for x, z in p]
+
+
+def smooth_streams(streams, **settings):
+    """Smooth every (points, name, ...) stream with `smooth_line`; what follows the name is passed through."""
+    return [(smooth_line(pts, **settings), name, *rest) for pts, name, *rest in streams]
+
+
 def snap_streams(streams, ground, lake_mask=None, blocked=None, **settings):
     """Snap every (points, name, ...) stream; what follows the name is passed through. Returns (streams, report) with the report a dict of numbers.
 

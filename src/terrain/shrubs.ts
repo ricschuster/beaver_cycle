@@ -26,6 +26,8 @@ const LAKE_CLEARANCE = 0.4;
 export interface ShrubWater {
   /** The tile's lake level, metres, or null when it has no lake. */
   lakeLevel: number | null;
+  /** The water level at a point, where it differs over the tile (a sloping delta); defaults to `lakeLevel` all over. */
+  levelAt?: (x: number, z: number) => number;
   /** Metres to the nearest stream, exact up to `upTo`. */
   streamDistance?: (x: number, z: number, upTo: number) => number;
 }
@@ -110,7 +112,7 @@ export function placeShrubs(tile: DecodedTile, size: number, water: ShrubWater):
         const x = tile.tx * size + u * cell;
         const z = tile.tz * size + v * cell;
         const y = sampleHeight(tile, u, v);
-        if (nearLake && y < water.lakeLevel! + LAKE_CLEARANCE) continue;
+        if (nearLake && y < (water.levelAt ? water.levelAt(x, z) : water.lakeLevel!) + LAKE_CLEARANCE) continue;
         if (water.streamDistance && water.streamDistance(x, z, STREAM_CLEARANCE) < STREAM_CLEARANCE) continue;
         const scale = 0.8 + 0.8 * hash01(wi, wj, 22 + k * 4);
         const tall = 0.8 + 0.45 * hash01(wi, wj, 23 + k * 4);

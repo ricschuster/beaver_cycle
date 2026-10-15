@@ -8,7 +8,8 @@ data/raw/ (run tools/area-editor/build_data.py first). Writes public/tiles/
 
   index.json            origin, tile grid, class codes, lakes, anchors, tile list
   L0/<tx>_<tz>.bin      5 m tiles, L1 at 10 m, L2 at 20 m (far tiles: L2 only, 40 m, "far": true)
-  water/<tx>_<tz>.json  lake level and stream lines for tiles that have water
+  water/<tx>_<tz>.json  lake level and stream lines for tiles that have water; a tile whose water differs in
+                        level (a sloping river) also has a `levels` grid, see ADR 0011
   L3/<tx>_<tz>.bin      optional fine tiles (--fine CELL), see "Fine tiles" below
 
 Local coordinates: metres, x east, z south, origin at the core anchor from
@@ -424,6 +425,88 @@ def spread_level(level, steps):
     return lv
 
 
+# The water level over a tile, for tiles whose water bodies differ in level (a river delta slopes). It is sampled every
+# LEVEL_GRID_STEP vertices (20 m) and the game interpolates it; ground within LEVEL_GRID_SPREAD vertices of water takes its level.
+LEVEL_GRID_STEP = 4
+LEVEL_GRID_SPREAD = 4
+LEVEL_GRID_MIN_RANGE = 0.05  # metres; a tile whose water lies within this has one level, as before
+
+
+def tile_level_grid(level, vj, vi):
+    """The water level grid of the tile whose north west vertex is (vj, vi) in the global `level` array, or None.
+
+    Returns {"step": metres between samples, "n": samples per side, "v": row major levels, null where no water is near}.
+    The samples on a tile edge are the same in both tiles, so the levels meet there.
+    """
+    m = LEVEL_GRID_SPREAD
+    j0, i0 = max(vj - m, 0), max(vi - m, 0)
+    win = level[j0:vj + TILE_CELLS + m + 1, i0:vi + TILE_CELLS + m + 1]
+    if not np.isfinite(win).any():
+        return None
+    win = spread_level(win, m)
+    ns = TILE_CELLS // LEVEL_GRID_STEP + 1
+    grid = win[vj - j0:vj - j0 + TILE_CELLS + 1:LEVEL_GRID_STEP, vi - i0:vi - i0 + TILE_CELLS + 1:LEVEL_GRID_STEP]
+    if grid.shape != (ns, ns):
+        return None
+    own = level[vj:vj + TILE_CELLS + 1, vi:vi + TILE_CELLS + 1]
+    if not np.isfinite(own).any():
+        return None  # water of a neighbour only reaches in, the tile keeps its own level
+    fin = grid[np.isfinite(grid)]
+    if fin.max() - fin.min() < LEVEL_GRID_MIN_RANGE:
+        return None
+    return {"step": LEVEL_GRID_STEP * CELL, "n": ns,
+            "v": [None if not np.isfinite(x) else round(float(x), 2) for x in grid.ravel()]}
+
+
+# A river polygon is not flat: BEV has its water surface, which drops downstream, and one level for the whole polygon would
+# float the water over the floodplain at its low end. Where the heights inside a polygon spread over more than SLOPING_RANGE_M
+# (10th to 90th percentile, so odd shore cells do not count), the level is the local mean of those heights over
+# SLOPING_SMOOTH_M instead of one number.
+SLOPING_RANGE_M = 1.0
+SLOPING_SMOOTH_M = 40.0
+
+
+class Surface:
+    """The water surface of a sloping polygon on the 5 m lattice `g`, for a finer window to sample, so every fine tile agrees.
+
+    Only the part of `values` around the mask `m` is kept (the surface is defined a little beyond the polygon).
+    """
+
+    def __init__(self, g, values, m):
+        js, is_ = np.nonzero(m)
+        pad = 2 + round(SLOPING_SMOOTH_M / g.cell)
+        self.j0, self.i0 = max(js.min() - pad, 0), max(is_.min() - pad, 0)
+        self.values = values[self.j0:js.max() + pad + 1, self.i0:is_.max() + pad + 1].astype(np.float32)
+        self.x0, self.z0, self.cell = g.x0, g.z0, g.cell
+
+    def sample(self, fg):
+        """Bilinear levels at the vertices of window `fg`; NaN where the surface is not defined."""
+        a = self.values
+        x = (fg.x0 + np.arange(fg.ncx + 1) * fg.cell - self.x0) / self.cell - self.i0
+        z = (fg.z0 + np.arange(fg.ncz + 1) * fg.cell - self.z0) / self.cell - self.j0
+        inside = (z >= 0)[:, None] & (z <= a.shape[0] - 1)[:, None] & (x >= 0)[None, :] & (x <= a.shape[1] - 1)[None, :]
+        i0 = np.clip(np.floor(x).astype(int), 0, a.shape[1] - 2)
+        j0 = np.clip(np.floor(z).astype(int), 0, a.shape[0] - 2)
+        fx = np.clip(x - i0, 0, 1)[None, :]
+        fz = np.clip(z - j0, 0, 1)[:, None]
+        out = np.zeros((len(z), len(x)))
+        wsum = np.zeros_like(out)
+        for dj, di in ((0, 0), (0, 1), (1, 0), (1, 1)):
+            v = a[(j0 + dj)[:, None], (i0 + di)[None, :]]
+            w = (fx if di else 1 - fx) * (fz if dj else 1 - fz) * np.isfinite(v)
+            out += np.where(np.isfinite(v), v, 0.0) * w
+            wsum += w
+        return np.where(inside & (wsum > 1e-6), out / np.maximum(wsum, 1e-6), np.nan)
+
+
+def local_surface(h, m, cell):
+    """The water surface inside the vertex mask `m`: the mean of the heights of `m` within SLOPING_SMOOTH_M, everywhere."""
+    r = max(1, round(SLOPING_SMOOTH_M / cell / 2))
+    num = box_blur(np.where(m, h, 0.0), r)
+    den = box_blur(m.astype(np.float64), r)
+    return np.where(den > 1e-6, num / np.maximum(den, 1e-6), np.nan)
+
+
 def make_lake_bed(g, h, lakes, wetland, levels=None):
     """Lower the lake floor below a flat level. BEV has a flat lake, the game's is deeper.
 
@@ -443,9 +526,19 @@ def make_lake_bed(g, h, lakes, wetland, levels=None):
         if not m.any():
             used.append(None)
             continue
-        lv = levels[k] if levels and levels[k] is not None else float(np.median(h[m]))
-        used.append(lv)
-        level[m] = lv
+        known = levels[k] if levels else None
+        if known is None and np.ptp(np.percentile(h[m], (10, 90))) > SLOPING_RANGE_M:
+            # a sloping river: the level follows its surface, which a finer window samples from the 5 m one
+            known = Surface(g, local_surface(h, m, g.cell), m)
+        if isinstance(known, Surface):
+            sampled = known.sample(g)
+            lv = float(np.median(h[m]))
+            level[m] = np.where(np.isfinite(sampled[m]), sampled[m], lv)
+            used.append(known)
+        else:
+            lv = known if known is not None else float(np.median(h[m]))
+            used.append(lv)
+            level[m] = lv
         vert |= m
         if name in BOG_RAMP_LAKES:
             ramp_vert |= m
@@ -786,6 +879,9 @@ def build(out=OUT, fine=None, backdrop=True, snap=True):
             if has_lake or lines:
                 doc = {"lakeLevel_m": round(float(np.nanmedian(tile_lake)), 2) if has_lake else None,
                        "streams": lines}
+                grid = tile_level_grid(lake_level, vj, vi) if has_lake else None
+                if grid:
+                    doc["levels"] = grid
                 (out / "water").mkdir(parents=True, exist_ok=True)
                 (out / "water" / f"{tx}_{tz}.json").write_text(json.dumps(doc, separators=(",", ":")))
             tiles.append({"tx": tx, "tz": tz, "water": bool(has_lake or lines),

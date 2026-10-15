@@ -14,6 +14,18 @@ describe('water geometry', () => {
     expect(geo.getAttribute('position').getY(5)).toBe(580);
   });
 
+  it('follows a water level that changes over the tile, and cuts the ground against it', () => {
+    // the level falls from 590 at x = 0 to 580 at x = 320; the ground is flat at 585, so the water covers it west of x = 160
+    const tile = makeTile(0, 0, 2, () => 585, CLASS_LAKE);
+    const p = buildLakeGeometry(tile, 320, 585, (x) => 590 - x / 32)!.getAttribute('position');
+    let maxX = -Infinity;
+    for (let k = 0; k < p.count; k++) {
+      maxX = Math.max(maxX, p.getX(k));
+      expect(p.getY(k)).toBeCloseTo(590 - p.getX(k) / 32, 1);
+    }
+    expect(maxX).toBeCloseTo(160, 0);
+  });
+
   it('cuts the water where the ground rises through the lake level', () => {
     // ground rises 1 m per metre along x, crossing the level 580 at x = 160
     const tile = makeTile(0, 0, 2, (x) => 580 + (x - 160), CLASS_LAKE);

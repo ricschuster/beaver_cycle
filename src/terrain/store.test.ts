@@ -58,6 +58,19 @@ describe('TileStore', () => {
     expect(dry.waterDepth(10, 10)).toBe(0);
   });
 
+  it('takes the water level from the grid of a tile whose water bodies differ in level', () => {
+    const s = new TileStore(makeIndex([0, 0], [0, 0], 586));
+    s.put(makeTile(0, 0, 0, () => 580, CLASS_LAKE));
+    expect(s.waterLevel(0, 0, 100, 100)).toBe(586);
+    // a 2 by 2 grid 320 m apart: 590 on the west side, 580 on the east, and no sample in the south east corner
+    s.putWater(0, 0, { lakeLevel_m: 586, streams: [], levels: { step: 320, n: 2, v: [590, 580, 590, null] } });
+    expect(s.waterLevel(0, 0, 0, 0)).toBeCloseTo(590);
+    expect(s.waterLevel(0, 0, 160, 0)).toBeCloseTo(585);
+    expect(s.waterLevel(0, 0, 320, 320)).toBeCloseTo(586); // on the corner with no sample the tile level stands
+    expect(s.waterLevel(0, 0, 320, 160)).toBeCloseTo(580); // halfway up the east side only the sample that has a level counts
+    expect(s.waterDepth(160, 10)).toBeCloseTo(585 - 580, 0);
+  });
+
   it('puts the water edge where the ground crosses the lake level', () => {
     const s = new TileStore(makeIndex([0, 0], [0, 0], 586));
     // the ground rises 1 m per 10 m from x = 100, so it meets the level 586 at x = 160

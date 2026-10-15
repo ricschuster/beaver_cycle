@@ -74,9 +74,45 @@ export function decodeTile(tx: number, tz: number, buf: ArrayBuffer): DecodedTil
   return { tx, tz, level, n, heights, classes };
 }
 
+/** Water levels sampled on a square grid over a tile, `step` metres apart from its north west corner, null where no water is near. */
+export interface WaterLevels {
+  step: number;
+  n: number;
+  v: (number | null)[];
+}
+
+/**
+ * The water level at a point of a tile, from the grid `levels` (its north west corner at `x0`, `z0`), or `fallback` where the
+ * tile has no grid or no sample near the point. It blends the samples round the point that have a level.
+ */
+export function waterLevelAt(levels: WaterLevels | undefined, fallback: number, x0: number, z0: number, x: number, z: number): number {
+  if (!levels) return fallback;
+  const { step, n, v } = levels;
+  const gx = Math.min(Math.max((x - x0) / step, 0), n - 1);
+  const gz = Math.min(Math.max((z - z0) / step, 0), n - 1);
+  const i = Math.min(Math.floor(gx), n - 2);
+  const j = Math.min(Math.floor(gz), n - 2);
+  const fx = gx - i;
+  const fz = gz - j;
+  let sum = 0;
+  let weight = 0;
+  for (let dj = 0; dj < 2; dj++) {
+    for (let di = 0; di < 2; di++) {
+      const sample = v[(j + dj) * n + i + di];
+      if (sample == null) continue;
+      const wgt = (di ? fx : 1 - fx) * (dj ? fz : 1 - fz);
+      sum += sample * wgt;
+      weight += wgt;
+    }
+  }
+  return weight > 1e-6 ? sum / weight : fallback;
+}
+
 /** Streams of a tile, as cut by the tile tool: polylines in world metres. */
 export interface TileWater {
   lakeLevel_m: number | null;
+  /** The water level over the tile, where its water bodies differ in level (a sloping river delta). Absent: one level. */
+  levels?: WaterLevels;
   /** `w` is the drawn width in metres, absent in older tiles. */
   streams: { name: string; w?: number; pts: [number, number][] }[];
 }

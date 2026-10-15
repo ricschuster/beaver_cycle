@@ -166,9 +166,10 @@ const LAKE_REACH_M = 8;
  * the lake cells and their neighbours, and each ground triangle is clipped to the
  * part below the level, so the shoreline follows the terrain rather than whole
  * cells. Each vertex keeps the depth of the water over the ground in a `waterDepth` attribute (0 on the shoreline), so
- * the shader can freeze the shallows in winter. Null when the tile has no lake cells.
+ * the shader can freeze the shallows in winter. Null when the tile has no lake cells. Where the water bodies of the tile differ
+ * in level (a sloping delta), `levelAt` gives the level at a point and the water follows it, so it is not flat.
  */
-export function buildLakeGeometry(tile: DecodedTile, size: number, level: number): THREE.BufferGeometry | null {
+export function buildLakeGeometry(tile: DecodedTile, size: number, level: number, levelAt?: (x: number, z: number) => number): THREE.BufferGeometry | null {
   const { n, classes, heights: h } = tile;
   const w = n + 1;
   const cell = size / n;
@@ -176,8 +177,11 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
   // reaches LAKE_REACH_M over such ground (every cell within one cell of the lake is kept, as before), and the clip
   // below cuts it at the true shoreline, instead of at the edge of the reach, which showed as steps.
   const reach = Math.max(1, Math.round(LAKE_REACH_M / cell));
+  // the water level at each vertex
+  const lv = new Float32Array(w * w).fill(level);
+  if (levelAt) for (let j = 0; j < w; j++) for (let i = 0; i < w; i++) lv[j * w + i] = levelAt(tile.tx * size + i * cell, tile.tz * size + j * cell);
   const lowCell = (i: number, j: number): boolean =>
-    h[j * w + i]! < level || h[j * w + i + 1]! < level || h[(j + 1) * w + i]! < level || h[(j + 1) * w + i + 1]! < level;
+    h[j * w + i]! < lv[j * w + i]! || h[j * w + i + 1]! < lv[j * w + i + 1]! || h[(j + 1) * w + i]! < lv[(j + 1) * w + i]! || h[(j + 1) * w + i + 1]! < lv[(j + 1) * w + i + 1]!;
   const wet = new Uint8Array(n * n);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (classes[j * n + i] === CLASS_LAKE) wet[j * n + i] = 1;
   // spread the wet cells outward one cell at a time, onto the cells below the level
@@ -204,7 +208,7 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
   let pos = new Float32Array(3 * 3 * 1024);
   let depth = new Float32Array(3 * 1024);
   let used = 0;
-  const emit = (x: number, z: number, d: number): void => {
+  const emit = (x: number, z: number, d: number, y: number): void => {
     if (used + 3 > pos.length) {
       const bigger = new Float32Array(pos.length * 2);
       bigger.set(pos);
@@ -215,38 +219,47 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
     }
     depth[used / 3] = d;
     pos[used++] = x;
-    pos[used++] = level;
+    pos[used++] = y;
     pos[used++] = z;
   };
   // the clipped polygon of one triangle: at most 4 points, x, z, and depth each
   const cx = [0, 0, 0, 0, 0];
   const cz = [0, 0, 0, 0, 0];
   const cd = [0, 0, 0, 0, 0];
+  const cy = [0, 0, 0, 0, 0];
   /** Emits the part of a ground triangle that lies below the level, as a fan. */
-  const clip = (x0: number, z0: number, h0: number, x1: number, z1: number, h1: number, x2: number, z2: number, h2: number): void => {
-    if (h0 > level && h1 > level && h2 > level) return;
+  const clip = (
+    x0: number, z0: number, h0: number, l0: number,
+    x1: number, z1: number, h1: number, l1: number,
+    x2: number, z2: number, h2: number, l2: number,
+  ): void => {
+    if (h0 > l0 && h1 > l1 && h2 > l2) return;
     let m = 0;
-    const edgeTo = (ax: number, az: number, ah: number, bx: number, bz: number, bh: number): void => {
-      const aIn = ah <= level;
+    const edgeTo = (ax: number, az: number, ah: number, al: number, bx: number, bz: number, bh: number, bl: number): void => {
+      const aIn = ah <= al;
       if (aIn) {
         cx[m] = ax;
         cz[m] = az;
-        cd[m++] = level - ah;
+        cy[m] = al;
+        cd[m++] = al - ah;
       }
-      if (aIn !== bh <= level) {
-        const t = (level - ah) / (bh - ah);
+      if (aIn !== bh <= bl) {
+        // the ground meets the water where the depth (level minus ground) is 0
+        const da = al - ah;
+        const t = da / (da - (bl - bh));
         cx[m] = ax + (bx - ax) * t;
         cz[m] = az + (bz - az) * t;
+        cy[m] = al + (bl - al) * t;
         cd[m++] = 0;
       }
     };
-    edgeTo(x0, z0, h0, x1, z1, h1);
-    edgeTo(x1, z1, h1, x2, z2, h2);
-    edgeTo(x2, z2, h2, x0, z0, h0);
+    edgeTo(x0, z0, h0, l0, x1, z1, h1, l1);
+    edgeTo(x1, z1, h1, l1, x2, z2, h2, l2);
+    edgeTo(x2, z2, h2, l2, x0, z0, h0, l0);
     for (let k = 1; k + 1 < m; k++) {
-      emit(cx[0]!, cz[0]!, cd[0]!);
-      emit(cx[k]!, cz[k]!, cd[k]!);
-      emit(cx[k + 1]!, cz[k + 1]!, cd[k + 1]!);
+      emit(cx[0]!, cz[0]!, cd[0]!, cy[0]!);
+      emit(cx[k]!, cz[k]!, cd[k]!, cy[k]!);
+      emit(cx[k + 1]!, cz[k + 1]!, cd[k + 1]!, cy[k + 1]!);
     }
   };
   let any = false;
@@ -260,8 +273,12 @@ export function buildLakeGeometry(tile: DecodedTile, size: number, level: number
       const hb = h[j * w + i + 1]!;
       const hc = h[(j + 1) * w + i]!;
       const hd = h[(j + 1) * w + i + 1]!;
-      clip(x, z, ha, x, z + cell, hc, x + cell, z, hb); // the same split as the ground mesh
-      clip(x + cell, z, hb, x, z + cell, hc, x + cell, z + cell, hd);
+      const la = lv[j * w + i]!;
+      const lb = lv[j * w + i + 1]!;
+      const lc = lv[(j + 1) * w + i]!;
+      const ld = lv[(j + 1) * w + i + 1]!;
+      clip(x, z, ha, la, x, z + cell, hc, lc, x + cell, z, hb, lb); // the same split as the ground mesh
+      clip(x + cell, z, hb, lb, x, z + cell, hc, lc, x + cell, z + cell, hd, ld);
     }
   }
   if (!any || used === 0) return null;
@@ -350,7 +367,9 @@ export function buildStreamGeometry(
   water: TileWater,
   heightAt: (x: number, z: number) => number,
   /** Whether the land cover at a point is lake, to find the water the delta arms run to. Defaults to ground at or under the lake level. */
-  isLake: (x: number, z: number) => boolean = (x, z) => water.lakeLevel_m != null && heightAt(x, z) <= water.lakeLevel_m,
+  isLake: (x: number, z: number) => boolean = (x, z) => water.lakeLevel_m != null && heightAt(x, z) <= (levelAt ? levelAt(x, z) : water.lakeLevel_m),
+  /** The water level at a point, where it differs over the tile (a sloping delta); defaults to the tile's one level. */
+  levelAt?: (x: number, z: number) => number,
 ): THREE.BufferGeometry | null {
   const pos: number[] = [];
   const color: number[] = [];
@@ -403,7 +422,7 @@ export function buildStreamGeometry(
     if (s.pts.length < 2) continue;
     pts.push(line[line.length - 1]!);
     const [endX, endZ] = pts[pts.length - 1]!;
-    const inLake = water.lakeLevel_m != null && Math.abs(heightAt(endX, endZ) - water.lakeLevel_m) < MOUTH_REACH_M;
+    const inLake = water.lakeLevel_m != null && Math.abs(heightAt(endX, endZ) - (levelAt ? levelAt(endX, endZ) : water.lakeLevel_m)) < MOUTH_REACH_M;
     addRibbon(pts, half, inLake ? MOUTH_BLEND_M : 0);
     if (!inLake) continue;
     // the delta: arms leave the main channel where it is MOUTH_ARMS_LENGTH_M from the lake and fan out into it
@@ -512,10 +531,11 @@ function buildTrees(
   felled: ReadonlySet<string>,
   lakeLevel: number | null,
   streamDistance?: (x: number, z: number, upTo: number) => number,
+  levelAt?: (x: number, z: number) => number,
 ): { meshes: THREE.InstancedMesh[]; parts: TreePart[]; grid: TreeGrid } | null {
   const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
   const conifers = CONIFER_GEOMETRY[shown];
-  const trees = conifers ? placeTrees(tile, size, felled, lakeLevel, streamDistance) : new Float32Array(0);
+  const trees = conifers ? placeTrees(tile, size, felled, lakeLevel, streamDistance, levelAt) : new Float32Array(0);
   if (!conifers || trees.length === 0) return null;
   const conifer: number[] = [];
   const broadleaf: number[] = [];
@@ -909,6 +929,8 @@ export function createTerrainView(
         }
         const { tile, group } = p;
         const water = store.waterOf(job.tx, job.tz);
+        // where the tile's water bodies differ in level (a sloping delta) the level is asked per point, else it is one number
+        const levelAt = water?.levels ? (x: number, z: number): number => store.waterLevel(job.tx, job.tz, x, z) ?? water.lakeLevel_m ?? 0 : undefined;
         switch (p.stage++) {
           case 0: {
             const ground = own(new THREE.Mesh(timed('ground', job.level, () => buildTileGeometry(tile, size)), material));
@@ -919,12 +941,12 @@ export function createTerrainView(
           }
           case 1: {
             const lakeLevel = store.tileInfo(job.tx, job.tz)?.lakeLevel_m;
-            const lake = lakeLevel == null || job.level === 2 ? null : timed('lake', job.level, () => buildLakeGeometry(tile, size, lakeLevel));
+            const lake = lakeLevel == null || job.level === 2 ? null : timed('lake', job.level, () => buildLakeGeometry(tile, size, lakeLevel, levelAt));
             if (lake) group.add(own(new THREE.Mesh(lake, lakeMaterial)));
             break;
           }
           case 2: {
-            const streams = job.level !== 2 && water ? timed('streams', job.level, () => buildStreamGeometry(water, (x, z) => store.heightAt(x, z), (x, z) => store.coverAt(x, z) === CLASS_LAKE)) : null;
+            const streams = job.level !== 2 && water ? timed('streams', job.level, () => buildStreamGeometry(water, (x, z) => store.heightAt(x, z), (x, z) => store.coverAt(x, z) === CLASS_LAKE, levelAt)) : null;
             if (streams) {
               const ribbons = new THREE.Mesh(streams, streamMaterial);
               // Drawn after the lake and the ponds (renderOrder 0), so the part of a ribbon under their water fails the depth test and
@@ -936,7 +958,7 @@ export function createTerrainView(
           }
           case 3: {
             const lakeLevel = store.tileInfo(job.tx, job.tz)?.lakeLevel_m ?? null;
-            const at = timed('shrubs', job.level, () => placeShrubs(tile, size, { lakeLevel, streamDistance: (x, z, upTo) => store.streamDistance(x, z, upTo) }));
+            const at = timed('shrubs', job.level, () => placeShrubs(tile, size, { lakeLevel, levelAt, streamDistance: (x, z, upTo) => store.streamDistance(x, z, upTo) }));
             if (at.length > 0) {
               const mesh = new THREE.InstancedMesh(SHRUB_GEOMETRY, shrubMaterial, at.length / SHRUB_FLOATS);
               mesh.receiveShadow = true; // they take shadows but cast none: too small and low to be worth it
@@ -950,7 +972,7 @@ export function createTerrainView(
             break;
           }
           default: {
-            const trees = timed('trees', job.level, () => buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds, store.tileInfo(job.tx, job.tz)?.lakeLevel_m ?? null, (x, z, upTo) => store.streamDistance(x, z, upTo)));
+            const trees = timed('trees', job.level, () => buildTrees(tile, size, { conifer: treeMaterial, broadleaf: leafMaterial, broadleafDepth: leafDepthMaterial }, felledIds, store.tileInfo(job.tx, job.tz)?.lakeLevel_m ?? null, (x, z, upTo) => store.streamDistance(x, z, upTo), levelAt));
             if (trees) {
               group.add(...trees.meshes);
               if (ponds.length > 0) rotTrees(trees.grid, trees.parts);

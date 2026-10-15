@@ -1,5 +1,5 @@
 import type { StreamPoint, Terrain } from '../sim/terrain';
-import { CLASS_LAKE, LEVEL_FINE, sampleHeight, type DecodedTile, type IndexTile, type TileIndex, type TileWater } from './format';
+import { CLASS_LAKE, LEVEL_FINE, sampleHeight, type DecodedTile, type IndexTile, type TileIndex, type TileWater, waterLevelAt } from './format';
 
 export const tileKey = (tx: number, tz: number): string => `${tx}_${tz}`;
 
@@ -33,6 +33,16 @@ export class TileStore implements Terrain {
 
   waterOf(tx: number, tz: number): TileWater | undefined {
     return this.water.get(tileKey(tx, tz));
+  }
+
+  /**
+   * The water level at a point of tile (tx, tz), null when the tile has no lake. A tile whose water bodies differ in level (a
+   * river delta) carries a grid of levels; otherwise the level is the same all over the tile.
+   */
+  waterLevel(tx: number, tz: number, x: number, z: number): number | null {
+    const level = this.info.get(tileKey(tx, tz))?.lakeLevel_m;
+    if (level == null) return null;
+    return waterLevelAt(this.water.get(tileKey(tx, tz))?.levels, level, tx * this.size, tz * this.size, x, z);
   }
 
   put(tile: DecodedTile): void {
@@ -132,7 +142,7 @@ export class TileStore implements Terrain {
       }
     }
     if (!lake) return 0;
-    const level = this.info.get(tileKey(tile.tx, tile.tz))?.lakeLevel_m;
+    const level = this.waterLevel(tile.tx, tile.tz, tile.tx * this.size + u * (this.size / n), tile.tz * this.size + v * (this.size / n));
     return level == null ? 0 : Math.max(0, level - sampleHeight(tile, u, v));
   }
 

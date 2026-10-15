@@ -59,16 +59,34 @@ export async function walkTo(page: Page, target: () => Promise<Point>, near: num
   let held: string[] = [];
   for (const c of hold) await page.keyboard.down(c);
   const deadline = Date.now() + maxMs;
+  // A swimming beaver coasts on after the keys are let go, by about its speed times the delay of the loop (more under load), so it
+  // lets go early by that much. Each early stop that ends outside `near` halves the margin, so the last tries are exact.
+  let margin = 1;
+  let last: { x: number; z: number; at: number } | null = null;
   try {
     while (Date.now() < deadline) {
       const s = await page.evaluate(() => {
         const g = (window as any).__game;
-        return { b: g.world().beaver as { x: number; z: number }, yaw: g.view().yaw as number };
+        return { b: g.world().beaver as { x: number; z: number; mode: string }, yaw: g.view().yaw as number };
       });
       const t = await target();
       const dx = t.x - s.b.x;
       const dz = t.z - s.b.z;
-      if (Math.hypot(dx, dz) <= near) return true;
+      const dist = Math.hypot(dx, dz);
+      if (dist <= near) return true;
+      const now = Date.now();
+      const speed = last && now > last.at ? (Math.hypot(s.b.x - last.x, s.b.z - last.z) / (now - last.at)) * 1000 : 0;
+      last = { x: s.b.x, z: s.b.z, at: now };
+      if (s.b.mode !== 'walk' && margin > 0.1 && dist <= near + speed * 0.4 * margin) {
+        for (const c of held) await page.keyboard.up(c);
+        held = [];
+        await page.waitForTimeout(700);
+        const r = await page.evaluate(() => (window as any).__game.world().beaver as { x: number; z: number });
+        if (Math.hypot(t.x - r.x, t.z - r.z) <= near) return true;
+        margin /= 2;
+        last = null;
+        continue;
+      }
       // relativeToView in src/actions/actions.ts, written out.
       const a = s.yaw - Math.PI;
       const best = KEYS.map((k) => ({ k, w: { x: k.m.x * Math.cos(a) + k.m.z * Math.sin(a), z: -k.m.x * Math.sin(a) + k.m.z * Math.cos(a) } })).sort(

@@ -65,8 +65,10 @@ test('the test menu sets the speed and jumps to a location', async ({ page }) =>
     await page.waitForFunction(() => (window as any).__game.world().beaver.x > 3500, null, { polling: 100 });
     expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(600);
     await page.locator('button[data-location="hinterer-springbach"]').click();
-    await page.waitForFunction(() => Math.abs((window as any).__game.world().beaver.x - 3207) < 50, null, { polling: 100 });
-    expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(750);
+    // the nearest qualifying dam spot, a little over a kilometre north of the anchor (x 3207, z 518) since the scan keeps a margin
+    // (#385), at about 630 m
+    await page.waitForFunction(() => Math.abs((window as any).__game.world().beaver.x - 3207) < 300, null, { polling: 100 });
+    expect(await page.evaluate(() => (window as any).__game.world().beaver.y)).toBeGreaterThan(600);
   }
   expect(errors).toEqual([]);
 });

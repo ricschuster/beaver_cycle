@@ -156,3 +156,28 @@ def test_shingle_is_gravel_not_rock():
     import build_data
     assert build_data.LANDCOVER[("natural", "shingle")] == "gravel"
     assert "gravel" in bt.PAINT_ORDER and bt.CLASSES["gravel"] not in (bt.CLASSES["rock"], bt.CLASSES["ground"])
+
+
+def test_sloping_river_water_has_a_level_grid_and_lakes_stay_flat(tiles):
+    index = json.loads((tiles / "index.json").read_text())
+    grids = {}
+    for t in index["tiles"]:
+        f = tiles / "water" / f"{t['tx']}_{t['tz']}.json"
+        if f.exists():
+            grid = json.loads(f.read_text()).get("levels")
+            if grid:
+                grids[(t["tx"], t["tz"])] = grid
+    assert grids, "the Alm river drops over its delta, so some tile needs a level grid"
+    # the Almsee is flat: none of its tiles carries a grid
+    almsee = next(l["level_m"] for l in index["lakes"] if l["name"] == "Almsee")
+    for t in index["tiles"]:
+        if t["lakeLevel_m"] is not None and abs(t["lakeLevel_m"] - almsee) < 0.5 and not t.get("far"):
+            assert (t["tx"], t["tz"]) not in grids, f"flat lake tile {t['tx']},{t['tz']} has a level grid"
+    # tiles side by side agree on the levels along their shared edge
+    for (tx, tz), a in grids.items():
+        b = grids.get((tx + 1, tz))
+        if b:
+            n = a["n"]
+            for j in range(n):
+                x, y = a["v"][j * n + n - 1], b["v"][j * n]
+                assert x is None or y is None or abs(x - y) < 0.01, f"level edge of {tx},{tz}"

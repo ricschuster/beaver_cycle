@@ -101,6 +101,8 @@ export function placeTrees(
   felled?: ReadonlySet<string>,
   lakeLevel: number | null = null,
   streamDistance?: (x: number, z: number, upTo: number) => number,
+  /** The water level at a point, where it differs over the tile (a sloping delta); defaults to `lakeLevel` all over. */
+  levelAt?: (x: number, z: number) => number,
 ): Float32Array {
   // a fine tile has the trees of level 0, on its own finer ground
   const shown = tile.level === LEVEL_FINE ? 0 : tile.level;
@@ -136,7 +138,7 @@ export function placeTrees(
         // the roll above still ran, so a felled tree never moves the others
         if (felled?.has(treeId(x, z))) continue;
         const y = sampleHeight(tile, u, v);
-        if (nearLake && y < lakeLevel! + LAKE_CLEARANCE) continue;
+        if (nearLake && y < (levelAt ? levelAt(x, z) : lakeLevel!) + LAKE_CLEARANCE) continue;
         // none stands in a stream, as with the shrubs
         if (streamDistance && streamDistance(x, z, STREAM_CLEARANCE) < STREAM_CLEARANCE) continue;
         out.push(x, y, z, scale, treeKind(x, z));

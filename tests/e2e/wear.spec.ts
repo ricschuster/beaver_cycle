@@ -74,7 +74,11 @@ test.describe('a worn lodge and store', () => {
     await start(page, 'age=0');
     const id = await fellNearestTree(page);
     expect(id).not.toBeNull();
-    // Gnaw a branch off the log lying where the tree fell.
+    // Gnaw a branch off the log lying where the tree fell: stand at it first, the strip reach is 2 m and the tree falls any way.
+    const log = (await world(page)).logs.find((l: any) => l.id === id);
+    expect(log).toBeTruthy();
+    await walkToPoint(page, { x: log.x - Math.sin(log.heading) * log.length * 0.25, z: log.z - Math.cos(log.heading) * log.length * 0.25 }, 1.2, 20_000);
+    await page.waitForTimeout(300);
     await tap(page, 'KeyE');
     await page.waitForFunction(() => (window as any).__game.world().carry === 'branch', null, { polling: 100, timeout: 8000 });
     await walkToStore(page);

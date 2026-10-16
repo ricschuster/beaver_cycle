@@ -32,8 +32,9 @@ async function checkSound(page: Page, label: string): Promise<number> {
   expect(b.breath).toBeGreaterThanOrEqual(0);
   expect(b.breath).toBeLessThanOrEqual(1);
   const text = (await page.locator('#test-menu').innerText().catch(() => '')) || '';
-  const ground = /ground (-?[\d.]+) m/.exec(text);
-  if (ground) expect(b.y, `${label}: the beaver is not under the ground`).toBeGreaterThanOrEqual(Number(ground[1]) - 0.3);
+  // The ground under the beaver now, not the readout's: that one is redrawn every 500 ms and is stale after a step or a jump.
+  const ground = await page.evaluate(({ x, z }) => (window as any).__game.groundAt(x, z) as number, { x: b.x, z: b.z });
+  expect(b.y, `${label}: the beaver is not under the ground`).toBeGreaterThanOrEqual(ground - 0.3);
   return Number(/(\d+) fps/.exec(text)?.[1] ?? NaN);
 }
 

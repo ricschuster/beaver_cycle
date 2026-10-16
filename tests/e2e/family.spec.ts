@@ -64,8 +64,12 @@ test.describe('a baby at home', () => {
     await leaveLodgeByHole(page);
     const lodge = (await world(page)).lodge;
     // The land is behind the lodge, away from the door.
+    // Out from the door and round the side first: straight back would take the baby under the dome and in at the entrance.
+    await walkToPoint(page, doorPoint(lodge, 12), 1.5, 30_000);
+    await walkToPoint(page, { x: lodge.x + Math.sin(lodge.door + Math.PI / 2) * 14, z: lodge.z + Math.cos(lodge.door + Math.PI / 2) * 14 }, 1.5, 30_000);
     await walkToPoint(page, doorPoint(lodge, -45), 1, 30_000);
     const w = await world(page);
+    expect(w.inLodge).toBe(false);
     expect(['swim', 'dive']).toContain(w.beaver.mode);
     expect(dist(w.beaver, lodge)).toBeLessThan(45);
   });

@@ -65,6 +65,20 @@ jobs:
         run: npm run build
       - name: Release build holds no dev tooling
         run: npm run check:release
+      - name: Cache Playwright browser
+        id: pw-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Playwright browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install Playwright system libraries
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Release build smoke test
+        run: npx playwright test -c playwright.release.config.ts
 
   # The browser tests are 76 tests in 18 files, most of the run time, so they
   # are split in three. Each shard runs its share of the files.

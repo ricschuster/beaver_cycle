@@ -40,7 +40,7 @@ jobs:
           tar -xzf tiles.tar.gz -C public
           rm tiles.tar.gz
       - name: Build
-        run: npm run build
+        run: npm run build:devtools
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

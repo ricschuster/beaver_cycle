@@ -63,6 +63,8 @@ jobs:
       - run: npm ci
       - name: Build
         run: npm run build
+      - name: Release build holds no dev tooling
+        run: npm run check:release
 
   # The browser tests are 76 tests in 18 files, most of the run time, so they
   # are split in three. Each shard runs its share of the files.

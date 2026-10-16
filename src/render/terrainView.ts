@@ -15,6 +15,7 @@ import type { DamSpot } from '../sim/damSpots';
 import type { Lodge } from '../sim/lodge';
 import type { SeasonLook, Tint } from './seasonLook';
 import { createWaterLook } from './waterLook';
+import { treeGrainShader } from './grain';
 import { broadleafGeometry, coniferGeometry, shrubGeometry } from './treeModels';
 import { DETAIL, groundNoiseTexture, NOISE_LARGE_M, NOISE_SMALL_M } from './groundDetail';
 
@@ -705,28 +706,31 @@ export function createTerrainView(
   // a conifer tier, drawn from behind, holds none.
   const snow = { value: 0 };
   const snowColor = { value: new THREE.Color(SNOW) };
+  const treeGrain = treeGrainShader();
   const addTreeLook = (material: THREE.Material): void => {
     const previous = material.onBeforeCompile;
     material.onBeforeCompile = (shader, renderer) => {
       previous.call(material, shader, renderer);
+      Object.assign(shader.uniforms, treeGrain?.uniforms);
       shader.uniforms.snow = snow;
       shader.uniforms.snowColor = snowColor;
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec2 tree;\nvarying vec2 vTree;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTree = tree;');
+        .replace('#include <common>', `#include <common>\nattribute vec2 tree;\nvarying vec2 vTree;\n${treeGrain ? 'varying vec3 vLocal;' : ''}`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>\nvTree = tree;\n${treeGrain?.vertex ?? ''}`);
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec2 vTree;\nuniform float snow;\nuniform vec3 snowColor;')
+        .replace('#include <common>', `#include <common>\nvarying vec2 vTree;\nuniform float snow;\nuniform vec3 snowColor;\n${treeGrain?.common ?? ''}`)
         .replace(
           '#include <color_fragment>',
           `#include <color_fragment>
           diffuseColor.rgb = mix(diffuseColor.rgb, vColor.rgb, vTree.x);
+          ${treeGrain?.fragment ?? ''}
           float snowLine = mix(1.1, 0.4, snow);
           float snowCap = smoothstep(snowLine - 0.03, snowLine + 0.03, vTree.y) * (gl_FrontFacing ? 1.0 : 0.0);
           diffuseColor.rgb = mix(diffuseColor.rgb, snowColor, snowCap);`,
         );
     };
     const previousKey = material.customProgramCacheKey.bind(material);
-    material.customProgramCacheKey = () => `${previousKey()}|tree`;
+    material.customProgramCacheKey = () => `${previousKey()}|tree${treeGrain ? '-grain' : ''}`;
   };
   addTreeLook(treeMaterial);
   addTreeLook(leafMaterial);

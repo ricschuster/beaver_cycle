@@ -68,7 +68,8 @@ export function createSound(out: SoundOut, storage: Pick<Storage, 'getItem' | 's
     },
     musicOn: () => musicOn,
     music(mood, fps, now) {
-      out.setMood(musicOn && watch.update(fps, now) ? mood : 'off');
+      // The dream has no music (#520): its cue sounds carry it, and the music competed with them.
+      out.setMood(musicOn && watch.update(fps, now) && mood !== 'dream' ? mood : 'off');
     },
     setOneShotsOn: (v) => {
       oneShots = v;

@@ -347,7 +347,7 @@ describe('effectSamples', () => {
     sound.music('valley', 60, 0);
     expect(out.mood).toBe('valley');
     sound.music('dream', 60, 1);
-    expect(out.mood).toBe('dream');
+    expect(out.mood).toBe('off'); // the dream has no music (#520)
     sound.setMusicOn(false);
     expect(out.mood).toBe('off');
     sound.music('valley', 60, 2);

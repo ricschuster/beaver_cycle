@@ -4,6 +4,18 @@ Every recording in this folder is CC0 (public domain) except two, which are CC-B
 were checked on each source page in sessions 91 and 92. Clips are cut, converted to mono OGG and looped or trimmed by
 `tools/sound-preview/stage_candidates.py` and `stage_gaps.py`.
 
+## Music in `music/` (CC0)
+
+The valley plays one of these by season. Pages are at `https://opengameart.org/content/<slug>`. Cut to at most 240 s and converted to Ogg Vorbis
+by `tools/music-clips/stage_music.py`.
+
+| slug | title | composer | season |
+| --- | --- | --- | --- |
+| `sunset-plains` | Sunset Plains | MrAmogus | spring |
+| `summers` | Summers (2007) | MedicineStorm | summer |
+| `another-august` | Another August | The Cynic Project (cynicmusic.com, pixelsphere.org) | autumn |
+| `november-snow` | November Snow | The Cynic Project (cynicmusic.com, pixelsphere.org) | winter |
+
 ## CC-BY 4.0 (credit required)
 
 - `cheer-1-childrens_game_app_ending.ogg`: "Video Game Cheerful Ending" by Almitory,

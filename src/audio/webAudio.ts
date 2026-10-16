@@ -8,17 +8,35 @@ import type { Effect } from './effects';
 import { parseManifest, pickVariant, variation, type Manifest } from './samples';
 import { createComposer, PLAIN_COLOUR, type MusicColour, type MusicMood, type Note } from './music';
 import type { Layer, SoundOut } from './soundOut';
+import type { Season } from '../sim/clock';
 
 /** The pitch (Hz) at which a recorded babble plays unchanged: a mama's. */
 const BABBLE_REF_HZ = 320;
 
 type Ctx = AudioContext;
 
+/** One recorded season track: its streamed element, its gain, whether it can play, the gain it is fading to, and the timer that pauses it once silent. */
+interface Track {
+  el: HTMLAudioElement;
+  gain: GainNode;
+  ready: boolean;
+  target: number;
+  pause?: ReturnType<typeof setTimeout>;
+}
+
 /** The music is scheduled this far ahead of the clock, in seconds, and looked at this often. */
 const MUSIC_AHEAD = 2;
 const MUSIC_EVERY_MS = 500;
 /** How slowly a mood fades in and out, as a time constant in seconds. */
 const MUSIC_FADE = 2.5;
+
+/** The valley's recorded music, one track per season (rated ok by the author, #520; credits in public/audio/CREDITS.md). */
+export const SEASON_TRACKS: Record<Season, string> = {
+  spring: 'music/sunset-plains.ogg',
+  summer: 'music/summers.ogg',
+  autumn: 'music/another-august.ogg',
+  winter: 'music/november-snow.ogg',
+};
 
 /** Brown-ish noise, 4 s, which joins without a click because it is made to end where it began. */
 function noiseBuffer(ctx: Ctx): AudioBuffer {
@@ -77,6 +95,9 @@ export function createWebAudio(): SoundOut {
   let composerStart = 0;
   let wantColour: MusicColour = PLAIN_COLOUR;
   let musicTimer: ReturnType<typeof setInterval> | null = null;
+  // The recorded valley music: one streamed element per season, made when first wanted; the generative valley music plays until one is ready.
+  const tracks = new Map<Season, Track>();
+  let trackFailed = false;
 
   const url = (file: string): string => `${import.meta.env.BASE_URL}audio/${file}`;
   const load = async (c: Ctx, file: string): Promise<AudioBuffer | null> => {
@@ -285,7 +306,7 @@ export function createWebAudio(): SoundOut {
   const scheduleMusic = (c: Ctx): void => {
     if (!composer || suspended || c.state !== 'running' || wantMood === 'off') return;
     const gain = moods.get(wantMood);
-    if (!gain) return;
+    if (!gain || (wantMood === 'valley' && trackReady())) return;
     const t0 = composerStart;
     for (const note of composer.notes(c.currentTime - t0 + MUSIC_AHEAD)) {
       // A note that fell behind (the tab was away) is dropped, not played late in a heap.
@@ -295,16 +316,74 @@ export function createWebAudio(): SoundOut {
     }
   };
 
+  /** The track of the current season, made on first use. Null when the browser cannot stream it. */
+  const trackFor = (c: Ctx): Track | null => {
+    const have = tracks.get(wantColour.season);
+    if (have) return have;
+    if (trackFailed || typeof Audio === 'undefined' || typeof c.createMediaElementSource !== 'function') return null;
+    try {
+      const el = new Audio(url(SEASON_TRACKS[wantColour.season]));
+      el.loop = true;
+      el.preload = 'auto';
+      const gain = c.createGain();
+      gain.gain.value = 0;
+      c.createMediaElementSource(el).connect(gain);
+      gain.connect(music!);
+      const t: Track = { el, gain, ready: false, target: 0 };
+      el.addEventListener('canplay', () => {
+        t.ready = true;
+        applyMood();
+      });
+      el.addEventListener('error', () => {
+        trackFailed = true;
+        t.ready = false;
+        applyMood();
+      });
+      tracks.set(wantColour.season, t);
+      return t;
+    } catch {
+      trackFailed = true;
+      return null;
+    }
+  };
+
+  /** True when the valley plays a recording now (the track of this season is loaded), so the generative music keeps quiet. */
+  const trackReady = (): boolean => !trackFailed && (tracks.get(wantColour.season)?.ready ?? false);
+
+  /** Fade the season tracks: the wanted one in while the valley plays, every other out and, once silent, paused. */
+  const applyTracks = (c: Ctx): void => {
+    const playing = wantMood === 'valley' && !suspended;
+    const wanted = playing ? trackFor(c) : null;
+    for (const t of tracks.values()) {
+      const target = t === wanted && t.ready ? 1 : 0;
+      if (t.target === target) continue;
+      t.target = target;
+      t.gain.gain.setTargetAtTime(target, c.currentTime, MUSIC_FADE);
+      if (t.pause) clearTimeout(t.pause);
+      t.pause = undefined;
+      if (target === 1) {
+        void t.el.play().catch(() => {});
+      } else {
+        // Paused once it has faded out, so a long silence costs no decoding.
+        t.pause = setTimeout(() => t.el.pause(), MUSIC_FADE * 4000);
+      }
+    }
+  };
+
   const applyMood = (): void => {
-    if (!ctx || appliedMood === wantMood) return;
-    appliedMood = wantMood;
+    if (!ctx) return;
+    applyTracks(ctx);
+    const recorded = wantMood === 'valley' && trackReady();
+    const shown: MusicMood = recorded ? 'off' : wantMood;
+    if (appliedMood === shown) return;
+    appliedMood = shown;
     const t = ctx.currentTime;
-    for (const [mood, node] of moods) node.gain.setTargetAtTime(mood === wantMood ? 1 : 0, t, MUSIC_FADE);
-    if (wantMood !== 'off' && composer) composer.setMood(wantMood);
-    if (wantMood !== 'off' && !musicTimer) {
+    for (const [mood, node] of moods) node.gain.setTargetAtTime(mood === shown ? 1 : 0, t, MUSIC_FADE);
+    if (shown !== 'off' && composer) composer.setMood(shown);
+    if (shown !== 'off' && !musicTimer) {
       const c = ctx;
       musicTimer = setInterval(() => scheduleMusic(c), MUSIC_EVERY_MS);
-    } else if (wantMood === 'off' && musicTimer) {
+    } else if (shown === 'off' && musicTimer) {
       // The tail of the last notes fades with the mood gain; the timer stops now, so nothing new is scheduled.
       clearInterval(musicTimer);
       musicTimer = null;
@@ -416,8 +495,10 @@ export function createWebAudio(): SoundOut {
       if (stopAt !== null) src.stop(stopAt);
     },
     setColour(colour) {
+      const season = wantColour.season !== colour.season;
       wantColour = colour;
       composer?.setColour(colour);
+      if (season) applyMood();
     },
     setMood(mood) {
       wantMood = mood;

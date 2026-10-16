@@ -15,11 +15,10 @@ OGA = "https://opengameart.org"
 MAX_SECONDS = 240
 KBPS = 96
 
+# The four the author rated ok (session 130): spring, summer, autumn, winter. The other nine were rated wrong.
 # OpenGameArt page slug -> the file to take when the page offers several (None: the first audio file).
 PAGES = {
-    "sunset-plains": None, "etirwer": None, "lost-in-the-meadows": None, "down-the-river": None, "another-august": None, "summers": None,
-    "peaceful-forest": None, "the-field-of-dreams": None, "balance-0": None, "winter-courtyard": None, "november-snow": None,
-    "where-was-i": None, "waiting-iii": "Looped",
+    "sunset-plains": None, "summers": None, "another-august": None, "november-snow": None,
 }
 
 

@@ -137,3 +137,63 @@ describe('createWebAudio music', () => {
     expect(oscillators.length).toBe(after);
   });
 });
+
+describe('createWebAudio recorded music', () => {
+  class FakeAudio {
+    static made: FakeAudio[] = [];
+    paused = true;
+    loop = false;
+    preload = '';
+    listeners = new Map<string, () => void>();
+    constructor(public src: string) {
+      FakeAudio.made.push(this);
+    }
+    addEventListener(name: string, f: () => void) {
+      this.listeners.set(name, f);
+    }
+    play() {
+      this.paused = false;
+      return Promise.resolve();
+    }
+    pause() {
+      this.paused = true;
+    }
+  }
+  class MediaContext extends FakeContext {
+    createMediaElementSource = (): Record<string, unknown> => node();
+  }
+
+  it('streams the track of the season once it can play, and keeps the generative music quiet', async () => {
+    FakeAudio.made = [];
+    vi.stubGlobal('Audio', FakeAudio);
+    vi.stubGlobal('window', { AudioContext: MediaContext });
+    const rec = createWebAudio();
+    rec.unlock();
+    rec.setBuses(1, 1);
+    rec.setColour({ season: 'winter', night: false });
+    rec.setMood('valley');
+    expect(FakeAudio.made.map((a) => a.src)).toEqual([expect.stringContaining('music/november-snow.ogg')]);
+    const quiet = oscillators.length;
+    await new Promise((r) => setTimeout(r, 600));
+    expect(oscillators.length).toBeGreaterThan(quiet); // generative until the track can play
+    FakeAudio.made[0]!.listeners.get('canplay')!();
+    expect(FakeAudio.made[0]!.paused).toBe(false);
+    const playing = oscillators.length;
+    await new Promise((r) => setTimeout(r, 600));
+    expect(oscillators.length).toBe(playing);
+    rec.setMood('off');
+  });
+
+  it('starts the next season track when the season turns', async () => {
+    FakeAudio.made = [];
+    vi.stubGlobal('Audio', FakeAudio);
+    vi.stubGlobal('window', { AudioContext: MediaContext });
+    const rec = createWebAudio();
+    rec.unlock();
+    rec.setBuses(1, 1);
+    rec.setColour({ season: 'spring', night: false });
+    rec.setMood('valley');
+    rec.setColour({ season: 'summer', night: false });
+    expect(FakeAudio.made.map((a) => a.src.split('/').pop())).toEqual(['sunset-plains.ogg', 'summers.ogg']);
+  });
+});

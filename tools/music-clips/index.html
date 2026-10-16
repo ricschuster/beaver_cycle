@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Music clips to rate</title>
+    <style>
+      body { margin: 0; padding: 12px; background: #222; color: #eee; font: 15px sans-serif; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p { margin: 4px 0; color: #bbb; }
+      table { border-collapse: collapse; width: 100%; max-width: 980px; }
+      td { padding: 6px 8px; border-bottom: 1px solid #333; vertical-align: middle; }
+      button { font: inherit; padding: 8px 14px; margin: 2px; border: 1px solid #555; border-radius: 6px; background: #333; color: #eee; min-height: 40px; }
+      button.rate.sel { background: #36a; border-color: #36a; }
+      button.rate.sel.bad { background: #a43; border-color: #a43; }
+      input[type=text] { font: inherit; padding: 6px; width: 12em; background: #111; color: #eee; border: 1px solid #444; border-radius: 4px; }
+      #bar { position: sticky; top: 0; background: #222; padding: 6px 0; z-index: 1; }
+      textarea { width: 100%; max-width: 980px; height: 8em; background: #111; color: #eee; border: 1px solid #444; }
+      small { color: #999; }
+    </style>
+  </head>
+  <body>
+    <h1>Music clips to rate (#520)</h1>
+    <p>Candidates for the valley music, all CC0. Play one, listen for a minute, rate it: ok (would play for hours), thin, harsh, wrong. Press Export when done. Stage them with <code>tools/music-clips/stage_music.py</code>.</p>
+    <div id="bar"><label>volume <input id="vol" type="range" min="0" max="1" step="0.05" value="0.6" /></label> <button id="stop">Stop</button></div>
+    <table id="list"></table>
+    <h2>Export</h2>
+    <p><button id="export">Export ratings</button> <button id="copy">Copy</button></p>
+    <textarea id="out" readonly></textarea>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

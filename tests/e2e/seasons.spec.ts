@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { collectToasts, hasTiles, setSpeed, shot, startGame, toasts, toggleMenu, walkTo, world } from './helpers';
+import { collectToasts, expectToast, hasTiles, setSpeed, shot, startGame, toasts, toggleMenu, walkTo, world } from './helpers';
 // Time in the real game: the seasons, sleeping in the lodge, the half speed clock in the lodge, night, the full year achievement, and
 // the nudges toward a partner. All need the valley tiles (the test lodge), so they skip in CI.
 
@@ -96,7 +96,7 @@ test('five sleeps to the next season pass a full year, which wins the achievemen
   expect(seasons.map((s) => s.split(',')[0])).toEqual(['Summer', 'Autumn', 'Winter', 'Spring', 'Summer']);
   const w = await world(page);
   expect(w.achievements).toContain('year');
-  expect(await toasts(page)).toContain('A full year achievement: all four seasons');
+  await expectToast(page, 'A full year achievement: all four seasons');
 });
 
 test('a tail in the distance is heard within 150 m, the beaver follows when met, and winter says kits come in spring', async ({ page }) => {
@@ -119,20 +119,20 @@ test('a tail in the distance is heard within 150 m, the beaver follows when met,
   // Walk until about 130 m short of it.
   await walkTo(page, async () => nearest, 130, 120_000);
   await page.waitForTimeout(500);
-  expect(await toasts(page)).toContain('A tail slaps in the distance. A lone beaver?');
+  await expectToast(page, 'A tail slaps in the distance. A lone beaver?');
   expect((await world(page)).partners.every((p: any) => p.state === 'alone')).toBe(true);
   // On to it: it slaps its tail and follows.
   for (let i = 0; i < 40 && !(await world(page)).partners.some((p: any) => p.state === 'following'); i++) {
     await walkTo(page, async () => (await world(page)).partners.find((p: any) => p.id === nearest.id), 6, 3000);
   }
   expect((await world(page)).partners.some((p: any) => p.state === 'following')).toBe(true);
-  expect(await toasts(page)).toContain('A beaver slaps its tail and follows you');
+  await expectToast(page, 'A beaver slaps its tail and follows you');
   // Winter arrives with no partner at home: the hint about spring.
   await toggleMenu(page);
   await page.locator('button[data-season="winter"]').click();
   await toggleMenu(page);
   await page.waitForTimeout(500);
-  expect(await toasts(page)).toContain('Kits are born on the first day of spring. Find a partner and a lodge');
+  await expectToast(page, 'Kits are born on the first day of spring. Find a partner and a lodge');
   await setSpeed(page, 1);
   expect(errors).toEqual([]);
 });

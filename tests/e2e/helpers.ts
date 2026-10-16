@@ -371,6 +371,10 @@ export async function collectToasts(page: Page): Promise<void> {
 /** Every message recorded by `collectToasts` so far. */
 export const toasts = (page: Page): Promise<string[]> => page.evaluate(() => (window as any).__toasts as string[]);
 
+/** Wait until a message has been shown. Toasts queue (#261), so one raised behind others comes up some seconds later. */
+export const expectToast = (page: Page, text: string, timeout = 40_000): Promise<void> =>
+  expect.poll(() => toasts(page), { timeout, message: `the toast "${text}"` }).toContain(text);
+
 /** Open or close the test menu panel (it is a toggle). */
 export const toggleMenu = (page: Page): Promise<void> => page.getByRole('button', { name: 'Test menu' }).click();
 

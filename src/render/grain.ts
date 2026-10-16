@@ -68,12 +68,18 @@ export function rockGrain(): THREE.DataTexture {
   return (rock ??= grainTexture(rockGrainData()));
 }
 
+/** `?grain=0` in the address turns the grain off, to compare the frame rate and the look on a tablet (#534). */
+function grainOff(): boolean {
+  return typeof location !== 'undefined' && new URLSearchParams(location.search).get('grain') === '0';
+}
+
 /**
  * The prop material (lit, flat shaded, vertex colours) with the grain on the faces whose `grain` is above 0 (1 bark, 2 rock). Call
  * before the material's `prepare` (the shadow setup), which wraps `onBeforeCompile`.
  */
 export function grainMaterial(options: THREE.MeshLambertMaterialParameters = {}): THREE.MeshLambertMaterial {
   const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, ...options });
+  if (grainOff()) return m;
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uGrain = { value: barkGrain() };
     shader.uniforms.uRock = { value: rockGrain() };

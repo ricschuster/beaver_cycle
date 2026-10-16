@@ -7,8 +7,14 @@ name: Pages
 # from the release tagged `tiles`, built locally with tools/tiles/build_tiles.py
 # and uploaded as tiles.tar.gz. Refresh them with
 # `gh release upload tiles tiles.tar.gz --clobber`.
+# It builds the release (no test menu, ADR 0013). Tick "devtools" to deploy the build with the test menu for tuning on a tablet.
 on:
   workflow_dispatch:
+    inputs:
+      devtools:
+        description: Keep the test menu and the dev URL parameters (for tuning, not for players)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -40,7 +46,10 @@ jobs:
           tar -xzf tiles.tar.gz -C public
           rm tiles.tar.gz
       - name: Build
-        run: npm run build:devtools
+        run: npm run ${{ inputs.devtools && 'build:devtools' || 'build' }}
+      - name: Release build holds no dev tooling
+        if: ${{ !inputs.devtools }}
+        run: npm run check:release
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

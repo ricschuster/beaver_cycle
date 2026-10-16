@@ -152,6 +152,32 @@ export const ACHIEVEMENT_NAME: Record<AchievementId, string> = {
   handDown: 'Hand down',
 };
 
+/** How to win each one, for the Things I did card (#557). Short sentences for kids from 8; a number is the constant the rule uses. */
+export const ACHIEVEMENT_HINT: Record<AchievementId, string> = {
+  wood: `Gnaw down ${WOOD_TREES} trees.`,
+  home: 'Build a lodge of your own.',
+  firstDam: 'Build a dam so the stream holds water.',
+  highDam: 'Build a dam up to the highest level it can reach in its spot.',
+  pioneer: 'Make a pond that opens a new place for a dam. Then build a dam there.',
+  pantry: 'Fill your food store.',
+  gardener: `Pick ${GARDENER_PADS} lily pads.`,
+  handy: 'Mend something that is worn, until it is as good as new.',
+  hauler: `Carry ${HAULER_LOADS} loads of mud and rocks to your dams.`,
+  year: 'Play through all four seasons.',
+  mate: 'Get a partner to live in your lodge.',
+  kits: 'Raise a kit of your own.',
+  guide: 'Dig out a stuck beaver. It will show you the way.',
+  grownUp: 'Grow from a baby to a teenager.',
+  visitHome: 'Go back and meet your family again.',
+  handDown: 'Let your kit take over your lodge and dam.',
+};
+
+/** The rows for the Things I did card: the line (as `achievementLines`) and the hint to show on a tap. */
+export function achievementRows(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey'>): { line: string; hint: string }[] {
+  const lines = achievementLines(world);
+  return ACHIEVEMENT_IDS.map((id, i) => ({ line: lines[i] ?? '', hint: ACHIEVEMENT_HINT[id] }));
+}
+
 /** The list for the test menu: one line per achievement, with a mark for won and the count where there is one. */
 export function achievementLines(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey'>): string[] {
   const count = (id: AchievementId): string => {

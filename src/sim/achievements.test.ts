@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { noIntent, type Intent } from './buttons';
-import { ACHIEVEMENT_IDS, ACHIEVEMENT_TEXT, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, rescuesThisLife, tally, visitedHome } from './achievements';
+import { ACHIEVEMENT_HINT, ACHIEVEMENT_IDS, ACHIEVEMENT_TEXT, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, rescuesThisLife, tally, visitedHome } from './achievements';
 import { DAY_SECONDS, DAYS_PER_YEAR, START_CLOCK, dateAt, nextSpringStart } from './clock';
 import { LEVEL1_COST, LEVEL_COST } from './dam';
 import type { DamSpot } from './damSpots';
@@ -285,5 +285,14 @@ describe('each life has its own journey', () => {
     const w = { ...newLife({ ...lived(), clock: 5 * DAY_SECONDS }), achievements: ['grownUp' as const] };
     expect(won({ ...w, clock: w.journey.start + DAYS_PER_YEAR * DAY_SECONDS - 1 })).toEqual([]);
     expect(won({ ...w, clock: w.journey.start + DAYS_PER_YEAR * DAY_SECONDS })).toEqual(['year']);
+  });
+});
+
+describe('achievement hints', () => {
+  it('every achievement has a hint, and a number in it is the rule constant', () => {
+    for (const id of ACHIEVEMENT_IDS) expect(ACHIEVEMENT_HINT[id].trim().length).toBeGreaterThan(0);
+    expect(ACHIEVEMENT_HINT.wood).toContain(String(WOOD_TREES));
+    expect(ACHIEVEMENT_HINT.gardener).toContain(String(GARDENER_PADS));
+    expect(ACHIEVEMENT_HINT.hauler).toContain(String(HAULER_LOADS));
   });
 });

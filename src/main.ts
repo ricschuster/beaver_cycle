@@ -35,7 +35,7 @@ import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
 import { createCarryHud, foodInfoOf } from './ui/carryHud';
-import { ACHIEVEMENT_TEXT, achievementLines } from './sim/achievements';
+import { ACHIEVEMENT_TEXT, achievementLines, achievementRows } from './sim/achievements';
 import { createToast } from './ui/toast';
 import { createClockHud } from './ui/clockHud';
 import { createStashPanel } from './ui/stashPanel';
@@ -364,7 +364,7 @@ async function start(): Promise<void> {
         },
       },
     });
-    createAchievementsPanel(document.body, () => achievementLines(world));
+    createAchievementsPanel(document.body, () => achievementRows(world));
   }
   // The test menu is left out of the release build (ADR 0013); the frame loop keeps calling the stand-in.
   const menu: TestMenu = !__DEV_TOOLS__ ? NO_TEST_MENU : createTestMenu(document.body, {

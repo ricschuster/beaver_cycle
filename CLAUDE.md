@@ -58,6 +58,7 @@ Everyday (gate means CI blocks a merge on it):
 - `npm run typecheck` - TypeScript check (gate)
 - `npm test` - Vitest unit tests (gate)
 - `npm run build` - type check and release build into `dist/` (gate), without the test menu, the dev URL parameters and `window.__game` ([ADR 0013](docs/decisions/0013-dev-tools-compile-time-flag.md)); `npm run check:release` fails if `dist/` still holds them (gate); `npm run build:devtools` keeps them (the Pages site)
+- `npm run test:release` - builds the release build and runs a short browser test on it with `vite preview` (`tests/release/`, gate in the `build` CI job, 25 s): no test menu, no `window.__game`, dev URL parameters ignored, Settings choices kept
 - `npm run test:e2e` - Playwright browser smoke test (gate; `E2E_PORT=5191` if 5173 is taken; first run
   `npx playwright install chromium`)
 - `npx playwright test tests/e2e/cycle.spec.ts` (also `build`, `dam`, `dams`, `life`, `locations`, `moves`) - playtests that play the real game with the keys and the test

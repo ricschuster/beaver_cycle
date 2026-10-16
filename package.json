@@ -12,7 +12,8 @@
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:release": "npm run build && playwright test -c playwright.release.config.ts"
   },
   "dependencies": {
     "three": "^0.186.1"

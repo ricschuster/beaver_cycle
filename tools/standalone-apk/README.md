@@ -51,7 +51,8 @@ ANDROID_HOME=~/Android/Sdk JAVA_HOME=~/Android/jdk-21 ./build_aab.sh
   key can be reset through Play support if it is lost, but only after the app is enrolled.
 - `versionCode` in `android/app/build.gradle` must rise with every upload to Play (it is 1 now). The generated `android/` folder
   is untracked, so raise it there after `cap add android`, or the next upload is refused.
-- The script also drops `audio-candidates/` (sounds waiting to be rated, not used by the game, 7 MB) and the `INTERNET`
+- The script also drops `audio-candidates/` (sounds waiting to be rated, not used by the game; `npm run build` now leaves them out of
+  `dist/` as well, and `check:release` fails if they are there) and the `INTERNET`
   permission from the synced copy before it builds, since Capacitor serves the app from the device. The bundle then has no
   permission of its own (checked with `dump manifest`: only AndroidX's own receiver permission, which is normal), no native
   libraries (so the 16 KB page size rule has nothing to check), and the target is API 36. Played in an Android 16 tablet emulator without `INTERNET`: it starts offline, the tiles load, a save survives a restart, the

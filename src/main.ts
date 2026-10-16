@@ -48,7 +48,8 @@ import { askContinue } from './ui/continueCard';
 import { AUTOSAVE_EVERY, ago, clearSave, loadSave, wantsSave, writeSave, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createDreamScreen } from './ui/dreamScreen';
-import { createTestMenu } from './ui/testMenu';
+import { createTestMenu, type TestMenu } from './ui/testMenu';
+import { NO_TEST_MENU, gameQuery } from './devTools';
 import { STREAM_HEARD } from './audio/mix';
 import { createWebAudio } from './audio/webAudio';
 import { watchBeaver, watchWorld } from './audio/effects';
@@ -95,7 +96,7 @@ async function start(): Promise<void> {
   // Stress knobs for the tablet budgets (#53): ?rings=1000,2000 and ?trees=2.
   // The sun's shadows are off by default (they halve the frame rate on the tablet, docs/design/16_shadow_cost.md); ?shadows=1 turns them on, ?shadowmap=1024 shrinks their map and ?cascades=1 keeps only the near box.
   // ?fine=300 sets how far the fine tiles (ADR 0008) show, 0 turns them off.
-  const query = new URLSearchParams(location.search);
+  const query = gameQuery(location.search, __DEV_TOOLS__);
   const rings = query.get('rings')?.split(',').map(Number);
   const fineRing = query.get('fine');
   const streamOptions = {
@@ -330,7 +331,8 @@ async function start(): Promise<void> {
     sound.setMuted(!sound.settings().muted);
     muteButton?.set(sound.settings().muted);
   });
-  const menu = createTestMenu(document.body, {
+  // The test menu is left out of the release build (ADR 0013); the frame loop keeps calling the stand-in.
+  const menu: TestMenu = !__DEV_TOOLS__ ? NO_TEST_MENU : createTestMenu(document.body, {
     speeds: [1, 2, 5, 20, 100],
     locations: anchors.map((a) => ({ id: a.id, name: a.name, enabled: a.inTiles })),
     onSpeed(m) {
@@ -915,8 +917,8 @@ async function start(): Promise<void> {
     const seed = Number(query.get('seed'));
     startDream(query.has('seed') && Number.isFinite(seed) ? Math.floor(seed) : undefined);
   }
-  // Read only view for tests and the coming test menu.
-  (window as unknown as { __game: unknown }).__game = {
+  // Read only view for tests and the coming test menu. Not in the release build.
+  if (__DEV_TOOLS__) (window as unknown as { __game: unknown }).__game = {
     world: () => world,
     // Jump to a dam spot by id, as the test menu's "To nearest spot" does for the nearest (a playtest wants the nearest spot that
     // holds a level 2 dam, which may be far off).

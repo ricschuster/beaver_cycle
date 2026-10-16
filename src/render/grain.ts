@@ -69,7 +69,7 @@ export function rockGrain(): THREE.DataTexture {
 }
 
 /** `?grain=0` in the address turns the grain off, to compare the frame rate and the look on a tablet (#534). */
-function grainOff(): boolean {
+export function grainOff(): boolean {
   return typeof location !== 'undefined' && new URLSearchParams(location.search).get('grain') === '0';
 }
 
@@ -92,4 +92,23 @@ export function grainMaterial(options: THREE.MeshLambertMaterialParameters = {})
   };
   m.customProgramCacheKey = () => 'prop-grain-2';
   return m;
+}
+
+/**
+ * The grain of the instanced trees (#458): bark furrows on the wood of trunks (`tree.x` is 1) and the soft speckle on shrubs and
+ * crowns, from the object space position, since those geometries have no uv. The returned parts go into a material's
+ * `onBeforeCompile`; `null` when `?grain=0` turns the grain off.
+ */
+export function treeGrainShader(): { uniforms: Record<string, { value: THREE.Texture }>; vertex: string; common: string; fragment: string } | null {
+  if (grainOff()) return null;
+  return {
+    uniforms: { uGrain: { value: barkGrain() }, uRock: { value: rockGrain() } },
+    common: 'varying vec3 vLocal;\nuniform sampler2D uGrain;\nuniform sampler2D uRock;',
+    vertex: 'vLocal = position;',
+    // furrows run up the trunk: across the face by x + z (a few repeats per metre of trunk), along it by y. The speckle on leaves is planar.
+    fragment: `float wood = vTree.x;
+          float gb = texture2D(uGrain, vec2((vLocal.x + vLocal.z) * 0.9, vLocal.y * 0.25)).r * ${GAIN.toFixed(2)};
+          float gl = texture2D(uRock, vLocal.xz * 0.6 + vLocal.y * 0.4).r * ${ROCK_GAIN.toFixed(2)};
+          diffuseColor.rgb *= mix(gl, gb, wood);`,
+  };
 }

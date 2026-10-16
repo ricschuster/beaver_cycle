@@ -18,16 +18,13 @@ export interface DamView {
 /** The flooded cells within this many metres of the dam line (either side) decide how wide the wall is. */
 const NEAR_LINE = 3 * POND_CELL;
 
-/** A stream line this far above the channel bed is on a bank, not in the stream. */
-const BANK_HEIGHT = 1;
-
 /**
- * Where the dam stands: on the drawn stream line (`bed`), except where that line lies on a bank more than BANK_HEIGHT above the
- * bed (a steep slope, the Oedsee east spot, 3 m): a dam drawn there sinks into the ground, so it stands across the channel the pond
- * is worked out from (#315).
+ * Where the dam stands: across the channel the pond is worked out from, not on the drawn stream line (`bed`), which lies up to
+ * 8 m off it. The pond starts at the dam line through the channel point, so a dam drawn on the stream line leaves a dry strip of
+ * stream between it and the water, or sits inside the pond. On a steep bank the stream line is also above the bed (#315).
  */
-export function damAt(spot: DamSpot, heightAt: (x: number, z: number) => number): { x: number; z: number } {
-  return spot.channel && heightAt(spot.bed.x, spot.bed.z) - spot.bedY > BANK_HEIGHT ? spot.channel : spot.bed;
+export function damAt(spot: DamSpot): { x: number; z: number } {
+  return spot.channel ?? spot.bed;
 }
 
 /**
@@ -109,7 +106,7 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
         const entry = glows.get(dam.spot);
         const spot = spots.find((s) => s.id === dam.spot);
         if (!spot) continue;
-        const site = damAt(spot, heightAt);
+        const site = damAt(spot);
         const at = { x: site.x, y: heightAt(site.x, site.z), z: site.z };
         const glow = entry?.glow ?? createRepairGlow(scene, GLOW_RADIUS);
         if (!entry) glows.set(dam.spot, { glow, at });
@@ -132,7 +129,7 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
         const shows = (i: number): boolean => ((i * 37 + 11) % 100) / 100 < share;
         // The dam line runs across the stream; `lateral` points along it.
         const lateral = { x: -spot.flow.z, z: spot.flow.x };
-        const site = damAt(spot, heightAt);
+        const site = damAt(spot);
         const base = heightAt(site.x, site.z);
         // How far the water at `top` metres above the bed reaches along the dam line each way from the bed point, so the wall spans the whole pond front: from the pond fill when there is one, else by walking the ground.
         const pond = ponds.find((p) => p.spot === dam.spot);

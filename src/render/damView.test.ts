@@ -17,17 +17,13 @@ describe('shownShare', () => {
 describe('damAt', () => {
   const spot: DamSpot = { id: 's', bed: { x: 0, z: 0 }, channel: { x: 6, z: 6 }, bedY: 10, flow: { x: 0, z: 1 }, maxCrest: 2, pondM2: 0 };
 
-  it('stands on the stream line when the ground there is near the bed', () => {
-    expect(damAt(spot, () => 10.5)).toEqual(spot.bed);
-  });
-
-  it('stands across the channel when the stream line lies on a bank (the Oedsee east spot, 3 m up)', () => {
-    expect(damAt(spot, () => 13.2)).toEqual(spot.channel);
+  it('stands across the channel the pond is worked out from, off the stream line', () => {
+    expect(damAt(spot)).toEqual(spot.channel);
   });
 
   it('stands on the stream line when the scan found no channel', () => {
     const { channel: _c, ...plain } = spot;
-    expect(damAt(plain, () => 13.2)).toEqual(plain.bed);
+    expect(damAt(plain)).toEqual(plain.bed);
   });
 });
 

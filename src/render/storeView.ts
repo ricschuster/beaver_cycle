@@ -6,7 +6,8 @@ import { STORE_CAPACITY, STORE_RADIUS, stockOf, storeFill, storeSpot, type Stock
 import type { Lodge } from '../sim/lodge';
 import { BROKEN_BELOW, needsRepair } from '../sim/wear';
 import { createRepairGlow } from './repairGlow';
-import { BARK, lilyPad, mergeParts, place, propMaterial, seeded, stick, stickBetween, vary } from './propShapes';
+import { BARK, lilyPad, mergeParts, place, seeded, stick, stickBetween, vary } from './propShapes';
+import { grainMaterial } from './grain';
 
 export interface StoreView {
   /** Draw the store for a whole lodge, or hide it. `bed` is the height of the lake bed at a point, `level` the store's condition. */
@@ -48,7 +49,7 @@ function branch(piece: Piece): THREE.BufferGeometry {
 }
 
 export function createStoreView(scene: THREE.Scene, shadows: boolean, prepare: (m: THREE.Material) => void): StoreView {
-  const material = propMaterial();
+  const material = grainMaterial();
   prepare(material);
   const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
   mesh.castShadow = shadows;

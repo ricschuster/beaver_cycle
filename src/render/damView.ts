@@ -7,7 +7,8 @@ import { POND_CELL, crestOf, type Pond } from '../sim/pond';
 import type { DamSpot } from '../sim/damSpots';
 import { WORN_BELOW, stageOf } from '../sim/wear';
 import { createRepairGlow, type RepairGlow } from './repairGlow';
-import { BARK, PEELED, lump, mergeParts, paintLump, place, propMaterial, seedOf, seeded, stick, vary } from './propShapes';
+import { BARK, PEELED, lump, mergeParts, paintLump, place, seedOf, seeded, stick, vary } from './propShapes';
+import { grainMaterial } from './grain';
 
 export interface DamView {
   /** Draw the dams at their spots at game time `clock`. Rebuilds only when what has been placed or the wear shown changes. */
@@ -94,7 +95,7 @@ function stickBundle(random: () => number, at: THREE.Vector3, turn: number): THR
 
 export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m: THREE.Material) => void): DamView {
   // Each dam is one mesh: its sticks, mud, and rocks merged, coloured by vertex.
-  const material = propMaterial();
+  const material = grainMaterial();
   prepare(material);
   const root = new THREE.Group();
   scene.add(root);
@@ -178,7 +179,7 @@ export function createDamView(scene: THREE.Scene, shadows: boolean, prepare: (m:
           if (!shows(i + 9)) continue;
           const random = randomFor(3, i);
           const size = 0.45 + 0.15 * random();
-          const rock = paintLump(lump(random, 0.22), STONE, random, { color: MOSS, share: 0.2 });
+          const rock = paintLump(lump(random, 0.22), STONE, random, { color: MOSS, share: 0.2 }, true);
           parts.push(place(rock, new THREE.Vector3(-last.left + (i + 0.5) * ((last.left + last.right) / rocks), spot.bedY + Math.max(rows, 1) * ROW_HEIGHT + 0.3 - base, -0.3), new THREE.Euler(0, random() * Math.PI * 2, (random() - 0.5) * 0.4), new THREE.Vector3(size * 1.1, size * 0.8, size)));
         }
         if (parts.length === 0) return;

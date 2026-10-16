@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { LODGE_RADIUS, doorPoint, lodgeProgress, type Lodge } from '../sim/lodge';
 import { BROKEN_BELOW, WORN_BELOW, needsRepair } from '../sim/wear';
 import { createRepairGlow } from './repairGlow';
-import { BARK, PEELED, mergeParts, paintFaces, propMaterial, seedAt, seeded, stickBetween, vary, vertexCount } from './propShapes';
+import { BARK, PEELED, mergeParts, paintFaces, seedAt, seeded, stickBetween, vary, vertexCount } from './propShapes';
+import { grainMaterial } from './grain';
 
 export interface LodgeView {
   /** Draw the lodge at a condition (0 broken to 1 new): a worn one is paler and slumps, and glows where it needs repair. */
@@ -104,7 +105,7 @@ export function sticksShown(total: number, progress: number, wear: number): numb
 /** `repairable` is false for a lodge the family has left: it gets old but nobody mends it, so it shows no glow. */
 export function createLodgeView(scene: THREE.Scene, shadows: boolean, prepare: (m: THREE.Material) => void, repairable = true): LodgeView {
   // One mesh for the dome and its sticks. Its shape is made when a lodge first shows, keyed on where it stands.
-  const material = propMaterial();
+  const material = grainMaterial();
   prepare(material);
   const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
   mesh.castShadow = shadows;

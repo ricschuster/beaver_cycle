@@ -172,6 +172,8 @@ replace them. Only `done` and the three chimes stay in code. Chirp and babble ha
 - Each mood has its own gain into the music bus; the valley fades out as the dream fades in (time constant 2.5 s). Notes are scheduled
   2 s ahead on the audio clock, and the timer stops when the mood is off, so a muted or silent game does no work.
 - **Frame rate:** the music gives way after 4 s under 22 fps and returns after 12 s over 32 fps (`createFrameWatch`).
+- **No music in the dream** (session 130, #520): the author found it served no purpose and competed with the dream's own sounds, so `sound.music` asks for
+  no music while the dream is on. The dream mood stays in `music.ts` and the preview page. The valley music is to be replaced by recordings (#520).
 - The Music slider and the mute button act on the music bus; the test menu has a Music switch.
 - `/tools/music-preview/` plays the music alone, with sliders and the ambient layers to switch on beneath it.
 - First draft, to tune on the tablet: the chords, the gaps, the loudness against the ambient layers.

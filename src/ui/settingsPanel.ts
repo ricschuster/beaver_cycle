@@ -136,13 +136,47 @@ export function prettyLine(line: string): string {
   return line;
 }
 
-export function createAchievementsPanel(parent: HTMLElement, lines: () => string[]): AchievementsPanel {
+export interface AchievementRow {
+  line: string;
+  hint: string;
+}
+
+export function createAchievementsPanel(parent: HTMLElement, rows: () => AchievementRow[]): AchievementsPanel {
   const list = document.createElement('div');
-  list.style.cssText = 'white-space:pre-line';
   let timer: number | undefined;
+  // The hints that are open, by row, kept over a refresh. A tap opens a hint under its row and a second tap closes it.
+  const shown = new Set<number>();
+  let drawn = '';
   const refresh = (): void => {
-    const text = lines().map(prettyLine).join('\n');
-    if (list.textContent !== text) list.textContent = text;
+    const now = rows();
+    const key = JSON.stringify([now, [...shown]]);
+    if (key === drawn) return;
+    drawn = key;
+    list.replaceChildren(
+      ...now.map((r, i) => {
+        const item = document.createElement('div');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.action = 'achievement';
+        button.textContent = prettyLine(r.line);
+        button.title = r.hint;
+        button.setAttribute('aria-expanded', String(shown.has(i)));
+        button.style.cssText = 'display:block;width:100%;min-height:36px;padding:4px 0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;';
+        button.onclick = () => {
+          if (!shown.delete(i)) shown.add(i);
+          refresh();
+        };
+        item.appendChild(button);
+        if (shown.has(i)) {
+          const hint = document.createElement('div');
+          hint.dataset.role = 'achievement-hint';
+          hint.textContent = r.hint;
+          hint.style.cssText = 'margin:0 0 6px 18px;font-size:14px;color:#6b5d44;';
+          item.appendChild(hint);
+        }
+        return item;
+      }),
+    );
   };
   const ui = cardWithButton(parent, 'achievements', '\u{1F3C6}', 'Things I did', 232, 'Things I did', (open) => {
     window.clearInterval(timer);

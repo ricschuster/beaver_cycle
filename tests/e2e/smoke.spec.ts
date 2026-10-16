@@ -39,6 +39,10 @@ test('the Settings and achievements buttons open their cards', async ({ page }) 
   await expect(page.locator('#settings')).toBeHidden();
   await page.getByRole('button', { name: 'Things I did' }).click();
   await expect(page.locator('#achievements')).toContainText('Home');
+  await page.locator('#achievements button[data-action="achievement"]', { hasText: 'Wood' }).click();
+  await expect(page.locator('#achievements [data-role="achievement-hint"]')).toContainText('Gnaw down 30 trees');
+  await page.locator('#achievements button[data-action="achievement"]', { hasText: 'Wood' }).click();
+  await expect(page.locator('#achievements [data-role="achievement-hint"]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

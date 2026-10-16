@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Texture preview</title>
+    <style>
+      body { margin: 0; background: #222; color: #eee; font: 13px sans-serif; }
+      #labels { position: absolute; inset: 0; pointer-events: none; display: grid; grid-template-columns: repeat(3, 400px); grid-auto-rows: 400px; }
+      #labels div { padding: 4px 6px; text-shadow: 0 0 3px #000; }
+      #notes { position: absolute; left: 1210px; top: 8px; width: 380px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view" width="1200" height="1600"></canvas>
+    <div id="labels"></div>
+    <div id="notes"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

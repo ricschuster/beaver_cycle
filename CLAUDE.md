@@ -83,6 +83,7 @@ Everyday (gate means CI blocks a merge on it):
   `?kind=fox&moving=1&yaw=90&pitch=15&dist=3&t=2`; kinds as in `src/sim/animals.ts`)
 - `npm run dev`, then open `/tools/prop-preview/` - the props (lodge, dam, logs, rocks, food store, lily pads) side by side with their meshes and
   triangles; `node tools/prop-preview/shoot.mjs out.png` screenshots it from a Vite server on port 5202 (`npx vite --port 5202 --strictPort`)
+- `npx vite --port 5203`, then open `/tools/texture-preview/` - one rock and log with per face colour, a code made texture, and an image texture, side by side (ADR 0012; `python3 tools/texture-preview/make_textures.py` remakes the images)
 - `npm run dev`, then open `/tools/sound-preview/` - every sound of the game to play and rate (ok, thin, harsh, wrong), with its measurements; `SOUND_REPORT=dir npx vitest run src/audio/analyze.test.ts` writes a WAV of each sound and a table
 - `npm run dev`, then open `/tools/sound-preview2/` - the open sound gaps only (code-made sounds listed in `SYNTH_GAPS`, and clips staged after the settled rounds, `SETTLED` in its `main.ts`; none open now), rated apart from the full page
 - `npm run dev`, then open `/tools/music-preview/` - the generative music alone (Valley, Dream, Off), with its own volume sliders and the ambient layers to judge the loudness against (query `?mood=dream` starts on the first touch)

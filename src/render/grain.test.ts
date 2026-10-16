@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { BARK_GRAIN_SIZE, barkGrainData, rockGrainData } from './grain';
+import { BARK_GRAIN_SIZE, barkGrainData, keepCompileHook, rockGrainData } from './grain';
 import { BARK, BARK_REPEAT_M, lump, mergeParts, paintLump, seeded, stick } from './propShapes';
 
 describe('bark grain texture', () => {
@@ -74,5 +74,27 @@ describe('rock grain', () => {
     expect(rock.getAttribute('uv').count).toBe(rock.getAttribute('position').count);
     const mud = paintLump(lump(seeded(5), 0.2), BARK[0]!, seeded(6));
     expect(mud.hasAttribute('grain')).toBe(false);
+  });
+});
+
+describe('keepCompileHook', () => {
+  it('keeps the hook a material had when the setup replaces it, and runs both in order', () => {
+    const m = new THREE.MeshLambertMaterial();
+    const calls: string[] = [];
+    m.onBeforeCompile = () => void calls.push('grain');
+    // Like CSM.setupMaterial: assigns a new hook and drops the old one.
+    keepCompileHook(m, (x) => {
+      x.onBeforeCompile = () => void calls.push('shadows');
+    });
+    m.onBeforeCompile({} as THREE.WebGLProgramParametersWithUniforms, {} as THREE.WebGLRenderer);
+    expect(calls).toEqual(['grain', 'shadows']);
+  });
+
+  it('leaves a hook alone when the setup does not touch it', () => {
+    const m = new THREE.MeshLambertMaterial();
+    const hook = (): void => {};
+    m.onBeforeCompile = hook;
+    keepCompileHook(m, () => {});
+    expect(m.onBeforeCompile).toBe(hook);
   });
 });

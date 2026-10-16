@@ -35,6 +35,7 @@ import type { DamSite } from './damSites';
 import { createDamSiteView } from './damSites';
 import { createSpotRings, type SpotRings } from './spotRing';
 import { createWayPointer } from './wayPointer';
+import { keepCompileHook } from './grain';
 import type { DamSpot } from '../sim/damSpots';
 import { clearingsOf, createTerrainView, type Clearing, type TerrainView } from './terrainView';
 
@@ -180,7 +181,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const sunLight = csm ? null : new THREE.DirectionalLight(0xffffff, 0);
   if (sunLight) scene.add(sunLight);
   let shadowsOn = shadows;
-  const prepare = (m: THREE.Material): void => csm?.setupMaterial(m);
+  const prepare = (m: THREE.Material): void => {
+    if (csm) keepCompileHook(m, (x) => csm.setupMaterial(x));
+  };
 
   const SKY = 0xcfe3d4;
   // Fog starts well out so far ridges stay readable, and ends just inside the camera far plane.

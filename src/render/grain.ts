@@ -74,8 +74,23 @@ export function grainOff(): boolean {
 }
 
 /**
+ * Run `setup` on a material and keep the `onBeforeCompile` the material had. The cascaded shadow setup (`CSM.setupMaterial`)
+ * replaces that hook instead of chaining it, which dropped the grain (and any look added before it) when the shadows were on.
+ */
+export function keepCompileHook(material: THREE.Material, setup: (m: THREE.Material) => void): void {
+  const before = material.onBeforeCompile;
+  setup(material);
+  const added = material.onBeforeCompile;
+  if (added === before) return;
+  material.onBeforeCompile = (shader, renderer) => {
+    before.call(material, shader, renderer);
+    added.call(material, shader, renderer);
+  };
+}
+
+/**
  * The prop material (lit, flat shaded, vertex colours) with the grain on the faces whose `grain` is above 0 (1 bark, 2 rock). Call
- * before the material's `prepare` (the shadow setup), which wraps `onBeforeCompile`.
+ * before the material's `prepare` (the shadow setup), which wraps it with `keepCompileHook`.
  */
 export function grainMaterial(options: THREE.MeshLambertMaterialParameters = {}): THREE.MeshLambertMaterial {
   const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, ...options });

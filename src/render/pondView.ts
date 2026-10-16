@@ -20,14 +20,15 @@ export interface PondView {
  * The water of one pond as a mesh geometry, or null when nothing is below the level next to a flooded point. Each vertex
  * keeps the depth of the water over the ground in a `waterDepth` attribute (0 on the shoreline), for the ice.
  */
-export function buildPondGeometry(pond: Pond, spot?: Pick<DamSpot, 'bed' | 'flow'>): THREE.BufferGeometry | null {
+export function buildPondGeometry(pond: Pond, spot?: Pick<DamSpot, 'bed' | 'channel' | 'flow'>): THREE.BufferGeometry | null {
   const { n, x0, z0, heights: h, flooded, level } = pond;
   const pos: number[] = [];
   const depth: number[] = [];
   const clipped: [number, number, number][] = [];
   const cut: [number, number, number][] = [];
-  // How far upstream of the dam wall a point is: the wall runs across the flow through the bed point (damView.ts).
-  const up = (x: number, z: number): number => (spot ? -((x - spot.bed.x) * spot.flow.x + (z - spot.bed.z) * spot.flow.z) : 1);
+  // How far upstream of the dam wall a point is: the wall runs across the flow through the channel point (damView.ts), the same line the flood fill stops at.
+  const wall = spot ? (spot.channel ?? spot.bed) : null;
+  const up = (x: number, z: number): number => (spot && wall ? -((x - wall.x) * spot.flow.x + (z - wall.z) * spot.flow.z) : 1);
   const clip = (tri: [number, number, number][]): void => {
     clipped.length = 0;
     for (let k = 0; k < 3; k++) {

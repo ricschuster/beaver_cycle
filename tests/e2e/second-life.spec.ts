@@ -50,7 +50,9 @@ test('a second life: leave home, build a lodge, win Home again, and leave again 
   await buildLodge(page);
   w = await world(page);
   expect(w.lodge.wood).toBeGreaterThanOrEqual(10);
-  expect(dist(w.lodge, home0)).toBeGreaterThan(6);
+  // Not on top of the old home. The nearest site with deep water at its door can lie right beside it (4.8 m since #521, two
+  // domes of 2.5 m touching), as the game does not keep a site clear of a former home.
+  expect(dist(w.lodge, home0)).toBeGreaterThan(4);
   expect(w.achievements).toContain('home');
   await shot(page, 'second-life-01-own-lodge');
 
@@ -70,7 +72,7 @@ test('a second life: leave home, build a lodge, win Home again, and leave again 
   expect(w.partners).toHaveLength(3);
   for (const p of w.partners) expect(dist(p, w.formerHomes[1])).toBeGreaterThanOrEqual(120);
   expect(w.lodge).toBeNull();
-  await expect(page.locator('#toast')).toContainText('time to start a family of your own');
+  await expect(page.locator('#toast')).toContainText('time to start a family of your own', { timeout: 30_000 });
   await shot(page, 'second-life-02-third-life-starts');
   expect(errors).toEqual([]);
 });

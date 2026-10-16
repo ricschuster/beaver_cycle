@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { BARK_GRAIN_SIZE, barkGrainData } from './grain';
+import { BARK_GRAIN_SIZE, barkGrainData, rockGrainData } from './grain';
 import { BARK, BARK_REPEAT_M, lump, mergeParts, paintLump, seeded, stick } from './propShapes';
 
 describe('bark grain texture', () => {
@@ -54,5 +54,25 @@ describe('grain on prop geometry', () => {
     expect(grain.count).toBe(merged.getAttribute('position').count);
     expect(merged.getAttribute('uv').count).toBe(grain.count);
     expect(grain.getX(grain.count - 1)).toBe(0);
+  });
+});
+
+describe('rock grain', () => {
+  it('is the same every time, and about as bright as a colour once multiplied by its gain', () => {
+    const data = rockGrainData();
+    expect(Array.from(rockGrainData().slice(0, 64))).toEqual(Array.from(data.slice(0, 64)));
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) sum += data[i]!;
+    const mean = sum / (data.length / 4) / 255;
+    expect(mean * 1.23).toBeGreaterThan(0.9);
+    expect(mean * 1.23).toBeLessThan(1.1);
+  });
+
+  it('a rock lump asked for grain has grain 2 and a uv on every face, and mud has none', () => {
+    const rock = paintLump(lump(seeded(5), 0.2), BARK[0]!, seeded(6), undefined, true);
+    expect(new Set(Array.from(rock.getAttribute('grain').array))).toEqual(new Set([2]));
+    expect(rock.getAttribute('uv').count).toBe(rock.getAttribute('position').count);
+    const mud = paintLump(lump(seeded(5), 0.2), BARK[0]!, seeded(6));
+    expect(mud.hasAttribute('grain')).toBe(false);
   });
 });

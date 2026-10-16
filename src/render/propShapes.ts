@@ -44,7 +44,7 @@ export const BARK_REPEAT_M = 0.8;
 
 /**
  * Give every vertex of a non indexed geometry a colour, one face (three vertices) at a time. With `grainOf` each face
- * also gets a grain strength, 0 for none (cut wood, mud) up to 1 (bark), in the `grain` attribute for `grainMaterial`.
+ * also gets a grain strength, 0 for none (cut wood, mud), 1 for bark, 2 for rock, in the `grain` attribute for `grainMaterial`.
  */
 export function paintFaces(
   geometry: THREE.BufferGeometry,
@@ -171,12 +171,46 @@ export function lump(random: () => number, roughness: number, detail: 0 | 1 = 0,
 }
 
 /** Paint a lump: lighter on top, darker below, each face a little different, some faces `patch` coloured (moss, wet mud). */
-export function paintLump(geometry: THREE.BufferGeometry, base: THREE.Color, random: () => number, patch?: { color: THREE.Color; share: number }): THREE.BufferGeometry {
-  return paintFaces(geometry, (_c, n) => {
+export function paintLump(geometry: THREE.BufferGeometry, base: THREE.Color, random: () => number, patch?: { color: THREE.Color; share: number }, rockGrain = false): THREE.BufferGeometry {
+  const painted = paintFaces(geometry, (_c, n) => {
     const color = vary(base, random, 0.1).multiplyScalar(0.8 + 0.3 * Math.max(0, n.y));
     if (patch && n.y > 0.2 && random() < patch.share) color.lerp(patch.color, 0.6);
     return color;
-  });
+  }, rockGrain ? () => 2 : undefined);
+  if (rockGrain) rockUv(painted);
+  return painted;
+}
+
+/** Units of a unit radius lump that one repeat of the rock grain covers (a lump is scaled after, so this is in its own units). */
+export const ROCK_REPEAT = 2.4;
+
+/**
+ * Set the uv of a lump to its position seen along the axis its face points most along, so the rock grain lies flat on
+ * every face with no seam inside a face. Needs a non indexed geometry.
+ */
+export function rockUv(geometry: THREE.BufferGeometry): void {
+  const p = geometry.getAttribute('position');
+  const uv = new Float32Array(p.count * 2);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  for (let f = 0; f < p.count / 3; f++) {
+    a.fromBufferAttribute(p, f * 3);
+    b.fromBufferAttribute(p, f * 3 + 1);
+    c.fromBufferAttribute(p, f * 3 + 2);
+    n.subVectors(c, b).cross(a.clone().sub(b));
+    const ax = Math.abs(n.x);
+    const ay = Math.abs(n.y);
+    const az = Math.abs(n.z);
+    for (let k = 0; k < 3; k++) {
+      const v = k === 0 ? a : k === 1 ? b : c;
+      const [u, w] = ax >= ay && ax >= az ? [v.z, v.y] : ay >= az ? [v.x, v.z] : [v.x, v.y];
+      uv[(f * 3 + k) * 2] = u / ROCK_REPEAT;
+      uv[(f * 3 + k) * 2 + 1] = w / ROCK_REPEAT;
+    }
+  }
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
 }
 
 /**

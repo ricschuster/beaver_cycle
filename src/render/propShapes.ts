@@ -39,10 +39,21 @@ export function vary(base: THREE.Color, random: () => number, amount: number): T
   return base.clone().multiplyScalar(1 + (random() * 2 - 1) * amount);
 }
 
-/** Give every vertex of a non indexed geometry a colour, one face (three vertices) at a time. */
-export function paintFaces(geometry: THREE.BufferGeometry, colorOf: (centre: THREE.Vector3, normal: THREE.Vector3, face: number) => THREE.Color): THREE.BufferGeometry {
+/** Metres one repeat of the bark grain covers, along a stick and round it (`barkUv`). */
+export const BARK_REPEAT_M = 0.8;
+
+/**
+ * Give every vertex of a non indexed geometry a colour, one face (three vertices) at a time. With `grainOf` each face
+ * also gets a grain strength, 0 for none (cut wood, mud) up to 1 (bark), in the `grain` attribute for `grainMaterial`.
+ */
+export function paintFaces(
+  geometry: THREE.BufferGeometry,
+  colorOf: (centre: THREE.Vector3, normal: THREE.Vector3, face: number) => THREE.Color,
+  grainOf?: (centre: THREE.Vector3, normal: THREE.Vector3, face: number) => number,
+): THREE.BufferGeometry {
   const p = geometry.getAttribute('position');
   const colors = new Float32Array(p.count * 3);
+  const grain = grainOf ? new Float32Array(p.count) : null;
   const a = new THREE.Vector3();
   const b = new THREE.Vector3();
   const c = new THREE.Vector3();
@@ -56,8 +67,10 @@ export function paintFaces(geometry: THREE.BufferGeometry, colorOf: (centre: THR
     normal.subVectors(c, b).cross(a.clone().sub(b)).normalize();
     const color = colorOf(centre, normal, f);
     for (let k = 0; k < 3; k++) colors.set([color.r, color.g, color.b], (f * 3 + k) * 3);
+    if (grain) grain.fill(grainOf!(centre, normal, f), f * 3, f * 3 + 3);
   }
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  if (grain) geometry.setAttribute('grain', new THREE.BufferAttribute(grain, 1));
   // Face normals: flat shading does not need them, but the shadow's normal bias does.
   geometry.computeVertexNormals();
   return geometry;
@@ -66,8 +79,14 @@ export function paintFaces(geometry: THREE.BufferGeometry, colorOf: (centre: THR
 /** Merge painted non indexed parts into one geometry, and free the parts. */
 export function mergeParts(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   // Keep only what every part has, so parts made by different three.js shapes merge, then give it face normals again.
+  // The grain and its uv stay when any part has them; a part without them gets none (grain 0).
+  const grained = parts.some((g) => g.hasAttribute('grain'));
   for (const g of parts) {
-    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'color') g.deleteAttribute(name);
+    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'color' && !(grained && (name === 'grain' || name === 'uv'))) g.deleteAttribute(name);
+    if (!grained) continue;
+    const count = g.getAttribute('position').count;
+    if (!g.hasAttribute('grain')) g.setAttribute('grain', new THREE.BufferAttribute(new Float32Array(count), 1));
+    if (!g.hasAttribute('uv')) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(count * 2), 2));
   }
   const merged = parts.length > 0 ? mergeGeometries(parts) : new THREE.BufferGeometry();
   for (const g of parts) g.dispose();
@@ -92,7 +111,18 @@ export function stick(length: number, radius: number, sides: number, bark: THREE
   const g = new THREE.CylinderGeometry(radius * 0.85, radius, length, sides, 1).rotateZ(-Math.PI / 2).rotateX(random() * Math.PI);
   const flat = g.toNonIndexed();
   g.dispose();
-  return paintFaces(flat, (_c, n) => (Math.abs(n.x) > 0.9 ? CUT_WOOD : vary(bark, random, 0.12)));
+  barkUv(flat, 2 * Math.PI * radius, length);
+  return paintFaces(flat, (_c, n) => (Math.abs(n.x) > 0.9 ? CUT_WOOD : vary(bark, random, 0.12)), (_c, n) => (Math.abs(n.x) > 0.9 ? 0 : 1));
+}
+
+/**
+ * Set the uv of a cylinder (u round it, v along it, both 0 to 1) to texture repeats of `BARK_REPEAT_M` metres, a whole
+ * number of them round the girth so the bark meets without a seam, for the bark grain that runs along the stick.
+ */
+export function barkUv(geometry: THREE.BufferGeometry, girth: number, length: number): void {
+  const uv = geometry.getAttribute('uv');
+  const round = Math.max(1, Math.round(girth / BARK_REPEAT_M));
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * round, uv.getY(i) * (length / BARK_REPEAT_M));
 }
 
 /** Place a part: turn it by `rotation` (Euler, radians) and move it to `at`. */

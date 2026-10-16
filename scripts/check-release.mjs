@@ -1,5 +1,5 @@
 // Fails when the release build in dist/ still holds dev tooling (ADR 0013). Run after `npm run build`.
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const MARKERS = ['To nearest spot', 'Finish dam here', 'Fill store but one', 'Sleep to dawn', '__game'];
@@ -14,6 +14,7 @@ function* files(d) {
 }
 
 const hits = [];
+if (existsSync(join(dir, 'audio-candidates'))) hits.push(`${dir}/audio-candidates: staged sounds are not part of the game`);
 for (const f of files(dir)) {
   const text = readFileSync(f, 'utf8');
   for (const m of MARKERS) if (text.includes(m)) hits.push(`${f}: ${m}`);

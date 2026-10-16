@@ -7,6 +7,8 @@
 //   node tools/tablet-live/bench.mjs stress         ring and tree density sweep
 //   node tools/tablet-live/bench.mjs soak [minutes] walk and report every ~90 s
 //   node tools/tablet-live/bench.mjs lakes         jump to each fine tile region, still and walking, with per part tile build times (#109)
+//   node tools/tablet-live/bench.mjs grain         bark and rock grain on and off at the lodge and a dam (#534)
+//   BENCH_PORT=5198 node ...                         another origin and port, so the saved game of 5199 stays untouched
 //   BENCH_QUERY=cascades=1 node ...                 add URL options to every load
 //   node tools/tablet-live/bench.mjs fine          fine tile ring sweep at the shore and the bog (ADR 0008)
 //
@@ -16,7 +18,8 @@
 import { execSync } from 'node:child_process';
 import { chromium } from 'playwright';
 
-const URL = 'http://localhost:5199/';
+// BENCH_PORT runs on another origin, so the saved game of the usual one (localStorage of localhost:5199) is not read or changed.
+const URL = `http://localhost:${process.env.BENCH_PORT ?? 5199}/`;
 const PORT = 9223;
 const adb = `${process.env.ANDROID_HOME ?? `${process.env.HOME}/Android/Sdk`}/platform-tools/adb`;
 const sh = (c) => execSync(`${adb} ${c}`, { encoding: 'utf8' });
@@ -37,6 +40,9 @@ async function load(query = '') {
   const cont = page.getByRole('button', { name: 'Continue' });
   await Promise.race([cont.waitFor({ timeout: 8000 }).then(() => cont.click()), page.waitForFunction(() => '__game' in window, null, { timeout: 8000 })]).catch(() => {});
   await page.waitForFunction(() => '__game' in window, null, { polling: 200, timeout: 60000 });
+  // A fresh origin (BENCH_PORT) shows the welcome card first.
+  const welcome = page.getByRole('button', { name: "Let's go" });
+  if (await welcome.isVisible().catch(() => false)) await welcome.click();
   await page.getByRole('button', { name: 'Test menu' }).click();
   await page.getByRole('button', { name: 'Noon', exact: true }).click(); // the same light every run
   await outside();
@@ -228,14 +234,36 @@ async function soak(minutes) {
   await page.keyboard.up('KeyW');
 }
 
+/** Grain on and off (#534), alternating so heat does not favour one: by the start lodge, then at a finished dam where props fill the screen. GRAIN_SHOTS=dir keeps screenshots. */
+async function grain() {
+  for (const [name, query] of [['grain on', ''], ['grain off', 'grain=0'], ['grain on', ''], ['grain off', 'grain=0']]) {
+    await load(query);
+    await page.waitForTimeout(3000);
+    print(`${name} lodge`, await sample(8000));
+    if (process.env.GRAIN_SHOTS) await page.screenshot({ path: `${process.env.GRAIN_SHOTS}/${name.replace(' ', '-')}-lodge.png` });
+    await jump('core');
+    await page.locator('button[data-action="dam-go"]').click();
+    await page.waitForTimeout(2000);
+    for (let i = 0; i < 3; i++) {
+      await page.locator('button[data-action="dam-fill"]').click();
+      await page.waitForTimeout(500);
+    }
+    await page.getByRole('button', { name: 'Test menu' }).click().catch(() => {});
+    await page.waitForTimeout(3000);
+    print(`${name} dam`, await sample(8000));
+    if (process.env.GRAIN_SHOTS) await page.screenshot({ path: `${process.env.GRAIN_SHOTS}/${name.replace(' ', '-')}-dam.png` });
+  }
+}
+
 const [mode, arg] = process.argv.slice(2);
 try {
   if (mode === 'scenarios') await scenarios();
   else if (mode === 'stress') await stress();
   else if (mode === 'lakes') await lakes();
   else if (mode === 'fine') await fine();
+  else if (mode === 'grain') await grain();
   else if (mode === 'soak') await soak(Number(arg) || 10);
-  else console.log('usage: node tools/tablet-live/bench.mjs scenarios | stress | lakes | fine | soak [minutes]');
+  else console.log('usage: node tools/tablet-live/bench.mjs scenarios | stress | lakes | fine | grain | soak [minutes]');
 } finally {
   await browser.close();
 }

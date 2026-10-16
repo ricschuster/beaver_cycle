@@ -24,6 +24,24 @@ test('the minimap trial shows when asked for, and the test menu turns it off', a
   expect(errors).toEqual([]);
 });
 
+test('the Settings and achievements buttons open their cards', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?shadows=0');
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.locator('#settings')).toBeVisible();
+  await expect(page.locator('input[data-action="settings-music"]')).toBeVisible();
+  // An automated browser starts with the map off; a press goes on to turning.
+  await expect(page.locator('button[data-action="settings-map"]')).toHaveText('Off');
+  await page.locator('button[data-action="settings-map"]').click();
+  await expect(page.locator('button[data-action="settings-map"]')).toHaveText('Turning');
+  await page.locator('button[data-action="settings-close"]').click();
+  await expect(page.locator('#settings')).toBeHidden();
+  await page.getByRole('button', { name: 'Things I did' }).click();
+  await expect(page.locator('#achievements')).toContainText('Home');
+  expect(errors).toEqual([]);
+});
+
 test('tiles stream in when they have been built', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));

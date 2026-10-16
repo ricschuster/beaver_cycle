@@ -31,5 +31,5 @@ test menu only toggles its marks. The dream stays: it is reached by sleeping.
 ## Consequences
 
 - The playtests run on the dev build, so they do not prove the release build works. A release smoke test is a follow-up (#550).
-- The release build has no volume sliders and no minimap mode button; the mute button stays.
+- What a player still needs from the test menu lives in two release buttons: Settings (music and sound volume, the map, the shadows) and Things I did (the achievements). Both are in every build; the Test menu adds the dev rows on top.
 - The marker strings in `scripts/check-release.mjs` must be kept in step with the test menu's labels.

@@ -57,6 +57,8 @@ import { babbleCue, dreamCues } from './audio/talkDream';
 import { LAYERS, createSound, wireBrowser } from './audio/sound';
 import { createMuteButton } from './ui/muteButton';
 import { createOsmCredit } from './ui/osmCredit';
+import { loadPrefs, savePrefs } from './ui/prefs';
+import { createAchievementsPanel, createSettingsPanel } from './ui/settingsPanel';
 import { createFlyButtons } from './ui/flyButtons';
 import { createMinimap, minimapMode, nextMode, type MinimapMode } from './ui/minimap';
 import { loadDamSites } from './render/damSites';
@@ -172,8 +174,20 @@ async function start(): Promise<void> {
     if (wantsWelcome(remembered(WELCOME_KEY), query, navigator.webdriver)) help.showWelcome();
     else if (wantsCoach(remembered(COACH_KEY), query, navigator.webdriver)) coachPending = true;
   }
+  // The browser's storage (blocked in some modes, then null) holds the saved game, the sound settings and the Settings choices.
+  const storage: SaveStorage | null = (() => {
+    try {
+      return localStorage;
+    } catch {
+      return null;
+    }
+  })();
+  // The Settings panel's choices (src/ui/prefs.ts). A dev URL parameter wins over them; the shadows are fixed at the start, so
+  // changing them restarts the game.
+  const prefs = loadPrefs(storage);
+  const shadowsAtStart = (query.has('shadows') ? query.get('shadows') === '1' : prefs.shadows) && !free;
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
-    shadows: query.get('shadows') === '1' && !free,
+    shadows: shadowsAtStart,
     sunDisc: !free,
     bare: free,
     shadowMap: Number(query.get('shadowmap')) || undefined,
@@ -274,13 +288,6 @@ async function start(): Promise<void> {
   const startAs = STAGES.includes(stageParam as Stage) ? (stageParam as Stage) : navigator.webdriver ? 'adult' : 'baby';
   if (startAs !== 'adult') world = startStage(world, startAs);
   // The saved game (docs/design/26_saving.md): one slot. When there is one, the player continues it or starts over.
-  const storage: SaveStorage | null = (() => {
-    try {
-      return localStorage;
-    } catch {
-      return null;
-    }
-  })();
   let startNote: string | null = null;
   const saving = storage !== null && !free && wantsSave(query, navigator.webdriver);
   if (saving) {
@@ -318,7 +325,7 @@ async function start(): Promise<void> {
   // Locations first, then the named markers (the lake, the bog, the inflows) as test jump points.
   const anchors = store?.index.anchors ?? [];
   // The minimap trial (docs/design/31_minimap.md): on, turning with the camera; ?minimap=north keeps north up, ?minimap=0 or the test menu turns it off, and an automated browser needs ?minimap=1.
-  const minimap = createMinimap(free ? document.createElement('div') : document.body, minimapMode(query.get('minimap'), navigator.webdriver));
+  const minimap = createMinimap(free ? document.createElement('div') : document.body, query.has('minimap') || !prefs.minimap ? minimapMode(query.get('minimap'), navigator.webdriver) : prefs.minimap);
   const MAP_LABEL: Record<MinimapMode, string> = { north: 'North up', turn: 'Turning', off: 'Off' };
   // Sound (docs/design/32_sound.md): the mute button is always on the screen. The free fly view and ?sound=0 stay silent.
   const soundOut = createWebAudio();
@@ -331,6 +338,34 @@ async function start(): Promise<void> {
     sound.setMuted(!sound.settings().muted);
     muteButton?.set(sound.settings().muted);
   });
+  // Settings and the achievements: the two buttons a player has next to the speaker (the free fly view has no screens).
+  if (!free) {
+    createSettingsPanel(document.body, {
+      sounds: { value: () => sound.settings().effects, onChange: sound.setEffects },
+      music: { value: () => sound.settings().music, onChange: sound.setMusic },
+      map: {
+        label: () => MAP_LABEL[minimap.mode()],
+        onNext() {
+          minimap.setMode(nextMode(minimap.mode()));
+          savePrefs(storage, { minimap: minimap.mode(), shadows: shadowsAtStart });
+          return MAP_LABEL[minimap.mode()];
+        },
+      },
+      shadows: {
+        on: () => shadowsAtStart,
+        onToggle(on) {
+          savePrefs(storage, { minimap: minimap.mode(), shadows: on });
+          saveNow();
+          // The shadows are made when the renderer starts, so the game starts again, with the saved game to continue.
+          const next = new URLSearchParams(location.search);
+          next.delete('shadows');
+          const qs = next.toString();
+          location.assign(location.pathname + (qs ? `?${qs}` : ''));
+        },
+      },
+    });
+    createAchievementsPanel(document.body, () => achievementLines(world));
+  }
   // The test menu is left out of the release build (ADR 0013); the frame loop keeps calling the stand-in.
   const menu: TestMenu = !__DEV_TOOLS__ ? NO_TEST_MENU : createTestMenu(document.body, {
     speeds: [1, 2, 5, 20, 100],
@@ -376,7 +411,7 @@ async function start(): Promise<void> {
         location.assign(location.pathname + (qs ? `?${qs}` : ''));
       },
     },
-    shadowsAvailable: query.get('shadows') === '1' && !free,
+    shadowsAvailable: shadowsAtStart,
     onShadows(on) {
       renderer.setShadows(on);
     },

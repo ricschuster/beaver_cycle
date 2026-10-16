@@ -4,7 +4,8 @@
 import * as THREE from 'three';
 import { LOG_RADIUS, type Log } from '../sim/logs';
 import { branchesOf } from '../sim/food';
-import { BARK, CUT_RING, CUT_WOOD, mergeParts, paintFaces, propMaterial, seedOf, seeded, stickBetween, vary, vertexCount } from './propShapes';
+import { BARK, BARK_REPEAT_M, CUT_RING, CUT_WOOD, barkUv, mergeParts, paintFaces, seedOf, seeded, stickBetween, vary, vertexCount } from './propShapes';
+import { grainMaterial } from './grain';
 
 export interface LogView {
   update(logs: readonly Log[], stripped?: Readonly<Record<string, number>>): void;
@@ -50,6 +51,11 @@ export function buildLogShape(id: string, length: number): LogShape {
   const lathe = new THREE.LatheGeometry(profile, SIDES, random() * Math.PI);
   const trunk = (lathe.index ? lathe.toNonIndexed() : lathe.clone()).rotateX(Math.PI / 2);
   lathe.dispose();
+  // The lathe's v follows its profile points, which are not evenly spaced in z, so the grain runs on z itself.
+  barkUv(trunk, 2 * Math.PI * r, length);
+  const trunkUv = trunk.getAttribute('uv');
+  const trunkAt = trunk.getAttribute('position');
+  for (let i = 0; i < trunkUv.count; i++) trunkUv.setY(i, (trunkAt.getZ(i) + half) / BARK_REPEAT_M);
   const bark = BARK[Math.floor(random() * BARK.length)]!;
   paintFaces(trunk, (c, normal) => {
     const out = Math.hypot(c.x, c.y);
@@ -58,7 +64,7 @@ export function buildLogShape(id: string, length: number): LogShape {
     // The gnawed point is pale too.
     if (c.z > pointAt + 0.01) return vary(CUT_WOOD, random, 0.06);
     return vary(bark, random, 0.14);
-  });
+  }, (c, normal) => (Math.abs(normal.z) > 0.9 && c.z < 0) || c.z > pointAt + 0.01 ? 0 : 1);
   const parts = [trunk];
   // Branches stand out of the upper half of the log, leaning toward the +z end (the tree's top), each with a twig.
   for (let j = n - 1; j >= 0; j--) {
@@ -101,7 +107,7 @@ export function paintStripped(shape: LogShape, length: number, bare: number): vo
 }
 
 export function createLogView(scene: THREE.Scene, shadows: boolean, prepare: (m: THREE.Material) => void): LogView {
-  const material = propMaterial();
+  const material = grainMaterial();
   prepare(material);
   const logs = new Map<string, { mesh: THREE.Mesh; shape: LogShape; length: number; bare: number }>();
   return {

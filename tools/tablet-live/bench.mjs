@@ -33,12 +33,18 @@ const page = browser.contexts()[0].pages()[0];
 // BENCH_QUERY adds URL options to every load, such as `cascades=1` or `shadows=0`.
 const EXTRA = process.env.BENCH_QUERY ?? '';
 
-async function load(query = '') {
+async function load(query = '', fresh = false) {
   const q = [query, EXTRA].filter(Boolean).join('&');
   await page.goto(URL + (q ? `?${q}` : ''));
-  // A save from an earlier run brings up Welcome back; continue it.
-  const cont = page.getByRole('button', { name: 'Continue' });
-  await Promise.race([cont.waitFor({ timeout: 8000 }).then(() => cont.click()), page.waitForFunction(() => '__game' in window, null, { timeout: 8000 })]).catch(() => {});
+  // A save from an earlier run brings up Welcome back; continue it, or with fresh start over (the game saves on page hide, so clearing storage would not stick).
+  const cont = page.getByRole('button', { name: fresh ? 'New game' : 'Continue' });
+  await Promise.race([
+    cont.waitFor({ timeout: 8000 }).then(async () => {
+      await cont.click();
+      if (fresh) await page.getByRole('button', { name: 'Yes, new game' }).click();
+    }),
+    page.waitForFunction(() => '__game' in window, null, { timeout: 8000 }),
+  ]).catch(() => {});
   await page.waitForFunction(() => '__game' in window, null, { polling: 200, timeout: 60000 });
   // A fresh origin (BENCH_PORT) shows the welcome card first.
   const welcome = page.getByRole('button', { name: "Let's go" });
@@ -237,7 +243,7 @@ async function soak(minutes) {
 /** Grain on and off (#534), alternating so heat does not favour one: by the start lodge, then at a finished dam where props fill the screen. GRAIN_SHOTS=dir keeps screenshots. */
 async function grain() {
   for (const [name, query] of [['grain on', ''], ['grain off', 'grain=0'], ['grain on', ''], ['grain off', 'grain=0']]) {
-    await load(query);
+    await load(query, true); // a fresh game each run, so the lodge sample is the start lodge and not the dam of the run before
     await page.waitForTimeout(3000);
     print(`${name} lodge`, await sample(8000));
     if (process.env.GRAIN_SHOTS) await page.screenshot({ path: `${process.env.GRAIN_SHOTS}/${name.replace(' ', '-')}-lodge.png` });

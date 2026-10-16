@@ -48,4 +48,15 @@ describe('buildPondGeometry', () => {
     // Without the wall the cells along it spill past it, up to a cell's width.
     expect(Math.min(...upstream(buildPondGeometry(pond)!))).toBeLessThan(-0.5);
   });
+
+  it('ends the water at the dam line through the channel point when that is off the stream line', () => {
+    const flow = { x: 1, z: 0 };
+    // The channel lies 6 m downstream of the drawn stream line, as in most dam spots; the pond fills up to the line through it.
+    const spot = { id: 's', bed: { x: 0, z: 0 }, channel: { x: 6, z: 0 }, bedY: 0, flow, maxCrest: 2, pondM2: 900 };
+    const heightAt = (x: number, z: number): number => 0.1 * Math.abs(z) - 0.02 * Math.min(x - 6, 0);
+    const pond = floodPond({ heightAt, isWater: () => false, waterDepth: () => 0 }, spot, 1)!;
+    const p = buildPondGeometry(pond, spot)!.getAttribute('position');
+    const xs = Array.from({ length: p.count }, (_, i) => p.getX(i));
+    expect(Math.max(...xs)).toBeCloseTo(6, 5);
+  });
 });

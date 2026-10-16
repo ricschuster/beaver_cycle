@@ -4,7 +4,8 @@
 import * as THREE from 'three';
 import { ROCK_RADIUS, rocksNear, type Dropped } from '../sim/haul';
 import type { Terrain } from '../sim/terrain';
-import { BARK, lilyPad, lump, mergeParts, paintLump, propMaterial, seeded, stick, stickBetween } from './propShapes';
+import { grainMaterial } from './grain';
+import { BARK, lilyPad, lump, mergeParts, paintLump, seeded, stick, stickBetween } from './propShapes';
 
 export interface RockView {
   /** Draw the rocks round a point, not those in `taken`. Rebuilds when the beaver has moved on or a rock was taken. */
@@ -38,7 +39,7 @@ function branchGeometry(): THREE.BufferGeometry {
 }
 
 export function createRockView(scene: THREE.Scene, prepare: (m: THREE.Material) => void): RockView {
-  const material = propMaterial();
+  const material = grainMaterial();
   prepare(material);
   const instanced = (geometry: THREE.BufferGeometry, count: number): THREE.InstancedMesh => {
     const m = new THREE.InstancedMesh(geometry, material, count);
@@ -49,7 +50,7 @@ export function createRockView(scene: THREE.Scene, prepare: (m: THREE.Material) 
   };
   const shapes = Array.from({ length: ROCK_SHAPES }, (_, k) => {
     const random = seeded(101 + k);
-    const g = paintLump(lump(random, k === 0 ? 0.18 : 0.3, 0, k === 0 ? -0.5 : -0.3), STONE, random, { color: MOSS, share: 0.25 });
+    const g = paintLump(lump(random, k === 0 ? 0.18 : 0.3, 0, k === 0 ? -0.5 : -0.3), STONE, random, { color: MOSS, share: 0.25 }, true);
     return g.scale(ROCK_RADIUS * DRAW_SCALE, ROCK_RADIUS * DRAW_SCALE * (k === 0 ? 1 : 0.75), ROCK_RADIUS * DRAW_SCALE);
   });
   const meshes = shapes.map((g) => instanced(g, MAX_ROCKS));

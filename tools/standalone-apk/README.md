@@ -20,6 +20,7 @@ cd tools/standalone-apk
 npm install
 npx cap add android                # once
 python3 apply_icon.py              # the beaver icon, after every cap add
+python3 apply_shell.py             # our MainActivity (full screen), after every cap add
 npx cap sync android               # after every game build
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 cd android && ./gradlew assembleDebug
@@ -30,6 +31,9 @@ The APK (about 36 MB) is `app/build/outputs/apk/debug/app-debug.apk`. It can
 also be copied to a tablet and installed from there, if the tablet allows it.
 Each game change needs a new build and install. For quick edit and reload
 loops use `tools/tablet-live` instead.
+
+`apply_shell.py` copies `shell/MainActivity.java` into the generated project for the same reason. It hides the status bar and the
+navigation bar so the game fills the screen; a swipe from the screen edge shows them for a moment, and they hide again.
 
 The app icon (a beaver face with its chin in the water) is copied into the generated project by `apply_icon.py`, because the
 `android/` folder is untracked and `cap add android` brings back the stock Capacitor icon. The PNGs in `icon/mipmap-*` are the

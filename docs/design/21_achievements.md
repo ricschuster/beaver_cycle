@@ -158,6 +158,25 @@ Built in `src/sim/achievements.ts`: one rule per achievement, checked each step 
 below 0.99 and is back above 0.999 (wear falls a little every tick), so a dam raised a level is not a mend. Not tried on the
 tablet.
 
+## The neighbours batch (#568)
+
+Built: three more, reading state that is already saved (`met`, `rescued`, `generation`), so old saves need no change.
+
+| Id | Name | Won when | Counted from |
+| --- | --- | --- | --- |
+| `neighbour` | Good neighbour | The player talked to beavers of 3 different families in this life | `met`, the family part of a `family:cx:cz:...` id (`familiesMet`) |
+| `rescuer` | Rescuer | 5 stuck beavers dug out in this life | `rescuesThisLife` |
+| `generations` | Long line | The life is the third after the first (`generation >= 3`) | `generation` |
+
+Guides, partners and the parents of a former home are not neighbours: only beavers of the valley's families count. `met`
+starts again with each life, so each life meets its neighbours afresh. Long line is won on the first step of the life at that
+generation, so each later life wins it too. Generation 5 and 10 wait for tiers (#569).
+
+Not built, since the game cannot see them: **Raised a kit** (a kit of this life becoming a teenager while this life still
+lives in the lodge) and **Big family** (two kits in a litter, or kits in two springs). The player becomes the kit the moment
+it is born (note 23), so a life never has a kit that is growing up, and a life has one kit. Growing up already is the kit's side.
+They would need the parent to stay in play, or a litter, which is a design change for the author to decide.
+
 ## Next batch (#220, ideas agreed)
 
 Ideas from session 134, kept or dropped by the author. Nothing here is built. Each one reads what the game already keeps, or

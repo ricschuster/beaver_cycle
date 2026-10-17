@@ -13,10 +13,10 @@ import { DAY_SECONDS, DAYS_PER_YEAR, dateAt } from './clock';
 import { mateOf } from './partners';
 import { kitDue, type WorldState } from './state';
 
-export type AchievementId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide' | 'grownUp' | 'visitHome' | 'handDown';
+export type AchievementId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide' | 'grownUp' | 'visitHome' | 'handDown' | 'neighbour' | 'rescuer' | 'generations';
 
 /** The order they are listed and shown in. */
-export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide', 'grownUp', 'visitHome', 'handDown'];
+export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide', 'grownUp', 'visitHome', 'handDown', 'neighbour', 'rescuer', 'generations'];
 
 /** Trees to fell for the wood achievement (Q39). */
 export const WOOD_TREES = 30;
@@ -26,8 +26,14 @@ export const GARDENER_PADS = 20;
 export const HAULER_LOADS = 30;
 /** Pieces mended back to new for the handy beaver. */
 export const HANDY_MENDS = 1;
+/** Families to talk to for the good neighbour. */
+export const NEIGHBOUR_FAMILIES = 3;
+/** Stuck beavers to dig out for the rescuer. */
+export const RESCUER_DIGS = 5;
+/** The generation (lives begun after the first) that wins the long line. 5 and 10 wait for tiers (#569). */
+export const LINE_GENERATION = 3;
 
-type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey' | 'partners' | 'bornAt' | 'rescued' | 'formerHomes' | 'parentCoats' | 'met'>;
+type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey' | 'partners' | 'bornAt' | 'rescued' | 'generation' | 'formerHomes' | 'parentCoats' | 'met'>;
 
 /** Trees felled in this life. */
 export const treesThisLife = (w: Pick<WorldState, 'felled' | 'journey'>): number => w.felled.length - w.journey.felled;
@@ -40,6 +46,12 @@ export const rescuesThisLife = (w: Pick<WorldState, 'rescued' | 'journey'>): num
   const start = dateAt(w.journey.start).year;
   return w.rescued.filter((id) => Number(id.slice(id.lastIndexOf(':') + 1)) >= start).length;
 };
+
+/** The family a beaver of the valley belongs to, from its id (`family:cx:cz:mama`, `family:cx:cz:kit:year:k`), or null for any other talk. */
+const familyOfId = (id: string): string | null => (id.startsWith('family:') ? id.split(':').slice(0, 3).join(':') : null);
+
+/** Families of the valley the player talked to in this life (`met` starts again with each life). */
+export const familiesMet = (w: Pick<WorldState, 'met'>): number => new Set(Object.keys(w.met).map(familyOfId).filter((f) => f !== null)).size;
 
 const mine = (w: Facts, id: string): boolean => !w.journey.inherited.includes(id);
 
@@ -77,6 +89,10 @@ const RULES: Record<AchievementId, (w: Facts) => boolean> = {
   visitHome: (w) => visitedHome(w),
   // The kit is due, so the kit gets the lodge, and a dam this life built stands (whole, or raised, which needs it whole first).
   handDown: (w) => kitDue(w) && w.dams.some((d) => mine(w, `dam:${d.spot}`) && (damWhole(d) || levelOf(d) > 1)),
+  neighbour: (w) => familiesMet(w) >= NEIGHBOUR_FAMILIES,
+  rescuer: (w) => rescuesThisLife(w) >= RESCUER_DIGS,
+  // Each life starts its list again, so the life at this generation wins it on its first step.
+  generations: (w) => w.generation >= LINE_GENERATION,
 };
 
 /** The achievements the world has now won that it did not have yet, in the order to show them. */
@@ -130,6 +146,9 @@ export const ACHIEVEMENT_TEXT: Record<AchievementId, string> = {
   grownUp: 'Growing up achievement: from baby to teenager',
   visitHome: 'Visit home achievement: you met your family again',
   handDown: 'Hand down achievement: your kit gets your lodge and dam',
+  neighbour: `Good neighbour achievement: you talked to ${NEIGHBOUR_FAMILIES} families`,
+  rescuer: `Rescuer achievement: ${RESCUER_DIGS} beavers dug out`,
+  generations: 'Long line achievement: three kits down the family line',
 };
 
 /** The names for the list in the test menu. */
@@ -150,6 +169,9 @@ export const ACHIEVEMENT_NAME: Record<AchievementId, string> = {
   grownUp: 'Growing up',
   visitHome: 'Visit home',
   handDown: 'Hand down',
+  neighbour: 'Good neighbour',
+  rescuer: 'Rescuer',
+  generations: 'Long line',
 };
 
 /** How to win each one, for the Things I did card (#557). Short sentences for kids from 8; a number is the constant the rule uses. */
@@ -170,21 +192,26 @@ export const ACHIEVEMENT_HINT: Record<AchievementId, string> = {
   grownUp: 'Grow from a baby to a teenager.',
   visitHome: 'Go back and meet your family again.',
   handDown: 'Let your kit take over your lodge and dam.',
+  neighbour: `Talk to beavers of ${NEIGHBOUR_FAMILIES} different families.`,
+  rescuer: `Dig out ${RESCUER_DIGS} stuck beavers.`,
+  generations: 'Play the kit of the kit of the kit of the first beaver.',
 };
 
 /** The rows for the Things I did card: the line (as `achievementLines`) and the hint to show on a tap. */
-export function achievementRows(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey'>): { line: string; hint: string }[] {
+export function achievementRows(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey' | 'met' | 'rescued'>): { line: string; hint: string }[] {
   const lines = achievementLines(world);
   return ACHIEVEMENT_IDS.map((id, i) => ({ line: lines[i] ?? '', hint: ACHIEVEMENT_HINT[id] }));
 }
 
 /** The list for the test menu: one line per achievement, with a mark for won and the count where there is one. */
-export function achievementLines(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey'>): string[] {
+export function achievementLines(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey' | 'met' | 'rescued'>): string[] {
   const count = (id: AchievementId): string => {
     if (world.achievements.includes(id)) return '';
     if (id === 'wood') return ` ${treesThisLife(world)}/${WOOD_TREES}`;
     if (id === 'gardener') return ` ${world.padsPicked}/${GARDENER_PADS}`;
     if (id === 'hauler') return ` ${world.hauled}/${HAULER_LOADS}`;
+    if (id === 'neighbour') return ` ${Math.min(familiesMet(world), NEIGHBOUR_FAMILIES)}/${NEIGHBOUR_FAMILIES}`;
+    if (id === 'rescuer') return ` ${Math.min(rescuesThisLife(world), RESCUER_DIGS)}/${RESCUER_DIGS}`;
     return '';
   };
   return ACHIEVEMENT_IDS.map((id) => `${world.achievements.includes(id) ? '[x]' : '[ ]'} ${ACHIEVEMENT_NAME[id]}${count(id)}`);

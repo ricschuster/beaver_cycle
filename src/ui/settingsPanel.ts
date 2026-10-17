@@ -1,6 +1,7 @@
 // The Settings panel and the achievements panel, the two buttons a player has at the top right besides "?" and the speaker.
 // Settings holds the choices a player may want to change: the two volumes, the map, and the shadows. The achievements button
 // opens the Things I did screen. DOM only; the caller owns the settings and the world.
+import { LANGS, t, type LangChoice } from '../i18n';
 import { GROUP_NAME, type AchievementGroup, type AchievementRow } from '../sim/achievements';
 
 export interface SettingsOptions {
@@ -13,6 +14,8 @@ export interface SettingsOptions {
   map: { label(): string; onNext(): string };
   /** The shadows. Changing them restarts the game, so the caller saves first. */
   shadows: { on(): boolean; onToggle(on: boolean): void };
+  /** The language: the choice now, and a new choice restarts the game, so the caller saves first. */
+  language: { value(): LangChoice; onChange(choice: LangChoice): void };
 }
 
 export interface SettingsPanel {
@@ -44,7 +47,7 @@ function cardWithButton(parent: HTMLElement, id: string, icon: string, label: st
   heading.style.cssText = 'font-size:20px;font-weight:700';
   const close = document.createElement('button');
   close.type = 'button';
-  close.textContent = 'Close';
+  close.textContent = t('ui.close');
   close.dataset.action = `${id}-close`;
   close.style.cssText = CHOICE;
   head.append(heading, close);
@@ -66,7 +69,7 @@ function cardWithButton(parent: HTMLElement, id: string, icon: string, label: st
 export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions): SettingsPanel {
   // The card is made first and `refresh` set after it, so the callback looks it up when it runs.
   let refresh = (): void => {};
-  const ui = cardWithButton(parent, 'settings', '\u2699', 'Settings', 180, 'Settings', (open) => {
+  const ui = cardWithButton(parent, 'settings', '\u2699', t('settings.title'), 180, t('settings.title'), (open) => {
     if (open) refresh();
   });
   const row = (label: string): HTMLDivElement => {
@@ -91,8 +94,8 @@ export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions):
     row(label).appendChild(input);
     return input;
   };
-  const music = slider('Music', 'music', opts.music);
-  const sounds = slider('Sounds', 'sounds', opts.sounds);
+  const music = slider(t('settings.music'), 'music', opts.music);
+  const sounds = slider(t('settings.sounds'), 'sounds', opts.sounds);
 
   const mapButton = document.createElement('button');
   mapButton.type = 'button';
@@ -101,33 +104,57 @@ export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions):
   mapButton.onclick = () => {
     mapButton.textContent = opts.map.onNext();
   };
-  row('Map').appendChild(mapButton);
+  row(t('settings.map')).appendChild(mapButton);
 
   const shadowButton = document.createElement('button');
   shadowButton.type = 'button';
   shadowButton.dataset.action = 'settings-shadows';
   shadowButton.style.cssText = CHOICE;
   const showShadows = (): void => {
-    shadowButton.textContent = opts.shadows.on() ? 'On' : 'Off';
+    shadowButton.textContent = opts.shadows.on() ? t('ui.on') : t('ui.off');
   };
   shadowButton.onclick = () => opts.shadows.onToggle(!opts.shadows.on());
-  row('Shadows').appendChild(shadowButton);
+  row(t('settings.shadows')).appendChild(shadowButton);
   const note = document.createElement('div');
-  note.textContent = 'Shadows look nice but slow some tablets down. Changing them starts the game again, where you left off.';
+  note.textContent = t('settings.shadowsNote');
   note.style.cssText = 'font-size:13px;color:#6b5d44;margin-top:4px';
   ui.body.appendChild(note);
+
+  // The choice is offered once there is more than one shipped language.
+  const langButtons: { choice: LangChoice; button: HTMLButtonElement }[] = [];
+  if (LANGS.length > 1) {
+    const names: Record<LangChoice, string> = { auto: t('settings.langAuto'), en: t('settings.langEn'), de: t('settings.langDe') };
+    const choices: LangChoice[] = ['auto', ...LANGS];
+    const box = row(t('settings.language'));
+    for (const choice of choices) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.action = `settings-lang-${choice}`;
+      b.textContent = names[choice];
+      b.style.cssText = CHOICE;
+      b.onclick = () => {
+        if (choice !== opts.language.value()) opts.language.onChange(choice);
+      };
+      box.appendChild(b);
+      langButtons.push({ choice, button: b });
+    }
+    const langNote = document.createElement('div');
+    langNote.textContent = t('settings.languageNote');
+    langNote.style.cssText = 'font-size:13px;color:#6b5d44;margin-top:4px';
+    ui.body.appendChild(langNote);
+  }
 
   if (opts.startScreen) {
     const go = document.createElement('button');
     go.type = 'button';
     go.dataset.action = 'settings-start-screen';
-    go.textContent = 'Start screen';
+    go.textContent = t('settings.startScreen');
     go.style.cssText = CHOICE;
     const start = opts.startScreen;
     go.onclick = () => start();
-    row('Saved games').appendChild(go);
+    row(t('settings.savedGames')).appendChild(go);
     const more = document.createElement('div');
-    more.textContent = 'Your game is saved first. Pick another game there, or come back to this one.';
+    more.textContent = t('settings.startScreenNote');
     more.style.cssText = 'font-size:13px;color:#6b5d44;margin-top:4px';
     ui.body.appendChild(more);
   }
@@ -137,6 +164,7 @@ export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions):
     sounds.value = String(opts.sounds.value());
     mapButton.textContent = opts.map.label();
     showShadows();
+    for (const { choice, button } of langButtons) button.setAttribute('aria-pressed', String(choice === opts.language.value()));
   };
   refresh();
   return { open: () => ui.toggle(true), close: () => ui.toggle(false) };
@@ -181,7 +209,7 @@ export function createAchievementsPanel(parent: HTMLElement, rows: () => Achieve
   let drawn = '';
   const showHint = (all: AchievementRow[]): void => {
     const r = all.find((x) => x.name === (hovered || picked));
-    strip.textContent = r ? `${r.name}: ${r.hint}` : 'Tap one to see how to win it.';
+    strip.textContent = r ? `${r.name}: ${r.hint}` : t('achievements.hintIdle');
   };
   const refresh = (): void => {
     const all = rows();
@@ -191,7 +219,7 @@ export function createAchievementsPanel(parent: HTMLElement, rows: () => Achieve
     // The tiles are made again, so the one the mouse was on is gone and will not say it has left.
     hovered = '';
     const won = all.reduce((n, r) => n + r.tier, 0);
-    summary.textContent = `${won} of ${all.reduce((n, r) => n + r.tiers, 0)} won`;
+    summary.textContent = t('achievements.summary', { won, all: all.reduce((n, r) => n + r.tiers, 0) });
     tabs.replaceChildren(
       ...(Object.keys(GROUP_NAME) as AchievementGroup[]).map((g) => {
         const mine = all.filter((r) => r.group === g);
@@ -225,7 +253,7 @@ export function createAchievementsPanel(parent: HTMLElement, rows: () => Achieve
           name.textContent = r.name;
           const mark = document.createElement('span');
           mark.textContent = r.tiers > 1 ? medals(r) : r.tier > 0 ? '\u2713' : '\u25CB';
-          mark.setAttribute('aria-label', `${r.tier} of ${r.tiers} won`);
+          mark.setAttribute('aria-label', t('achievements.tierMark', { tier: r.tier, tiers: r.tiers }));
           mark.style.cssText = 'color:#7a5a2a;white-space:nowrap;';
           head.append(name, mark);
           tile.append(head);
@@ -236,12 +264,12 @@ export function createAchievementsPanel(parent: HTMLElement, rows: () => Achieve
             fill.style.cssText = `display:block;height:100%;background:#7a5a2a;width:${Math.round((100 * r.progress.have) / r.progress.need)}%;`;
             bar.append(fill);
             const count = document.createElement('span');
-            count.textContent = `${r.progress.have} of ${r.progress.need}`;
+            count.textContent = t('achievements.progress', { have: r.progress.have, need: r.progress.need });
             count.style.cssText = 'font-size:13px;color:#6b5d44;';
             tile.append(bar, count);
           } else if (done && r.tiers > 1) {
             const all3 = document.createElement('span');
-            all3.textContent = 'All done';
+            all3.textContent = t('achievements.allDone');
             all3.style.cssText = 'font-size:13px;color:#6b5d44;';
             tile.append(all3);
           }
@@ -264,7 +292,7 @@ export function createAchievementsPanel(parent: HTMLElement, rows: () => Achieve
     );
     showHint(all);
   };
-  const ui = cardWithButton(parent, 'achievements', '\u{1F3C6}', 'Things I did', 232, 'Things I did', (open) => {
+  const ui = cardWithButton(parent, 'achievements', '\u{1F3C6}', t('achievements.title'), 232, t('achievements.title'), (open) => {
     window.clearInterval(timer);
     if (open) {
       drawn = '';

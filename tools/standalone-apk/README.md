@@ -68,6 +68,7 @@ ANDROID_HOME=~/Android/Sdk JAVA_HOME=~/Android/jdk-21 ./build_aab.sh
 
 `store/` holds what the Play listing asks for, taken from the game itself (no art the game does not show): `icon-512.png`,
 `feature-graphic.png` (1024x500, a crop of the lodge shot without the controls), and eight tablet screenshots
-(`screenshot-*.png`, in the order the listing shows them, the first is the one search results show: 1920x1080 play captures and
-one 2048x1200 dam shot). To take new candidates: `STORE_SHOTS=some/dir npx playwright test tests/e2e/store-shots.spec.ts`
+(`screenshot-*.png`, 1920x1080, in the order the listing shows them; the first is the one search results show; the dam shot was
+scaled from 2048x1200 and trimmed a little at the top and bottom). To take new candidates:
+`STORE_SHOTS=some/dir npx playwright test tests/e2e/store-shots.spec.ts`
 (needs the tiles, 1 to 2 minutes; the seasons, a dam, the family, the dream, the other places), pick by eye, and copy them here.

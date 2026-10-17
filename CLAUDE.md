@@ -61,7 +61,7 @@ Everyday (gate means CI blocks a merge on it):
 - `npm run test:release` - builds the release build and runs a short browser test on it with `vite preview` (`tests/release/`, gate in the `build` CI job, 25 s): no test menu, no `window.__game`, dev URL parameters ignored, Settings choices kept
 - `npm run test:e2e` - Playwright browser smoke test (gate; `E2E_PORT=5191` if 5173 is taken; first run
   `npx playwright install chromium`)
-- `npx playwright test tests/e2e/cycle.spec.ts` (also `build`, `dam`, `dams`, `life`, `locations`, `moves`) - playtests that play the real game with the keys and the test
+- `npx playwright test tests/e2e/cycle.spec.ts` (also `build`, `dam`, `dams`, `life`, `locations`, `moves`, `scent`) - playtests that play the real game with the keys and the test
   menu on the real valley; they skip without the local tiles, so CI skips them. Locally they draw on the GPU (`playwright.config.ts`, about 60 fps; SwiftShader gave 3 fps and made the keys overshoot, and every playtest 5 to 10 times slower; `E2E_SOFTWARE_GL=1` goes back to it). `build` and `cycle` take 6 to 10 minutes; `dams` takes about 25 (a whole first dam by hand takes 20 of them, `-g "whole by real play"` runs it alone, `-g Pioneer` takes 2); `locations` (a dam raised to level 2 or 3 and a lodge pond in each of the six locations, about 7 minutes; `PLAYTEST_BUILD=1` adds a hand built lodge, 45 minutes);
   `PLAYTEST_SHOTS=dir` keeps screenshots, `PLAYTEST_DEBUG=1` prints misses. Helpers are in `tests/e2e/helpers.ts`
 - `npx markdownlint-cli '**/*.md' --ignore node_modules --ignore LICENSE` -

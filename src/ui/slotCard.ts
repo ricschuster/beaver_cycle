@@ -1,6 +1,7 @@
 // The start screen when a saved game exists: four slots. A used slot is continued, renamed or deleted; an empty one starts a new
 // game, with a name if the player likes. Deleting is asked twice, since it throws the saved game away. DOM only: the caller owns
 // the storage and passes what it needs in `SlotActions`.
+import { t } from '../i18n';
 import { NAME_MAX, type SlotInfo } from '../persist/save';
 import { stageAt } from '../sim/life';
 
@@ -21,11 +22,11 @@ export interface SlotActions {
 }
 
 const BUTTON = 'min-width:44px;min-height:44px;padding:8px 14px;border:0;border-radius:10px;font:16px system-ui,sans-serif;cursor:pointer;';
-const STAGE_WORD = { baby: 'Baby', teenager: 'Teenager', adult: 'Adult' } as const;
+const STAGE_WORD = { baby: 'stage.baby', teenager: 'stage.teenager', adult: 'stage.adult' } as const;
 
 /** The details line of a used slot: "Adult, generation 2, last played 3 hours ago". */
 export function slotDetails(info: Extract<SlotInfo, { kind: 'used' }>, when: string): string {
-  return `${STAGE_WORD[stageAt(info.clock, info.bornAt)]}, generation ${info.generation + 1}, last played ${when}`;
+  return t('slots.details', { stage: t(STAGE_WORD[stageAt(info.clock, info.bornAt)]), generation: info.generation + 1, when });
 }
 
 /** Shows the slots over the page and resolves with the player's choice. */
@@ -34,7 +35,7 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
     const root = document.createElement('div');
     root.id = 'slot-card';
     root.setAttribute('role', 'dialog');
-    root.setAttribute('aria-label', 'Saved games');
+    root.setAttribute('aria-label', t('slots.label'));
     root.style.cssText = 'position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(20,30,20,.85);font:16px/1.5 system-ui,sans-serif;overflow-y:auto';
     const card = document.createElement('div');
     card.style.cssText = 'box-sizing:border-box;width:min(30rem,94vw);max-height:96vh;overflow-y:auto;padding:16px 18px;border-radius:14px;background:#f6f1e4;color:#2a1f0e';
@@ -62,7 +63,7 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
       i.value = value;
       i.placeholder = placeholder;
       i.dataset.action = 'slot-name';
-      i.setAttribute('aria-label', 'Name');
+      i.setAttribute('aria-label', t('slots.name'));
       i.style.cssText = 'box-sizing:border-box;width:100%;min-height:44px;padding:6px 10px;font:inherit;border-radius:8px;border:1px solid #b9a97d;background:#fff;color:inherit';
       return i;
     };
@@ -72,7 +73,7 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
 
     const draw = (): void => {
       const heading = document.createElement('div');
-      heading.textContent = 'Your games';
+      heading.textContent = t('slots.heading');
       heading.style.cssText = 'font-size:22px;font-weight:700;margin-bottom:8px';
       card.replaceChildren(heading, ...actions.slots().map(row));
     };
@@ -91,13 +92,13 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
       const here = mode?.slot === info.slot ? mode.kind : null;
 
       if (info.kind === 'empty' || info.kind === 'unreadable') {
-        title.textContent = `Game ${info.slot}`;
-        detail.textContent = info.kind === 'empty' ? 'Empty' : 'This game could not be read. It is kept aside, so this slot is free.';
+        title.textContent = t('slots.game', { n: info.slot });
+        detail.textContent = info.kind === 'empty' ? t('slots.empty') : t('slots.unreadable');
         if (here === 'new') {
-          const input = nameInput('', 'Name (you can leave it empty)');
-          const start = button('Start', 'slot-start', GREEN);
+          const input = nameInput('', t('slots.namePlaceholder'));
+          const start = button(t('slots.start'), 'slot-start', GREEN);
           start.onclick = () => done({ slot: info.slot, action: 'new', name: input.value });
-          const cancel = button('Back', 'slot-back', SAND);
+          const cancel = button(t('slots.back'), 'slot-back', SAND);
           cancel.onclick = () => {
             mode = null;
             draw();
@@ -105,7 +106,7 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
           buttons.append(start, cancel);
           box.append(input, buttons);
         } else {
-          const fresh = button('New game', 'slot-new', GREEN);
+          const fresh = button(t('slots.new'), 'slot-new', GREEN);
           fresh.onclick = () => {
             mode = { slot: info.slot, kind: 'new' };
             draw();
@@ -116,17 +117,17 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
         return box;
       }
 
-      title.textContent = info.name || `Game ${info.slot}`;
+      title.textContent = info.name || t('slots.game', { n: info.slot });
       detail.textContent = slotDetails(info, actions.ago(info.savedAt));
       if (here === 'rename') {
-        const input = nameInput(info.name, `Game ${info.slot}`);
-        const ok = button('Save name', 'slot-rename-ok', GREEN);
+        const input = nameInput(info.name, t('slots.game', { n: info.slot }));
+        const ok = button(t('slots.saveName'), 'slot-rename-ok', GREEN);
         ok.onclick = () => {
           actions.rename(info.slot, input.value);
           mode = null;
           draw();
         };
-        const cancel = button('Back', 'slot-back', SAND);
+        const cancel = button(t('slots.back'), 'slot-back', SAND);
         cancel.onclick = () => {
           mode = null;
           draw();
@@ -135,15 +136,15 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
         box.append(input, buttons);
       } else if (here === 'delete') {
         const ask = document.createElement('div');
-        ask.textContent = 'Delete this game? Its beaver and lodge will be gone.';
+        ask.textContent = t('slots.askDelete');
         ask.style.cssText = 'margin-top:6px';
-        const yes = button('Yes, delete', 'slot-delete-yes', 'background:#a33a2a;color:#fff;');
+        const yes = button(t('slots.yesDelete'), 'slot-delete-yes', 'background:#a33a2a;color:#fff;');
         yes.onclick = () => {
           actions.remove(info.slot);
           mode = null;
           draw();
         };
-        const keep = button('Keep it', 'slot-back', GREEN);
+        const keep = button(t('slots.keep'), 'slot-back', GREEN);
         keep.onclick = () => {
           mode = null;
           draw();
@@ -151,14 +152,14 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
         buttons.append(yes, keep);
         box.append(ask, buttons);
       } else {
-        const go = button('Continue', 'slot-continue', GREEN);
+        const go = button(t('slots.continue'), 'slot-continue', GREEN);
         go.onclick = () => done({ slot: info.slot, action: 'continue', name: info.name });
-        const rename = button('Rename', 'slot-rename', SAND);
+        const rename = button(t('slots.rename'), 'slot-rename', SAND);
         rename.onclick = () => {
           mode = { slot: info.slot, kind: 'rename' };
           draw();
         };
-        const del = button('Delete', 'slot-delete', SAND);
+        const del = button(t('slots.delete'), 'slot-delete', SAND);
         del.onclick = () => {
           mode = { slot: info.slot, kind: 'delete' };
           draw();

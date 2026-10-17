@@ -1,6 +1,7 @@
 // The stash screen: the food store as a chest. A grid of the store's fixed places and, under it, the mouth. Tapping a
 // place moves a piece between the two (the rules are `tapped` in sim/food.ts). Opens when the sim says so
 // (`WorldState.stashOpen`) and stays until the player closes it. DOM only; it hands taps to the caller as plain data.
+import { t } from '../i18n';
 import { stockMeals, stockTotal, type Food, type Stock } from '../sim/food';
 
 export interface StashPanel {
@@ -22,12 +23,12 @@ export function stashCells(stock: Stock, capacity: number): Cell[] {
   return stock.map((food, i) => ({ food, lost: i >= capacity }));
 }
 
-const NAME: Record<Food, string> = { branch: 'branch', lily: 'lily pad' };
+const NAME: Record<Food, () => string> = { branch: () => t('stash.branch'), lily: () => t('stash.lily') };
 
 /** The line over the grid: pieces, places in use, and meals, for example "12 of 40 places, 18 meals". */
 export function stashSummary(stock: Stock, capacity: number): string {
   const meals = stockMeals(stock);
-  return capacity === 0 ? 'the store is broken, rebuild it to use it' : `${stockTotal(stock)} of ${capacity} places, ${meals} ${meals === 1 ? 'meal' : 'meals'}`;
+  return capacity === 0 ? t('stash.broken') : t(meals === 1 ? 'stash.summaryOne' : 'stash.summaryMany', { places: stockTotal(stock), capacity, meals });
 }
 
 /** A piece drawn as a small picture: a brown stick for a branch, a green disc for a lily pad. */
@@ -44,7 +45,7 @@ export function createStashPanel(parent: HTMLElement, handlers: { onTap(slot: nu
   const root = document.createElement('div');
   root.id = 'stash';
   root.setAttribute('role', 'dialog');
-  root.setAttribute('aria-label', 'Food store');
+  root.setAttribute('aria-label', t('stash.label'));
   root.style.cssText = 'display:none;position:fixed;inset:0;z-index:8;background:rgba(0,0,0,.5);align-items:center;justify-content:center;font:14px system-ui,sans-serif;color:#fff';
   const box = document.createElement('div');
   box.style.cssText = 'padding:14px 16px;border-radius:12px;background:rgba(32,40,36,.95);border:2px solid rgba(255,255,255,.5);max-width:96vw;max-height:96vh;overflow:auto';
@@ -61,7 +62,7 @@ export function createStashPanel(parent: HTMLElement, handlers: { onTap(slot: nu
   const close = document.createElement('button');
   close.id = 'stash-close';
   close.type = 'button';
-  close.textContent = 'Done';
+  close.textContent = t('stash.done');
   close.style.cssText = 'margin-left:auto;padding:12px 24px;border-radius:8px;border:2px solid rgba(255,255,255,.6);background:rgba(255,255,255,.18);color:#fff;font:600 16px system-ui,sans-serif';
   close.addEventListener('click', () => handlers.onClose());
   foot.append(mouth, mouthLabel, close);
@@ -93,7 +94,7 @@ export function createStashPanel(parent: HTMLElement, handlers: { onTap(slot: nu
           b.type = 'button';
           b.dataset.slot = String(i);
           b.disabled = cell.lost;
-          b.setAttribute('aria-label', cell.lost ? 'lost place' : cell.food ? NAME[cell.food] : 'empty place');
+          b.setAttribute('aria-label', cell.lost ? t('stash.lostPlace') : cell.food ? NAME[cell.food]() : t('stash.emptyPlace'));
           b.style.cssText = `display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:8px;border:2px solid rgba(255,255,255,${cell.lost ? 0.12 : 0.5});background:${cell.lost ? 'rgba(90,90,90,.35)' : 'rgba(255,255,255,.1)'};padding:0`;
           if (cell.food) b.appendChild(drawPiece(cell.food));
           b.addEventListener('click', () => handlers.onTap(i));
@@ -101,7 +102,7 @@ export function createStashPanel(parent: HTMLElement, handlers: { onTap(slot: nu
         }),
       );
       mouth.replaceChildren(...(carry ? [drawPiece(carry)] : []));
-      mouthLabel.textContent = carry ? `in the mouth: a ${NAME[carry]}` : 'the mouth is empty';
+      mouthLabel.textContent = carry ? t(carry === 'branch' ? 'stash.mouthBranch' : 'stash.mouthLily') : t('stash.mouthEmpty');
     },
   };
 }

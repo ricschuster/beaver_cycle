@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WELCOME_LINES, wantsWelcome } from './helpPanel';
+import { welcomeLines, wantsWelcome } from './helpPanel';
 
 const q = (s: string): URLSearchParams => new URLSearchParams(s);
 
@@ -19,6 +19,6 @@ describe('the welcome card', () => {
   });
 
   it('names the keys the game really uses', () => {
-    for (const k of ['W A S D', 'E', 'G', 'B']) expect(WELCOME_LINES.keys).toContain(k);
+    for (const k of ['W A S D', 'E', 'G', 'B']) expect(welcomeLines().keys).toContain(k);
   });
 });

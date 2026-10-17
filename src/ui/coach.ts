@@ -1,5 +1,6 @@
 // The first-steps coach (docs/design/25_first_steps_coach.md): a small card at the top left, under the status line, that gives one step at
 // a time and points at the button to press. DOM only. The steps and their order are in coachSteps.ts.
+import { t } from '../i18n';
 import type { Stage } from '../sim/life';
 import { COACH_DONE, coachBack, coachForward, coachNext, newCoach, stepText, stepsOf, type CoachState } from './coachSteps';
 import type { WorldState } from '../sim/state';
@@ -65,10 +66,10 @@ export function createCoach(parent: HTMLElement, opts: CoachOptions): Coach {
     b.style.cssText = `${BUTTON}background:${bg};color:${fg};`;
     return b;
   };
-  const back = mk('coach-back', 'Back', '#e3d6b0', '#2a1f0e');
-  const next = mk('coach-next', 'Next', '#2f6a30', '#fff');
-  const close = mk('coach-close', 'Close', '#e3d6b0', '#2a1f0e');
-  const ok = mk('coach-ok', 'Got it', '#2f6a30', '#fff');
+  const back = mk('coach-back', t('coach.back'), '#e3d6b0', '#2a1f0e');
+  const next = mk('coach-next', t('coach.next'), '#2f6a30', '#fff');
+  const close = mk('coach-close', t('coach.close'), '#e3d6b0', '#2a1f0e');
+  const ok = mk('coach-ok', t('coach.gotIt'), '#2f6a30', '#fff');
   ok.style.display = 'none';
   row.style.justifyContent = 'space-between';
   const left = document.createElement('span');
@@ -103,8 +104,8 @@ export function createCoach(parent: HTMLElement, opts: CoachOptions): Coach {
     const key = `${state.chapter}:${state.step}:${line}`;
     if (key === shown) return;
     shown = key;
-    title.textContent = step ? step.title : 'Well done!';
-    count.textContent = step ? `${state.step + 1} of ${steps.length}` : '';
+    title.textContent = step ? step.title : t('coach.wellDone');
+    count.textContent = step ? t('coach.count', { n: state.step + 1, total: steps.length }) : '';
     text.textContent = line;
     back.style.visibility = state.step > 0 ? 'visible' : 'hidden';
     next.style.display = step ? '' : 'none';

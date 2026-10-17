@@ -1,5 +1,6 @@
 // Breath meter: a small bar at the bottom centre, shown only while breath is
 // below full. DOM only; the game feeds it the beaver's breath each frame.
+import { t } from '../i18n';
 
 export interface BreathMeter {
   /** Breath from 0 to 1. The bar hides at 1 and turns amber when low. */
@@ -18,7 +19,7 @@ export function createBreathMeter(parent: HTMLElement): BreathMeter {
   const root = document.createElement('div');
   root.id = 'breath-meter';
   root.setAttribute('role', 'progressbar');
-  root.setAttribute('aria-label', 'Breath');
+  root.setAttribute('aria-label', t('breath.label'));
   root.setAttribute('aria-valuemin', '0');
   root.setAttribute('aria-valuemax', '100');
   root.style.cssText =

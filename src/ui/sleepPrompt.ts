@@ -3,6 +3,7 @@
 // and wake at dawn. The dream itself is the dream screen (ui/dreamScreen.ts,
 // docs/design/29_dream_candy_land.md), which opens over the dark and hands back
 // to `wakeFromDream` when the player wakes. DOM only.
+import { t } from '../i18n';
 
 /** Milliseconds of each fade to or from black. */
 export const FADE_MS = 700;
@@ -48,15 +49,15 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
     'border-radius:14px;background:rgba(0,0,0,.5)';
 
   const skipButton = document.createElement('button');
-  skipButton.textContent = 'Sleep until morning';
+  skipButton.textContent = t('sleep.morning');
   skipButton.dataset.action = 'sleep-skip';
   skipButton.style.cssText = BUTTON;
   const dreamButton = document.createElement('button');
-  dreamButton.textContent = 'Dream';
+  dreamButton.textContent = t('sleep.dream');
   dreamButton.dataset.action = 'sleep-dream';
   dreamButton.style.cssText = BUTTON;
   const seasonButton = document.createElement('button');
-  seasonButton.textContent = 'Sleep until next season';
+  seasonButton.textContent = t('sleep.season');
   seasonButton.dataset.action = 'sleep-season';
   seasonButton.style.cssText = BUTTON;
   const growButton = document.createElement('button');
@@ -79,7 +80,7 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
     skipButton.hidden = dreamButton.hidden = !choices.night;
     seasonButton.hidden = !choices.rest;
     growButton.hidden = choices.grow === null;
-    if (choices.grow !== null) growButton.textContent = `Sleep until ${choices.grow}`;
+    if (choices.grow !== null) growButton.textContent = t('sleep.until', { when: choices.grow });
     panel.style.display = busy || (!choices.night && !choices.rest && choices.grow === null) ? 'none' : 'flex';
   };
 

@@ -40,9 +40,16 @@ test('the Settings and achievements buttons open their cards', async ({ page }) 
   await page.getByRole('button', { name: 'Things I did' }).click();
   await expect(page.locator('#achievements')).toContainText('Home');
   await page.locator('#achievements button[data-action="achievement"]', { hasText: 'Wood' }).click();
-  await expect(page.locator('#achievements [data-role="achievement-hint"]')).toContainText('Gnaw down 30 trees');
+  await expect(page.locator('#achievements [data-role="achievement-hint"]:visible')).toContainText('Gnaw down 30 trees');
+  // The mouse still rests on the row, so it moves off before the second tap is judged.
   await page.locator('#achievements button[data-action="achievement"]', { hasText: 'Wood' }).click();
-  await expect(page.locator('#achievements [data-role="achievement-hint"]')).toHaveCount(0);
+  await page.mouse.move(0, 0);
+  await expect(page.locator('#achievements [data-role="achievement-hint"]:visible')).toHaveCount(0);
+  // A mouse shows the hint while it is over the row.
+  await page.locator('#achievements button[data-action="achievement"]', { hasText: /^. Home$/ }).hover();
+  await expect(page.locator('#achievements [data-role="achievement-hint"]:visible')).toContainText('Build a lodge');
+  await page.mouse.move(0, 0);
+  await expect(page.locator('#achievements [data-role="achievement-hint"]:visible')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

@@ -15,7 +15,7 @@ import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, men
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
 import { moveIn, stepPartners } from './partners';
 import { tally } from './achievements';
-import { canMark, newMound, welcomeNear } from './scent';
+import { WELCOME_TRUST, canMark, keepMounds, newMound, settledId, welcomeNear } from './scent';
 import { hurtFactor } from './predators';
 import { birth, kitDue, BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
@@ -113,14 +113,18 @@ function advance(world: WorldState, actions: Intent, dt: number, ground: Terrain
   const spots = refineNear(found, beaver.x, beaver.z, ground, built.dams);
   // Mark pats the mud in the mouth into a scent mound where the beaver stands (`scent.ts`).
   const marked = actions.do === 'mark' && canMark({ lodge: built.lodge, haul: food.haul, scents: world.scents, inLodge: built.inLodge, beaver });
-  const scents = marked ? [...world.scents, newMound(beaver, time, world.clock)] : world.scents;
+  const scents = keepMounds(marked ? [...world.scents, newMound(beaver, time, world.clock)] : world.scents, world.welcomed, world.neighbours, world.clock);
+  const welcomed = welcomeNear(world.welcomed, scents, beaver, world.clock, terrain);
+  // A welcomed visitor trusts the player from the start, and so does the family it founds.
+  const trust = welcomed === world.welcomed ? world.trust : { ...world.trust, ...Object.fromEntries(welcomed.slice(world.welcomed.length).flatMap((id) => [[`visitor:${id}`, WELCOME_TRUST], [settledId({ id }), WELCOME_TRUST]])) };
   const next: WorldState = {
     ...world,
     ...food,
     haul: marked ? null : food.haul,
     scents,
     // The visitor of a mound is welcomed by standing near it.
-    welcomed: welcomeNear(world.welcomed, scents, beaver, world.clock, terrain),
+    welcomed,
+    trust,
     // A worn store loses the places it can no longer hold, and a broken one all of them: what was in them is gone (15_build_and_repair.md).
     store: trimmed(food.store, storeCapacity(storeCondition(built.storeWear, world.clock))),
     time,

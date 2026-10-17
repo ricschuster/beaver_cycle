@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { doHere, DO_LABEL, noIntent } from './buttons';
 import { DAY_SECONDS } from './clock';
 import { LODGE_WOOD } from './lodge';
-import { WALK_IN, WELCOME_DISTANCE, SCENT_APART, SCENT_MAX, SCENT_NEAR_LODGE, arrivesAt, canMark, newMound, visitorAt, welcomeNear, type ScentMound } from './scent';
+import { MOUND_DAYS, VISIT_DAYS, WELCOME_TRUST, WALK_IN, WELCOME_DISTANCE, departsAt, keepMounds, settleFamily, settledId, SCENT_APART, SCENT_MAX, SCENT_NEAR_LODGE, arrivesAt, canMark, newMound, visitorAt, welcomeNear, type ScentMound } from './scent';
 import { createWorld, newLife, leaveHome, type WorldState } from './state';
 import { step } from './step';
 import { flatTerrain, type Terrain } from './terrain';
@@ -132,5 +132,32 @@ describe('welcome', () => {
 
   it('has a mound made by Mark', () => {
     expect(newMound({ x: 1, z: 2 }, 3, 4)).toMatchObject({ x: 1, z: 2, madeAt: 4 });
+  });
+});
+
+describe('a few days later', () => {
+  const off = departsAt(mound) + WALK_IN + 1;
+
+  it('has the visitor walk off after its days, and stay till then', () => {
+    expect(visitorAt(mound, [], arrivesAt(mound) + (VISIT_DAYS - 1) * DAY_SECONDS, flat)).not.toBeNull();
+    const leaving = visitorAt(mound, [], departsAt(mound) + WALK_IN / 2, flat);
+    expect(leaving).toMatchObject({ pace: 1 });
+    expect(visitorAt(mound, [], off, flat)).toBeNull();
+  });
+
+  it('dries the mound and drops it, but keeps one whose visitor was welcomed until its family has settled', () => {
+    const late = mound.madeAt + (MOUND_DAYS + 1) * DAY_SECONDS;
+    expect(keepMounds([mound], [], [], mound.madeAt + DAY_SECONDS)).toEqual([mound]);
+    expect(keepMounds([mound], [], [], late)).toEqual([]);
+    expect(keepMounds([mound], [mound.id], [], late)).toEqual([mound]);
+    expect(keepMounds([mound], [mound.id], [{ id: settledId(mound) }], late)).toEqual([]);
+  });
+
+  it('founds a family only on a pond, and trusts the player once welcomed', () => {
+    expect(settleFamily(mound, flat, { x: 0, z: 0 }, [])).toBeNull();
+    let w: WorldState = { ...createWorld(flat, mound.x + 2, 0), scents: [mound], clock: settled };
+    w = step(w, noIntent(), 0.1, flat);
+    expect(w.trust[`visitor:${mound.id}`]).toBe(WELCOME_TRUST);
+    expect(w.trust[settledId(mound)]).toBe(WELCOME_TRUST);
   });
 });

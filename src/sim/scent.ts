@@ -3,10 +3,10 @@
 // for good. Where the visitor is follows from the mound and the clock alone, so nothing of it is saved but the mounds and the
 // ones the player has welcomed. No three.js and no DOM here.
 import { DAY_SECONDS, isNight } from './clock';
-import { COAT_COUNT } from './family';
-import { lodgeComplete } from './lodge';
+import { COAT_COUNT, pondParts } from './family';
+import { LODGE_WOOD, findSite, lodgeComplete } from './lodge';
 import { nameOf } from './names';
-import type { NeighbourBeaver } from './neighbours';
+import type { Neighbour, NeighbourBeaver } from './neighbours';
 import type { Terrain } from './terrain';
 import type { WorldState } from './state';
 
@@ -31,6 +31,17 @@ export const WALK_IN = 12;
 const STAND = 1.6;
 /** Standing this close to the visitor (metres) welcomes it. */
 export const WELCOME_DISTANCE = 7;
+/** The visitor stays this many days after it came, and then walks off. A mound dries and is gone after `MOUND_DAYS`. */
+export const VISIT_DAYS = 3;
+export const MOUND_DAYS = 4;
+/** A welcomed visitor moves in on a pond within this far of its mound (metres), at least this far from the beaver's lodge and from other families. */
+const SETTLE_RADIUS = 80;
+const SETTLE_FROM_LODGE = 50;
+const SETTLE_FROM_FAMILIES = 100;
+/** The pond must have this many parts to swim in (see `pondParts`). */
+const SETTLE_PARTS = 4;
+/** A welcomed visitor, and the family it founds, trust the player this much from the start (curious, note 27). */
+export const WELCOME_TRUST = 0.7;
 /** Ground with more water than this (metres) is not walked on. */
 const DRY = 0.3;
 
@@ -53,6 +64,15 @@ export function canMark(world: Pick<WorldState, 'lodge' | 'haul' | 'scents' | 'i
 /** The mound a press of Mark makes where the beaver stands. */
 export const newMound = (b: { x: number; z: number }, time: number, clock: number): ScentMound => ({ id: `scent:${time.toFixed(3)}`, x: b.x, z: b.z, madeAt: clock });
 
+/** When the visitor of a mound walks off again. */
+export const departsAt = (m: ScentMound): number => arrivesAt(m) + VISIT_DAYS * DAY_SECONDS;
+
+/** The family a welcomed visitor founds is named for its mound. */
+export const settledId = (m: Pick<ScentMound, 'id'>): string => `settled:${m.id}`;
+
+/** True once a mound has dried out: a few days after it was made. */
+export const dried = (m: ScentMound, clock: number): boolean => clock - m.madeAt > MOUND_DAYS * DAY_SECONDS;
+
 /** When the visitor of a mound comes: the morning after it was made, a little after dawn. */
 export const arrivesAt = (m: ScentMound): number => (Math.floor(m.madeAt / DAY_SECONDS) + 1 + ARRIVE_FROM + (ARRIVE_SPREAD * (hashOf(m) % 100)) / 100) * DAY_SECONDS;
 
@@ -73,11 +93,14 @@ function bearing(m: ScentMound, ground: Terrain): number | null {
  */
 export function visitorAt(m: ScentMound, welcomed: readonly string[], clock: number, ground: Terrain): NeighbourBeaver | null {
   const t = clock - arrivesAt(m);
-  if (t < 0 || isNight(clock)) return null;
+  const gone = clock - departsAt(m);
+  if (t < 0 || gone > WALK_IN || isNight(clock)) return null;
   const h = hashOf(m);
   const a = bearing(m, ground);
-  const walking = a !== null && t < WALK_IN;
-  const r = a === null ? 0 : walking ? APPROACH + (STAND - APPROACH) * (t / WALK_IN) : STAND;
+  const arriving = a !== null && t < WALK_IN;
+  const leaving = a !== null && gone > 0;
+  const walking = arriving || leaving;
+  const r = a === null ? 0 : arriving ? APPROACH + (STAND - APPROACH) * (t / WALK_IN) : leaving ? STAND + (APPROACH - STAND) * (gone / WALK_IN) : STAND;
   const x = m.x + (a === null ? 0 : Math.sin(a) * r);
   const z = m.z + (a === null ? 0 : Math.cos(a) * r);
   const id = `visitor:${m.id}`;
@@ -91,7 +114,7 @@ export function visitorAt(m: ScentMound, welcomed: readonly string[], clock: num
     x,
     y: ground.heightAt(x, z),
     z,
-    heading: a === null ? 0 : Math.atan2(-Math.sin(a), -Math.cos(a)),
+    heading: a === null ? 0 : leaving ? Math.atan2(Math.sin(a), Math.cos(a)) : Math.atan2(-Math.sin(a), -Math.cos(a)),
     pace: walking ? 1 : 0,
     task: walking ? 'swim' : welcomed.includes(m.id) ? 'groom' : 'rest',
     errand: 'rest',
@@ -115,4 +138,25 @@ export function welcomeNear(welcomed: string[], scents: readonly ScentMound[], b
     })
     .map((m) => m.id);
   return more.length ? [...welcomed, ...more] : welcomed;
+}
+
+/** The mounds that have not dried, and those of a welcomed visitor whose family has not settled yet. The same list when none is gone. */
+export function keepMounds(scents: ScentMound[], welcomed: readonly string[], families: readonly Pick<Neighbour, 'id'>[], clock: number): ScentMound[] {
+  const keep = (m: ScentMound): boolean => !dried(m, clock) || (welcomed.includes(m.id) && !families.some((f) => f.id === settledId(m)) && clock < departsAt(m) + WALK_IN + DAY_SECONDS * 30);
+  return scents.every(keep) ? scents : scents.filter(keep);
+}
+
+/**
+ * The family a welcomed visitor founds once it has walked off: a whole lodge on a pond near its mound, with the visitor as mama
+ * or papa. Null when the pond is not found (the visitor just leaves).
+ */
+export function settleFamily(m: ScentMound, ground: Terrain, home: { x: number; z: number }, families: readonly Neighbour[]): Neighbour | null {
+  const site = findSite(ground, m.x, m.z, SETTLE_RADIUS);
+  if (!site || pondParts(site, ground).length < SETTLE_PARTS) return null;
+  const apart = (o: { x: number; z: number }, min: number): boolean => Math.hypot(o.x - site.x, o.z - site.z) >= min;
+  if (!apart(home, SETTLE_FROM_LODGE) || !families.every((f) => apart(f.lodge, SETTLE_FROM_FAMILIES))) return null;
+  const h = hashOf(m);
+  const mine = { coat: h % COAT_COUNT, shade: 0 };
+  const mate = { coat: hash(h, 7) % COAT_COUNT, shade: 0 };
+  return { id: settledId(m), lodge: { ...site, wood: LODGE_WOOD }, parents: h % 2 === 0 ? [mate, mine] : [mine, mate], seed: hash(h, 11) };
 }

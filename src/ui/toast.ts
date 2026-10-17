@@ -1,5 +1,6 @@
 // A short message that appears at the top centre and fades away, for things like an achievement won. Messages that
-// come in while one is showing wait in a queue and show in turn. DOM only.
+// come in while one is showing wait in a queue and show in turn. The box has one width for every text, so it does not
+// jump between messages. DOM only.
 export interface Toast {
   /** `urgent` shows at once, over the one on screen, for a warning that is stale by the time the queue reaches it. The queue is kept. */
   show(text: string, urgent?: boolean): void;
@@ -16,6 +17,7 @@ export function createToast(parent: HTMLElement): Toast {
   root.setAttribute('role', 'status');
   root.style.cssText =
     'position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:6;padding:10px 18px;border-radius:10px;' +
+    'box-sizing:border-box;width:min(460px,calc(100vw - 32px));text-align:center;' +
     'background:rgba(0,0,0,.65);color:#fff;font:16px system-ui,sans-serif;pointer-events:none;opacity:0;transition:opacity .4s';
   parent.appendChild(root);
   const queue: string[] = [];

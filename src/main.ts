@@ -35,7 +35,7 @@ import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
 import { createCarryHud, foodInfoOf } from './ui/carryHud';
-import { ACHIEVEMENT_TEXT, achievementLines, achievementRows, visitPlaces } from './sim/achievements';
+import { ACHIEVEMENT_TEXT, achievementLines, achievementRows, visitPlaces, noteFed, noteHomes, seeGuests } from './sim/achievements';
 import { createToast } from './ui/toast';
 import { createClockHud } from './ui/clockHud';
 import { createStashPanel } from './ui/stashPanel';
@@ -552,7 +552,10 @@ async function start(): Promise<void> {
       if (!silent) sound.cue(dreamCues(events), performance.now() / 1000);
     },
   });
-  const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation): void => dreamScreen.start(seed);
+  const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation): void => {
+    world = { ...world, dreamed: true };
+    dreamScreen.start(seed);
+  };
   let fps = 60;
   let lastReadout = 0;
   let animalsAt = 0;
@@ -817,9 +820,14 @@ async function start(): Promise<void> {
     world = trackPonds(world);
     const visited = visitPlaces(world.visited, world.beaver.x, world.beaver.z, anchors.filter((a) => a.kind === 'location'));
     if (visited !== world.visited) world = { ...world, visited };
+    const homesIn = noteHomes(world.homesIn, world, anchors.filter((a) => a.kind === 'location'));
+    if (homesIn !== world.homesIn) world = { ...world, homesIn };
     // The animals as they stand for their mood: deer bolt from a predator, wary ones keep away, curious ones come to look, a fox sniffs at the store at night (note 24, "Interaction with animals").
     const slappedNow = world.lastSlap !== null && world.lastSlap.time === world.time;
-    const around = [...animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps)), ...pondGuests(world, world.beaver.x, world.beaver.z)];
+    const guests = pondGuests(world, world.beaver.x, world.beaver.z);
+    const guestKinds = seeGuests(world.guestKinds, guests, world.beaver.x, world.beaver.z, world.journey.inherited);
+    if (guestKinds !== world.guestKinds) world = { ...world, guestKinds };
+    const around = [...animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps)), ...guests];
     // The families: shy, calm or curious by trust, thanking a gift, hurt by a slap, and greeting the beaver once each (#342).
     const stuckList = stuckNow(world, ponded);
     const away = new Set([...stuckList.map((st) => st.member), ...(world.escort ? [world.escort.id] : [])]);
@@ -911,6 +919,8 @@ async function start(): Promise<void> {
     for (const e of led.events) toast.show(GUIDE_TEXT[e.what](e.kind));
     const fed = feedAnimals(world, ambient);
     world = fed.world;
+    const fedKinds = noteFed(world.fedKinds, fed.fed.map((a) => a.kind));
+    if (fedKinds !== world.fedKinds) world = { ...world, fedKinds };
     for (const a of fed.fed) toast.show(a.kind === 'duck' ? 'The duck eats the lily pad and trusts you a little more' : 'The deer eats it and trusts you a little more');
     if (!readBolt && boltingDeer(ambient, world)) {
       readBolt = true;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { noIntent, type Intent } from './buttons';
-import { ACHIEVEMENT_HINT, ACHIEVEMENT_IDS, ACHIEVEMENT_TEXT, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, rescuesThisLife, tally, visitPlaces, visitedHome } from './achievements';
+import { ACHIEVEMENT_HINT, ACHIEVEMENT_IDS, ACHIEVEMENT_TEXT, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, noteFed, noteHomes, rescuesThisLife, seeGuests, tally, visitPlaces, visitedHome } from './achievements';
 import { DAY_SECONDS, DAYS_PER_YEAR, START_CLOCK, dateAt, nextSpringStart } from './clock';
 import { LEVEL1_COST, LEVEL_COST } from './dam';
 import type { DamSpot } from './damSpots';
@@ -326,17 +326,74 @@ describe('the cheap counters (#570)', () => {
     expect(won({ ...base(), dams: [whole], ponds: [pond(1500)] })).toContain('bigPond');
     expect(won({ ...base(), dams: [whole], ponds: [pond(1500)], journey: { ...base().journey, inherited: [`dam:${spot.id}`] } })).not.toContain('bigPond');
   });
+  it('fixer-upper: ten mends', () => {
+    expect(won({ ...base(), mended: 9 })).not.toContain('fixerUpper');
+    expect(won({ ...base(), mended: 10 })).toContain('fixerUpper');
+  });
+  it('animal friend: a deer and a duck fed', () => {
+    expect(noteFed([], ['deer', 'deer', 'fox'])).toEqual(['deer']);
+    const same: string[] = ['deer'];
+    expect(noteFed(same, ['deer'])).toBe(same);
+    expect(won({ ...base(), fedKinds: ['deer'] })).not.toContain('animalFriend');
+    expect(won({ ...base(), fedKinds: ['deer', 'duck'] })).toContain('animalFriend');
+  });
+  it('pond life: a duck and a frog seen near a pond of this life', () => {
+    const duck = { id: `pond:${spot.id}:duck0`, kind: 'duck', x: 10, z: 0 };
+    const frog = { id: `pond:${spot.id}:frog10`, kind: 'frog', x: 100, z: 0 };
+    expect(seeGuests([], [duck, frog], 0, 0, [])).toEqual(['duck']);
+    expect(seeGuests(['duck'], [duck, frog], 90, 0, [])).toEqual(['duck', 'frog']);
+    expect(seeGuests([], [duck], 0, 0, [`dam:${spot.id}`])).toEqual([]);
+    expect(won({ ...base(), guestKinds: ['duck'] })).not.toContain('pondLife');
+    expect(won({ ...base(), guestKinds: ['duck', 'frog'] })).toContain('pondLife');
+  });
+  it('homes far and wide: a whole dam or the lodge near each of the six places', () => {
+    const places = [{ id: 'core', x: 0, z: 0 }, { id: 'north', x: 0, z: 5000 }];
+    const near = { ...spot, id: 'north:1', bed: { x: 10, z: 4900 } };
+    const w = { ...base(), spots: [near], dams: [{ ...whole, spot: 'north:1' }], journey: { ...base().journey, inherited: [] } };
+    expect(noteHomes([], w, places)).toEqual(['north']);
+    expect(noteHomes([], { ...w, journey: { ...w.journey, inherited: ['dam:north:1'] } }, places)).toEqual([]);
+    expect(noteHomes([], w, [])).toEqual([]);
+    const all = ['core', 'north', 'south', 'east-oedseen', 'vorderer-springbach', 'hinterer-springbach'];
+    expect(won({ ...base(), homesIn: all.slice(1) })).not.toContain('homesFar');
+    expect(won({ ...base(), homesIn: all })).toContain('homesFar');
+  });
+  it('sweet dreams: the first dream', () => {
+    expect(won({ ...base(), dreamed: false })).not.toContain('sweetDreams');
+    expect(won({ ...base(), dreamed: true })).toContain('sweetDreams');
+  });
+  it('long winter: won on the step out of a winter whose store was never empty', () => {
+    const lodge = { x: 0, z: 0, heading: 0, base: 0, wood: LODGE_WOOD } as unknown as WorldState['lodge'];
+    const some = Array.from({ length: STORE_CAPACITY }, (_, i) => (i === 0 ? ('branch' as const) : null));
+    const empty = some.map(() => null);
+    const inWinter = { ...base(), lodge, store: some, journey: { ...base().journey, inherited: [] } };
+    const a = tally({ ...inWinter, clock: winter - 1 }, { ...inWinter, clock: winter });
+    expect(a.winterClean).toBe(true);
+    const b = tally(a, { ...a, clock: winter + 1 });
+    expect(b.winterClean).toBe(true);
+    const spoiled = tally(b, { ...b, clock: winter + 2, store: empty });
+    expect(spoiled.winterClean).toBe(false);
+    expect(tally(spoiled, { ...spoiled, clock: winter + 3, store: some }).winterClean).toBe(false);
+    const out = tally(b, { ...b, clock: winter + 90 * DAY_SECONDS });
+    expect(out.longWinter).toBe(true);
+    expect(out.achievements).toContain('longWinter');
+    expect(tally(spoiled, { ...spoiled, clock: winter + 90 * DAY_SECONDS }).longWinter).toBe(false);
+    // A sleep that jumps over the whole winter does not count.
+    expect(tally({ ...inWinter, clock: winter - 1 }, { ...inWinter, clock: winter + 90 * DAY_SECONDS }).longWinter).toBe(false);
+  });
   it('a new life starts the counters again', () => {
-    const w = newLife({ ...base(), slaps: 9, meals: 9, branchesStripped: 9, longDives: 1, visited: ['core'], winterStocked: true });
+    const w = newLife({ ...base(), slaps: 9, meals: 9, branchesStripped: 9, longDives: 1, visited: ['core'], winterStocked: true, fedKinds: ['deer'], guestKinds: ['duck'], homesIn: ['core'], dreamed: true, winterClean: true, longWinter: true });
     expect([w.slaps, w.meals, w.branchesStripped, w.longDives, w.visited, w.winterStocked]).toEqual([0, 0, 0, 0, [], false]);
+    expect([w.fedKinds, w.guestKinds, w.homesIn, w.dreamed, w.winterClean, w.longWinter]).toEqual([[], [], [], false, false, false]);
   });
 });
 
 describe('the list', () => {
   it('marks what is won and counts what is counted', async () => {
     const { achievementLines } = await import('./achievements');
-    const lines = achievementLines({ achievements: ['home'], felled: ids(12), padsPicked: 3, hauled: 0, journey: base().journey, met: {}, rescued: [], slaps: 0, meals: 0, branchesStripped: 0, visited: [] });
+    const lines = achievementLines({ achievements: ['home'], felled: ids(12), padsPicked: 3, hauled: 0, journey: base().journey, met: {}, rescued: [], slaps: 0, meals: 0, branchesStripped: 0, visited: [], mended: 4, fedKinds: [], guestKinds: ['duck'], homesIn: [] });
     expect(lines[0]).toBe('[ ] Wood 12/30');
+    expect(lines).toContain('[ ] Fixer-upper 4/10');
+    expect(lines).toContain('[ ] Pond life 1/2');
     expect(lines[1]).toBe('[x] Home');
     expect(lines).toContain('[ ] Water gardener 3/20');
     expect(lines).toContain('[ ] Mate');
@@ -350,7 +407,7 @@ describe('the list', () => {
     expect(lines).toContain('[ ] Long line');
     expect(lines).toContain('[ ] Tail slapper 0/10');
     expect(lines).toContain('[ ] Explorer 0/6');
-    expect(lines).toHaveLength(27);
+    expect(lines).toHaveLength(33);
   });
 });
 

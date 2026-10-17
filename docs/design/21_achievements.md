@@ -191,7 +191,15 @@ Built: eight more. Five need a small counter kept per life (`newLife` starts the
 | `winterStore` | Winter store | The store of this life is at least half full (20 of 40) in the step that begins winter | `winterStocked`, set once in `tally` |
 | `manyDams` | Many dams | 3 whole dams of this life stand at once | `dams` |
 | `bigPond` | Big pond | A pond of 1500 m2 or more behind a dam of this life | `ponds` (`area`); the scanned sites run from 200 to 2300 m2, half below 900 |
+| `fixerUpper` | Fixer-upper | 10 pieces mended back to new | `mended` (the same counter as Handy beaver) |
+| `animalFriend` | Animal friend | A deer and a duck have each eaten food the beaver put down | `fedKinds`, from `feedAnimals` in `main.ts` |
+| `pondLife` | Pond life | The beaver was within 40 m of a duck and of a frog on a pond of a dam of this life | `guestKinds`, from `seeGuests` |
+| `homesFar` | Homes far and wide | A finished lodge or a whole dam of this life near each of the six play locations (nearest location counts) | `homesIn`, from `noteHomes` |
+| `sweetDreams` | Sweet dreams | The first dream of this life is opened | `dreamed`, set in `startDream` |
+| `longWinter` | Long winter | A winter in the finished lodge of this life, with the store never empty, won on the step out of winter | `winterClean` (in progress), `longWinter` |
 
+Animal friend: only the deer and the duck eat what the beaver puts down; the heron and frog cannot be fed, so they are not asked.
+Pond life asks for the two guests a pond has (duck, frog). A sleep that jumps over a whole winter does not win Long winter.
 Diver is the whole-breath reading, not the deepest bed. Explorer says "landmark" in the issue; the game has no landmark list, so
 the six play locations stand for it. All numbers are first guesses for the tablet.
 
@@ -210,7 +218,7 @@ First, in this order of interest:
 - **Tiers** (bronze, silver, gold) for the counting ones, such as wood 30, 100, 300, instead of more ids.
 - **A progress screen** with bars ("17 of 30 trees") and locked ones as silhouettes, in the art pass (#105).
 
-Then the cheap counters from the issue: diver, Almsee explorer, tail slap (10), well fed (25 pieces), stripper (50 branches),
+Then (the newer-system ones are built too, #571, except big family) the cheap counters from the issue: diver, Almsee explorer, tail slap (10), well fed (25 pieces), stripper (50 branches),
 winter store (half full going into winter), many dams (3 whole at once), big pond. And from the systems the game has now:
 fixer-upper (10 mends), animal friend (each ambient kind once), pond life (N kinds of guests), four homes (a dam or lodge in
 each location), big family (two kits in a litter or in two springs), sweet dreams (the first dream), long winter (a winter

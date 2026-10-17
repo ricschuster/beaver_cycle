@@ -195,6 +195,36 @@ describe('more of the family (#220)', () => {
   });
 });
 
+describe('neighbours, rescues and the long line (#568)', () => {
+  const talk = (...ids: string[]) => Object.fromEntries(ids.map((id) => [id, { talks: 1, last: 1 }]));
+
+  it('good neighbour: three families, not three beavers of one, and not a guide or a partner', () => {
+    expect(won({ ...base(), met: talk('family:1:1:mama', 'family:1:1:papa', 'family:1:1:kit:2:0') })).toEqual([]);
+    expect(won({ ...base(), met: talk('family:1:1:mama', 'family:2:1:papa', 'partner:s1', 'mama@3,4') })).toEqual([]);
+    expect(won({ ...base(), met: talk('family:1:1:mama', 'family:2:1:papa', 'family:1:3:kit:2:0') })).toEqual(['neighbour']);
+  });
+
+  it('good neighbour: a new life meets everyone afresh', () => {
+    const w = newLife({ ...base(), met: talk('family:1:1:mama', 'family:2:1:papa', 'family:1:3:papa') });
+    expect(won(w)).toEqual([]);
+  });
+
+  it('rescuer: five digs in this life, and the earlier life digs do not count', () => {
+    const year = dateAt(base().clock).year;
+    const digs = (n: number) => Array.from({ length: n }, (_, i) => `family:${i}:0:stuck:${year}`);
+    expect(won({ ...base(), rescued: digs(4) })).toEqual(['guide']);
+    expect(won({ ...base(), rescued: digs(5) })).toEqual(['guide', 'rescuer']);
+    const kit = newLife({ ...base(), clock: nextSpringStart(100), rescued: digs(5) });
+    expect(won(kit)).toEqual([]);
+  });
+
+  it('long line: the life at the third generation, and the lives before it do not', () => {
+    expect(won({ ...base(), generation: 2 })).toEqual([]);
+    expect(won({ ...base(), generation: 3 })).toEqual(['generations']);
+    expect(won(newLife({ ...base(), generation: 2 }))).toContain('generations');
+  });
+});
+
 describe('the counts', () => {
   it('counts a pad picked, and one picked again after it grew back', () => {
     expect(padsBetween({}, { a: 0 })).toBe(1);
@@ -238,7 +268,7 @@ describe('in a step', () => {
 describe('the list', () => {
   it('marks what is won and counts what is counted', async () => {
     const { achievementLines } = await import('./achievements');
-    const lines = achievementLines({ achievements: ['home'], felled: ids(12), padsPicked: 3, hauled: 0, journey: base().journey });
+    const lines = achievementLines({ achievements: ['home'], felled: ids(12), padsPicked: 3, hauled: 0, journey: base().journey, met: {}, rescued: [] });
     expect(lines[0]).toBe('[ ] Wood 12/30');
     expect(lines[1]).toBe('[x] Home');
     expect(lines).toContain('[ ] Water gardener 3/20');
@@ -248,7 +278,10 @@ describe('the list', () => {
     expect(lines).toContain('[ ] Growing up');
     expect(lines).toContain('[ ] Visit home');
     expect(lines).toContain('[ ] Hand down');
-    expect(lines).toHaveLength(16);
+    expect(lines).toContain('[ ] Good neighbour 0/3');
+    expect(lines).toContain('[ ] Rescuer 0/5');
+    expect(lines).toContain('[ ] Long line');
+    expect(lines).toHaveLength(19);
   });
 });
 

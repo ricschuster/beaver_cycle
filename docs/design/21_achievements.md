@@ -177,9 +177,27 @@ lives in the lodge) and **Big family** (two kits in a litter, or kits in two spr
 it is born (note 23), so a life never has a kit that is growing up, and a life has one kit. Growing up already is the kit's side.
 They would need the parent to stay in play, or a litter, so they are dropped.
 
+## The cheap counters (#570)
+
+Built: eight more. Five need a small counter kept per life (`newLife` starts them again); the rest read state.
+
+| Id | Name | Won when | Counted from |
+| --- | --- | --- | --- |
+| `diver` | Diver | A dive ran the whole breath out (breath reached 0 while diving) | `longDives`, counted in `tally` |
+| `explorer` | Explorer | All six play locations visited, within 200 m of each anchor | `visited`, filled by `visitPlaces` in the frame loop (`main.ts`) |
+| `tailSlap` | Tail slapper | 10 tail slaps | `slaps`, a new `lastSlap` each time |
+| `wellFed` | Well fed | 25 pieces eaten | `meals`, the rise of `eaten` |
+| `stripper` | Stripper | 50 branches stripped off logs | `branchesStripped`, the rise of the sum of `stripped` |
+| `winterStore` | Winter store | The store of this life is at least half full (20 of 40) in the step that begins winter | `winterStocked`, set once in `tally` |
+| `manyDams` | Many dams | 3 whole dams of this life stand at once | `dams` |
+| `bigPond` | Big pond | A pond of 1500 m2 or more behind a dam of this life | `ponds` (`area`); the scanned sites run from 200 to 2300 m2, half below 900 |
+
+Diver is the whole-breath reading, not the deepest bed. Explorer says "landmark" in the issue; the game has no landmark list, so
+the six play locations stand for it. All numbers are first guesses for the tablet.
+
 ## Next batch (#220, ideas agreed)
 
-Ideas from session 134, kept or dropped by the author. Nothing here is built. Each one reads what the game already keeps, or
+Ideas from session 134, kept or dropped by the author. The first three and the cheap counters are built (see above). Each one reads what the game already keeps, or
 needs one small event counter like `padsPicked`. Numbers are first guesses for the tablet.
 
 First, in this order of interest:

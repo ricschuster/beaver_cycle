@@ -1,5 +1,6 @@
 // The words of the game in the player's language (docs/design/36_languages.md). `t(key, params)` gives a string from the table
 // of the language set with `setLang`, the English one when that language lacks the key. No DOM, no dependency.
+import { de } from './de';
 import { en, type Key, type Table } from './en';
 
 export type { Key } from './en';
@@ -10,7 +11,7 @@ export type LangChoice = Lang | 'auto';
 /** The languages whose tables are complete and shipped; Settings offers only these. German joins when its table is done. */
 export const LANGS: readonly Lang[] = ['en'];
 
-const TABLES: Partial<Record<Lang, Partial<Table>>> = { en };
+const TABLES: Partial<Record<Lang, Partial<Table>>> = { en, de };
 
 let current: Lang = 'en';
 

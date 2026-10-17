@@ -89,7 +89,7 @@ hash of the English). The page also shows the static pages (manual, privacy) by 
 1. Done: `src/i18n/`, the Settings choice, the test, and the `ui/` strings.
 2. Done: the sim text modules, the HUD and toasts, and the review page `tools/text-review/` (English and German side by side,
    edit, tick Reviewed, export `de.ts` and `reviewed.de.json`; a tick holds a hash of the English so it lapses when the English changes).
-3. German tables (machine draft, then the author reviews on the review page), then `LANGS` gets `de`, the manual and the privacy page in German.
+3. Machine draft of the German tables is in `src/i18n/de.ts` (all keys, du-form, button words as infinitives). The author reviews it on the review page, then `LANGS` gets `de`, the manual and the privacy page in German.
 4. Listing text and screenshots in German.
 
 French is a later issue if a reader turns up.

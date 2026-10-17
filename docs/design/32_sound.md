@@ -66,7 +66,7 @@ A new `src/audio/` folder. The rules are the same as for `render/`:
 ## Settings and the manual
 
 - Two sliders, **Effects** and **Music**, and a mute button, kept with the other saved settings (`26_saving.md`). The default
-  is a middle volume, so a tablet in a quiet room is not a surprise.
+  is a middle volume for the effects and 20 % for the music, so a tablet in a quiet room is not a surprise.
 - The mute button is easy to reach, as the game is for children and may be played where sound is not welcome.
 - `public/manual.html` gets a short section with a picture when the sliders exist, and the test menu gets a switch for
   each layer.

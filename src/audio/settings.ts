@@ -12,8 +12,8 @@ export interface SoundSettings {
 /** The key the settings are kept under. */
 export const SOUND_KEY = 'beaver-cycle.sound';
 
-/** A middle volume, so a tablet in a quiet room is not a surprise. */
-export const DEFAULT_SOUND: SoundSettings = { effects: 0.5, music: 0.5, muted: false };
+/** Effects at a middle volume, music quieter (20 %), so a tablet in a quiet room is not a surprise. */
+export const DEFAULT_SOUND: SoundSettings = { effects: 0.5, music: 0.2, muted: false };
 
 const volume = (v: unknown, fallback: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback;

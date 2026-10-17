@@ -2,13 +2,13 @@
 
 Answers to prepare for the Play Console, so the forms are quick to fill. Background and sources are in issue #445; the
 Play wording changes, so read each question again when filling it in (last checked 2026-10-11). The developer account is
-set up (2026-10-17); nothing here is filed in the Console yet.
+set up (2026-10-17). The forms and the store listing were filed in the Console on 2026-10-17 (see the session 142 handoff).
 
 ## Release bundle
 
 `tools/standalone-apk/build_aab.sh` builds the signed `.aab` (steps in that folder's README). Built 2026-10-17 from `main`:
 `com.beavercycle.game`, `versionCode` 1, `versionName` 1.0, `minSdk` 24, `targetSdk` 36, about 34 MB, no native libraries,
-no `INTERNET`. Raise `versionCode` for every later upload. Not yet played on a real tablet, which comes before the first upload.
+no `INTERNET`. Raise `versionCode` for every later upload. Rolled out to the internal testing track on 2026-10-17 and played from Play on a phone.
 
 ## Privacy policy
 
@@ -54,6 +54,5 @@ The store listing and the privacy page use <ric.schuster@gmail.com> (chosen by t
 
 ## Still open
 
-- Play the bundle on a real tablet, then upload to the internal testing track and read the pre-launch report.
-- Fill in the Console forms from the answers above.
+- Read the pre-launch report once it has data.
 - 12 or more closed testers for 14 days (#445).

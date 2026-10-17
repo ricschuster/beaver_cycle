@@ -47,7 +47,7 @@ export function formatDam(d: NonNullable<FoodInfo['dam']>): string {
 /** ", the lodge needs wood too" when the other of the lodge and the store in reach needs wood as well, else empty. */
 const alsoText = (r: FoodInfo['repair']): string => (r?.also ? `, ${text(`hud.also.${r.also}`)}` : '');
 
-/** "store worn 25%, needs 6 wood (a long log is 2)", or "broken" for a piece that has to be rebuilt. */
+/** "store 25% left, needs 6 wood (a long log is 2)", or "broken" for a piece that has to be rebuilt. */
 export function formatRepair(r: NonNullable<FoodInfo['repair']>): string {
   // A dam takes wood, mud, and rocks alike. A broken one is built again, which the dam line says.
   if (r.what === 'dam') return r.broken ? t('hud.repair.damBroken') : t('hud.repair.damWorn', { percent: r.percent, wood: r.wood });

@@ -4,7 +4,7 @@ import { createWorld } from '../sim/state';
 import type { Terrain } from '../sim/terrain';
 import { stepsOf } from '../ui/coachSteps';
 import { en } from './en';
-import { ALL_KEYS, LANGS, getLang, resolveLang, setLang, t, tList, type Key } from './index';
+import { ALL_KEYS, LANGS, getLang, type Lang, resolveLang, setLang, t, tList, type Key } from './index';
 
 const PLACEHOLDER = /\{(\w+)\}/g;
 const holders = (v: string | readonly string[]): string[] => (typeof v === 'string' ? [v] : v).flatMap((s) => [...s.matchAll(PLACEHOLDER)].map((m) => m[1] ?? '')).sort();
@@ -44,7 +44,8 @@ describe('the tables', () => {
   });
 
   it('has every key, with the same placeholders, in every shipped language', async () => {
-    for (const lang of LANGS) {
+    // German is checked before it ships too, so the draft stays complete while the author reviews it.
+    for (const lang of new Set<Lang>([...LANGS, 'de'])) {
       if (lang === 'en') continue;
       setLang(lang);
       const table = (await import(`./${lang}.ts`))[lang] as Record<Key, string | readonly string[]>;

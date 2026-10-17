@@ -44,8 +44,8 @@ import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createKeyHints } from './ui/keyHints';
 import { WELCOME_KEY, createHelpPanel, wantsWelcome } from './ui/helpPanel';
 import { COACH_KEY, createCoach, wantsCoach } from './ui/coach';
-import { askContinue } from './ui/continueCard';
-import { AUTOSAVE_EVERY, ago, clearSave, loadSave, wantsSave, writeSave, type SaveStorage, type SavedCoach } from './persist/save';
+import { askSlot } from './ui/slotCard';
+import { AUTOSAVE_EVERY, ago, clearSave, loadSave, parseSlot, readSlots, renameSave, wantsSave, writeSave, cleanName, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createDreamScreen } from './ui/dreamScreen';
 import { createTestMenu, type TestMenu } from './ui/testMenu';
@@ -287,28 +287,47 @@ async function start(): Promise<void> {
   const stageParam = query.get('stage');
   const startAs = STAGES.includes(stageParam as Stage) ? (stageParam as Stage) : navigator.webdriver ? 'adult' : 'baby';
   if (startAs !== 'adult') world = startStage(world, startAs);
-  // The saved game (docs/design/26_saving.md): one slot. When there is one, the player continues it or starts over.
+  // The saved game (docs/design/26_saving.md): four slots. With a saved game the player picks a slot on the start screen; ?slot=N
+  // goes straight to that slot (the Settings shadows restart uses it), and with no saved game at all the game starts in slot 1.
   let startNote: string | null = null;
+  let slot = 1;
+  let slotName = '';
   const saving = storage !== null && !free && wantsSave(query, navigator.webdriver);
   if (saving) {
-    const found = loadSave(storage, world);
-    if (found.kind === 'ok') {
-      if ((await askContinue(document.body, ago(found.save.savedAt, Date.now()))) === 'continue') {
+    const wanted = parseSlot(query.get('slot'));
+    const slots = readSlots(storage, world);
+    let choice: { slot: number; action: 'continue' | 'new'; name: string };
+    if (wanted) choice = { slot: wanted, action: slots[wanted - 1]!.kind === 'used' ? 'continue' : 'new', name: '' };
+    else if (slots.every((i) => i.kind !== 'used')) choice = { slot: 1, action: 'new', name: '' };
+    else {
+      choice = await askSlot(document.body, {
+        slots: () => readSlots(storage, world),
+        rename: (n, name) => void renameSave(storage, n, name),
+        remove: (n) => clearSave(storage, n),
+        ago: (at) => ago(at, Date.now()),
+      });
+    }
+    slot = choice.slot;
+    if (choice.action === 'continue') {
+      const found = loadSave(storage, world, slot);
+      if (found.kind === 'ok') {
         world = found.save.world;
+        slotName = found.save.name ?? '';
         // The coach goes on where it was, or stays off if it was closed.
         coachPending = false;
         coachOn = found.save.coach.on;
         coachStage = found.save.coach.stage;
         if (coachOn && found.save.coach.state) coach?.resume(world, found.save.coach.state);
-      } else clearSave(storage);
-    } else if (found.kind === 'unreadable') startNote = 'The saved game could not be read, so this is a new game.';
+      }
+    } else slotName = cleanName(choice.name);
+    if (!wanted && slots.some((i) => i.kind === 'unreadable')) startNote = 'A saved game could not be read, so it was put aside.';
   }
   const savedCoach = (): SavedCoach => ({ on: coachOn, stage: coachStage, state: coach?.state() ?? null });
   let savedAt = performance.now();
   const saveNow = (): void => {
     if (!saving || !storage) return;
     savedAt = performance.now();
-    writeSave(storage, world, savedCoach(), Date.now());
+    writeSave(storage, world, savedCoach(), Date.now(), slot, slotName);
   };
   // A tablet may close the game without a word when it is put away: save when the page is hidden.
   if (saving) {
@@ -341,6 +360,13 @@ async function start(): Promise<void> {
   // Settings and the achievements: the two buttons a player has next to the speaker (the free fly view has no screens).
   if (!free) {
     createSettingsPanel(document.body, {
+      startScreen: saving ? () => {
+        saveNow();
+        const next = new URLSearchParams(location.search);
+        next.delete('slot');
+        const qs = next.toString();
+        location.assign(location.pathname + (qs ? `?${qs}` : ''));
+      } : null,
       sounds: { value: () => sound.settings().effects, onChange: sound.setEffects },
       music: { value: () => sound.settings().music, onChange: sound.setMusic },
       map: {
@@ -359,6 +385,7 @@ async function start(): Promise<void> {
           // The shadows are made when the renderer starts, so the game starts again, with the saved game to continue.
           const next = new URLSearchParams(location.search);
           next.delete('shadows');
+          if (saving) next.set('slot', String(slot));
           const qs = next.toString();
           location.assign(location.pathname + (qs ? `?${qs}` : ''));
         },

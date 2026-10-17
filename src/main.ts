@@ -58,6 +58,7 @@ import { babbleCue, dreamCues } from './audio/talkDream';
 import { LAYERS, createSound, wireBrowser } from './audio/sound';
 import { createMuteButton } from './ui/muteButton';
 import { createOsmCredit } from './ui/osmCredit';
+import { resolveLang, setLang, t, type LangChoice } from './i18n';
 import { loadPrefs, savePrefs } from './ui/prefs';
 import { createAchievementsPanel, createSettingsPanel } from './ui/settingsPanel';
 import { createFlyButtons } from './ui/flyButtons';
@@ -186,6 +187,10 @@ async function start(): Promise<void> {
   // The Settings panel's choices (src/ui/prefs.ts). A dev URL parameter wins over them; the shadows are fixed at the start, so
   // changing them restarts the game.
   const prefs = loadPrefs(storage);
+  // The words follow the Settings choice, or the device language (docs/design/36_languages.md); a new choice restarts the game.
+  setLang(resolveLang(prefs.lang, navigator.languages ?? navigator.language));
+  let langChoice: LangChoice = prefs.lang;
+  const keptPrefs = (shadows: boolean) => ({ minimap: minimap.mode(), shadows, lang: langChoice });
   const shadowsAtStart = (query.has('shadows') ? query.get('shadows') === '1' : prefs.shadows) && !free;
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
     shadows: shadowsAtStart,
@@ -349,7 +354,7 @@ async function start(): Promise<void> {
   const anchors = store?.index.anchors ?? [];
   // The minimap trial (docs/design/31_minimap.md): on, turning with the camera; ?minimap=north keeps north up, ?minimap=0 or the test menu turns it off, and an automated browser needs ?minimap=1.
   const minimap = createMinimap(free ? document.createElement('div') : document.body, query.has('minimap') || !prefs.minimap ? minimapMode(query.get('minimap'), navigator.webdriver) : prefs.minimap);
-  const MAP_LABEL: Record<MinimapMode, string> = { north: 'North up', turn: 'Turning', off: 'Off' };
+  const MAP_LABEL: Record<MinimapMode, string> = { north: t('map.north'), turn: t('map.turn'), off: t('map.off') };
   // Sound (docs/design/32_sound.md): the mute button is always on the screen. The free fly view and ?sound=0 stay silent.
   const soundOut = createWebAudio();
   const sound = createSound(soundOut, storage);
@@ -377,18 +382,31 @@ async function start(): Promise<void> {
         label: () => MAP_LABEL[minimap.mode()],
         onNext() {
           minimap.setMode(nextMode(minimap.mode()));
-          savePrefs(storage, { minimap: minimap.mode(), shadows: shadowsAtStart });
+          savePrefs(storage, keptPrefs(shadowsAtStart));
           return MAP_LABEL[minimap.mode()];
         },
       },
       shadows: {
         on: () => shadowsAtStart,
         onToggle(on) {
-          savePrefs(storage, { minimap: minimap.mode(), shadows: on });
+          savePrefs(storage, keptPrefs(on));
           saveNow();
           // The shadows are made when the renderer starts, so the game starts again, with the saved game to continue.
           const next = new URLSearchParams(location.search);
           next.delete('shadows');
+          if (saving) next.set('slot', String(slot));
+          const qs = next.toString();
+          location.assign(location.pathname + (qs ? `?${qs}` : ''));
+        },
+      },
+      language: {
+        value: () => langChoice,
+        onChange(choice) {
+          langChoice = choice;
+          savePrefs(storage, keptPrefs(shadowsAtStart));
+          saveNow();
+          // The words are read when the panels are made, so the game starts again, with the saved game to continue.
+          const next = new URLSearchParams(location.search);
           if (saving) next.set('slot', String(slot));
           const qs = next.toString();
           location.assign(location.pathname + (qs ? `?${qs}` : ''));

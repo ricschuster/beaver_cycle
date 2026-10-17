@@ -234,7 +234,15 @@ Rows belong to four groups for the screen: Building (home, dams, mending, hauler
 visit home, hand down, long line, good neighbour, rescuing) and Valley and animals (explorer, diver, tail slapper, animal
 friend, pond life, sweet dreams). `achievementRows` gives each row its group, tiers won, and the count to the next tier.
 
-The screen itself (four tabs of tiles with bars) is the next PR.
+## The screen (#569)
+
+Built in `createAchievementsPanel` (`src/ui/settingsPanel.ts`): a wide card with "N of 53 won", four tabs (the groups, each with
+its medals won over medals possible), the hint strip, and a grid of tiles for the tab. A tile has the name, a medal for each
+tier (a tick or a ring for a single one), and for a counted row a bar with "17 of 30" toward the next tier; a locked tile is dim.
+A tap picks a tile and its hint stays in the strip until another is picked; a mouse also shows the hint while over a tile. The
+strip is above the grid so it never scrolls away. Each tab has at most 9 tiles, so it fits a tablet in landscape or portrait and a
+phone (two columns) without scrolling; the card still scrolls if a screen is shorter. Locked tiles are dimmed, not yet
+silhouettes: the art pass (#105) can draw medals and silhouettes. Not tried on a tablet.
 
 ## Next batch (#220, ideas agreed)
 

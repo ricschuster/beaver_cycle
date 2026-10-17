@@ -23,7 +23,7 @@ test('a lily pad goes into the store, and comes out to be eaten in the lodge', a
   await expect(page.locator('#carry-hud')).toContainText(/lily/i);
   await page.getByRole('button', { name: 'Test menu' }).click();
   await page.locator('button[data-action="achievements"]').click();
-  await expect(page.locator('pre', { hasText: 'Water gardener 1/20' })).toBeAttached();
+  await expect(page.locator('pre', { hasText: 'Water gardener ○○○ 1/20' })).toBeAttached();
   await page.locator('button[data-action="achievements"]').click();
   await page.getByRole('button', { name: 'Test menu' }).click();
   // The picked pad is gone from the water.

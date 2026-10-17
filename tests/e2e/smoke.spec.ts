@@ -38,18 +38,23 @@ test('the Settings and achievements buttons open their cards', async ({ page }) 
   await page.locator('button[data-action="settings-close"]').click();
   await expect(page.locator('#settings')).toBeHidden();
   await page.getByRole('button', { name: 'Things I did' }).click();
+  // Four tabs of tiles; the first is Building, and the Wood tile is on the Wood and food tab.
+  await expect(page.locator('#achievements button[data-action="achievement-tab"]')).toHaveCount(4);
   await expect(page.locator('#achievements')).toContainText('Home');
+  await expect(page.locator('#achievements button[data-action="achievement"]', { hasText: 'Wood' })).toHaveCount(0);
+  await page.locator('#achievements button[data-action="achievement-tab"]', { hasText: 'Wood and food' }).click();
   await page.locator('#achievements button[data-action="achievement"]', { hasText: 'Wood' }).click();
-  await expect(page.locator('#achievements [data-role="achievement-hint"]:visible')).toContainText('Gnaw down 30 trees');
-  // The mouse still rests on the row, so it moves off before the second tap is judged.
+  await expect(page.locator('#achievements [data-role="achievement-hint"]')).toContainText('Gnaw down 30 trees');
+  // The hint stays until the tile is tapped again.
   await page.locator('#achievements button[data-action="achievement"]', { hasText: 'Wood' }).click();
   await page.mouse.move(0, 0);
-  await expect(page.locator('#achievements [data-role="achievement-hint"]:visible')).toHaveCount(0);
-  // A mouse shows the hint while it is over the row.
-  await page.locator('#achievements button[data-action="achievement"]', { hasText: /^. Home$/ }).hover();
-  await expect(page.locator('#achievements [data-role="achievement-hint"]:visible')).toContainText('Build a lodge');
+  await expect(page.locator('#achievements [data-role="achievement-hint"]')).not.toContainText('Gnaw down');
+  // A mouse shows the hint while it is over a tile.
+  await page.locator('#achievements button[data-action="achievement-tab"]', { hasText: 'Building' }).click();
+  await page.locator('#achievements button[data-action="achievement"]', { hasText: /^Home\W/ }).hover();
+  await expect(page.locator('#achievements [data-role="achievement-hint"]')).toContainText('Build a lodge');
   await page.mouse.move(0, 0);
-  await expect(page.locator('#achievements [data-role="achievement-hint"]:visible')).toHaveCount(0);
+  await expect(page.locator('#achievements [data-role="achievement-hint"]')).not.toContainText('Build a lodge');
   expect(errors).toEqual([]);
 });
 

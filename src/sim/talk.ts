@@ -1,7 +1,8 @@
 // Talk between beavers (docs/design/27_families_and_dialog.md, #344). Who the player can talk to, and what they say. Each line is
 // a pure function of who speaks, what the world holds, how the beaver feels about the player, what it remembers of earlier
 // talks, and a seed, so a test can step it and a line does not change from frame to frame. The lines are in `talkLines.ts`.
-// English only. No DOM.
+// The words come from the language tables (`talkLines.ts`). No DOM.
+import { t } from '../i18n';
 import { dateAt, isNight, DAY_SECONDS, DAYS_PER_SEASON, type Season } from './clock';
 import { atStore, stockMeals, stockTotal, storeCapacity, storeCondition } from './food';
 import { FAMILY_START_TRUST, familyMood, familyTrust } from './familyMoods';
@@ -14,8 +15,8 @@ import { follower, mateOf } from './partners';
 import type { WorldState } from './state';
 import { needsRepair } from './wear';
 import {
-  AGAIN, DOING, FAREWELL, FIRST_MEETING, HELP, HELP_WARY, HOME_DOING, HOME_ERRANDS, HOME_HELP, KIN_RESCUE, LIFE, LONG_AWAY_LINES, NIGHT, REMARK, RESCUED, ROLE_WORD, SEASONAL, SINCE, STORE_WHY,
-  TASK_DOING, THANKS, type HomeJob, type LifeFact,
+  AGAIN, DOING, FAREWELL, FIRST_MEETING, HELP, HELP_WARY, HOME_DOING, HOME_ERRANDS, HOME_HELP, KIN_RESCUE, LIFE, LONG_AWAY_LINES, REMARK, RESCUED, ROLE_WORD, SEASONAL, SINCE, STORE_WHY,
+  TASK_DOING, THANKS, night, withSince, withWho, type HomeJob, type LifeFact,
 } from './talkLines';
 
 /** Who a speaker is: a member of another family by role, the player's own mama or papa, or the partner. */
@@ -118,7 +119,7 @@ export function pickLine(speaker: Pick<Speaker, 'id' | 'kind'>, ctx: TalkContext
   const own = REMARK[speaker.kind][ctx.feeling];
   const h = hashOf(ctx.seed, speaker.id);
   if (ctx.feeling === 'wary') return pick(own, h, ctx.avoid);
-  return pick([...own, ...(isNight(ctx.clock) ? NIGHT : SEASONAL[ctx.season])], h, ctx.avoid);
+  return pick([...own, ...(isNight(ctx.clock) ? night() : SEASONAL[ctx.season])], h, ctx.avoid);
 }
 
 /** What a beaver remembers of the player: how many talks so far, and the clock of the last one. Saved in `world.met`. */
@@ -230,22 +231,22 @@ export function greeting(s: Speaker, f: TalkFacts, seed: number, avoid = ''): st
   const h = hashOf(seed, s.id);
   if (f.feeling === 'wary') return pick(REMARK[s.kind].wary, h, avoid);
   const remark = (): string => pickLine(s, { feeling: f.feeling, season: f.season, clock: f.clock, seed: seed + 7, avoid });
-  const away = f.met && f.clock - f.met.last >= LONG_AWAY ? LONG_AWAY_LINES[s.kind][h % LONG_AWAY_LINES[s.kind].length]!(SINCE[dateAt(f.met.last).season]) : null;
+  const away = f.met && f.clock - f.met.last >= LONG_AWAY ? withSince(LONG_AWAY_LINES[s.kind][h % LONG_AWAY_LINES[s.kind].length]!, SINCE[dateAt(f.met.last).season]) : null;
   if (isHome(s.kind)) {
     // The player's life weighs twice as much as a general remark. A baby hears no talk of work for the season.
     const life = lifeFacts(s.kind, f).flatMap((k) => LIFE[s.kind as HomeKind][k] ?? []);
-    const general = [...REMARK[s.kind].curious, ...(isNight(f.clock) ? NIGHT : f.stage === 'baby' ? [] : SEASONAL[f.season])];
+    const general = [...REMARK[s.kind].curious, ...(isNight(f.clock) ? night() : f.stage === 'baby' ? [] : SEASONAL[f.season])];
     const body = pick([...life, ...general, ...life], h >>> 3, avoid);
     return away ? `${away} ${body}` : body;
   }
   const kind = s.kind;
   const who = { name: s.name, ...(s.place ? { place: s.place } : {}) };
   if (!f.met) {
-    const opener = f.savedByYou ? RESCUED[kind][0]!(who) : pick(FIRST_MEETING[kind][f.feeling].map((line) => line(who)), h, avoid);
+    const opener = f.savedByYou ? withWho(RESCUED[kind][0]!, who) : pick(FIRST_MEETING[kind][f.feeling].map((line) => withWho(line, who)), h, avoid);
     const then = f.guide && !f.savedByYou ? KIN_RESCUE[kind] : f.gifted && !f.guide ? pick(THANKS[kind], h >>> 4) : remark();
     return `${opener} ${then}`;
   }
-  const rescue = f.savedByYou ? RESCUED[kind].slice(1).map((line) => line(who)) : f.guide ? [KIN_RESCUE[kind]] : [];
+  const rescue = f.savedByYou ? RESCUED[kind].slice(1).map((line) => withWho(line, who)) : f.guide ? [KIN_RESCUE[kind]] : [];
   const openers = [...AGAIN[kind], ...(f.gifted ? THANKS[kind] : []), ...rescue];
   return `${away ?? pick(openers, h >>> 2, avoid)} ${remark()}`;
 }
@@ -327,7 +328,7 @@ export function replyLine(reply: 'doing' | 'help' | 'bye', s: Speaker, f: TalkFa
 
 /** Who a speaker is, under its name on the card: "papa of the north pond", "your mama". */
 export function roleOf(s: Pick<Speaker, 'kind' | 'place'>): string {
-  return isHome(s.kind) || !s.place ? ROLE_WORD[s.kind] : `${ROLE_WORD[s.kind]} of the ${s.place}`;
+  return isHome(s.kind) || !s.place ? ROLE_WORD[s.kind] : t('talk.roleOf', { role: ROLE_WORD[s.kind], place: s.place });
 }
 
 /** The people of the player's own lodge or a former one, as the family module draws them. */

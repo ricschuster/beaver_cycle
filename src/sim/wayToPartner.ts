@@ -2,6 +2,7 @@
 // player looks (ahead, behind, left, right), up or down the hill, near a family the player knows, and how far as "close by"
 // or "a long way off", never compass points and metres. After a hint a short trail of sparkles points the way for a while
 // (`WayPointer`, not saved); `render/wayPointer.ts` draws it. Pure, no DOM and no three.js.
+import { t } from '../i18n';
 import { pondName } from './names';
 import { HEARD_DISTANCE, partnerCue, type Partner } from './partners';
 import type { WorldState } from './state';
@@ -20,28 +21,28 @@ const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
  * Which way a point lies from where the player looks. `facing` is the look direction in the heading convention (atan2 of x
  * and z, 0 looks along +z), and in that view left is +x, as in `relativeToView`.
  */
-export function sideWord(dx: number, dz: number, facing: number): 'straight ahead' | 'behind you' | 'to your left' | 'to your right' {
+export function sideWord(dx: number, dz: number, facing: number): string {
   const a = wrap(Math.atan2(dx, dz) - facing);
-  if (Math.abs(a) <= Math.PI / 4) return 'straight ahead';
-  if (Math.abs(a) >= (3 * Math.PI) / 4) return 'behind you';
-  return a > 0 ? 'to your left' : 'to your right';
+  if (Math.abs(a) <= Math.PI / 4) return t('way.side.ahead');
+  if (Math.abs(a) >= (3 * Math.PI) / 4) return t('way.side.behind');
+  return a > 0 ? t('way.side.left') : t('way.side.right');
 }
 
 /** How far, in words. */
-export function farWord(d: number): 'close by' | 'a little swim away' | 'a long way off' {
-  if (d <= HEARD_DISTANCE) return 'close by';
-  return d <= LITTLE_SWIM ? 'a little swim away' : 'a long way off';
+export function farWord(d: number): string {
+  if (d <= HEARD_DISTANCE) return t('way.far.close');
+  return d <= LITTLE_SWIM ? t('way.far.swim') : t('way.far.long');
 }
 
 /** Where a point lies from where the player looks, in kid words: "to your left, close by". Used by the partner's remarks and the coach. */
 export function placeWords(dx: number, dz: number, facing: number): string {
-  return `${sideWord(dx, dz, facing)}, ${farWord(Math.hypot(dx, dz))}`;
+  return t('way.place', { side: sideWord(dx, dz, facing), far: farWord(Math.hypot(dx, dz)) });
 }
 
 /** Up or down the hill, or null when the two are about as high. */
-export function hillWord(fromY: number, toY: number): 'up the hill' | 'down the hill' | null {
-  if (toY - fromY >= HILL) return 'up the hill';
-  if (fromY - toY >= HILL) return 'down the hill';
+export function hillWord(fromY: number, toY: number): string | null {
+  if (toY - fromY >= HILL) return t('way.hill.up');
+  if (fromY - toY >= HILL) return t('way.hill.down');
   return null;
 }
 
@@ -69,15 +70,15 @@ export function wayWords(world: Pick<WorldState, 'neighbours' | 'met' | 'formerH
   const b = world.beaver;
   const d = Math.hypot(p.x - b.x, p.z - b.z);
   const family = familyNear(world, p);
-  if (family) return `near the ${family} family, ${farWord(d)}`;
+  if (family) return t('way.nearFamily', { family, far: farWord(d) });
   const spot = world.spots.find((s) => `partner:${s.id}` === p.id);
   const hill = spot ? hillWord(b.y, spot.bedY) : null;
   const side = sideWord(p.x - b.x, p.z - b.z, facing);
-  return `${hill ? `${hill} ${side}` : side}, ${farWord(d)}`;
+  return t('way.place', { side: hill ? t('way.hillSide', { hill, side }) : side, far: farWord(d) });
 }
 
-/** The start of the news line about a lone beaver, so the game can tell it was given and show the sparkles. */
-export const LONE_NEWS = 'A lone beaver lives';
+/** The news line about a lone beaver, so the game can tell it was given and show the sparkles. */
+export const loneNewsLine = (words: string): string => t('news.lone', { words });
 
 /** The nearest lone beaver and the words for where it lives, or null when there is none to find. */
 export function loneBeaverWay(world: WorldState, facing: number): { partner: Partner; d: number; words: string } | null {

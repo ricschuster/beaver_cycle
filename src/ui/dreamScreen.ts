@@ -2,6 +2,7 @@
 // short lines for what happens, the prompt for a game, touch buttons of its own, and Wake up. It owns the dream's state, steps
 // it with the player's actions, and draws it with the dream's own scene. The waking game stands still while it is open (main.ts).
 
+import { t, tList } from '../i18n';
 import { mergeActions, noActions, relativeToView, type Actions } from '../actions/actions';
 import { createCameraRig, type CameraRig } from '../render/cameraRig';
 import { createDreamView, type DreamView } from '../render/dreamView';
@@ -51,60 +52,51 @@ const pick = (lines: readonly string[], n: number): string => lines[Math.abs(Mat
 
 /** The line for an event, picked from a few by the counter `n`, or null for events that need none (a sweet, a splash, a giggle). */
 export function dreamLine(event: DreamEvent, state: DreamState, n: number): string | null {
+  const one = (key: string, params?: Record<string, string | number>): string => pick(tList(key, params), n);
   switch (event.what) {
     case 'sweet':
-      return event.kind === 'star' ? pick(['A golden star!', 'Ooh, a shiny star!', 'You found a star!'], n) : null;
+      return event.kind === 'star' ? one('dream.star') : null;
     case 'rush':
-      return pick(['Sugar rush!', 'Zoom! Sugar rush!', 'Whee! Sugar rush!'], n);
-    case 'greet': {
-      const name = mallowName(state, event.who);
-      return pick([`${name} says hello!`, `${name} waves hi!`, `${name} hops over to say hi!`, `Hello from ${name}!`], n);
-    }
-    case 'tagStart': {
-      if (event.it === 'player') return pick(['Tag! You are it. Catch someone!', 'Tag! You are it!'], n);
-      const name = mallowName(state, event.it);
-      return pick([`Tag! ${name} is it. Swim away!`, `Tag! ${name} is it!`, `Tag! Quick, ${name} is it!`], n);
-    }
+      return one('dream.rush');
+    case 'greet':
+      return one('dream.greet', { name: mallowName(state, event.who) });
+    case 'tagStart':
+      return event.it === 'player' ? one('dream.tagYou') : one('dream.tagOther', { name: mallowName(state, event.it) });
     case 'caught': {
       const it = mallowName(state, event.it);
       const by = mallowName(state, event.by);
-      if (event.it === 'player') return pick(['Gotcha! You are it', `${by} tagged you! You are it`, `Caught by ${by}! You are it`], n);
-      if (event.by === 'player') return pick([`You tagged ${it}!`, `Gotcha, ${it}!`, `Got you, ${it}! ${it} is it`], n);
-      return pick([`${by} tagged ${it}!`, `${it} is it now!`], n);
+      if (event.it === 'player') return one('dream.caughtYou', { by });
+      if (event.by === 'player') return one('dream.caughtBy', { it });
+      return one('dream.caughtOther', { by, it });
     }
     case 'tagEnd': {
-      const catches = event.catches === 1 ? '1 catch' : `${event.catches} catches`;
-      if (event.catches === 0) return pick(['What a game!', 'That was fun!'], n);
-      return pick([`What a game! ${catches}`, `Hooray! ${catches}`, `That was fun! ${catches}`], n);
+      if (event.catches === 0) return one('dream.tagEndNone');
+      return one('dream.tagEnd', { catches: event.catches === 1 ? t('dream.catchOne') : t('dream.catches', { n: event.catches }) });
     }
     case 'seekStart':
-      return pick([`Close your eyes and count! ${event.hiders} are hiding`, 'Hide and seek! Count to ten', 'Everyone hide! You count'], n);
+      return one('dream.seekStart', { hiders: event.hiders });
     case 'seekGo':
-      return pick(['Ready or not, here I come!', 'Find them!', 'Go and find them!'], n);
+      return one('dream.seekGo');
     case 'found': {
       const name = mallowName(state, event.who);
-      if (event.left === 0) return pick([`You found ${name}!`, `There is ${name}!`], n);
-      return pick([`You found ${name}! ${event.left} left`, `There is ${name}! ${event.left} left`, `Peekaboo, ${name}! ${event.left} left`], n);
+      return event.left === 0 ? one('dream.foundLast', { name }) : one('dream.found', { name, left: event.left });
     }
     case 'seekEnd':
-      return pick(['Everyone found! Sweets for all!', 'You found them all! Hooray!', 'All found! What a seeker!'], n);
-    case 'hideStart': {
-      const who = event.seekers === 1 ? 'Your friend counts' : `${event.seekers} friends count`;
-      return pick([`${who} to ten. Run and hide!`, 'They are counting! Quick, hide!', 'Hide behind a big candy!'], n);
-    }
+      return one('dream.seekEnd');
+    case 'hideStart':
+      return one('dream.hideStart', { who: event.seekers === 1 ? t('dream.friendCounts') : t('dream.friendsCount', { n: event.seekers }) });
     case 'hideGo':
-      return pick(['Ready or not, here we come!', 'Shh! They are looking!', 'Here they come! Stay hidden!'], n);
+      return one('dream.hideGo');
     case 'spotted': {
       const name = mallowName(state, event.who);
-      if (event.left === 0) return pick([`${name} found you! Hee hee!`, `Peekaboo! ${name} found you!`], n);
-      return pick([`${name} found you! Hee hee! ${event.left} still looking`, `Peekaboo! ${name} found you! ${event.left} still looking`], n);
+      return event.left === 0 ? one('dream.spottedLast', { name }) : one('dream.spotted', { name, left: event.left });
     }
     case 'hideEnd':
-      if (event.found === event.seekers) return pick(['Everyone found you! Sweets for all!', 'Found you! What a game!'], n);
-      if (event.found === 0) return pick(['Time is up! Nobody found you! What a hider!', 'Time is up! Super hiding!'], n);
-      return pick(['Time is up! What a game!', `Time is up! ${event.found} of ${event.seekers} found you`], n);
+      if (event.found === event.seekers) return one('dream.hideEndAll');
+      if (event.found === 0) return one('dream.hideEndNone');
+      return one('dream.hideEnd', { found: event.found, seekers: event.seekers });
     case 'shower':
-      return pick(['Sweets rain down! Grab them!', 'A shower of sweets!', 'Sweets everywhere!'], n);
+      return one('dream.shower');
     default:
       return null;
   }
@@ -114,18 +106,18 @@ export function dreamLine(event: DreamEvent, state: DreamState, n: number): stri
 export function dreamStatus(state: DreamState): { top: string | null; big: string | null } {
   const g = state.game;
   if (g.kind === 'tag') {
-    const left = Math.max(0, Math.ceil(g.ends - state.time));
-    const who = g.it === 'player' ? 'You are it!' : `Tag! ${mallowName(state, g.it)} is it`;
-    return { top: `${who} ${left} s left`, big: null };
+    const n = Math.max(0, Math.ceil(g.ends - state.time));
+    const who = g.it === 'player' ? t('dream.youAreIt') : t('dream.tagIt', { name: mallowName(state, g.it) });
+    return { top: t('dream.secondsLeft', { who, n }), big: null };
   }
   if (g.kind === 'seek') {
-    if (g.phase === 'counting') return { top: 'Hide and seek', big: `Counting... ${Math.max(1, Math.ceil(g.until - state.time))}` };
-    return { top: `Find them! ${g.found.length} of ${g.hiders.length} found`, big: null };
+    if (g.phase === 'counting') return { top: t('dream.statusSeek'), big: t('dream.counting', { n: Math.max(1, Math.ceil(g.until - state.time)) }) };
+    return { top: t('dream.findThem', { found: g.found.length, hiders: g.hiders.length }), big: null };
   }
   if (g.kind === 'hide') {
-    if (g.phase === 'counting') return { top: 'Run and hide!', big: `Hide! ${Math.max(1, Math.ceil(g.until - state.time))}` };
-    const left = `${Math.max(0, Math.ceil(g.until - state.time))} s left`;
-    return { top: g.found.length === 0 ? `Shh! They are looking. ${left}` : `${g.found.length} of ${g.seekers.length} found you. ${left}`, big: null };
+    if (g.phase === 'counting') return { top: t('dream.runHide'), big: t('dream.hideCount', { n: Math.max(1, Math.ceil(g.until - state.time)) }) };
+    const left = t('dream.sLeft', { n: Math.max(0, Math.ceil(g.until - state.time)) });
+    return { top: g.found.length === 0 ? t('dream.shh', { left }) : t('dream.foundYou', { found: g.found.length, seekers: g.seekers.length, left }), big: null };
   }
   return { top: null, big: null };
 }
@@ -227,7 +219,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       prompt.append(promptText);
       const wakeButton = el('button', `${PILL};position:absolute;right:max(16px,env(safe-area-inset-right));top:16px;z-index:3;min-height:48px;padding:8px 20px;font-size:18px;background:#e6dafc;border-color:#c9b6ff;cursor:pointer`) as HTMLButtonElement;
       wakeButton.type = 'button';
-      wakeButton.textContent = 'Wake up';
+      wakeButton.textContent = t('dream.wake');
       wakeButton.dataset.action = 'dream-wake';
       wakeButton.addEventListener('click', wake);
       // Play on land asks: hide or seek? Two big buttons, and the keys 1 and 2.
@@ -235,8 +227,8 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       const choiceText = el('span', 'text-align:center');
       const choiceRow = el('div', 'display:flex;gap:14px;justify-content:center;flex-wrap:wrap');
       for (const [want, label, key, colour, edge] of [
-        ['hide', 'I hide', '1', '#8fd6bd', '#5fb79a'],
-        ['seek', 'I seek', '2', '#ff8fc1', '#e06aa3'],
+        ['hide', t('dream.hide'), '1', '#8fd6bd', '#5fb79a'],
+        ['seek', t('dream.seek'), '2', '#ff8fc1', '#e06aa3'],
       ] as const) {
         const b = el('button', `min-width:120px;min-height:64px;padding:8px 22px;border-radius:999px;border:3px solid #fff;background:${colour};color:#fff;font-size:22px;cursor:pointer;pointer-events:auto;touch-action:none;box-shadow:0 4px 0 ${edge};${FONT}`) as HTMLButtonElement;
         b.type = 'button';
@@ -253,11 +245,11 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
 
       let touch: TouchControls | null = null;
       if (opts.touch) {
-        touch = createTouchControls(root, true, { idPrefix: 'dream-touch', labels: { dive: 'Hop', slap: 'Splash', do: 'Play', take: null } });
+        touch = createTouchControls(root, true, { idPrefix: 'dream-touch', labels: { dive: t('dream.hop'), slap: t('dream.splash'), do: t('dream.play'), take: null } });
         // A big round Play button next to the prompt, which is easier to find than the one among the others.
         const play = el('button', `position:relative;width:64px;height:64px;border-radius:50%;border:3px solid #fff;background:#ff8fc1;color:#fff;font-size:18px;cursor:pointer;pointer-events:auto;touch-action:none;box-shadow:0 4px 0 #e06aa3;${FONT}`) as HTMLButtonElement;
         play.type = 'button';
-        play.textContent = 'Play';
+        play.textContent = t('dream.play');
         play.dataset.action = 'dream-play';
         prompt.append(play);
         play.addEventListener('pointerdown', (e) => {
@@ -266,7 +258,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         });
       } else {
         const keys = el('div', `position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:2;padding:6px 16px;border-radius:999px;background:rgba(106,61,122,.55);color:#fff6ec;font-size:14px;white-space:nowrap;pointer-events:none;${FONT}`, 'dream-keys');
-        keys.textContent = 'WASD move, Space hop, T splash, E play';
+        keys.textContent = t('dream.keys');
         root.append(keys);
       }
       const onKey = (e: KeyboardEvent): void => {
@@ -330,10 +322,10 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     } else if (o.lines.length > 0) o.lineLeft = Math.min(o.lineLeft, LINE_SECONDS_BUSY);
     const ask = playPrompt(state);
     hud.prompt.style.display = ask ? 'flex' : 'none';
-    if (ask) text(hud.promptText, opts.touch ? ask : `${ask} (E)`);
+    if (ask) text(hud.promptText, opts.touch ? ask : t('dream.promptKey', { ask }));
     const asked = hideOrSeek(state);
     hud.choice.style.display = asked ? 'flex' : 'none';
-    if (asked) text(hud.choiceText, `Hide and seek with ${asked}! Do you hide or seek?`);
+    if (asked) text(hud.choiceText, t('dream.ask', { name: asked }));
   };
 
   return {

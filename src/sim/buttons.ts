@@ -2,6 +2,7 @@
 // each one means is worked out here from the world as it is, so the button's label and what a press does never differ.
 // The frame loop reads these for the labels and hands the word to `step` on a press.
 
+import { text, tree } from '../i18n';
 import { atStore, storeCondition, strippable } from './food';
 import { reachablePad } from './lily';
 import { checkSite, lodgeComplete, lodgeCondition, logWood, nearLodge, type Lodge } from './lodge';
@@ -21,8 +22,8 @@ export type DoKind = 'eat' | 'build' | 'mend' | 'store' | 'dig' | 'talk' | 'gnaw
 export type TakeKind = 'let-go' | 'drop' | 'item' | 'log' | 'pad' | 'rock' | 'mud';
 
 /** The word on each button. A greyed out Do reads "Do". */
-export const DO_LABEL: Record<DoKind, string> = { eat: 'Eat', build: 'Build', mend: 'Mend', store: 'Store', dig: 'Dig', talk: 'Talk', gnaw: 'Gnaw', strip: 'Gnaw', mark: 'Mark' };
-export const takeLabel = (t: TakeKind | null): string => (t === 'let-go' || t === 'drop' ? 'Drop' : 'Take');
+export const DO_LABEL = tree<Record<DoKind, string>>('btn');
+export const takeLabel = (t: TakeKind | null): string => (t === 'let-go' || t === 'drop' ? text('btn.drop') : text('btn.take'));
 
 /** What the player does this frame, for `step`: the move, the held dive, and the word each pressed button stands for. */
 export interface Intent {

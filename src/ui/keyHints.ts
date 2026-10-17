@@ -2,17 +2,18 @@
 // lists the keys, shown when the device has no touch controls. H folds it away.
 // E (Do) and G (Take) show what they do here, like the words on the touch
 // buttons (#341). DOM only. The keys themselves are read in actions/keyboard.ts.
+import { t } from '../i18n';
 
 /** The keys and what they do, in the order shown. Keep in step with createKeyboardInput. */
-export const KEY_HINTS: readonly (readonly [string, string])[] = [
-  ['W A S D', 'swim and walk'],
-  ['Space', 'dive (hold)'],
-  ['T', 'tail slap'],
-  ['E', 'do the thing at hand'],
-  ['G', 'take, or drop'],
-  ['Mouse drag', 'turn the view'],
-  ['Wheel', 'zoom'],
-  ['H', 'hide these hints'],
+export const keyHints = (): readonly (readonly [string, string])[] => [
+  ['W A S D', t('keys.move')],
+  ['Space', t('keys.dive')],
+  ['T', t('keys.slap')],
+  ['E', t('keys.do')],
+  ['G', t('keys.take')],
+  [t('keys.mouseDrag'), t('keys.turn')],
+  [t('keys.wheel'), t('keys.zoom')],
+  ['H', t('keys.hide')],
 ];
 
 export interface KeyHints {
@@ -26,7 +27,7 @@ export interface KeyHints {
 
 /** The line for one key: its word here, or "nothing here" when it does nothing. */
 export function wordLine(key: string, word: string | null): string {
-  return `<div><b>${key}</b> ${word ? word.toLowerCase() : '<span style="opacity:.6">nothing here</span>'}</div>`;
+  return `<div><b>${key}</b> ${word ? word.toLowerCase() : `<span style="opacity:.6">${t('keys.nothing')}</span>`}</div>`;
 }
 
 export function createKeyHints(parent: HTMLElement, target: Window, visible: boolean): KeyHints {
@@ -34,12 +35,12 @@ export function createKeyHints(parent: HTMLElement, target: Window, visible: boo
   root.id = 'key-hints';
   root.style.cssText =
     'position:absolute;left:16px;bottom:16px;padding:10px 14px;border-radius:10px;background:rgba(0,0,0,.4);color:#fff;font:13px/1.5 system-ui,sans-serif;pointer-events:none;';
-  const folded = '<div><b>H</b> show the keys</div>';
+  const folded = `<div><b>H</b> ${t('keys.show')}</div>`;
   let open = true;
   let shown = visible;
   let words: [string | null, string | null] | null = null;
   const full = (): string =>
-    KEY_HINTS.map(([k, what]) => (words && k === 'E' ? wordLine(k, words[0]) : words && k === 'G' ? wordLine(k, words[1]) : `<div><b>${k}</b> ${what}</div>`)).join('');
+    keyHints().map(([k, what]) => (words && k === 'E' ? wordLine(k, words[0]) : words && k === 'G' ? wordLine(k, words[1]) : `<div><b>${k}</b> ${what}</div>`)).join('');
   let drawn = '';
   const draw = (): void => {
     const html = open ? full() : folded;

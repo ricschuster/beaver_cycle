@@ -2,6 +2,9 @@
 // and what it says (docs/design/27_families_and_dialog.md, #344). A fixed card at the bottom centre, not a bubble above the
 // head: that needs the screen position of the beaver and the renderer does not give one yet. Under the name it says who the
 // beaver is ("papa of the north pond"), and the card fades in and out. DOM only.
+import { t } from '../i18n';
+import { DO_LABEL } from '../sim/buttons';
+
 export interface TalkBubble {
   /** Show the prompt for a speaker's name, or nothing when `name` is null. A line on screen is not replaced by a prompt. */
   prompt(name: string | null, key: string): void;
@@ -27,7 +30,7 @@ export interface Choice {
 }
 
 /** The text of the prompt by a beaver: on touch the Do button reads Talk, on the keys it is E. */
-export const promptText = (name: string, key: string): string => (key === 'Talk' ? `${name} is here, press Talk` : `Press ${key} to talk to ${name}`);
+export const promptText = (name: string, key: string): string => (key === DO_LABEL.talk ? t('talk.prompt', { name }) : t('talk.promptKey', { key, name }));
 
 /** Seconds the card takes to fade in and out. */
 const FADE = 0.25;

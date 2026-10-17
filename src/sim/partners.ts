@@ -2,6 +2,7 @@
 // can go and find one. Each lives at a different dam spot, a pond or stream of the valley. The player picks by meeting:
 // the beaver met last follows it, and moves into the lodge when the lodge is whole.
 
+import { text } from '../i18n';
 import { COAT_COUNT } from './family';
 import type { DamSpot } from './damSpots';
 import { LODGE_POND_CREST } from './pond';
@@ -123,7 +124,7 @@ const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-we
 /** The compass word for a direction (dx east, dz south, so north is -z). */
 export function compassWord(dx: number, dz: number): string {
   const bearing = (Math.atan2(dx, -dz) + 2 * Math.PI) % (2 * Math.PI);
-  return COMPASS[Math.round(bearing / (Math.PI / 4)) % 8] ?? 'north';
+  return text(`way.compass.${COMPASS[Math.round(bearing / (Math.PI / 4)) % 8] ?? 'north'}`);
 }
 
 /** The nearest lone beaver and how far it is (metres), or null when there is none to find: none left alone, or one already follows or lives in the lodge. The words for it are in `wayToPartner.ts`. */

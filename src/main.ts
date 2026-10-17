@@ -28,7 +28,7 @@ import { lead, leaderAnimal } from './sim/guides';
 import { pondGuests, trackPonds } from './sim/pondGuests';
 import { isPredator, meetPredators, predatorAnimals, type PredatorEvent } from './sim/predators';
 import { CUE_EVERY, HEARD_DISTANCE, follower, mateOf } from './sim/partners';
-import { LONE_NEWS, loneBeaverWay, pointerDots, pointerTarget, startPointer, type WayPointer } from './sim/wayToPartner';
+import { loneBeaverWay, loneNewsLine, pointerDots, pointerTarget, startPointer, type WayPointer } from './sim/wayToPartner';
 import { createLifeHud } from './ui/lifeHud';
 import { step } from './sim/step';
 import { CHOP_TIME, noTrees, type TreeSource } from './sim/trees';
@@ -58,7 +58,7 @@ import { babbleCue, dreamCues } from './audio/talkDream';
 import { LAYERS, createSound, wireBrowser } from './audio/sound';
 import { createMuteButton } from './ui/muteButton';
 import { createOsmCredit } from './ui/osmCredit';
-import { resolveLang, setLang, t, type LangChoice } from './i18n';
+import { resolveLang, setLang, t, text, type LangChoice } from './i18n';
 import { loadPrefs, savePrefs } from './ui/prefs';
 import { createAchievementsPanel, createSettingsPanel } from './ui/settingsPanel';
 import { createFlyButtons } from './ui/flyButtons';
@@ -329,7 +329,7 @@ async function start(): Promise<void> {
         if (coachOn && found.save.coach.state) coach?.resume(world, found.save.coach.state);
       }
     } else slotName = cleanName(choice.name);
-    if (!wanted && slots.some((i) => i.kind === 'unreadable')) startNote = 'A saved game could not be read, so it was put aside.';
+    if (!wanted && slots.some((i) => i.kind === 'unreadable')) startNote = t('toast.unreadable');
   }
   const savedCoach = (): SavedCoach => ({ on: coachOn, stage: coachStage, state: coach?.state() ?? null });
   let savedAt = performance.now();
@@ -637,11 +637,11 @@ async function start(): Promise<void> {
       const to = whereTo(world);
       talkBubble.hush();
       talkingTo = null;
-      if (world.escort) toast.show(`${world.escort.name} is already showing you the way`);
-      else if (!to) toast.show(`${who.name}: I do not know where to take you yet. Build a lodge first`);
+      if (world.escort) toast.show(t('toast.escortAlready', { name: world.escort.name }));
+      else if (!to) toast.show(t('toast.escortNowhere', { name: who.name }));
       else {
         world = { ...world, escort: startEscort({ id: who.id, name: who.name, family: who.family ?? '', x: who.x, z: who.z }, to) };
-        toast.show(`${who.name} leads the way. Follow`);
+        toast.show(t('toast.escortStart', { name: who.name }));
       }
       return;
     }
@@ -652,8 +652,8 @@ async function start(): Promise<void> {
     const text = reply === 'news' ? answerNews(world, surroundings(), trusting, talks++, before(who, 'news'), who.kind) : replyLine(reply, who, talkFacts, talks++, before(who, reply));
     speak(who, said(who, reply, text), LINE_SECONDS * 1.5, talkFacts);
     // News of a lone beaver: sparkles show the way to it.
-    const lone = text.startsWith(LONE_NEWS) ? loneBeaverWay(world, facing()) : null;
-    if (lone) wayPointer = startPointer(lone.partner.id, world.time);
+    const lone = loneBeaverWay(world, facing());
+    if (lone && text === loneNewsLine(lone.words)) wayPointer = startPointer(lone.partner.id, world.time);
   };
   // A family's pond is named for where it lies from the home, as in the call for help in the snow.
   const placeOf = (family: string): string | null => {
@@ -669,7 +669,7 @@ async function start(): Promise<void> {
     world = spreadWord(world, from, FEED_TRUST, greeted);
     const homeAt = world.formerHomes.at(-1) ?? world.lodge ?? world.beaver;
     const warmer = world.neighbours.find((n) => n.id !== from && familyMood(before, n.id) !== familyMood(world, n.id));
-    if (warmer) toast.show(`Word gets around. The ${pondName(warmer.lodge, homeAt)} family trusts you more too`);
+    if (warmer) toast.show(t('toast.wordGetsAround', { pond: pondName(warmer.lodge, homeAt) }));
   };
 
   // One bad frame must not freeze the game: log the error and schedule the next frame anyway.
@@ -764,14 +764,14 @@ async function start(): Promise<void> {
     // A young beaver at the edge of its range hears its parents call it back.
     const home = world.lodge && !world.inLodge ? Math.hypot(world.beaver.x - world.lodge.x, world.beaver.z - world.lodge.z) : 0;
     const called = isCalledBack(home, STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].range);
-    if (called && !wasCalled) toast.show('Mama calls you back');
+    if (called && !wasCalled) toast.show(t('toast.mamaCalls'));
     wasCalled = called;
     // Growing up from a teenager: Mama and Papa say it is time to start a family of one's own (Q8, Q50).
     const nowStage = lifeAt(world.clock, world.bornAt).stage;
     if (lastStage === 'teenager' && nowStage === 'adult') {
       // A lone beaver lives at a dam spot that can hold a lodge pond, so the player can lead it home and build there.
       world = withPartners(leaveHome(world));
-      toast.show('Mama and Papa say it is time to start a family of your own');
+      toast.show(t('toast.startFamily'));
     }
     if (lastStage !== null && lastStage !== nowStage) saveNow();
     lastStage = nowStage;
@@ -788,13 +788,13 @@ async function start(): Promise<void> {
     coach?.update(world);
     // A lone beaver the player meets slaps its tail and follows.
     const following = follower(world.partners)?.id ?? null;
-    if (following && following !== lastFollower) toast.show('A beaver slaps its tail and follows you');
+    if (following && following !== lastFollower) toast.show(t('toast.partnerFollows'));
     lastFollower = following;
     // Nudges toward a partner: a tail slap in the distance, and a word at the start of winter that kits come in spring.
     for (const p of world.partners) {
       if (p.state === 'alone' && !heardBefore.has(p.id) && Math.hypot(p.x - world.beaver.x, p.z - world.beaver.z) <= HEARD_DISTANCE) {
         heardBefore.add(p.id);
-        toast.show('A tail slaps in the distance. A lone beaver?');
+        toast.show(t('toast.tailSlapFar'));
         wayPointer = startPointer(p.id, world.time);
       }
     }
@@ -804,21 +804,21 @@ async function start(): Promise<void> {
       const lone = loneBeaverWay(world, facing());
       if (lone && lone.d > HEARD_DISTANCE) {
         cueIn = CUE_EVERY;
-        toast.show(`A lone beaver lives ${lone.words}. Follow the sparkles`);
+        toast.show(t('toast.loneWay', { words: lone.words }));
         wayPointer = startPointer(lone.partner.id, world.time);
       }
     }
     const season = dateAt(world.clock).season;
-    if (season === 'winter' && lastSeason !== 'winter' && world.partners.length > 0 && !mateOf(world.partners)) toast.show('Kits are born on the first day of spring. Find a partner and a lodge');
+    if (season === 'winter' && lastSeason !== 'winter' && world.partners.length > 0 && !mateOf(world.partners)) toast.show(t('toast.kitsInSpring'));
     if (season !== lastSeason) saveNow();
     lastSeason = season;
-    if (world.generation > lastGeneration) toast.show('A kit is born');
+    if (world.generation > lastGeneration) toast.show(t('toast.kitBorn'));
     if (world.generation !== lastGeneration) saveNow();
     lastGeneration = world.generation;
     // A toast for each achievement won since the last frame.
     // A meal gives a lift for a while: a pad for swimming, a branch for felling. A loaded game gives no toast.
-    if (world.padAt !== padSeen && padSeen !== undefined && world.padAt !== null) toast.show('Tasty! You swim faster for a minute');
-    if (world.branchAt !== branchSeen && branchSeen !== undefined && world.branchAt !== null) toast.show('Well fed! You fell trees faster today');
+    if (world.padAt !== padSeen && padSeen !== undefined && world.padAt !== null) toast.show(t('toast.padEaten'));
+    if (world.branchAt !== branchSeen && branchSeen !== undefined && world.branchAt !== null) toast.show(t('toast.branchEaten'));
     padSeen = world.padAt;
     branchSeen = world.branchAt;
     if (wonShown < 0) wonShown = world.achievements.length;
@@ -909,11 +909,11 @@ async function start(): Promise<void> {
       lastCallSlot = callSlot;
       const said = talkBubble.talking() ? null : overheard(familyBeavers, world.beaver, world.clock, (f) => deedsFor(world, f, visit));
       if (said) {
-        toast.show(`${said.call.who}: "${said.call.text}"`);
-        toast.show(`${said.reply.who}: "${said.reply.text}"`);
+        toast.show(t('toast.said', { who: said.call.who, text: said.call.text }));
+        toast.show(t('toast.said', { who: said.reply.who, text: said.reply.text }));
       } else if (!talkBubble.talking()) {
         const remark = partnerRemark(world, surroundings().pad, facing());
-        if (remark) toast.show(`${remark.who}: "${remark.text}"`);
+        if (remark) toast.show(t('toast.said', { who: remark.who, text: remark.text }));
       }
     }
     talkBubble.prompt(near && doShown === 'talk' ? near.name : null, touchOn ? 'Talk' : 'E');
@@ -924,7 +924,7 @@ async function start(): Promise<void> {
       if (heardStuck.has(st.id) || Math.hypot(st.x - world.beaver.x, st.z - world.beaver.z) > HEAR_RANGE) continue;
       heardStuck.add(st.id);
       const fam = world.neighbours.find((f) => f.id === st.family);
-      toast.show(`Someone is calling for help in the snow${fam ? ` by the ${pondName(fam.lodge, homeAt)}` : ''}. Gnaw the drift to dig`);
+      toast.show(fam ? t('toast.helpInSnowAt', { pond: pondName(fam.lodge, homeAt) }) : t('toast.helpInSnow'));
     }
     const drift = nearestStuck(stuckList, world.beaver, DIG_REACH);
     dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, doPressed === 'dig', movingNow, dt) : 0;
@@ -933,32 +933,32 @@ async function start(): Promise<void> {
     if (drift && dug >= DIG_TIME) {
       world = rescue(world, drift);
       dug = 0;
-      toast.show(`${drift.name} is free! Talk to ${drift.name} and ask to be shown the way`);
+      toast.show(t('toast.dugOut', { name: drift.name }));
       spread(drift.family);
-    } else if (drift && dug > 0) talkBubble.note(`Digging ${Math.min(99, Math.floor((dug / DIG_TIME) * 100))}%`);
+    } else if (drift && dug > 0) talkBubble.note(t('talk.digging', { percent: Math.min(99, Math.floor((dug / DIG_TIME) * 100)) }));
     if (world.escort) {
       const led = stepEscort(world, dt);
       world = led.world;
-      for (const e of led.events) toast.show(e.what === 'arrived' ? `${e.name}: Here we are` : `You lost ${e.name}`);
+      for (const e of led.events) toast.show(e.what === 'arrived' ? t('toast.escortArrived', { name: e.name }) : t('toast.escortLost', { name: e.name }));
     }
     const ambient = foxesAtStore(react(around, world, ponded), world, ponded);
     lastAmbient = ambient;
     const led = lead(world, ambient, dt, ponded);
     world = led.world;
-    for (const e of led.events) toast.show(GUIDE_TEXT[e.what](e.kind));
+    for (const e of led.events) toast.show(text(`guide.${e.what}.${e.kind}`));
     const fed = feedAnimals(world, ambient);
     world = fed.world;
     const fedKinds = noteFed(world.fedKinds, fed.fed.map((a) => a.kind));
     if (fedKinds !== world.fedKinds) world = { ...world, fedKinds };
-    for (const a of fed.fed) toast.show(a.kind === 'duck' ? 'The duck eats the lily pad and trusts you a little more' : 'The deer eats it and trusts you a little more');
+    for (const a of fed.fed) toast.show(a.kind === 'duck' ? t('toast.duckFed') : t('toast.deerFed'));
     if (!readBolt && boltingDeer(ambient, world)) {
       readBolt = true;
-      toast.show('The deer bolt. Something is near');
+      toast.show(t('toast.deerBolt'));
     }
     for (const a of ambient) {
       if (a.kind === 'fox' && !sniffed.has(a.id) && atStore(world, a) && Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) < 50) {
         sniffed.add(a.id);
-        toast.show('A fox is sniffing at your store. Slap your tail');
+        toast.show(t('toast.foxAtStore'));
       }
     }
     // A fox or owl that notices the beaver on land becomes a predator and is drawn from its own state (note 24, slice 3).
@@ -966,7 +966,7 @@ async function start(): Promise<void> {
     const met = meetPredators(world, ambient, slappedNow, dt, ponded);
     world = met.world;
     for (const e of met.events) {
-      toast.show(e.what === 'scared' && e.kind === 'fox' && atTheStore.has(e.id) ? 'You chased the fox off your store' : PREDATOR_TEXT(e));
+      toast.show(e.what === 'scared' && e.kind === 'fox' && atTheStore.has(e.id) ? t('toast.foxChased') : predatorText(e));
       if (e.what === 'scared' && e.kind === 'fox' && atTheStore.has(e.id)) world = banishFox(world, e.id);
     }
     const engaged = new Set(world.predators.map((p) => p.id));
@@ -1071,21 +1071,10 @@ async function start(): Promise<void> {
   };
 }
 
-const GUIDE_TEXT = {
-  called: (kind: string) => `The ${kind} calls you. Follow it to lily pads`,
-  arrived: (kind: string) => `The ${kind} has brought you to lily pads`,
-  lost: (kind: string) => `You lost the ${kind}`,
-};
-
-function PREDATOR_TEXT(e: PredatorEvent): string {
-  const name = e.kind;
-  if (e.what === 'caught') return `A ${name} caught you. You drop what you carry and slow down. Eat a lily pad`;
-  if (e.what === 'scared') return `Your tail slap scared the ${name} off`;
-  if (e.kind === 'owl') return 'An owl hoots nearby. Get into the water';
-  if (e.kind === 'lynx') return 'A lynx is stalking you. Get into the water, or slap your tail at the water\'s edge';
-  if (e.kind === 'wolf') return 'A wolf is stalking you. Get into the water, or slap your tail at the water\'s edge';
-  if (e.kind === 'bear') return 'A bear has seen you. Keep moving or slap your tail';
-  return 'A fox has seen you. Get into the water or slap your tail';
+function predatorText(e: PredatorEvent): string {
+  if (e.what === 'caught') return text(`predator.caught.${e.kind}`);
+  if (e.what === 'scared') return text(`predator.scared.${e.kind}`);
+  return text(`predator.noticed.${e.kind}`);
 }
 
 void start();

@@ -241,6 +241,9 @@ async function start(): Promise<void> {
           }
         : {},
   );
+  // Where the player looks, in the heading convention: the camera looks at the beaver from `yaw`. It is here, not further down,
+  // because continuing a saved game redraws the coach text, which asks for it before the rest of the setup has run.
+  const facing = (): number => rig.view.yaw + Math.PI;
   if (free) {
     touch.setActionsVisible(false);
     rig.view.yaw = 0;
@@ -520,8 +523,6 @@ async function start(): Promise<void> {
   const heardBefore = new Set<string>();
   let cueIn = 0; // seconds until the next word on where a lone beaver is
   let wayPointer: WayPointer | null = null; // the sparkles toward a lone beaver after a hint, not saved
-  // Where the player looks, in the heading convention: the camera looks at the beaver from `yaw`.
-  const facing = (): number => rig.view.yaw + Math.PI;
   let padSeen: number | null | undefined; // undefined until the first frame
   let branchSeen: number | null | undefined;
   let wonShown = -1; // set on the first frame, so achievements already won in a loaded game give no toast

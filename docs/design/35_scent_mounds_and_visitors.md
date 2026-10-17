@@ -29,8 +29,14 @@ A mound is drawn as a pile of mud, the same as mud put down, but it never dries.
 
 Three mounds, 6 m apart, 30 m from the lodge, the visitor the next morning, 7 m to welcome. All to tune on a tablet.
 
+## Played (session 139)
+
+The author played it in the dev server: the visitor walks in, the Welcome toast comes, and the mud pile is fine but should look
+more distinctive. To try it with the test menu: make a mound, press Night, go into the lodge and sleep (the Time of day buttons
+stay in the same day, so they cannot bring the next morning), then press Morning.
+
 ## Left open
 
-- A mound of its own look, not a mud pile.
+- A mound of its own look, not a mud pile (the author wants it more distinctive).
 - Talking to the visitor, and a new family that settles for good.
 - Mounds that keep other families away (Q30).

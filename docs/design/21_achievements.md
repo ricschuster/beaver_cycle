@@ -238,8 +238,9 @@ its medals won over medals possible), the hint strip, and a grid of tiles for th
 tier (a tick or a ring for a single one), and for a counted row a bar with "17 of 30" toward the next tier; a locked tile is dim.
 A tap picks a tile and its hint stays in the strip until another is picked; a mouse also shows the hint while over a tile. The
 strip is above the grid so it never scrolls away. Each tab has at most 9 tiles, so it fits a tablet in landscape or portrait and a
-phone (two columns) without scrolling; the card still scrolls if a screen is shorter. Locked tiles are dimmed, not yet
-silhouettes: the art pass (#105) can draw medals and silhouettes. Not tried on a tablet.
+phone (two columns) without scrolling; the card still scrolls if a screen is shorter. Locked tiles are dimmed, with the name
+and the numbers still showing. The author decided (session 138) that this is final: no silhouettes, since it is a kids game and
+nothing should be hidden. Not tried on a tablet.
 
 ## Next batch (#220, ideas agreed)
 
@@ -254,7 +255,7 @@ First, in this order of interest:
 - **Rescuer**: dig out 5 stuck beavers (`rescuesThisLife`; Guide asks for one).
 - **Many generations**: reach generation 3, 5 and 10 (built as tiers, #569).
 - **Tiers** (bronze, silver, gold) for the counting ones, such as wood 30, 100, 300, instead of more ids (built, see above).
-- **A progress screen** with bars ("17 of 30 trees") and locked ones as silhouettes, in the art pass (#105).
+- **A progress screen** with bars ("17 of 30 trees"), locked ones greyed out, not hidden (built, see above).
 
 Then (the newer-system ones are built too, #571, except big family) the cheap counters from the issue: diver, Almsee explorer, tail slap (10), well fed (25 pieces), stripper (50 branches),
 winter store (half full going into winter), many dams (3 whole at once), big pond. And from the systems the game has now:

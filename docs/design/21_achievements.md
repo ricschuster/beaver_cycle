@@ -158,6 +158,32 @@ Built in `src/sim/achievements.ts`: one rule per achievement, checked each step 
 below 0.99 and is back above 0.999 (wear falls a little every tick), so a dam raised a level is not a mend. Not tried on the
 tablet.
 
+## Next batch (#220, ideas agreed)
+
+Ideas from session 134, kept or dropped by the author. Nothing here is built. Each one reads what the game already keeps, or
+needs one small event counter like `padsPicked`. Numbers are first guesses for the tablet.
+
+First, in this order of interest:
+
+- **Raised a kit** (the parent's side of Growing up): a kit of this life becomes a teenager while this life still lives in the
+  lodge. Needs the kit's birth time and stage, which the family state keeps.
+- **Good neighbour**: talk to beavers of N different families (`met`).
+- **Rescuer**: dig out 5 stuck beavers (`rescuesThisLife`; Guide asks for one).
+- **Many generations**: reach generation 3, 5 and 10.
+- **Tiers** (bronze, silver, gold) for the counting ones, such as wood 30, 100, 300, instead of more ids.
+- **A progress screen** with bars ("17 of 30 trees") and locked ones as silhouettes, in the art pass (#105).
+
+Then the cheap counters from the issue: diver, Almsee explorer, tail slap (10), well fed (25 pieces), stripper (50 branches),
+winter store (half full going into winter), many dams (3 whole at once), big pond. And from the systems the game has now:
+fixer-upper (10 mends), animal friend (each ambient kind once), pond life (N kinds of guests), four homes (a dam or lodge in
+each location), big family (two kits in a litter or in two springs), sweet dreams (the first dream), long winter (a winter
+with the store never empty).
+
+Dropped by the author: a **close call** achievement (escaping a predator, which needs a new event) and a **never idle**
+streak (it adds pressure to a calm game).
+
+Not buildable yet: **welcome a visitor who noticed a scent mound** (see above, there are no scent mounds or visitors).
+
 ## Not decided
 
 - More achievements, and a screen for them: see the issue "Later: more achievements".

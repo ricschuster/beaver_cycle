@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { flatTerrain } from '../sim/terrain';
 import { createWorld, type WorldState } from '../sim/state';
-import { SAVE_BACKUP_KEY, SAVE_KEY, SAVE_VERSION, ago, clearSave, decodeSave, encodeSave, loadSave, wantsSave, writeSave, type SaveStorage, type SavedCoach } from './save';
+import { SAVE_BACKUP_KEY, SAVE_KEY, SAVE_VERSION, SLOT_COUNT, ago, backupKey, clearSave, cleanName, decodeSave, encodeSave, loadSave, parseSlot, readSlots, renameSave, slotKey, wantsSave, writeSave, type SaveStorage, type SavedCoach } from './save';
 import type { Pond } from '../sim/pond';
 
 const coachOff: SavedCoach = { on: false, stage: null, state: null };
@@ -101,5 +101,56 @@ describe('save', () => {
     expect(ago(0, 5 * 60_000)).toBe('5 minutes ago');
     expect(ago(0, 3 * 3_600_000)).toBe('3 hours ago');
     expect(ago(0, 4 * 86_400_000)).toBe('4 days ago');
+  });
+
+  it('keeps the save of the games before the slots as slot 1', () => {
+    expect(slotKey(1)).toBe(SAVE_KEY);
+    expect(backupKey(1)).toBe(SAVE_BACKUP_KEY);
+    expect(new Set([1, 2, 3, 4].map(slotKey)).size).toBe(SLOT_COUNT);
+    const s = memory();
+    // A save as version 1 wrote it: no name.
+    s.setItem(SAVE_KEY, encodeSave(fresh(), coachOff, 7));
+    const slots = readSlots(s, fresh());
+    expect(slots.map((i) => i.kind)).toEqual(['used', 'empty', 'empty', 'empty']);
+    expect(loadSave(s, fresh(), 1).kind).toBe('ok');
+  });
+
+  it('keeps the slots apart', () => {
+    const s = memory();
+    writeSave(s, { ...fresh(), generation: 2 }, coachOff, 5, 3, 'Maple');
+    expect(s.getItem(SAVE_KEY)).toBeNull();
+    const info = readSlots(s, fresh())[2]!;
+    expect(info).toMatchObject({ kind: 'used', name: 'Maple', generation: 2, savedAt: 5 });
+    clearSave(s, 3);
+    expect(loadSave(s, fresh(), 3).kind).toBe('none');
+  });
+
+  it('puts an unreadable slot aside under its own key', () => {
+    const s = memory();
+    s.setItem(slotKey(2), '{broken');
+    s.setItem(SAVE_KEY, encodeSave(fresh(), coachOff, 1));
+    expect(readSlots(s, fresh()).map((i) => i.kind)).toEqual(['used', 'unreadable', 'empty', 'empty']);
+    expect(s.getItem(backupKey(2))).toBe('{broken');
+    expect(s.getItem(slotKey(2))).toBeNull();
+    expect(s.getItem(SAVE_KEY)).not.toBeNull();
+  });
+
+  it('renames a game and leaves the world as it is', () => {
+    const s = memory();
+    const w: WorldState = { ...fresh(), clock: 999, ponds: [pond()] };
+    writeSave(s, w, coachOff, 1, 2);
+    expect(renameSave(s, 2, '  Dam   Builders  ')).toBe(true);
+    const back = decodeSave(s.getItem(slotKey(2))!, fresh())!;
+    expect(back.name).toBe('Dam Builders');
+    expect(back.world.ponds[0]!.heights).toBeInstanceOf(Float32Array);
+    expect(renameSave(s, 2, '')).toBe(true);
+    expect(decodeSave(s.getItem(slotKey(2))!, fresh())!.name).toBeUndefined();
+    expect(renameSave(s, 4, 'x')).toBe(false);
+  });
+
+  it('cleans names and slot numbers', () => {
+    expect(cleanName('a'.repeat(50))).toHaveLength(24);
+    expect(parseSlot('3')).toBe(3);
+    for (const bad of ['0', '5', 'x', '1.5', null]) expect(parseSlot(bad)).toBeNull();
   });
 });

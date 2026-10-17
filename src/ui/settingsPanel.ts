@@ -3,6 +3,8 @@
 // opens the list of what has been won. DOM only; the caller owns the settings and the world.
 
 export interface SettingsOptions {
+  /** Goes back to the start screen, where the saved games are (null when this run does not save). The caller saves first. */
+  startScreen: (() => void) | null;
   /** Both volumes 0 to 1, read when the panel opens. */
   sounds: { value(): number; onChange(v: number): void };
   music: { value(): number; onChange(v: number): void };
@@ -113,6 +115,21 @@ export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions):
   note.textContent = 'Shadows look nice but slow some tablets down. Changing them starts the game again, where you left off.';
   note.style.cssText = 'font-size:13px;color:#6b5d44;margin-top:4px';
   ui.body.appendChild(note);
+
+  if (opts.startScreen) {
+    const go = document.createElement('button');
+    go.type = 'button';
+    go.dataset.action = 'settings-start-screen';
+    go.textContent = 'Start screen';
+    go.style.cssText = CHOICE;
+    const start = opts.startScreen;
+    go.onclick = () => start();
+    row('Saved games').appendChild(go);
+    const more = document.createElement('div');
+    more.textContent = 'Your game is saved first. Pick another game there, or come back to this one.';
+    more.style.cssText = 'font-size:13px;color:#6b5d44;margin-top:4px';
+    ui.body.appendChild(more);
+  }
 
   refresh = (): void => {
     music.value = String(opts.music.value());

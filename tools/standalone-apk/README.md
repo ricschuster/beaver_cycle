@@ -12,7 +12,7 @@ Needs the Android SDK with platform 36 and build-tools 36 (`ANDROID_HOME`), a JD
 (`JAVA_HOME`), and Node 22 or newer, as in `tools/tablet-live`. The shell uses Capacitor 8,
 which targets Android 16 (API 36) as Google Play requires for new apps since 31 August 2026,
 and needs Android 7 (API 24) or newer. The tiles must exist in `public/tiles/`
-(`python3 tools/tiles/build_tiles.py`), since they go into the APK (about 29 MB).
+(`python3 tools/tiles/build_tiles.py`), since they go into the APK (about 46 MB, 7 MB or so compressed).
 
 ```sh
 npm run build                      # from the repo root, writes dist/
@@ -26,7 +26,7 @@ cd android && ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-The APK (about 24 MB) is `app/build/outputs/apk/debug/app-debug.apk`. It can
+The APK (about 36 MB) is `app/build/outputs/apk/debug/app-debug.apk`. It can
 also be copied to a tablet and installed from there, if the tablet allows it.
 Each game change needs a new build and install. For quick edit and reload
 loops use `tools/tablet-live` instead.
@@ -40,7 +40,7 @@ default symbol. The Play Store listing needs a 512 px icon: build it from `ic_la
 ## Release bundle for Google Play
 
 Play takes an Android App Bundle (`.aab`), not the debug APK. `build_aab.sh` builds the release bundle and signs it with the
-upload key, then prints its path (about 16 MB). Build the game, sync and set `local.properties` first, as above.
+upload key, then prints its path (about 34 MB; Play's limit is 200 MB). Build the game, sync and set `local.properties` first, as above.
 
 ```sh
 ANDROID_HOME=~/Android/Sdk JAVA_HOME=~/Android/jdk-21 ./build_aab.sh
@@ -61,5 +61,6 @@ ANDROID_HOME=~/Android/Sdk JAVA_HOME=~/Android/jdk-21 ./build_aab.sh
   `--mode=universal`) with the debug keystore, then `install-apks`, and check that the game's sound button is on.
 - Check a bundle with `bundletool` (download `bundletool-all-*.jar` from <https://github.com/google/bundletool/releases>, run it with
   JDK 21): `java -jar bundletool-all-1.18.3.jar validate --bundle=BUNDLE.aab` and `dump manifest --bundle=BUNDLE.aab`. Checked
-  on 1.0: valid, `minSdk 24`, `targetSdk 36`, signed with the upload key (valid to 2054), no `.so` files. `INTERNET` is
-  the only permission of its own (the other is AndroidX's own receiver permission, which is normal).
+  on 1.0 (rebuilt 2026-10-17 from `main` with the current tiles; bundletool 1.18.3 is in `~/Android/bundletool/`): `validate` passes,
+  `minSdk 24`, `targetSdk 36`, signed with the upload key (valid to 2054), no `.so` files, and no `INTERNET` (the script removes it).
+  The only permission is AndroidX's own receiver permission, which is normal.

@@ -71,7 +71,7 @@ Everyday (gate means CI blocks a merge on it):
 - `python3 tools/area-editor/travel_graph.py` - rebuild travel links after a
   play shape changes
 - `python3 tools/tiles/build_tiles.py` - cut the play area into streamable tiles in
-  `public/tiles/` (untracked, about 29 MB, 4 min; the first run also caches about
+  `public/tiles/` (untracked, about 46 MB, 4 min; the first run also caches about
   80 MB of the BEV 1 m terrain in `data/raw/` for the fine tiles, ADR 0008); it also snaps the stream lines to the terrain channel, ADR 0010, `--no-snap` skips that; `python3 -m pytest tools/tiles`
   checks them (needs `data/raw/`)
 - `MANUAL_SHOTS=public/manual npx playwright test tests/e2e/manual-shots.spec.ts` - retake the pictures in the manual from the real valley (needs the local tiles, 1 to 2 minutes; skips without `MANUAL_SHOTS`)

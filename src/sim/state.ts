@@ -15,6 +15,7 @@ import type { DamSpot } from './damSpots';
 import type { Dropped, Haul } from './haul';
 import { mateOf, seedPartners, type Partner } from './partners';
 import type { Pond } from './pond';
+import type { ScentMound } from './scent';
 import type { Met } from './talk';
 import type { Log } from './logs';
 import type { Terrain } from './terrain';
@@ -155,6 +156,9 @@ export interface WorldState {
   dreamed: boolean;
   winterClean: boolean;
   longWinter: boolean;
+  /** The scent mounds by the lodge, and the ids of those whose visitor the player has welcomed (`scent.ts`). Each life starts them again. */
+  scents: ScentMound[];
+  welcomed: string[];
   /** Test setting that scales movement speed (x1, x5, x20, x100). Not a game rule. */
   speedMultiplier: number;
 }
@@ -211,7 +215,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, padAt: null, branchAt: null, rescued: [], guides: [], escort: null, leader: null, ledAt: {}, met: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, slaps: 0, meals: 0, branchesStripped: 0, longDives: 0, visited: [], winterStocked: false, fedKinds: [], guestKinds: [], homesIn: [], dreamed: false, winterClean: false, longWinter: false, speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, padAt: null, branchAt: null, rescued: [], guides: [], escort: null, leader: null, ledAt: {}, met: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, slaps: 0, meals: 0, branchesStripped: 0, longDives: 0, visited: [], winterStocked: false, fedKinds: [], guestKinds: [], homesIn: [], dreamed: false, winterClean: false, longWinter: false, scents: [], welcomed: [], speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {
@@ -293,6 +297,8 @@ export function newLife(world: WorldState): WorldState {
     dreamed: false,
     winterClean: false,
     longWinter: false,
+    scents: [],
+    welcomed: [],
   };
 }
 
@@ -306,7 +312,7 @@ export function leaveHome(world: WorldState): WorldState {
   const b = world.beaver;
   // Out of the room, at the entrance, if the leaving came while the beaver was asleep inside.
   const out = world.inLodge ? { ...b, ...doorPoint(world.lodge, DOOR_DISTANCE), y: world.lodge.base, mode: 'walk' as const } : b;
-  return { ...world, formerHomes: [...world.formerHomes, { ...world.lodge, wear: undefined, parents: world.parentCoats }], lodge: null, store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out, journey: { ...world.journey, inherited: world.journey.inherited.filter((i) => i !== 'lodge' && i !== 'store') } };
+  return { ...world, formerHomes: [...world.formerHomes, { ...world.lodge, wear: undefined, parents: world.parentCoats }], lodge: null, scents: [], store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out, journey: { ...world.journey, inherited: world.journey.inherited.filter((i) => i !== 'lodge' && i !== 'store') } };
 }
 
 /** The lone beavers of the valley, put at the dam spots when the player beaver has left home. */

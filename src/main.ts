@@ -15,6 +15,7 @@ import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
 import { growNeighbours, neighboursAt } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
+import { visitorsAt } from './sim/scent';
 import { DIG_REACH, DIG_TIME, HEAR_RANGE, escortBeaver, nearestStuck, rescue, startEscort, stepEscort, stuckBeaver, stuckNow, whereTo, digging } from './sim/escort';
 import { answerNews, type Surroundings } from './sim/news';
 import { CALL_SLOT, deedsFor, giftThanks, greetingFor, overheard, partnerRemark } from './sim/chatter';
@@ -943,7 +944,7 @@ async function start(): Promise<void> {
     const engaged = new Set(world.predators.map((p) => p.id));
     if (world.leader) engaged.add(world.leader.id);
     const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded), ...(world.leader ? [leaderAnimal(world.leader, ponded, world)] : [])];
-    const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : [])];
+    const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : []), ...visitorsAt(world.scents, world.welcomed, world.clock, ponded)];
     // The sparkles toward a lone beaver, until time is up or the player is close.
     const wayTo = pointerTarget(wayPointer, world);
     if (!wayTo) wayPointer = null;

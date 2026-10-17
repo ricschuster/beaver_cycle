@@ -15,6 +15,7 @@ import { BROKEN_BELOW, LODGE_WORN_DAYS, STORE_REBUILD_WOOD, STORE_WORN_DAYS, men
 import { BEAVER_RADIUS, MAX_TRUNK, CHOP_REACH, CHOP_TIME, avoidTrunks, noTrees, type TreeSource } from './trees';
 import { moveIn, stepPartners } from './partners';
 import { tally } from './achievements';
+import { canMark, newMound, welcomeNear } from './scent';
 import { hurtFactor } from './predators';
 import { birth, kitDue, BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
 
@@ -110,9 +111,16 @@ function advance(world: WorldState, actions: Intent, dt: number, ground: Terrain
   // A pond that has just grown or sunk may open up new dam spots on the streams round it (design note 20).
   const found = pondSet === prevPonds ? world.spots : withNewSpots(world.spots, pondSet.ponds.filter((p) => prevPonds.crests[p.spot] !== p.crest), ground);
   const spots = refineNear(found, beaver.x, beaver.z, ground, built.dams);
+  // Mark pats the mud in the mouth into a scent mound where the beaver stands (`scent.ts`).
+  const marked = actions.do === 'mark' && canMark({ lodge: built.lodge, haul: food.haul, scents: world.scents, inLodge: built.inLodge, beaver });
+  const scents = marked ? [...world.scents, newMound(beaver, time, world.clock)] : world.scents;
   const next: WorldState = {
     ...world,
     ...food,
+    haul: marked ? null : food.haul,
+    scents,
+    // The visitor of a mound is welcomed by standing near it.
+    welcomed: welcomeNear(world.welcomed, scents, beaver, world.clock, terrain),
     // A worn store loses the places it can no longer hold, and a broken one all of them: what was in them is gone (15_build_and_repair.md).
     store: trimmed(food.store, storeCapacity(storeCondition(built.storeWear, world.clock))),
     time,

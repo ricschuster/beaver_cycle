@@ -38,27 +38,15 @@ about animal families.
 
 ## Target audience
 
-6-8 and all older groups (mixed audience), decided in #445. Do not tick 5 and under. Try the first steps with one child of
-6 to 8 before relying on it.
+6-8 and all older groups (mixed audience), decided in #445. Do not tick 5 and under. The game was played for a few hours
+by a 9 year old (2026-10-17); a child of 6 to 8 has not tried it. Because the audience includes under 13s, read Play's
+Families policy when filling in the form.
 
-## Store listing (draft text)
+## Store listing
 
-Short description (80 characters at most):
-
-> Be a beaver in a real Alpine valley. Build a lodge, raise a family.
-
-Full description:
-
-> Grow up in a beaver lodge in the real Almsee valley in Austria. Chop trees, build dams and a lodge of your own, find food
-> through the seasons, meet other beaver families, and one day raise kits. Then you play the next generation, and the cycle
-> goes on.
->
-> A calm game: nobody dies and you cannot lose. No ads, no purchases, no accounts, and nothing about you is collected.
->
-> Map data (c) OpenStreetMap contributors. Terrain from the BEV, Austria. Free software under the AGPL-3.0.
-
-Graphics: use real screenshots from the game (`MANUAL_SHOTS`, tablet size). Do not use child-style cartoon art that the
-game does not show.
+The text (name, short and full description, category, contact) is in `tools/standalone-apk/store/listing.md`, written for readers
+from 9 up. The graphics are in `tools/standalone-apk/store/` (icon, feature graphic, eight real tablet screenshots, see the
+standalone-apk README). Use real screenshots from the game, not child-style cartoon art that the game does not show.
 
 ## Contact
 
@@ -66,6 +54,6 @@ The store listing and the privacy page use <ric.schuster@gmail.com> (chosen by t
 
 ## Still open
 
-- Store graphics: a 512 px icon (see the standalone-apk README) and real screenshots; none are made yet.
 - Play the bundle on a real tablet, then upload to the internal testing track and read the pre-launch report.
-- One child of 6 to 8 trying the first steps, and 12 or more closed testers for 14 days (#445).
+- Fill in the Console forms from the answers above.
+- 12 or more closed testers for 14 days (#445).

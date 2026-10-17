@@ -40,5 +40,5 @@ Games, Simulation (alternative: Casual).
 
 ## Contact
 
-Email: <ric.schuster@proton.me> (shown publicly on the listing). Website, optional: the Pages site
+Email: <ric.schuster@gmail.com> (shown publicly on the listing). Website, optional: the Pages site
 <https://ricschuster.github.io/beaver_cycle/>.

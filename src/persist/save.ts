@@ -1,5 +1,6 @@
 // The saved game (docs/design/26_saving.md). Four slots in the browser's storage: the world, plus where the coach was. The world is
 // plain data except the ponds' grids, which are typed arrays and go in as base64. No DOM here: the storage comes in as an argument.
+import { t } from '../i18n';
 import type { Stage } from '../sim/life';
 import type { CoachState } from '../ui/coachSteps';
 import type { WorldState } from '../sim/state';
@@ -224,10 +225,10 @@ export function wantsSave(query: URLSearchParams, automated: boolean): boolean {
 /** "3 minutes ago", "2 days ago": when the game was last played, for the Continue card. */
 export function ago(savedAt: number, now: number): string {
   const minutes = Math.max(0, Math.round((now - savedAt) / 60000));
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  if (minutes < 1) return t('ago.now');
+  if (minutes < 60) return t(minutes === 1 ? 'ago.minute' : 'ago.minutes', { n: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  if (hours < 48) return t(hours === 1 ? 'ago.hour' : 'ago.hours', { n: hours });
   const days = Math.round(hours / 24);
-  return `${days} days ago`;
+  return t('ago.days', { n: days });
 }

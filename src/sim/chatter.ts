@@ -6,6 +6,7 @@
 // Placeholders in the lines: `{to}` is what the caller calls the other one (a name, or "Mama" and "Papa" from a kit), `{from}`
 // what the other calls the caller back, `{guide}` a beaver the player dug out of the snow ("me" or "you" when it is one of the
 // two), `{where}` where something is from the player ("to your left, close by"), `{pond}` a family's pond, `{speaker}` and `{kit}` members of the family.
+import { groups, memoByLang, t, text, tree } from '../i18n';
 import { DAY_FRACTION, DAY_SECONDS, dateAt, type Season } from './clock';
 import { damNeedsRepair, damWhole } from './dam';
 import { FAMILY_START_TRUST, familyMood, familyTrust } from './familyMoods';
@@ -61,117 +62,28 @@ export interface ExchangeLine {
   reply: string;
 }
 
+/** The lines of a table: each id under `prefix` is a pair of sides and a number (`parent-kit-2`), with its call and its reply. */
+const exchanges = memoByLang((prefix: string): ExchangeLine[] =>
+  groups(prefix).map((id) => ({ pair: id.replace(/-\d+$/, '').replace('-', '>') as Pair, call: text(`${prefix}.${id}.call`), reply: text(`${prefix}.${id}.reply`) })),
+);
+
 /** Everyday calls about the pond, for any time. Each pair of sides has at least one, and `any>any` always fits. */
-export const EVERYDAY: readonly ExchangeLine[] = [
-  { pair: 'parent>kit', call: '{to}, come back to the lodge!', reply: 'Coming, {from}!' },
-  { pair: 'parent>kit', call: '{to}, do not swim so far!', reply: 'I will stay close, {from}.' },
-  { pair: 'parent>kit', call: '{to}, have you eaten?', reply: 'Not yet, {from}. Soon!' },
-  { pair: 'any>any', call: 'Look, {to}! A fish!', reply: 'Where? I missed it!' },
-  { pair: 'kit>kit', call: '{to}, race you to the dam!', reply: 'You will never catch me!' },
-  { pair: 'kit>kit', call: '{to}, you have mud on your nose!', reply: 'So do you!' },
-  { pair: 'kit>kit', call: '{to}, I can hold my breath longer than you!', reply: 'No way! Let us try!' },
-  { pair: 'kit>parent', call: '{to}, watch me dive!', reply: 'Well done, {from}!' },
-  { pair: 'parent>parent', call: '{to}, the water is nice and calm today.', reply: 'Just right for a swim.' },
-];
+export const everyday = (): readonly ExchangeLine[] => exchanges('chatter.everyday');
 
 /** Calls about the errand the caller is on. */
-export const ERRAND_LINES: Readonly<Record<Errand, readonly ExchangeLine[]>> = {
-  dam: [
-    { pair: 'parent>any', call: '{to}, bring me a log for the dam!', reply: 'Here comes one, {from}!' },
-    { pair: 'parent>parent', call: '{to}, the dam has a little leak.', reply: 'I will fetch some mud.' },
-    { pair: 'kit>parent', call: '{to}, can I help with the dam?', reply: 'Yes! Bring a small stick, {from}.' },
-  ],
-  store: [
-    { pair: 'parent>any', call: '{to}, the store needs branches!', reply: 'Coming, {from}!' },
-    { pair: 'kit>parent', call: '{to}, I put a branch in the store!', reply: 'Good job, {from}!' },
-  ],
-  lodge: [
-    { pair: 'parent>any', call: '{to}, help me patch the roof!', reply: 'On my way, {from}!' },
-    { pair: 'parent>parent', call: '{to}, the lodge needs more mud before the cold.', reply: 'I will bring some.' },
-  ],
-  food: [
-    { pair: 'parent>kit', call: '{to}, come and eat!', reply: 'Yum! Coming, {from}!' },
-    { pair: 'any>any', call: '{to}, the lily pads are sweet today.', reply: 'Save one for me!' },
-  ],
-  kits: [
-    { pair: 'parent>kit', call: '{to}, stay where I can see you!', reply: 'I am right here, {from}!' },
-    { pair: 'parent>parent', call: '{to}, where are the kits?', reply: 'Playing by the reeds.' },
-  ],
-  play: [
-    { pair: 'kit>kit', call: '{to}, catch me if you can!', reply: 'Here I come!' },
-    { pair: 'kit>kit', call: '{to}, you are it!', reply: 'Not fair, I was not ready!' },
-    { pair: 'kit>parent', call: '{to}, play with us!', reply: 'Just one game, {from}.' },
-  ],
-  rest: [
-    { pair: 'any>any', call: '{to}, shh. I am having a nap.', reply: 'Sorry! I will be quiet.' },
-    { pair: 'parent>kit', call: '{to}, time for a little rest.', reply: 'But I am not tired, {from}!' },
-  ],
-};
+export const errandLines = (e: Errand): readonly ExchangeLine[] => exchanges(`chatter.errand.${e}`);
 
-/** Calls about what the caller is doing, or carrying, when it has no errand line that fits. */
-export const TASK_LINES: Readonly<Partial<Record<Task, readonly ExchangeLine[]>>> = {
-  gnaw: [{ pair: 'any>any', call: '{to}, this tree is nearly down!', reply: 'Watch out below!' }],
-  carry: [{ pair: 'any>any', call: '{to}, look how big my branch is!', reply: 'Wow, that is a big one!' }],
-  build: [{ pair: 'any>any', call: '{to}, pass me some mud, please.', reply: 'Here you go, {from}.' }],
-  groom: [{ pair: 'any>any', call: '{to}, you have a twig in your fur.', reply: 'Thank you, {from}!' }],
-  eat: [{ pair: 'any>any', call: '{to}, want some bark?', reply: 'Yes please, {from}!' }],
-  play: [{ pair: 'kit>kit', call: '{to}, splash!', reply: 'Hey! Splash back!' }],
-};
+/** Calls about what the caller is doing, or carrying, when it has no errand line that fits. Empty for a task without any. */
+export const taskLines = (t: Task): readonly ExchangeLine[] => exchanges(`chatter.task.${t}`);
 
-export const CARRY_LINES: Readonly<Record<Carried, readonly ExchangeLine[]>> = {
-  branch: [{ pair: 'any>any', call: '{to}, I found a good branch!', reply: 'Take it to the store, {from}.' }],
-  lily: [{ pair: 'any>any', call: '{to}, I have a lily pad for you!', reply: 'Thank you, {from}!' }],
-  mud: [{ pair: 'any>any', call: '{to}, mind the mud!', reply: 'Too late, I am all muddy!' }],
-};
+export const carryLines = (c: Carried): readonly ExchangeLine[] => exchanges(`chatter.carry.${c}`);
 
 /** Calls about the season: new kits in spring, the store in autumn, the ice in winter. */
-export const SEASON_LINES: Readonly<Record<Season, readonly ExchangeLine[]>> = {
-  spring: [
-    { pair: 'parent>parent', call: '{to}, the new kits are so small!', reply: 'They grow so fast in spring.' },
-    { pair: 'kit>kit', call: '{to}, the new kits are so tiny!', reply: 'We were that small once!' },
-    { pair: 'any>any', call: '{to}, the ice is all gone!', reply: 'Time to swim far again!' },
-  ],
-  summer: [
-    { pair: 'any>any', call: '{to}, the water is so warm!', reply: 'Let us swim to the reeds!' },
-    { pair: 'kit>kit', call: '{to}, I saw a dragonfly!', reply: 'Where? Show me!' },
-  ],
-  autumn: [
-    { pair: 'parent>any', call: '{to}, the store is not full yet.', reply: 'I will fetch more branches, {from}.' },
-    { pair: 'kit>parent', call: '{to}, why do we fill the store?', reply: 'So we have food under the ice, {from}.' },
-    { pair: 'any>any', call: '{to}, the leaves are falling!', reply: 'Winter comes soon.' },
-  ],
-  winter: [
-    { pair: 'any>any', call: '{to}, the ice is so thick today!', reply: 'We are warm in the lodge, though.' },
-    { pair: 'parent>kit', call: '{to}, stay near the lodge under the ice.', reply: 'I will, {from}.' },
-    { pair: 'kit>kit', call: '{to}, look at all the snow!', reply: 'It looks like a big white blanket!' },
-  ],
-};
+export const seasonLines = (s: Season): readonly ExchangeLine[] => exchanges(`chatter.season.${s}`);
 
 /** What a family says about the player, by what the player did. A wary family whispers. */
 export type Deed = 'wary' | 'startled' | 'gift' | 'rescue' | 'dam' | 'lodge' | 'friend';
-export const PLAYER_LINES: Readonly<Record<Deed, readonly ExchangeLine[]>> = {
-  wary: [
-    { pair: 'any>any', call: 'Shh, {to}. The stranger is here.', reply: 'I see it. Keep still.' },
-    { pair: 'parent>kit', call: '{to}, stay close. Someone new is here.', reply: 'Who is it, {from}?' },
-  ],
-  startled: [
-    { pair: 'any>any', call: '{to}, that beaver slapped its tail at us!', reply: 'It made me jump!' },
-    { pair: 'parent>kit', call: '{to}, that loud beaver is back.', reply: 'Maybe it was only scared, {from}.' },
-  ],
-  gift: [
-    { pair: 'any>any', call: '{to}, that is the beaver who brought us food!', reply: 'How kind! I hope it comes again.' },
-    { pair: 'kit>parent', call: '{to}, can that nice beaver play with us?', reply: 'Ask nicely, {from}.' },
-  ],
-  rescue: [
-    { pair: 'any>any', call: '{to}, that is the beaver who dug {guide} out of the snow!', reply: 'What a good friend.' },
-  ],
-  dam: [{ pair: 'any>any', call: '{to}, look! That beaver built a dam near us.', reply: 'It is a good one, too!' }],
-  lodge: [{ pair: 'any>any', call: '{to}, that beaver lives close by now.', reply: 'Good. A new neighbour!' }],
-  friend: [
-    { pair: 'any>any', call: '{to}, our friend is back!', reply: 'Hello, friend!' },
-    { pair: 'kit>kit', call: '{to}, the nice beaver is here again!', reply: 'Let us go and look!' },
-  ],
-};
+export const playerLines = (d: Deed): readonly ExchangeLine[] => exchanges(`chatter.player.${d}`);
 
 /** A call is made in a slot of this many clock seconds, and only in some slots. */
 export const CALL_SLOT = DAY_SECONDS / 12;
@@ -193,10 +105,10 @@ const fits = (pair: Pair, from: Role, to: Role): boolean => {
 };
 
 /** How a beaver shows in a toast: "Mama Willow", "Papa Alder", or a kit's name. */
-export const labelOf = (n: Pick<Chatterer, 'name' | 'role'>): string => (n.role === 'mama' ? `Mama ${n.name}` : n.role === 'papa' ? `Papa ${n.name}` : n.name);
+export const labelOf = (n: Pick<Chatterer, 'name' | 'role'>): string => (n.role === 'mama' ? t('chatter.mama', { name: n.name }) : n.role === 'papa' ? t('chatter.papa', { name: n.name }) : n.name);
 /** What one beaver calls another: a kit says "Mama" or "Papa" to its parents, everyone else uses the name. */
 export const addressOf = (speaker: Pick<Chatterer, 'role'>, to: Pick<Chatterer, 'name' | 'role'>): string =>
-  speaker.role === 'kit' && to.role === 'mama' ? 'Mama' : speaker.role === 'kit' && to.role === 'papa' ? 'Papa' : to.name;
+  speaker.role === 'kit' && to.role === 'mama' ? t('chatter.toMama') : speaker.role === 'kit' && to.role === 'papa' ? t('chatter.toPapa') : to.name;
 
 /** Fills the placeholders of a line. A placeholder with no value leaves the line out (null). */
 export function fill(text: string, values: Readonly<Record<string, string | undefined>>): string | null {
@@ -257,15 +169,15 @@ export function deedsFor(world: Pick<WorldState, 'trust' | 'guides' | 'dams' | '
 
 /** The lines about the player that are true for a family now. A wary family only whispers (or remembers the slap). */
 function playerPools(d: Deeds): (readonly ExchangeLine[])[] {
-  if (d.mood === 'wary') return d.startled ? [PLAYER_LINES.wary, PLAYER_LINES.startled] : [PLAYER_LINES.wary];
+  if (d.mood === 'wary') return d.startled ? [playerLines('wary'), playerLines('startled')] : [playerLines('wary')];
   if (!d.met) return [];
   const pools: (readonly ExchangeLine[])[] = [];
-  if (d.gift) pools.push(PLAYER_LINES.gift);
-  if (d.rescued) pools.push(PLAYER_LINES.rescue);
-  if (d.dam) pools.push(PLAYER_LINES.dam);
-  if (d.lodge) pools.push(PLAYER_LINES.lodge);
-  if (d.startled) pools.push(PLAYER_LINES.startled);
-  if (d.mood === 'curious') pools.push(PLAYER_LINES.friend);
+  if (d.gift) pools.push(playerLines('gift'));
+  if (d.rescued) pools.push(playerLines('rescue'));
+  if (d.dam) pools.push(playerLines('dam'));
+  if (d.lodge) pools.push(playerLines('lodge'));
+  if (d.startled) pools.push(playerLines('startled'));
+  if (d.mood === 'curious') pools.push(playerLines('friend'));
   return pools;
 }
 
@@ -289,16 +201,16 @@ export function overheard(beavers: readonly Chatterer[], at: { x: number; z: num
     const to = members[(i + 1 + ((h >>> 4) % (members.length - 1))) % members.length]!;
     const deeds = about?.(f) ?? null;
     // The pools to pick from: the errand counts twice, as it is what the beaver is busy with.
-    const pools: (readonly ExchangeLine[])[] = [EVERYDAY, SEASON_LINES[dateAt(clock).season]];
-    if (from.errand) pools.push(ERRAND_LINES[from.errand], ERRAND_LINES[from.errand]);
-    if (from.carry) pools.push(CARRY_LINES[from.carry]);
-    const task = from.task ? TASK_LINES[from.task] : undefined;
-    if (task) pools.push(task);
+    const pools: (readonly ExchangeLine[])[] = [everyday(), seasonLines(dateAt(clock).season)];
+    if (from.errand) pools.push(errandLines(from.errand), errandLines(from.errand));
+    if (from.carry) pools.push(carryLines(from.carry));
+    const task = from.task ? taskLines(from.task) : [];
+    if (task.length > 0) pools.push(task);
     if (deeds) pools.push(...playerPools(deeds));
     const pool = pools[(h >>> 8) % pools.length]!.filter((l) => fits(l.pair, from.role, to.role));
-    const lines = pool.length > 0 ? pool : EVERYDAY.filter((l) => fits(l.pair, from.role, to.role));
+    const lines = pool.length > 0 ? pool : everyday().filter((l) => fits(l.pair, from.role, to.role));
     const line = lines[(h >>> 12) % lines.length]!;
-    const guide = deeds?.rescued ? (deeds.rescued === from.id ? 'me' : deeds.rescued === to.id ? 'you' : nameOf(deeds.rescued)) : undefined;
+    const guide = deeds?.rescued ? (deeds.rescued === from.id ? t('chatter.guideMe') : deeds.rescued === to.id ? t('chatter.guideYou') : nameOf(deeds.rescued)) : undefined;
     const call = fill(line.call, { to: addressOf(from, to), guide });
     const reply = fill(line.reply, { from: addressOf(to, from), guide });
     if (call === null || reply === null) return null;
@@ -308,19 +220,7 @@ export function overheard(beavers: readonly Chatterer[], at: { x: number; z: num
 }
 
 /** The greeting toast when a family first comes near on a visit: by mood, and by what the player did. */
-export const GREETINGS = {
-  waryNew: ['A beaver family. They are shy. Put a branch down near them', 'The {pond} family hides in the water. They are shy. Put a branch down near them'],
-  waryMet: ['The {pond} family peeks at you from the water. Put a branch down near them'],
-  waryStartled: ['The {pond} family dives away. Your tail slap made them jump. A branch may help'],
-  calmNew: ['A beaver family says hello', '{speaker} of the {pond} says hello'],
-  calmMet: ['{speaker} says hello again', 'The {pond} family waves hello'],
-  curiousNew: ['The {pond} family has heard of you and is happy to see you'],
-  curious: ['The beaver family is happy to see you', '{kit} swims over to say hello'],
-  gift: ['{speaker}: "You are back! The kits loved your gift."'],
-  rescue: ['{guide} waves at you: "My friend from the snow!"'],
-  dam: ['{speaker}: "We saw your dam. Good work!"'],
-  lodge: ['{speaker}: "Hello, neighbour!"'],
-} as const satisfies Record<string, readonly string[]>;
+export const GREETINGS = tree<Record<'waryNew' | 'waryMet' | 'waryStartled' | 'calmNew' | 'calmMet' | 'curiousNew' | 'curious' | 'gift' | 'rescue' | 'dam' | 'lodge', readonly string[]>>('chatter.greetings');
 
 /**
  * The greeting toast for a family: `members` are its beavers in sight (to name one), `pond` the family's pond ("north pond").
@@ -338,23 +238,11 @@ export function greetingFor(deeds: Deeds, members: readonly Pick<Chatterer, 'id'
     pool = done.length > 0 ? done : deeds.met ? GREETINGS.curious : GREETINGS.curiousNew;
   }
   const lines = pool.map((t) => fill(t, values)).filter((t): t is string => t !== null);
-  return lines.length > 0 ? lines[seed % lines.length]! : 'A beaver family says hello';
+  return lines.length > 0 ? lines[seed % lines.length]! : t('chatter.greetingFallback');
 }
 
 /** The thanks for a gift, by what it is and the errand the family is on. */
-export const GIFT_THANKS: Readonly<Record<Food, Readonly<Partial<Record<Errand | 'any', readonly string[]>>>>> = {
-  branch: {
-    store: ['Just what we needed for the store!'],
-    dam: ['A branch for the dam. Thank you!'],
-    lodge: ['Just right for the roof. Thank you!'],
-    any: ['A fresh branch! Thank you.', 'Mmm, willow bark. Thank you!'],
-  },
-  lily: {
-    food: ['Lily pads! Dinner is ready.'],
-    kits: ['A lily pad! The kits will love it.'],
-    any: ['A lily pad! Yum, thank you.', 'So sweet and fresh. Thank you!'],
-  },
-};
+export const GIFT_THANKS = tree<Record<Food, Partial<Record<Errand | 'any', readonly string[]>>>>('chatter.giftThanks');
 
 /**
  * The toast when a family takes a gift: one of them (a parent first) thanks the player for what it is, by the family's errand
@@ -365,29 +253,12 @@ export function giftThanks(kind: Food, members: readonly Pick<Chatterer, 'name' 
   const table = GIFT_THANKS[kind];
   const errand = members.map((m) => m.errand).find((e): e is Errand => !!e && table[e] !== undefined);
   const lines = (errand ? table[errand] : undefined) ?? table.any ?? [];
-  const line = lines[seed % Math.max(1, lines.length)] ?? 'Thank you!';
-  return speaker ? `${labelOf(speaker)}: "${line}" They trust you a little more` : `The beavers take it: "${line}" They trust you a little more`;
+  const line = lines[seed % Math.max(1, lines.length)] ?? t('chatter.giftFallback');
+  return speaker ? t('chatter.giftSaid', { speaker: labelOf(speaker), line }) : t('chatter.giftSaidNobody', { line });
 }
 
 /** The partner remarks on what is around while it follows, and on the home once it lives there. */
-export const PARTNER_LINES = {
-  spot: ['I see a stream {where} that looks good for a dam.', 'There is a good dam spot {where}. Shall we look?'],
-  pads: ['I smell lily pads {where}. Yum!'],
-  wornDam: ['One of your dams is wearing thin. Shall we mend it?'],
-  building: ['Our lodge is coming along. A few more logs!'],
-  dusk: ['The sun is going down. Let us find a safe place to sleep.'],
-  follow: ['I am right behind you!', 'Where are we going next?', 'I like swimming with you.'],
-  homeWorn: ['Our lodge is wearing thin. Some sticks and mud would fix it.'],
-  storeLow: ['Our store looks small for the winter. More branches?'],
-  storeFull: ['Look how full our store is!'],
-  homeDusk: ['It is getting dark. Time to come inside?'],
-  kits: ['I hope we have kits in spring.'],
-  home: ['I love our pond.', 'Home sweet lodge.', 'Our lodge feels warm and safe.'],
-  spring: ['Everything is green again!'],
-  summer: ['The water is so warm today.'],
-  autumn: ['The leaves are falling. Winter comes soon.'],
-  winter: ['Brr! The ice is thick today.'],
-} as const satisfies Record<string, readonly string[]>;
+export const PARTNER_LINES = tree<Record<'spot' | 'pads' | 'wornDam' | 'building' | 'dusk' | 'follow' | 'homeWorn' | 'storeLow' | 'storeFull' | 'homeDusk' | 'kits' | 'home' | Season, readonly string[]>>('chatter.partner');
 
 /** The partner notices a free dam spot or lily pads this close (metres), and talks about the home within this of the lodge. */
 export const REMARK_SPOT_RANGE = 80;

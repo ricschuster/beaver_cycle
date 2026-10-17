@@ -28,10 +28,22 @@ Placeholders keep today's `{to}` style.
 
 ### 2. The sim stays DOM free, and keeps its pure functions
 
-Do not rewrite the sim to emit keys. Instead the text modules (`talkLines`, `chatter`, `achievements`, `wayToPartner`,
-`coachSteps`) read their words through `t()` with a language held in module state set once at start (`setLang`). They stay
+Do not rewrite the sim to emit keys. Instead the text modules (`talkLines`, `chatter`, `achievements`, `wayToPartner`, `news`,
+`coachSteps` and the HUD formatters) read their words through the layer with the language set once at start (`setLang`). They stay
 pure for a given language, no DOM, no three.js, so the sim rules are untouched. Picks use the same index in every language
 (the arrays are the same length), so a save, a seed or a test gives the same line, only in other words.
+
+Built so far:
+
+- `tree('talk.remark')` gives a read-only view of the keys below a prefix as nested objects, read when indexed, so
+  `REMARK.mama.wary` still works in the code and follows the language. The tables of talk lines, achievements and the like are such views.
+- The exchanges between beavers (`chatter`) are keys named `<caller side>-<answerer side>-<n>.call` and `.reply`
+  (`parent-kit-2`), so the pair of sides who may say a line is part of the key and a translation keeps it.
+- Text with a number or a name is a whole phrase with placeholders (`'{felled} of {need} trees felled'`), and a plural is two
+  keys (`one`, `many`). The status line top left is a list of short clauses joined with ", ", each clause one key.
+- `i18n/index.test.ts` checks the keys the code builds at run time (seasons, stages, predators, achievements, coach steps)
+  exist, and that every shipped language has every key with the same placeholders.
+
 Rejected: keys through the whole sim (big refactor, risk to 24 test files, and little gain for one language switch).
 
 ### 3. Grammar
@@ -72,12 +84,12 @@ hash of the English). The page also shows the static pages (manual, privacy) by 
 `tools/standalone-apk/store/listing.md` gets a German section, and the screenshots are retaken in German
 (`MANUAL_SHOTS` style spec with the language set). Play takes them per language in the Console.
 
-## Steps (each its own pull request)
+## Steps
 
-1. `src/i18n/` with `en` only, the test, the Settings choice, and the move of `ui/` strings (buttons, HUD, settings, slot cards).
-2. The review page `tools/text-review/`, so it grows with the tables.
-3. The sim text modules, one per pull request, English tables first so nothing changes for players.
-4. German tables, then the manual and privacy page in German; the author reviews on the review page.
-5. Listing text and screenshots in German.
+1. Done: `src/i18n/`, the Settings choice, the test, and the `ui/` strings.
+2. Done: the sim text modules, the HUD and toasts, and the review page `tools/text-review/` (English and German side by side,
+   edit, tick Reviewed, export `de.ts` and `reviewed.de.json`; a tick holds a hash of the English so it lapses when the English changes).
+3. German tables (machine draft, then the author reviews on the review page), then `LANGS` gets `de`, the manual and the privacy page in German.
+4. Listing text and screenshots in German.
 
 French is a later issue if a reader turns up.

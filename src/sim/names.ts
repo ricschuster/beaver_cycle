@@ -1,5 +1,6 @@
 // Names for the beavers of the other families (docs/design/27_families_and_dialog.md, #343). A name is a pure function of the
 // beaver's id, so it is the same every visit and needs no saving. A family is named for where its pond lies from the player's home.
+import { t } from '../i18n';
 import { compassWord } from './partners';
 
 /** Nature names, mixed so that a family of five is unlikely to repeat one. */
@@ -21,5 +22,5 @@ export const nameOf = (id: string): string => NAMES[hashString(id) % NAMES.lengt
 
 /** "north pond": where a family's pond lies from a point, such as the player's home. */
 export function pondName(lodge: { x: number; z: number }, from: { x: number; z: number }): string {
-  return `${compassWord(lodge.x - from.x, lodge.z - from.z)} pond`;
+  return t('way.pond', { compass: compassWord(lodge.x - from.x, lodge.z - from.z) });
 }

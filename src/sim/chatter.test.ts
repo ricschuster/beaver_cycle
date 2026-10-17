@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CALL_SLOT, ERRAND_LINES, EVERYDAY, GREETINGS, PLAYER_LINES, SEASON_LINES, addressOf, deedsFor, fill, giftThanks, greetingFor, labelOf, overheard, partnerRemark,
+  CALL_SLOT, GREETINGS, errandLines, everyday, playerLines, seasonLines, addressOf, deedsFor, fill, giftThanks, greetingFor, labelOf, overheard, partnerRemark,
   type Chatterer, type Deeds, type ExchangeLine,
 } from './chatter';
 import { DAY_SECONDS, DAYS_PER_SEASON } from './clock';
@@ -65,30 +65,30 @@ describe('overheard', () => {
 
   it('follows the errand when one is known, and does without', () => {
     const busy = [member('f', 'papa', 'Alder', 5, { errand: 'dam', task: 'carry', carry: 'branch' }), member('f', 'kit', 'Reed', 8)];
-    expect(said(heard(busy).map((e) => e.call.text), ERRAND_LINES.dam)).toBe(true);
-    expect(said(heard(family).map((e) => e.call.text), ERRAND_LINES.dam)).toBe(false);
+    expect(said(heard(busy).map((e) => e.call.text), errandLines('dam'))).toBe(true);
+    expect(said(heard(family).map((e) => e.call.text), errandLines('dam'))).toBe(false);
   });
 
   it('talks about the season', () => {
     const winter = 3 * DAYS_PER_SEASON * DAY_SECONDS;
     // A season is 10 days of 12 slots: stay within the winter.
     const texts = heard(family, undefined, winter, 110).map((e) => e.call.text);
-    expect(said(texts, SEASON_LINES.winter)).toBe(true);
-    expect(said(texts, SEASON_LINES.spring)).toBe(false);
+    expect(said(texts, seasonLines('winter'))).toBe(true);
+    expect(said(texts, seasonLines('spring'))).toBe(false);
   });
 
   it('whispers about the stranger in a wary family, and never thanks it', () => {
     const texts = heard(family, () => deeds({ mood: 'wary' })).map((e) => e.call.text);
-    expect(said(texts, PLAYER_LINES.wary)).toBe(true);
-    expect(said(texts, PLAYER_LINES.gift)).toBe(false);
+    expect(said(texts, playerLines('wary'))).toBe(true);
+    expect(said(texts, playerLines('gift'))).toBe(false);
   });
 
   it('talks warmly of the player once met, by what it did, and not before', () => {
     const kind = heard(family, () => deeds({ mood: 'curious', met: true, gift: true })).map((e) => e.call.text);
-    expect(said(kind, PLAYER_LINES.gift)).toBe(true);
+    expect(said(kind, playerLines('gift'))).toBe(true);
     const unmet = heard(family, () => deeds({ mood: 'curious', gift: true })).map((e) => e.call.text);
-    expect(said(unmet, PLAYER_LINES.gift)).toBe(false);
-    expect(said(unmet, PLAYER_LINES.friend)).toBe(false);
+    expect(said(unmet, playerLines('gift'))).toBe(false);
+    expect(said(unmet, playerLines('friend'))).toBe(false);
   });
 
   it('names the beaver the player dug out, or says "me" when it is the caller', () => {
@@ -98,7 +98,7 @@ describe('overheard', () => {
   });
 
   it('every line has its placeholders filled for any pair of speakers', () => {
-    for (const line of [...EVERYDAY, ...Object.values(ERRAND_LINES).flat()]) {
+    for (const line of [...everyday(), ...(['dam', 'store', 'lodge', 'food', 'kits', 'play', 'rest'] as const).flatMap((e) => errandLines(e))]) {
       expect(fill(line.call, { to: 'Reed' })).not.toBeNull();
       expect(fill(line.reply, { from: 'Mama' })).not.toBeNull();
     }
@@ -152,7 +152,7 @@ describe('greetingFor', () => {
   it('greets by name, again, and thanks by what the player did', () => {
     const all = (d: Deeds) => [0, 1, 2, 3].map((s) => greetingFor(d, members, 'north pond', s));
     expect(all(deeds({ met: true })).some((t) => t.includes('Mama Hazel') || t.includes('north pond'))).toBe(true);
-    expect(all(deeds({ mood: 'curious', met: true, rescued: 'f:papa' }))).toContain(GREETINGS.rescue[0].replace('{guide}', nameOf('f:papa')));
+    expect(all(deeds({ mood: 'curious', met: true, rescued: 'f:papa' }))).toContain(GREETINGS.rescue[0]!.replace('{guide}', nameOf('f:papa')));
     expect(all(deeds({ mood: 'curious', met: true, gift: true })).every((t) => t.includes('gift'))).toBe(true);
     expect(greetingFor(deeds({ mood: 'curious', met: true }), members, 'north pond', 1)).toBe('Reed swims over to say hello');
     expect(greetingFor(deeds({ mood: 'curious', met: true }), [], 'north pond', 1)).toBe('The beaver family is happy to see you');

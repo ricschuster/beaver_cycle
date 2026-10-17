@@ -1,104 +1,17 @@
 // The English words of the game: the source of truth for the keys (docs/design/36_languages.md). Another language is a table
-// with the same keys (`de.ts`), and `i18n.test.ts` fails when one is missing. A value is a string with `{name}` placeholders,
+// with the same keys (`de.ts`), and `index.test.ts` fails when one is missing. A value is a string with `{name}` placeholders,
 // or a list of strings when the game picks one of several. Plain data, no functions, so a translator can read it.
-export const en = {
-  'ui.close': 'Close',
-  'ui.on': 'On',
-  'ui.off': 'Off',
+// The tables are in `en/`, one file for each part of the game.
+import { achievements } from './en/achievements';
+import { chatter } from './en/chatter';
+import { coach } from './en/coach';
+import { hud } from './en/hud';
+import { talk } from './en/talk';
+import { way } from './en/way';
+import { ui } from './en/ui';
 
-  'sound.isOff': 'Sound is off, turn it on',
-  'sound.isOn': 'Sound is on, turn it off',
+export const en = { ...ui, ...talk, ...chatter, ...coach, ...achievements, ...way, ...hud } as const;
 
-  'settings.title': 'Settings',
-  'settings.music': 'Music',
-  'settings.sounds': 'Sounds',
-  'settings.map': 'Map',
-  'settings.shadows': 'Shadows',
-  'settings.shadowsNote': 'Shadows look nice but slow some tablets down. Changing them starts the game again, where you left off.',
-  'settings.savedGames': 'Saved games',
-  'settings.startScreen': 'Start screen',
-  'settings.startScreenNote': 'Your game is saved first. Pick another game there, or come back to this one.',
-  'settings.language': 'Language',
-  'settings.languageNote': 'Changing the language starts the game again, where you left off.',
-  'settings.langAuto': 'Automatic',
-  'settings.langEn': 'English',
-  'settings.langDe': 'Deutsch',
-
-  'help.open': 'Open the manual',
-  'help.manualLabel': 'Manual',
-  'help.title': 'How to play',
-  'help.back': 'Back to the game',
-  'help.firstSteps': 'Show the first steps',
-  'help.frameTitle': 'Beaver Cycle manual',
-  'help.welcomeLabel': 'Welcome',
-  'help.welcome': 'Welcome, little beaver',
-  'help.readManual': 'Read the manual',
-  'help.letsGo': "Let's go",
-  'welcome.intro': 'You are a beaver in the Almsee valley. Nothing here can hurt you, and you cannot lose.',
-  'welcome.touch': 'Move with the stick, turn the view by dragging the empty screen. Gnaw a tree, drag the log, and build a dam at a white ring.',
-  'welcome.keys': 'Move with W A S D, turn the view by dragging the mouse. Press E at a tree to gnaw it, G to drag the log, and B to build at a white ring.',
-  'welcome.hint': 'The text at the top left always says what a button does right now.',
-
-  'sleep.morning': 'Sleep until morning',
-  'sleep.dream': 'Dream',
-  'sleep.season': 'Sleep until next season',
-  'sleep.until': 'Sleep until {when}',
-
-  'coach.back': 'Back',
-  'coach.next': 'Next',
-  'coach.close': 'Close',
-  'coach.gotIt': 'Got it',
-  'coach.wellDone': 'Well done!',
-  'coach.count': '{n} of {total}',
-
-  'breath.label': 'Breath',
-
-  'stash.label': 'Food store',
-  'stash.done': 'Done',
-  'stash.broken': 'the store is broken, rebuild it to use it',
-  'stash.summaryOne': '{places} of {capacity} places, {meals} meal',
-  'stash.summaryMany': '{places} of {capacity} places, {meals} meals',
-  'stash.lostPlace': 'lost place',
-  'stash.emptyPlace': 'empty place',
-  'stash.branch': 'branch',
-  'stash.lily': 'lily pad',
-  'stash.mouthBranch': 'in the mouth: a branch',
-  'stash.mouthLily': 'in the mouth: a lily pad',
-  'stash.mouthEmpty': 'the mouth is empty',
-
-  'slots.label': 'Saved games',
-  'slots.heading': 'Your games',
-  'slots.name': 'Name',
-  'slots.namePlaceholder': 'Name (you can leave it empty)',
-  'slots.game': 'Game {n}',
-  'slots.empty': 'Empty',
-  'slots.unreadable': 'This game could not be read. It is kept aside, so this slot is free.',
-  'slots.start': 'Start',
-  'slots.back': 'Back',
-  'slots.new': 'New game',
-  'slots.saveName': 'Save name',
-  'slots.askDelete': 'Delete this game? Its beaver and lodge will be gone.',
-  'slots.yesDelete': 'Yes, delete',
-  'slots.keep': 'Keep it',
-  'slots.continue': 'Continue',
-  'slots.rename': 'Rename',
-  'slots.delete': 'Delete',
-  'slots.details': '{stage}, generation {generation}, last played {when}',
-  'stage.baby': 'Baby',
-  'stage.teenager': 'Teenager',
-  'stage.adult': 'Adult',
-
-  'map.north': 'North up',
-  'map.turn': 'Turning',
-  'map.off': 'Off',
-
-  'achievements.title': 'Things I did',
-  'achievements.hintIdle': 'Tap one to see how to win it.',
-  'achievements.summary': '{won} of {all} won',
-  'achievements.tierMark': '{tier} of {tiers} won',
-  'achievements.progress': '{have} of {need}',
-  'achievements.allDone': 'All done',
-} as const;
 
 export type Key = keyof typeof en;
 export type Table = Readonly<Record<Key, string | readonly string[]>>;

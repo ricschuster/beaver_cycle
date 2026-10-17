@@ -1,6 +1,7 @@
 // The dream (docs/design/29_dream_candy_land.md): candy land, made new each night from a seed, with sweets on the path and in the
 // chocolate river and a group of marshmallow beavers to play tag and hide and seek with. Its own small world: it never reads or
 // changes the waking game's state. Pure, no DOM, no three.js. The ground and the props are laid out in dreamLand.ts.
+import { t } from '../i18n';
 import {
   HILL_WIDTH,
   INNER,
@@ -578,7 +579,7 @@ export function playPrompt(state: DreamState): string | null {
   if (state.game.kind !== 'none') return null;
   const m = playmate(state);
   if (!m) return null;
-  return inChocolate(state) ? `Play tag with ${m.name}` : `Play hide and seek with ${m.name}`;
+  return inChocolate(state) ? t('dream.playTag', { name: m.name }) : t('dream.playSeek', { name: m.name });
 }
 
 /** The marshmallow beaver's name while the player is asked to hide or seek, else null. */

@@ -7,6 +7,7 @@
 
 import { noActions, type Actions } from '../actions/actions';
 import { stickMove, touchTuning } from '../actions/stick';
+import { t } from '../i18n';
 
 export interface TouchControls {
   /** Current actions. The slap fires once per press, so call this once per frame. */
@@ -64,10 +65,10 @@ export function createTouchControls(parent: HTMLElement, visible: boolean, { lab
     return b;
   };
   // Dive at the corner, Slap beside it, Do above Slap, and Take to their left, halfway up.
-  const dive = button('dive', 'Dive', 'max(32px,env(safe-area-inset-right))', '48px');
-  const slap = button('slap', 'Slap', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, '88px');
-  const act = button('do', 'Do', `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, `calc(88px + ${buttonSize + 12}px)`);
-  const take = button('take', 'Take', `calc(max(32px,env(safe-area-inset-right)) + ${(buttonSize + 20) * 2}px)`, `calc(88px + ${Math.round((buttonSize + 12) / 2)}px)`);
+  const dive = button('dive', t('btn.dive'), 'max(32px,env(safe-area-inset-right))', '48px');
+  const slap = button('slap', t('btn.slap'), `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, '88px');
+  const act = button('do', t('btn.do'), `calc(max(32px,env(safe-area-inset-right)) + ${buttonSize + 20}px)`, `calc(88px + ${buttonSize + 12}px)`);
+  const take = button('take', t('btn.take'), `calc(max(32px,env(safe-area-inset-right)) + ${(buttonSize + 20) * 2}px)`, `calc(88px + ${Math.round((buttonSize + 12) / 2)}px)`);
   // A button labelled null is made but never shown, so it gives nothing.
   const buttons: Record<TouchButton, HTMLButtonElement> = { dive, slap, take, do: act };
   const shown = (Object.keys(buttons) as TouchButton[]).filter((k) => labels[k] !== null).map((k) => buttons[k]);

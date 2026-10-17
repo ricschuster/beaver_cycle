@@ -3,7 +3,7 @@
 // and wake at dawn. The dream itself is the dream screen (ui/dreamScreen.ts,
 // docs/design/29_dream_candy_land.md), which opens over the dark and hands back
 // to `wakeFromDream` when the player wakes. DOM only.
-import { t } from '../i18n';
+import { t, text } from '../i18n';
 
 /** Milliseconds of each fade to or from black. */
 export const FADE_MS = 700;
@@ -18,7 +18,7 @@ export interface SleepChoices {
   /** The beaver rests on its nest: offer sleeping ahead to the next season. */
   rest: boolean;
   /** Offer sleeping until growing up, or null for an adult. The text names the next stage. */
-  grow: string | null;
+  grow: 'teenager' | 'adult' | null;
 }
 
 export interface SleepPrompt {
@@ -80,7 +80,7 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
     skipButton.hidden = dreamButton.hidden = !choices.night;
     seasonButton.hidden = !choices.rest;
     growButton.hidden = choices.grow === null;
-    if (choices.grow !== null) growButton.textContent = t('sleep.until', { when: choices.grow });
+    if (choices.grow !== null) growButton.textContent = text(`sleep.until.${choices.grow}`);
     panel.style.display = busy || (!choices.night && !choices.rest && choices.grow === null) ? 'none' : 'flex';
   };
 

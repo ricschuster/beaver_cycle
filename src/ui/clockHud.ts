@@ -1,4 +1,5 @@
 // Clock readout: season, day of the season, and time of day, top left. DOM only.
+import { text, t } from '../i18n';
 import { DAY_FRACTION, dateAt } from '../sim/clock';
 
 export interface ClockHud {
@@ -8,10 +9,9 @@ export interface ClockHud {
 /** "Spring, day 3, morning" for a game clock value. */
 export function formatClock(clock: number): string {
   const d = dateAt(clock);
-  const t = d.timeOfDay;
-  const part = t < DAY_FRACTION * 0.4 ? 'morning' : t < DAY_FRACTION * 0.7 ? 'midday' : t < DAY_FRACTION ? 'evening' : 'night';
-  const season = d.season[0]!.toUpperCase() + d.season.slice(1);
-  return `${season}, day ${d.dayOfSeason}, ${part}`;
+  const at = d.timeOfDay;
+  const part = at < DAY_FRACTION * 0.4 ? 'morning' : at < DAY_FRACTION * 0.7 ? 'midday' : at < DAY_FRACTION ? 'evening' : 'night';
+  return t('clock.line', { season: text(`season.${d.season}`), day: d.dayOfSeason, part: text(`daypart.${part}`) });
 }
 
 export function createClockHud(parent: HTMLElement): ClockHud {
@@ -25,10 +25,10 @@ export function createClockHud(parent: HTMLElement): ClockHud {
   let shown = '';
   return {
     set(clock) {
-      const text = formatClock(clock);
-      if (text !== shown) {
-        shown = text;
-        root.textContent = text;
+      const line = formatClock(clock);
+      if (line !== shown) {
+        shown = line;
+        root.textContent = line;
       }
     },
   };

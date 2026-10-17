@@ -1,4 +1,5 @@
 // Life stage readout at the top centre, clear of the clock and the carry readout: the stage and a bar for how far through it. DOM only.
+import { t, text } from '../i18n';
 import type { LifeInfo } from '../sim/life';
 
 export interface LifeHud {
@@ -7,8 +8,7 @@ export interface LifeHud {
 
 /** "Baby, day 12" for the beaver's life. The bar is hidden for an adult, who has no next stage yet. */
 export function formatLife(life: LifeInfo): string {
-  const stage = life.stage[0]!.toUpperCase() + life.stage.slice(1);
-  return `${stage}, ${life.ageDays} days old`;
+  return t('life.line', { stage: text(`stage.${life.stage}`), days: life.ageDays });
 }
 
 export function createLifeHud(parent: HTMLElement): LifeHud {

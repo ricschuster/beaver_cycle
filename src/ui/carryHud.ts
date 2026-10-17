@@ -1,4 +1,5 @@
 // Trees felled, the log being dragged, and how far a gnaw has got, top left under the clock. DOM only.
+import { t, text } from '../i18n';
 import { atStore, storeCapacity, storeCondition, stockMeals, stockTotal, strippable } from '../sim/food';
 import { WOOD_TREES } from '../sim/achievements';
 import { maxLevel } from '../sim/damSpots';
@@ -13,21 +14,12 @@ import type { WorldState } from '../sim/state';
 /** What the spot ahead is for a new lodge while dragging a log with no lodge yet: fine, a problem, or null when it does not apply. */
 export type LodgeSite = 'ok' | SiteProblem | null;
 
-const SITE_TEXT: Record<'ok' | SiteProblem, string> = {
-  ok: 'press Build to start the lodge here',
-  dry: 'no lodge spot, face the water',
-  deep: 'no lodge spot, too deep',
-  far: 'no lodge spot, no deep water near',
-};
+const SITE_TEXT = (site: 'ok' | SiteProblem): string => text(`hud.site.${site}`);
 
 /** Where the beaver is in the lodge: next to the water hole, on the nest, elsewhere in the room, or not in the lodge (null). */
 export type LodgeSpot = 'hole' | 'nest' | 'room' | null;
 
-const SPOT_TEXT: Record<'hole' | 'nest' | 'room', string> = {
-  hole: 'in the lodge, press Dive to dive out through the water hole',
-  nest: 'in the lodge, on the nest',
-  room: 'in the lodge, the water hole is the way out',
-};
+const SPOT_TEXT = (spot: 'hole' | 'nest' | 'room'): string => text(`hud.spot.${spot}`);
 
 /** The food in play: the piece in the mouth, the store once the lodge is whole (null before), and what a press would do here. */
 export interface FoodInfo {
@@ -42,48 +34,38 @@ export interface FoodInfo {
   hint: 'pick' | 'strip' | 'branch' | 'lily' | 'rock' | 'mud' | 'store' | 'eat' | null;
 }
 
-const HINT_TEXT: Record<NonNullable<FoodInfo['hint']>, string> = {
-  pick: 'press Take to pick a lily pad',
-  strip: 'press Gnaw to strip a branch',
-  branch: 'press Take to pick up the branch',
-  lily: 'press Take to pick up the lily pad',
-  rock: 'press Take to pick up a rock',
-  mud: 'press Take to scoop mud',
-  store: 'press Store to open the store',
-  eat: 'press Eat to eat it',
-};
+const HINT_TEXT = (hint: NonNullable<FoodInfo['hint']>): string => text(`hud.hint.${hint}`);
 
 /** "dam 40%, needs 4 wood, 2 mud, 1 rock", with "press Build to add it" when the mouth or the drag has something it needs. */
 export function formatDam(d: NonNullable<FoodInfo['dam']>): string {
-  if (d.whole) return `${d.level > 1 ? `dam level ${d.level} done` : 'dam done'}${d.top ? ', as high as a dam can go here' : ''}`;
-  const list = [d.wood && `${d.wood} wood`, d.mud && `${d.mud} mud`, d.rock && `${d.rock} ${d.rock === 1 ? 'rock' : 'rocks'}`].filter(Boolean).join(', ');
-  const add = d.canAdd ? ', press Build to add it' : '';
-  if (d.raise) return `dam level ${d.level - 1} done, raise it to level ${d.level}: needs ${list}${add}`;
-  return `dam${d.level > 1 ? ` level ${d.level}` : ''} ${d.percent}%, needs ${list}${add}`;
+  if (d.whole) return [d.level > 1 ? t('hud.dam.doneLevel', { level: d.level }) : t('hud.dam.done'), ...(d.top ? [t('hud.dam.top')] : [])].join(', ');
+  const list = [d.wood && t('hud.need.wood', { n: d.wood }), d.mud && t('hud.need.mud', { n: d.mud }), d.rock && t(d.rock === 1 ? 'hud.need.rockOne' : 'hud.need.rocks', { n: d.rock })].filter(Boolean).join(', ');
+  const head = d.raise ? t('hud.dam.raise', { from: d.level - 1, level: d.level, list }) : d.level > 1 ? t('hud.dam.progressLevel', { level: d.level, percent: d.percent, list }) : t('hud.dam.progress', { percent: d.percent, list });
+  return d.canAdd ? `${head}, ${t('hud.pressBuild')}` : head;
 }
 
 /** ", the lodge needs wood too" when the other of the lodge and the store in reach needs wood as well, else empty. */
-const alsoText = (r: FoodInfo['repair']): string => (r?.also ? `, the ${r.also} needs wood too` : '');
+const alsoText = (r: FoodInfo['repair']): string => (r?.also ? `, ${text(`hud.also.${r.also}`)}` : '');
 
 /** "store worn 25%, needs 6 wood (a long log is 2)", or "broken" for a piece that has to be rebuilt. */
 export function formatRepair(r: NonNullable<FoodInfo['repair']>): string {
   // A dam takes wood, mud, and rocks alike. A broken one is built again, which the dam line says.
-  if (r.what === 'dam') return r.broken ? 'dam broken, build it again' : `dam worn ${r.percent}%, needs ${r.wood} units (a long log is 2, mud 1, a rock 2)`;
-  const state = r.broken ? `${r.what} broken` : `${r.what} worn ${r.percent}%`;
-  return `${state}, needs ${r.wood} wood (a long log is 2)`;
+  if (r.what === 'dam') return r.broken ? t('hud.repair.damBroken') : t('hud.repair.damWorn', { percent: r.percent, wood: r.wood });
+  const state = r.broken ? text(`hud.repair.${r.what}Broken`) : text(`hud.repair.${r.what}Worn`, { percent: r.percent });
+  return `${state}, ${t('hud.repair.needsWood', { wood: r.wood })}`;
 }
 
 /** ", carrying a branch", ", store 12 of 40", and the hint, to add to the line. Empty when there is nothing to say. */
 export function formatFood(food: FoodInfo | null): string {
   if (!food) return '';
   const parts: string[] = [];
-  if (food.carry) parts.push(food.carry === 'branch' ? 'carrying a branch' : 'carrying a lily pad');
-  if (food.haul) parts.push(food.haul === 'mud' ? 'carrying mud, press Drop to put it down' : 'carrying a rock, press Drop to put it down');
-  if (food.store) parts.push(`store ${food.store.total} of ${food.store.capacity}, ${food.store.meals} ${food.store.meals === 1 ? 'meal' : 'meals'}`);
+  if (food.carry) parts.push(text(`hud.carry.${food.carry}`));
+  if (food.haul) parts.push(text(`hud.carry.${food.haul}`));
+  if (food.store) parts.push(t(food.store.meals === 1 ? 'hud.store.one' : 'hud.store.many', { total: food.store.total, capacity: food.store.capacity, meals: food.store.meals }));
   // A worn dam is whole, so its repair line says it all. A broken one shows both: that it broke and what it needs again.
   if (food.repair) parts.push(formatRepair(food.repair) + alsoText(food.repair));
   if (food.dam && !(food.repair?.what === 'dam' && !food.repair.broken)) parts.push(formatDam(food.dam));
-  if (food.hint) parts.push(HINT_TEXT[food.hint]);
+  if (food.hint) parts.push(HINT_TEXT(food.hint));
   return parts.length ? `, ${parts.join(', ')}` : '';
 }
 
@@ -146,11 +128,17 @@ export interface CarryHud {
 
 /** "5 of 30 trees felled" (the count toward the wood achievement, then "31 trees felled, wood achievement" once won), then the lodge's progress once it is started, with ", dragging a log" or the gnaw progress in percent while either is going on. */
 export function formatCarry(felled: number, dragging: boolean, gnaw: number | null, lodge: number | null = null, site: LodgeSite = null, spot: LodgeSpot = null, food: FoodInfo | null = null, wood = false): string {
-  if (spot) return SPOT_TEXT[spot] + formatFood(food);
-  const lodgeText = lodge === null ? '' : lodge >= 1 ? ', lodge done' : `, lodge ${Math.floor(lodge * 100)}%`;
-  const base = `${wood ? `${felled} ${felled === 1 ? 'tree' : 'trees'} felled, wood achievement` : `${felled} of ${WOOD_TREES} trees felled`}${lodgeText}`;
-  if (dragging) return (site ? `${base}, dragging a log, ${SITE_TEXT[site]}` : `${base}, dragging a log`) + (food?.repair ? `, ${formatRepair(food.repair)}, press Mend to add it${alsoText(food.repair)}` : '') + (food?.dam && !(food.repair?.what === 'dam' && !food.repair.broken) ? `, ${formatDam(food.dam)}` : '');
-  return (gnaw === null ? base : `${base}, gnawing ${Math.floor(Math.min(1, gnaw) * 100)}%`) + formatFood(food);
+  if (spot) return SPOT_TEXT(spot) + formatFood(food);
+  const lodgeText = lodge === null ? '' : `, ${lodge >= 1 ? t('hud.lodge.done') : t('hud.lodge.percent', { percent: Math.floor(lodge * 100) })}`;
+  const trees = wood ? t(felled === 1 ? 'hud.trees.wonOne' : 'hud.trees.won', { felled }) : t('hud.trees.progress', { felled, need: WOOD_TREES });
+  const base = `${trees}${lodgeText}`;
+  if (dragging) {
+    const drag = `${base}, ${t('hud.dragging')}${site ? `, ${SITE_TEXT(site)}` : ''}`;
+    const repair = food?.repair ? `, ${formatRepair(food.repair)}, ${t('hud.pressMend')}${alsoText(food.repair)}` : '';
+    const dam = food?.dam && !(food.repair?.what === 'dam' && !food.repair.broken) ? `, ${formatDam(food.dam)}` : '';
+    return drag + repair + dam;
+  }
+  return (gnaw === null ? base : `${base}, ${t('hud.gnawing', { percent: Math.floor(Math.min(1, gnaw) * 100) })}`) + formatFood(food);
 }
 
 export function createCarryHud(parent: HTMLElement): CarryHud {

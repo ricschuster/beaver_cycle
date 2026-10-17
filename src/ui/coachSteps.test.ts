@@ -4,7 +4,7 @@ import { STAGES } from '../sim/life';
 import { createWorld, type WorldState } from '../sim/state';
 import { COACH_DONE, SLEEP_JUMP, STEPS, coachBack, coachForward, coachNext, nearestRing, newCoach, stepText, stepsOf } from './coachSteps';
 import { wantsCoach } from './coach';
-import { KEY_HINTS } from './keyHints';
+import { keyHints } from './keyHints';
 
 const world = (): WorldState => createWorld(flatTerrain(0), 0, 0);
 const spot = { id: 's1', bed: { x: 0, z: -100 } } as unknown as WorldState['spots'][number];
@@ -134,7 +134,7 @@ describe('moving through the steps by hand', () => {
 
 describe('the wording', () => {
   it('names the keys the game really uses, and the buttons it really has', () => {
-    const keys = KEY_HINTS.map(([k]) => k).join(' ');
+    const keys = keyHints().map(([k]) => k).join(' ');
     for (const k of ['Space', 'E', 'G', 'T']) expect(keys).toContain(k);
     for (const stage of STAGES) {
       expect(STEPS[stage].length).toBeGreaterThan(0);

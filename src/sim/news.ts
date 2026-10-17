@@ -7,7 +7,8 @@ import { lodgeComplete, lodgeCondition } from './lodge';
 import type { WorldState } from './state';
 import type { SpeakerKind } from './talk';
 import { NO_NEWS, NOT_YET } from './talkLines';
-import { LONE_NEWS, loneBeaverWay, sideWord } from './wayToPartner';
+import { t, text } from '../i18n';
+import { loneBeaverWay, loneNewsLine, sideWord } from './wayToPartner';
 import { needsRepair } from './wear';
 
 /** What the game looks up for the hints: the nearest lily pad, and a predator about. */
@@ -29,14 +30,14 @@ export function newsFor(world: WorldState, around: Surroundings): string[] {
   const b = world.beaver;
   const out: string[] = [];
   const facing = around.facing ?? b.heading;
-  if (around.pad) out.push(`Lily pads grow ${sideWord(around.pad.x - b.x, around.pad.z - b.z, facing)}, close by.`);
-  if (around.predator) out.push(`I smelled a ${around.predator.kind} ${sideWord(around.predator.x - b.x, around.predator.z - b.z, facing)}. Keep your tail ready.`);
-  if (world.dams.some((d) => damNeedsRepair(d, world.clock))) out.push('One of your dams is wearing thin. A log and some mud will mend it.');
-  if (lodgeComplete(world.lodge) && needsRepair(lodgeCondition(world.lodge, world.clock))) out.push('Your lodge is wearing thin. Mend it before the cold.');
+  if (around.pad) out.push(t('news.pad', { side: sideWord(around.pad.x - b.x, around.pad.z - b.z, facing) }));
+  if (around.predator) out.push(t('news.predator', { kind: text(`animal.${around.predator.kind}`), side: sideWord(around.predator.x - b.x, around.predator.z - b.z, facing) }));
+  if (world.dams.some((d) => damNeedsRepair(d, world.clock))) out.push(t('news.damWorn'));
+  if (lodgeComplete(world.lodge) && needsRepair(lodgeCondition(world.lodge, world.clock))) out.push(t('news.lodgeWorn'));
   const season = dateAt(world.clock).season;
-  if (lodgeComplete(world.lodge) && (season === 'autumn' || season === 'winter') && stockMeals(world.store) < LOW_STORE_MEALS) out.push('Your food store is running low. Fill it with branches before the snow.');
+  if (lodgeComplete(world.lodge) && (season === 'autumn' || season === 'winter') && stockMeals(world.store) < LOW_STORE_MEALS) out.push(t('news.storeLow'));
   const lone = loneBeaverWay(world, facing);
-  if (lone) out.push(`${LONE_NEWS} ${lone.words}. Follow the sparkles!`);
+  if (lone) out.push(loneNewsLine(lone.words));
   return out;
 }
 

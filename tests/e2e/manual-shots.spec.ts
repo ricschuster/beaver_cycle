@@ -9,7 +9,7 @@ const DIR = process.env.MANUAL_SHOTS;
 
 test.describe('pictures for the manual', () => {
   test.skip(!DIR, 'set MANUAL_SHOTS to a folder to take them');
-  test.use({ viewport: { width: 1024, height: 600 } });
+  test.use({ viewport: { width: 1024, height: 600 }, deviceScaleFactor: Number(process.env.MANUAL_SCALE ?? 1) });
 
   // The test menu and the debug button are the author's, not for the manual.
   const take = async (page: import('@playwright/test').Page, name: string): Promise<void> => {

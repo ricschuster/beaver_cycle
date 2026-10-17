@@ -35,7 +35,7 @@ The app icon (a beaver face with its chin in the water) is copied into the gener
 `android/` folder is untracked and `cap add android` brings back the stock Capacitor icon. The PNGs in `icon/mipmap-*` are the
 originals of the first standalone build, taken from an installed APK (the script that drew them was never committed), so they are
 the only source: keep them. The adaptive background is the flat colour #7EC4D6 in the script. Without this step the tablet shows the
-default symbol. The Play Store listing needs a 512 px icon: build it from `ic_launcher_foreground.png` (432 px) on that colour.
+default symbol. The Play Store listing needs a 512 px icon, made from `ic_launcher_foreground.png` (432 px) on that colour.
 
 ## Release bundle for Google Play
 
@@ -63,3 +63,11 @@ ANDROID_HOME=~/Android/Sdk JAVA_HOME=~/Android/jdk-21 ./build_aab.sh
   JDK 21): `java -jar bundletool-all-1.18.3.jar validate --bundle=BUNDLE.aab` and `dump manifest --bundle=BUNDLE.aab`. Checked
   on 1.0: valid, `minSdk 24`, `targetSdk 36`, signed with the upload key (valid to 2054), no `.so` files. `INTERNET` is
   the only permission of its own (the other is AndroidX's own receiver permission, which is normal).
+
+## Store graphics
+
+`store/` holds what the Play listing asks for, taken from the game itself (no art the game does not show): `icon-512.png`,
+`feature-graphic.png` (1024x500, a crop of the lodge shot without the controls), and four tablet screenshots
+(`screenshot-*.png`, 2048x1200). Retake the screenshots when the look changes:
+`MANUAL_SCALE=2 MANUAL_SHOTS=some/dir npx playwright test tests/e2e/manual-shots.spec.ts` (needs the tiles), then use `screen`,
+`pond`, `log` and `tree`.

@@ -35,7 +35,7 @@ import { flatTerrain } from './sim/terrain';
 import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
 import { createCarryHud, foodInfoOf } from './ui/carryHud';
-import { ACHIEVEMENT_TEXT, achievementLines, achievementRows } from './sim/achievements';
+import { ACHIEVEMENT_TEXT, achievementLines, achievementRows, visitPlaces } from './sim/achievements';
 import { createToast } from './ui/toast';
 import { createClockHud } from './ui/clockHud';
 import { createStashPanel } from './ui/stashPanel';
@@ -815,6 +815,8 @@ async function start(): Promise<void> {
       if (grown !== world.neighbours) world = { ...world, neighbours: [...grown] };
     }
     world = trackPonds(world);
+    const visited = visitPlaces(world.visited, world.beaver.x, world.beaver.z, anchors.filter((a) => a.kind === 'location'));
+    if (visited !== world.visited) world = { ...world, visited };
     // The animals as they stand for their mood: deer bolt from a predator, wary ones keep away, curious ones come to look, a fox sniffs at the store at night (note 24, "Interaction with animals").
     const slappedNow = world.lastSlap !== null && world.lastSlap.time === world.time;
     const around = [...animalField.near(ponded, world.beaver.x, world.beaver.z, world.clock, capFor(fps)), ...pondGuests(world, world.beaver.x, world.beaver.z)];

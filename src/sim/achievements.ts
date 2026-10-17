@@ -13,10 +13,10 @@ import { DAY_SECONDS, DAYS_PER_YEAR, dateAt } from './clock';
 import { mateOf } from './partners';
 import { kitDue, type WorldState } from './state';
 
-export type AchievementId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide' | 'grownUp' | 'visitHome' | 'handDown' | 'neighbour' | 'rescuer' | 'generations';
+export type AchievementId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide' | 'grownUp' | 'visitHome' | 'handDown' | 'neighbour' | 'rescuer' | 'generations' | 'diver' | 'explorer' | 'tailSlap' | 'wellFed' | 'stripper' | 'winterStore' | 'manyDams' | 'bigPond';
 
 /** The order they are listed and shown in. */
-export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide', 'grownUp', 'visitHome', 'handDown', 'neighbour', 'rescuer', 'generations'];
+export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide', 'grownUp', 'visitHome', 'handDown', 'neighbour', 'rescuer', 'generations', 'diver', 'explorer', 'tailSlap', 'wellFed', 'stripper', 'winterStore', 'manyDams', 'bigPond'];
 
 /** Trees to fell for the wood achievement (Q39). */
 export const WOOD_TREES = 30;
@@ -32,8 +32,21 @@ export const NEIGHBOUR_FAMILIES = 3;
 export const RESCUER_DIGS = 5;
 /** The generation (lives begun after the first) that wins the long line. 5 and 10 wait for tiers (#569). */
 export const LINE_GENERATION = 3;
+/** Tail slaps for the tail slapper. */
+export const SLAP_COUNT = 10;
+/** Pieces eaten for the well fed beaver. */
+export const WELL_FED_MEALS = 25;
+/** Branches stripped off logs for the stripper. */
+export const STRIPPER_BRANCHES = 50;
+/** Whole dams of this life standing at once for many dams. */
+export const MANY_DAMS = 3;
+/** Square metres a dam's pond must flood for the big pond (the scanned sites run from 200 to 2300, half below 900). */
+export const BIG_POND_M2 = 1500;
+/** The play locations the explorer visits (the `location` anchors of the tile index), and how close counts as a visit, in metres. */
+export const EXPLORER_PLACES: readonly string[] = ['core', 'north', 'south', 'east-oedseen', 'vorderer-springbach', 'hinterer-springbach'];
+export const VISIT_RADIUS = 200;
 
-type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey' | 'partners' | 'bornAt' | 'rescued' | 'generation' | 'formerHomes' | 'parentCoats' | 'met'>;
+type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey' | 'partners' | 'bornAt' | 'rescued' | 'generation' | 'formerHomes' | 'parentCoats' | 'met' | 'ponds' | 'slaps' | 'meals' | 'branchesStripped' | 'longDives' | 'visited' | 'winterStocked'>;
 
 /** Trees felled in this life. */
 export const treesThisLife = (w: Pick<WorldState, 'felled' | 'journey'>): number => w.felled.length - w.journey.felled;
@@ -93,7 +106,24 @@ const RULES: Record<AchievementId, (w: Facts) => boolean> = {
   rescuer: (w) => rescuesThisLife(w) >= RESCUER_DIGS,
   // Each life starts its list again, so the life at this generation wins it on its first step.
   generations: (w) => w.generation >= LINE_GENERATION,
+  // A dive that ran the whole breath out (`BREATH_TIME` under water; the beaver then rises by itself).
+  diver: (w) => w.longDives >= 1,
+  explorer: (w) => EXPLORER_PLACES.every((id) => w.visited.includes(id)),
+  tailSlap: (w) => w.slaps >= SLAP_COUNT,
+  wellFed: (w) => w.meals >= WELL_FED_MEALS,
+  stripper: (w) => w.branchesStripped >= STRIPPER_BRANCHES,
+  winterStore: (w) => w.winterStocked,
+  manyDams: (w) => w.dams.filter((d) => damWhole(d) && mine(w, `dam:${d.spot}`)).length >= MANY_DAMS,
+  bigPond: (w) => w.ponds.some((p) => p.area >= BIG_POND_M2 && mine(w, `dam:${p.spot}`)),
 };
+
+/** The ids of the play locations the beaver is at (within `VISIT_RADIUS`), added to those already visited. The same array when nothing is new. */
+export function visitPlaces(visited: string[], x: number, z: number, places: readonly { id: string; x: number; z: number }[]): string[] {
+  const here = places.filter((a) => !visited.includes(a.id) && Math.hypot(a.x - x, a.z - z) <= VISIT_RADIUS).map((a) => a.id);
+  return here.length ? [...visited, ...here] : visited;
+}
+
+const sumOf = (r: Record<string, number>): number => Object.values(r).reduce((a, b) => a + b, 0);
 
 /** The achievements the world has now won that it did not have yet, in the order to show them. */
 export function newlyWon(world: Facts): AchievementId[] {
@@ -123,7 +153,18 @@ export function padsBetween(before: Record<string, number>, after: Record<string
 
 /** The state with its counters and achievements brought up to date from what changed in a step. */
 export function tally(before: WorldState, after: WorldState): WorldState {
-  const counted = { ...after, padsPicked: before.padsPicked + padsBetween(before.picked, after.picked), mended: before.mended + mendsBetween(before, after) };
+  // Winter begins with the store at least half full: the step that crosses into winter looks (a sleep can cross it in one jump).
+  const intoWinter = dateAt(before.clock).season !== 'winter' && dateAt(after.clock).season === 'winter';
+  const counted: WorldState = {
+    ...after,
+    padsPicked: before.padsPicked + padsBetween(before.picked, after.picked),
+    mended: before.mended + mendsBetween(before, after),
+    slaps: before.slaps + (after.lastSlap && after.lastSlap !== before.lastSlap ? 1 : 0),
+    meals: before.meals + Math.max(0, after.eaten - before.eaten),
+    branchesStripped: before.branchesStripped + Math.max(0, sumOf(after.stripped) - sumOf(before.stripped)),
+    longDives: before.longDives + (before.beaver.mode === 'dive' && before.beaver.breath > 0 && after.beaver.breath <= 0 ? 1 : 0),
+    winterStocked: before.winterStocked || (intoWinter && lodgeComplete(after.lodge) && stockTotal(after.store) >= STORE_CAPACITY / 2 && mine(after, 'store')),
+  };
   const won = newlyWon({ ...counted, achievements: before.achievements });
   return { ...counted, achievements: won.length ? [...before.achievements, ...won] : before.achievements };
 }
@@ -149,6 +190,14 @@ export const ACHIEVEMENT_TEXT: Record<AchievementId, string> = {
   neighbour: `Good neighbour achievement: you talked to ${NEIGHBOUR_FAMILIES} families`,
   rescuer: `Rescuer achievement: ${RESCUER_DIGS} beavers dug out`,
   generations: 'Long line achievement: three kits down the family line',
+  diver: 'Diver achievement: a whole breath under water',
+  explorer: 'Explorer achievement: all six places of the valley',
+  tailSlap: `Tail slapper achievement: ${SLAP_COUNT} slaps`,
+  wellFed: `Well fed achievement: ${WELL_FED_MEALS} meals eaten`,
+  stripper: `Stripper achievement: ${STRIPPER_BRANCHES} branches stripped`,
+  winterStore: 'Winter store achievement: a store half full as winter begins',
+  manyDams: `Many dams achievement: ${MANY_DAMS} dams standing`,
+  bigPond: 'Big pond achievement: a pond as big as a meadow',
 };
 
 /** The names for the list in the test menu. */
@@ -172,6 +221,14 @@ export const ACHIEVEMENT_NAME: Record<AchievementId, string> = {
   neighbour: 'Good neighbour',
   rescuer: 'Rescuer',
   generations: 'Long line',
+  diver: 'Diver',
+  explorer: 'Explorer',
+  tailSlap: 'Tail slapper',
+  wellFed: 'Well fed',
+  stripper: 'Stripper',
+  winterStore: 'Winter store',
+  manyDams: 'Many dams',
+  bigPond: 'Big pond',
 };
 
 /** How to win each one, for the Things I did card (#557). Short sentences for kids from 8; a number is the constant the rule uses. */
@@ -195,16 +252,24 @@ export const ACHIEVEMENT_HINT: Record<AchievementId, string> = {
   neighbour: `Talk to beavers of ${NEIGHBOUR_FAMILIES} different families.`,
   rescuer: `Dig out ${RESCUER_DIGS} stuck beavers.`,
   generations: 'Play the kit of the kit of the kit of the first beaver.',
+  diver: 'Dive and stay under water until you have to come up for air.',
+  explorer: 'Visit all six places of the valley.',
+  tailSlap: `Slap your tail ${SLAP_COUNT} times.`,
+  wellFed: `Eat ${WELL_FED_MEALS} pieces of food.`,
+  stripper: `Strip ${STRIPPER_BRANCHES} branches off logs.`,
+  winterStore: 'Have your food store at least half full on the first day of winter.',
+  manyDams: `Have ${MANY_DAMS} whole dams standing at the same time.`,
+  bigPond: 'Make a big pond with one of your dams.',
 };
 
 /** The rows for the Things I did card: the line (as `achievementLines`) and the hint to show on a tap. */
-export function achievementRows(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey' | 'met' | 'rescued'>): { line: string; hint: string }[] {
+export function achievementRows(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey' | 'met' | 'rescued' | 'slaps' | 'meals' | 'branchesStripped' | 'visited'>): { line: string; hint: string }[] {
   const lines = achievementLines(world);
   return ACHIEVEMENT_IDS.map((id, i) => ({ line: lines[i] ?? '', hint: ACHIEVEMENT_HINT[id] }));
 }
 
 /** The list for the test menu: one line per achievement, with a mark for won and the count where there is one. */
-export function achievementLines(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey' | 'met' | 'rescued'>): string[] {
+export function achievementLines(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey' | 'met' | 'rescued' | 'slaps' | 'meals' | 'branchesStripped' | 'visited'>): string[] {
   const count = (id: AchievementId): string => {
     if (world.achievements.includes(id)) return '';
     if (id === 'wood') return ` ${treesThisLife(world)}/${WOOD_TREES}`;
@@ -212,6 +277,10 @@ export function achievementLines(world: Pick<WorldState, 'achievements' | 'felle
     if (id === 'hauler') return ` ${world.hauled}/${HAULER_LOADS}`;
     if (id === 'neighbour') return ` ${Math.min(familiesMet(world), NEIGHBOUR_FAMILIES)}/${NEIGHBOUR_FAMILIES}`;
     if (id === 'rescuer') return ` ${Math.min(rescuesThisLife(world), RESCUER_DIGS)}/${RESCUER_DIGS}`;
+    if (id === 'tailSlap') return ` ${Math.min(world.slaps, SLAP_COUNT)}/${SLAP_COUNT}`;
+    if (id === 'wellFed') return ` ${Math.min(world.meals, WELL_FED_MEALS)}/${WELL_FED_MEALS}`;
+    if (id === 'stripper') return ` ${Math.min(world.branchesStripped, STRIPPER_BRANCHES)}/${STRIPPER_BRANCHES}`;
+    if (id === 'explorer') return ` ${EXPLORER_PLACES.filter((p) => world.visited.includes(p)).length}/${EXPLORER_PLACES.length}`;
     return '';
   };
   return ACHIEVEMENT_IDS.map((id) => `${world.achievements.includes(id) ? '[x]' : '[ ]'} ${ACHIEVEMENT_NAME[id]}${count(id)}`);

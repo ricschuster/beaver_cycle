@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { noIntent, type Intent } from './buttons';
-import { ACHIEVEMENT_HINT, ACHIEVEMENT_IDS, ACHIEVEMENT_TEXT, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, rescuesThisLife, tally, visitedHome } from './achievements';
+import { ACHIEVEMENT_HINT, ACHIEVEMENT_IDS, ACHIEVEMENT_TEXT, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, rescuesThisLife, tally, visitPlaces, visitedHome } from './achievements';
 import { DAY_SECONDS, DAYS_PER_YEAR, START_CLOCK, dateAt, nextSpringStart } from './clock';
 import { LEVEL1_COST, LEVEL_COST } from './dam';
 import type { DamSpot } from './damSpots';
@@ -265,10 +265,77 @@ describe('in a step', () => {
   });
 });
 
+describe('the cheap counters (#570)', () => {
+  const winter = 30 * DAY_SECONDS;
+  const slap = { ...noIntent(), slap: true };
+  it('diver: the breath runs out under water, not a short dive', () => {
+    const diving = { ...base(), beaver: { ...base().beaver, mode: 'dive' as const, breath: 0.01 } };
+    expect(tally(diving, { ...diving, beaver: { ...diving.beaver, breath: 0 } }).achievements).toContain('diver');
+    expect(tally(diving, { ...diving, beaver: { ...diving.beaver, breath: 0.005 } }).achievements).not.toContain('diver');
+    const surface = { ...diving, beaver: { ...diving.beaver, mode: 'swim' as const, breath: 0 } };
+    expect(tally(surface, surface).longDives).toBe(0);
+  });
+  it('explorer: all six places, each within 200 m', () => {
+    const places = [{ id: 'core', x: 0, z: 0 }, { id: 'north', x: 0, z: 5000 }];
+    expect(visitPlaces([], 100, 100, places)).toEqual(['core']);
+    expect(visitPlaces([], 300, 0, places)).toEqual([]);
+    const v = ['core'];
+    expect(visitPlaces(v, 10, 10, places)).toBe(v);
+    const all = ['core', 'north', 'south', 'east-oedseen', 'vorderer-springbach', 'hinterer-springbach'];
+    expect(won({ ...base(), visited: all.slice(1) })).toEqual([]);
+    expect(won({ ...base(), visited: all })).toEqual(['explorer']);
+  });
+  it('tail slap: ten slaps, counted once each', () => {
+    let w = base();
+    for (let i = 0; i < 9; i++) w = step(w, slap, 1.1, dry);
+    expect(w.slaps).toBe(9);
+    expect(w.achievements).not.toContain('tailSlap');
+    w = step(w, slap, 1.1, dry);
+    expect(w.slaps).toBe(10);
+    expect(w.achievements).toContain('tailSlap');
+    expect(step(w, noIntent(), 0.1, dry).slaps).toBe(10);
+  });
+  it('well fed and stripper count the change in a step', () => {
+    const a = base();
+    expect(tally(a, { ...a, eaten: 25 }).achievements).toContain('wellFed');
+    expect(tally(a, { ...a, eaten: 24 }).achievements).not.toContain('wellFed');
+    expect(tally(a, { ...a, stripped: { l1: 30, l2: 20 } }).achievements).toContain('stripper');
+    expect(tally(a, { ...a, stripped: { l1: 30, l2: 19 } }).achievements).not.toContain('stripper');
+  });
+  it('winter store: half full on the step into winter, and only then', () => {
+    const lodge = { x: 0, z: 0, heading: 0, base: 0, wood: LODGE_WOOD } as unknown as WorldState['lodge'];
+    const half = Array.from({ length: STORE_CAPACITY }, (_, i) => (i < STORE_CAPACITY / 2 ? ('branch' as const) : null));
+    const before = { ...base(), lodge, storeWear: newWear(0), store: half, clock: winter - 1, journey: { ...base().journey, inherited: [] } };
+    expect(tally(before, { ...before, clock: winter }).winterStocked).toBe(true);
+    expect(tally(before, { ...before, clock: winter, store: half.map((p, i) => (i === 0 ? null : p)) }).winterStocked).toBe(false);
+    expect(tally({ ...before, clock: winter }, { ...before, clock: winter + 1 }).winterStocked).toBe(false);
+    expect(won({ ...before, winterStocked: true })).toContain('winterStore');
+  });
+  it('many dams: three whole ones of this life', () => {
+    const spots = [0, 1, 2].map((i) => ({ ...spot, id: `core:${i}` }));
+    const dams = spots.map((s) => ({ ...whole, spot: s.id }));
+    expect(won({ ...base(), spots, dams: dams.slice(0, 2) })).not.toContain('manyDams');
+    expect(won({ ...base(), spots, dams: [...dams.slice(0, 2), { spot: 'core:2', wood: 1, mud: 0, rock: 0 }] })).not.toContain('manyDams');
+    expect(won({ ...base(), spots, dams })).toContain('manyDams');
+    const w = { ...base(), spots, dams, journey: { ...base().journey, inherited: ['dam:core:0'] } };
+    expect(won(w)).not.toContain('manyDams');
+  });
+  it('big pond: 1500 m2 or more behind a dam of this life', () => {
+    const pond = (area: number) => ({ spot: spot.id, area }) as unknown as WorldState['ponds'][number];
+    expect(won({ ...base(), dams: [whole], ponds: [pond(1499)] })).not.toContain('bigPond');
+    expect(won({ ...base(), dams: [whole], ponds: [pond(1500)] })).toContain('bigPond');
+    expect(won({ ...base(), dams: [whole], ponds: [pond(1500)], journey: { ...base().journey, inherited: [`dam:${spot.id}`] } })).not.toContain('bigPond');
+  });
+  it('a new life starts the counters again', () => {
+    const w = newLife({ ...base(), slaps: 9, meals: 9, branchesStripped: 9, longDives: 1, visited: ['core'], winterStocked: true });
+    expect([w.slaps, w.meals, w.branchesStripped, w.longDives, w.visited, w.winterStocked]).toEqual([0, 0, 0, 0, [], false]);
+  });
+});
+
 describe('the list', () => {
   it('marks what is won and counts what is counted', async () => {
     const { achievementLines } = await import('./achievements');
-    const lines = achievementLines({ achievements: ['home'], felled: ids(12), padsPicked: 3, hauled: 0, journey: base().journey, met: {}, rescued: [] });
+    const lines = achievementLines({ achievements: ['home'], felled: ids(12), padsPicked: 3, hauled: 0, journey: base().journey, met: {}, rescued: [], slaps: 0, meals: 0, branchesStripped: 0, visited: [] });
     expect(lines[0]).toBe('[ ] Wood 12/30');
     expect(lines[1]).toBe('[x] Home');
     expect(lines).toContain('[ ] Water gardener 3/20');
@@ -281,7 +348,9 @@ describe('the list', () => {
     expect(lines).toContain('[ ] Good neighbour 0/3');
     expect(lines).toContain('[ ] Rescuer 0/5');
     expect(lines).toContain('[ ] Long line');
-    expect(lines).toHaveLength(19);
+    expect(lines).toContain('[ ] Tail slapper 0/10');
+    expect(lines).toContain('[ ] Explorer 0/6');
+    expect(lines).toHaveLength(27);
   });
 });
 

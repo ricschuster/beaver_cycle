@@ -172,10 +172,10 @@ Guides, partners and the parents of a former home are not neighbours: only beave
 starts again with each life, so each life meets its neighbours afresh. Long line is won on the first step of the life at that
 generation, so each later life wins it too. Generation 5 and 10 wait for tiers (#569).
 
-Not built, since the game cannot see them: **Raised a kit** (a kit of this life becoming a teenager while this life still
+Dropped by the author, since the game cannot see them: **Raised a kit** (a kit of this life becoming a teenager while this life still
 lives in the lodge) and **Big family** (two kits in a litter, or kits in two springs). The player becomes the kit the moment
 it is born (note 23), so a life never has a kit that is growing up, and a life has one kit. Growing up already is the kit's side.
-They would need the parent to stay in play, or a litter, which is a design change for the author to decide.
+They would need the parent to stay in play, or a litter, so they are dropped.
 
 ## Next batch (#220, ideas agreed)
 

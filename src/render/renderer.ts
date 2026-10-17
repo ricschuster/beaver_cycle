@@ -649,7 +649,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       storeView.update(inside || bare ? null : world.lodge, world.store, (x, z) => (source ? source.store.heightAt(x, z) : 0), storeCondition(world.storeWear, world.clock));
       if (!bare) animalView.update(animals, now);
       if (source && !bare) lilyView.update(source.store, b.x, b.z, world.clock, world.picked);
-      if (source && !bare) rockView.update(source.store, b.x, b.z, world.rocksTaken, world.scents.length ? [...world.dropped, ...world.scents.map((m) => ({ id: m.id, kind: 'mud' as const, at: m.madeAt, x: m.x, z: m.z }))] : world.dropped);
+      if (source && !bare) rockView.update(source.store, b.x, b.z, world.rocksTaken, world.dropped, world.scents, world.clock);
       csm?.update();
       gl.render(drawn, camera);
     },

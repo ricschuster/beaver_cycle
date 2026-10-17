@@ -15,7 +15,7 @@ import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
 import { growNeighbours, neighboursAt } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
-import { visitorsAt } from './sim/scent';
+import { WALK_IN, departsAt, settleFamily, settledId, visitorsAt } from './sim/scent';
 import { DIG_REACH, DIG_TIME, HEAR_RANGE, escortBeaver, nearestStuck, rescue, startEscort, stepEscort, stuckBeaver, stuckNow, whereTo, digging } from './sim/escort';
 import { answerNews, type Surroundings } from './sim/news';
 import { CALL_SLOT, deedsFor, giftThanks, greetingFor, overheard, partnerRemark } from './sim/chatter';
@@ -563,6 +563,7 @@ async function start(): Promise<void> {
   // Other families are found as the player comes near their ponds (note 24); cells already looked at are kept here.
   let familiesAt = 0;
   const familiesTried = new Set<string>();
+  const settleTried = new Set<string>();
   const animalField = new AnimalField();
   let readBolt = false;
   const sniffed = new Set<string>();
@@ -817,6 +818,13 @@ async function start(): Promise<void> {
       familiesAt = now;
       const grown = growNeighbours(world.neighbours, terrain, world.beaver, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver, familiesTried);
       if (grown !== world.neighbours) world = { ...world, neighbours: [...grown] };
+      // A welcomed visitor that has walked off founds a family on a pond nearby, once (note 35). With no pond, it just leaves.
+      const leftBy = world.scents.filter((m) => world.welcomed.includes(m.id) && world.clock > departsAt(m) + WALK_IN && !settleTried.has(m.id));
+      for (const m of leftBy) {
+        settleTried.add(m.id);
+        const family = settleFamily(m, terrain, world.lodge ?? world.beaver, world.neighbours);
+        world = { ...world, neighbours: family && !world.neighbours.some((n) => n.id === settledId(m)) ? [...world.neighbours, family] : world.neighbours, scents: world.scents.filter((o) => o.id !== m.id) };
+      }
     }
     world = trackPonds(world);
     const visited = visitPlaces(world.visited, world.beaver.x, world.beaver.z, anchors.filter((a) => a.kind === 'location'));
@@ -860,7 +868,8 @@ async function start(): Promise<void> {
     const parents = [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, ponded, world.parentCoats, homeDam(world.lodge, world.spots, world.dams)), ...formerParentsAt(world.formerHomes, world.clock, ponded)];
     // A baby cannot work, but it talks to its own people from day 1 (Mama and Papa; siblings are not in the game yet).
     const grown = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works;
-    const near = !world.stashOpen ? nearestSpeaker(speakersOf(grown ? familyBeavers : [], parents, grown ? world.partners : [], nameOf, placeOf), world.beaver) : null;
+    const visitors = visitorsAt(world.scents, world.welcomed, world.clock, ponded);
+    const near = !world.stashOpen ? nearestSpeaker(speakersOf(grown ? [...familyBeavers, ...visitors] : [], parents, grown ? world.partners : [], nameOf, placeOf), world.beaver) : null;
     if (talkingTo && Math.hypot(talkingTo.x - world.beaver.x, talkingTo.z - world.beaver.z) > TALK_END) {
       talkBubble.hush();
       talkingTo = null;
@@ -944,7 +953,7 @@ async function start(): Promise<void> {
     const engaged = new Set(world.predators.map((p) => p.id));
     if (world.leader) engaged.add(world.leader.id);
     const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded), ...(world.leader ? [leaderAnimal(world.leader, ponded, world)] : [])];
-    const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : []), ...visitorsAt(world.scents, world.welcomed, world.clock, ponded)];
+    const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : []), ...visitors];
     // The sparkles toward a lone beaver, until time is up or the player is close.
     const wayTo = pointerTarget(wayPointer, world);
     if (!wayTo) wayPointer = null;

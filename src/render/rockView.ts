@@ -2,14 +2,16 @@
 // ground. Which rocks lie there is worked out by `rocksNear`, so the view only places what the sim would let the beaver
 // pick up. Reads state only.
 import * as THREE from 'three';
+import { DAY_SECONDS } from '../sim/clock';
 import { ROCK_RADIUS, rocksNear, type Dropped } from '../sim/haul';
+import { MOUND_DAYS, type ScentMound } from '../sim/scent';
 import type { Terrain } from '../sim/terrain';
 import { grainMaterial } from './grain';
-import { BARK, lilyPad, lump, mergeParts, paintLump, seeded, stick, stickBetween } from './propShapes';
+import { BARK, lilyPad, lump, mergeParts, paintFaces, paintLump, place, seeded, stick, stickBetween, vary } from './propShapes';
 
 export interface RockView {
   /** Draw the rocks round a point, not those in `taken`. Rebuilds when the beaver has moved on or a rock was taken. */
-  update(terrain: Terrain, x: number, z: number, taken: readonly string[], dropped?: readonly Dropped[]): void;
+  update(terrain: Terrain, x: number, z: number, taken: readonly string[], dropped?: readonly Dropped[], scents?: readonly ScentMound[], clock?: number): void;
 }
 
 /** Rocks are drawn this far round the beaver, in metres, and rebuilt after it moves an eighth of that. */
@@ -38,6 +40,31 @@ function branchGeometry(): THREE.BufferGeometry {
   ]);
 }
 
+const SCENT_CLAY = new THREE.Color(0x6b4a2e);
+const SCENT_TOP = new THREE.Color(0x8a6a44);
+const GRASS = new THREE.Color(0x7f9a45);
+const DRIED = new THREE.Color(1.5, 1.35, 1.1);
+
+/** A scent mound: a steep cone of patted mud, a few sticks stuck in it, and a tuft of grass on top. 0.9 m tall. */
+function scentGeometry(): THREE.BufferGeometry {
+  const random = seeded(53);
+  const cone = new THREE.CylinderGeometry(0.12, 0.6, 0.8, 7, 2).translate(0, 0.4, 0).toNonIndexed();
+  paintFaces(cone, (_c, n) => vary(n.y > 0.5 ? SCENT_TOP : SCENT_CLAY, random, 0.08).multiplyScalar(0.85 + 0.25 * Math.max(0, n.y)));
+  const parts: THREE.BufferGeometry[] = [cone];
+  const bark = BARK[2]!;
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2 + 0.4;
+    parts.push(stickBetween(new THREE.Vector3(Math.sin(a) * 0.3, 0.3, Math.cos(a) * 0.3), new THREE.Vector3(Math.sin(a) * 0.62, 0.78 + 0.1 * k, Math.cos(a) * 0.62), 0.03, 4, bark, random));
+  }
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    const blade = new THREE.ConeGeometry(0.025, 0.3, 3).translate(0, 0.15, 0).rotateZ(0.35).rotateY(a).toNonIndexed();
+    paintFaces(blade, () => vary(GRASS, random, 0.1));
+    parts.push(place(blade, { x: 0, y: 0.78, z: 0 }, new THREE.Euler(0, 0, 0)));
+  }
+  return mergeParts(parts);
+}
+
 export function createRockView(scene: THREE.Scene, prepare: (m: THREE.Material) => void): RockView {
   const material = grainMaterial();
   prepare(material);
@@ -60,6 +87,7 @@ export function createRockView(scene: THREE.Scene, prepare: (m: THREE.Material) 
   // Food put down lies as a small branch or a notched green pad.
   const sticks = instanced(branchGeometry(), MAX_FOOD);
   const pads = instanced(lilyPad(0.35, 0.04, 10), MAX_FOOD);
+  const marks = instanced(scentGeometry(), 3 * 8);
   const matrix = new THREE.Matrix4();
   const rotation = new THREE.Quaternion();
   const euler = new THREE.Euler();
@@ -68,8 +96,8 @@ export function createRockView(scene: THREE.Scene, prepare: (m: THREE.Material) 
   let lastX = Infinity;
   let lastZ = Infinity;
   return {
-    update(terrain, x, z, taken, dropped = []) {
-      const key = `${taken.length}:${dropped.map((d) => d.id).join(',')}`;
+    update(terrain, x, z, taken, dropped = [], scents = [], clock = 0) {
+      const key = `${taken.length}:${dropped.map((d) => d.id).join(',')}:${scents.map((m) => `${m.id}@${Math.floor((clock - m.madeAt) / (DAY_SECONDS / 4))}`).join(',')}`;
       if (key === lastKey && Math.hypot(x - lastX, z - lastZ) < REBUILD_DISTANCE) return;
       lastKey = key;
       lastX = x;
@@ -85,6 +113,18 @@ export function createRockView(scene: THREE.Scene, prepare: (m: THREE.Material) 
         matrix.compose(new THREE.Vector3(m.x, terrain.heightAt(m.x, m.z) + 0.02, m.z), rotation, new THREE.Vector3(0.8, 0.28, 0.8));
         mounds.setMatrixAt(i, matrix);
       });
+      // A scent mound dries over its days: it goes paler and sinks a little.
+      const shown = scents.slice(0, 3 * 8);
+      shown.forEach((m, i) => {
+        const dry = Math.min(1, Math.max(0, (clock - m.madeAt) / (MOUND_DAYS * DAY_SECONDS)));
+        rotation.setFromEuler(euler.set(0, Math.abs(m.x * 5 + m.z * 3) % (Math.PI * 2), 0));
+        matrix.compose(new THREE.Vector3(m.x, terrain.heightAt(m.x, m.z) - 0.02, m.z), rotation, new THREE.Vector3(1, 1 - 0.3 * dry, 1));
+        marks.setMatrixAt(i, matrix);
+        marks.setColorAt(i, tint.setRGB(1, 1, 1).lerp(DRIED, dry));
+      });
+      marks.count = shown.length;
+      marks.instanceMatrix.needsUpdate = true;
+      if (marks.instanceColor) marks.instanceColor.needsUpdate = true;
       const food = (kind: string, mesh: THREE.InstancedMesh): void => {
         const these = dropped.filter((d) => d.kind === kind).slice(0, MAX_FOOD);
         these.forEach((d, i) => {

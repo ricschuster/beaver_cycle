@@ -35,8 +35,24 @@ The author played it in the dev server: the visitor walks in, the Welcome toast 
 more distinctive. To try it with the test menu: make a mound, press Night, go into the lodge and sleep (the Time of day buttons
 stay in the same day, so they cannot bring the next morning), then press Morning.
 
+## Session 139: a look, talk, settling, and days
+
+The author asked for these after playing it.
+
+- **Look.** A scent mound is a steep cone of patted mud with four sticks stuck in it and a tuft of grass on top (`scentGeometry`
+  in `src/render/rockView.ts`), no longer the mud pile. It goes paler and sinks a little as it dries.
+- **Days.** The visitor stays `VISIT_DAYS` (3) after it came and then walks off over 12 s, the way it came. A mound dries and is
+  gone `MOUND_DAYS` (4) after it was made, which frees its place (`keepMounds`). A welcomed visitor's mound is kept until its
+  family has settled, or until it is known that none can.
+- **Talk.** Welcoming a visitor sets its trust, and that of the family it founds, to `WELCOME_TRUST` (0.7, curious). The visitor
+  is a speaker like a neighbour, so Talk, its greeting and its replies work (note 27). It has no pond name.
+- **Settling.** When a welcomed visitor has walked off, `settleFamily` looks for a whole lodge on a pond with at least 4 parts within
+  80 m of the mound, 50 m from the beaver's lodge and 100 m from other families (`settled:<mound id>`, with the visitor as mama or
+  papa and a mate of another coat). It joins `world.neighbours`, so it is saved and then lives as any other family. With no
+  such pond the visitor only leaves. A visitor nobody welcomed leaves and founds nothing.
+- Dropped for good: mounds keeping other families away (Q30).
+
 ## Left open
 
-- A mound of its own look, not a mud pile (the author wants it more distinctive).
-- Talking to the visitor, and a new family that settles for good.
-- Mounds that keep other families away (Q30).
+- Settling is untested on the real valley; the 80 m radius and the distances are first guesses.
+- A pond name for the settled family comes from `pondName` as for others; the visitor before it has none.

@@ -273,7 +273,9 @@ export function createAchievementsPanel(parent: HTMLElement, rows: () => Achieve
       timer = window.setInterval(refresh, 500);
     }
   });
-  ui.card.style.maxWidth = 'min(44rem, 94vw)';
+  // A fixed width, so a long hint in the strip does not stretch the card.
+  ui.card.style.width = 'min(44rem, 94vw)';
+  ui.card.style.maxWidth = 'none';
   ui.body.append(summary, tabs, strip, grid);
   return { open: () => ui.toggle(true), close: () => ui.toggle(false) };
 }

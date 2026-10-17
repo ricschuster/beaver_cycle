@@ -13,7 +13,7 @@ import { DAY_SECONDS, DAYS_PER_YEAR, dateAt } from './clock';
 import { mateOf } from './partners';
 import { kitDue, type WorldState } from './state';
 
-type BaseId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide' | 'grownUp' | 'visitHome' | 'handDown' | 'neighbour' | 'rescuer' | 'generations' | 'diver' | 'explorer' | 'tailSlap' | 'wellFed' | 'stripper' | 'winterStore' | 'manyDams' | 'bigPond' | 'fixerUpper' | 'animalFriend' | 'pondLife' | 'homesFar' | 'sweetDreams' | 'longWinter';
+type BaseId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide' | 'grownUp' | 'visitHome' | 'handDown' | 'neighbour' | 'rescuer' | 'generations' | 'diver' | 'explorer' | 'tailSlap' | 'wellFed' | 'stripper' | 'winterStore' | 'manyDams' | 'bigPond' | 'fixerUpper' | 'animalFriend' | 'pondLife' | 'homesFar' | 'sweetDreams' | 'longWinter' | 'welcome';
 
 /** The second and third tiers of the counting ones (#569). The first tier of each is the id it always had, so a save needs no change. */
 type TierId = 'wood2' | 'wood3' | 'gardener2' | 'gardener3' | 'hauler2' | 'hauler3' | 'tailSlap2' | 'tailSlap3' | 'wellFed2' | 'wellFed3' | 'stripper2' | 'stripper3' | 'mends3' | 'rescuer3' | 'neighbour2' | 'neighbour3' | 'generations2' | 'generations3' | 'manyDams2' | 'manyDams3';
@@ -21,7 +21,7 @@ type TierId = 'wood2' | 'wood3' | 'gardener2' | 'gardener3' | 'hauler2' | 'haule
 export type AchievementId = BaseId | TierId;
 
 /** The order they are won in and toasted: the first tiers in the order they always had, then the higher tiers. */
-export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide', 'grownUp', 'visitHome', 'handDown', 'neighbour', 'rescuer', 'generations', 'diver', 'explorer', 'tailSlap', 'wellFed', 'stripper', 'winterStore', 'manyDams', 'bigPond', 'fixerUpper', 'animalFriend', 'pondLife', 'homesFar', 'sweetDreams', 'longWinter', 'wood2', 'wood3', 'gardener2', 'gardener3', 'hauler2', 'hauler3', 'tailSlap2', 'tailSlap3', 'wellFed2', 'wellFed3', 'stripper2', 'stripper3', 'mends3', 'rescuer3', 'neighbour2', 'neighbour3', 'generations2', 'generations3', 'manyDams2', 'manyDams3'];
+export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide', 'grownUp', 'visitHome', 'handDown', 'neighbour', 'rescuer', 'generations', 'diver', 'explorer', 'tailSlap', 'wellFed', 'stripper', 'winterStore', 'manyDams', 'bigPond', 'fixerUpper', 'animalFriend', 'pondLife', 'homesFar', 'sweetDreams', 'longWinter', 'welcome', 'wood2', 'wood3', 'gardener2', 'gardener3', 'hauler2', 'hauler3', 'tailSlap2', 'tailSlap3', 'wellFed2', 'wellFed3', 'stripper2', 'stripper3', 'mends3', 'rescuer3', 'neighbour2', 'neighbour3', 'generations2', 'generations3', 'manyDams2', 'manyDams3'];
 
 /** Trees to fell for the wood achievement (Q39). */
 export const WOOD_TREES = 30;
@@ -58,7 +58,7 @@ export const FRIEND_KINDS: readonly string[] = ['deer', 'duck'];
 export const POND_KINDS: readonly string[] = ['duck', 'frog'];
 export const GUEST_RADIUS = 40;
 
-type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey' | 'partners' | 'bornAt' | 'rescued' | 'generation' | 'formerHomes' | 'parentCoats' | 'met' | 'ponds' | 'slaps' | 'meals' | 'branchesStripped' | 'longDives' | 'visited' | 'winterStocked' | 'fedKinds' | 'guestKinds' | 'homesIn' | 'dreamed' | 'longWinter'>;
+type Facts = Pick<WorldState, 'felled' | 'achievements' | 'lodge' | 'dams' | 'spots' | 'store' | 'padsPicked' | 'mended' | 'hauled' | 'clock' | 'journey' | 'partners' | 'bornAt' | 'rescued' | 'generation' | 'formerHomes' | 'parentCoats' | 'met' | 'ponds' | 'slaps' | 'meals' | 'branchesStripped' | 'longDives' | 'visited' | 'winterStocked' | 'fedKinds' | 'guestKinds' | 'homesIn' | 'dreamed' | 'longWinter' | 'welcomed'>;
 
 /** Trees felled in this life. */
 export const treesThisLife = (w: Pick<WorldState, 'felled' | 'journey'>): number => w.felled.length - w.journey.felled;
@@ -133,6 +133,8 @@ const BASE_RULES: Record<BaseId, (w: Facts) => boolean> = {
   homesFar: (w) => EXPLORER_PLACES.every((id) => w.homesIn.includes(id)),
   sweetDreams: (w) => w.dreamed,
   longWinter: (w) => w.longWinter,
+  // The visitor of a scent mound of this life has been welcomed (`scent.ts`).
+  welcome: (w) => w.welcomed.length >= 1,
 };
 
 /** The four tabs of the Things I did screen. */
@@ -190,6 +192,7 @@ const ROWS: readonly Row[] = [
   { key: 'homesFar', name: 'Homes far and wide', group: 'building', ids: ['homesFar'], need: [EXPLORER_PLACES.length], have: (w) => EXPLORER_PLACES.filter((p) => w.homesIn.includes(p)).length },
   { key: 'sweetDreams', name: 'Sweet dreams', group: 'valley', ids: ['sweetDreams'] },
   { key: 'longWinter', name: 'Long winter', group: 'gathering', ids: ['longWinter'] },
+  { key: 'welcome', name: 'Welcome', group: 'family', ids: ['welcome'] },
 ];
 
 const ROMAN = ['', ' II', ' III'];
@@ -333,6 +336,7 @@ const BASE_TEXT: Record<BaseId, string> = {
   homesFar: 'Homes far and wide achievement: a home in all six places',
   sweetDreams: 'Sweet dreams achievement: your first dream',
   longWinter: 'Long winter achievement: a winter with food to the end',
+  welcome: 'Welcome achievement: a visitor came to your scent mound',
 };
 
 const BASE_NAME: Record<BaseId, string> = {
@@ -369,6 +373,7 @@ const BASE_NAME: Record<BaseId, string> = {
   homesFar: 'Homes far and wide',
   sweetDreams: 'Sweet dreams',
   longWinter: 'Long winter',
+  welcome: 'Welcome',
 };
 
 const BASE_HINT: Record<BaseId, string> = {
@@ -405,6 +410,7 @@ const BASE_HINT: Record<BaseId, string> = {
   homesFar: 'Have a lodge or a whole dam of yours in each of the six places of the valley.',
   sweetDreams: 'Sleep at night and have a dream.',
   longWinter: 'Live through a whole winter in your lodge and never let your food store run empty.',
+  welcome: 'Pat mud into a scent mound by your lodge, with Mark. Next morning a beaver comes to sniff it. Go and say hello.',
 };
 
 /** The words shown when an achievement is won. */

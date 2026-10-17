@@ -406,7 +406,7 @@ describe('the list', () => {
     expect(lines).toContain('[ ] Long line \u25CB\u25CB\u25CB 0/3');
     expect(lines).toContain('[ ] Tail slapper \u25CB\u25CB\u25CB 0/10');
     expect(lines).toContain('[ ] Explorer 0/6');
-    expect(lines).toHaveLength(31);
+    expect(lines).toHaveLength(32);
   });
 });
 

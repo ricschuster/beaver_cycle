@@ -8,19 +8,20 @@ import { checkSite, lodgeComplete, lodgeCondition, logWood, nearLodge, type Lodg
 import { damAt, damMendUnits, placed, raised, settled, spotAt } from './dam';
 import { lodgeGround, pondAt, type Pond } from './pond';
 import { STAGE_RULES, stageAt } from './life';
+import { canMark } from './scent';
 import { canScoopMud, reachableDropped, reachableRock } from './haul';
 import { GRAB_REACH, nearestLog, type Log } from './logs';
 import { CHOP_REACH, type TreeSource } from './trees';
 import type { Terrain } from './terrain';
 import type { WorldState } from './state';
 
-/** What Do does: eat, build or mend with what is carried, open the store, dig out a stuck beaver, talk, fell a tree, or strip a branch off a log. */
-export type DoKind = 'eat' | 'build' | 'mend' | 'store' | 'dig' | 'talk' | 'gnaw' | 'strip';
+/** What Do does: eat, build or mend with what is carried, pat a scent mound with mud by the lodge, open the store, dig out a stuck beaver, talk, fell a tree, or strip a branch off a log. */
+export type DoKind = 'eat' | 'build' | 'mend' | 'store' | 'dig' | 'talk' | 'gnaw' | 'strip' | 'mark';
 /** What Take does: let go of the log, put down what is in the mouth, or pick up something put down, a log, a lily pad, a rock, or mud. */
 export type TakeKind = 'let-go' | 'drop' | 'item' | 'log' | 'pad' | 'rock' | 'mud';
 
 /** The word on each button. A greyed out Do reads "Do". */
-export const DO_LABEL: Record<DoKind, string> = { eat: 'Eat', build: 'Build', mend: 'Mend', store: 'Store', dig: 'Dig', talk: 'Talk', gnaw: 'Gnaw', strip: 'Gnaw' };
+export const DO_LABEL: Record<DoKind, string> = { eat: 'Eat', build: 'Build', mend: 'Mend', store: 'Store', dig: 'Dig', talk: 'Talk', gnaw: 'Gnaw', strip: 'Gnaw', mark: 'Mark' };
 export const takeLabel = (t: TakeKind | null): string => (t === 'let-go' || t === 'drop' ? 'Drop' : 'Take');
 
 /** What the player does this frame, for `step`: the move, the held dive, and the word each pressed button stands for. */
@@ -119,7 +120,7 @@ function felledAsSet(felled: readonly string[]): ReadonlySet<string> {
 
 /**
  * What a press of Do does here, the first that fits (design note 30): in the lodge eat, else talk; with a log, mud, or a
- * rock, build or mend; at the store, open it; by a drift, dig; by a beaver, talk; on land by a tree, gnaw; by a log, strip
+ * rock, build or mend, or with mud on the bank by the lodge, mark a scent mound; at the store, open it; by a drift, dig; by a beaver, talk; on land by a tree, gnaw; by a log, strip
  * a branch. A baby only eats and talks.
  */
 export function doHere(world: WorldState, ground: Terrain, trees: TreeSource, around: Around): DoKind | null {
@@ -128,7 +129,7 @@ export function doHere(world: WorldState, ground: Terrain, trees: TreeSource, ar
   if (world.stashOpen) return null;
   if (world.inLodge) return world.carry ? 'eat' : around.speaker ? 'talk' : null;
   const log = world.drag ? world.logs.find((l) => l.id === world.drag) : undefined;
-  if (log || world.haul) return grown && b.mode !== 'dive' ? placeHere(world, ground, log) : null;
+  if (log || world.haul) return grown && b.mode !== 'dive' ? placeHere(world, ground, log) ?? (canMark(world) ? 'mark' : null) : null;
   if (grown && b.mode !== 'dive' && lodgeComplete(world.lodge) && atStore(world.lodge, b.x, b.z)) return 'store';
   if (grown && around.drift && b.mode === 'walk') return 'dig';
   if (around.speaker && !around.following) return 'talk';

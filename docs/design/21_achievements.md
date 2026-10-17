@@ -87,12 +87,9 @@ saved state, so old saves need no change (`met`, `formerHomes`, `parentCoats`, `
   inherited. Like Kits, the birth waits one step when anything was won in that step (`step.ts`), so its toast shows. It
   is a moment, not a count: a life whose kit comes while it has no whole dam of its own does not win it, and its kit can.
 
-Not built, since the game has nothing to see it by:
-
-- **Welcome a visitor who noticed a scent mound.** There are no scent mounds and no visitors. The author's answer (Q30, Q62)
-  is that a visitor notices the scent mounds and then a new beaver lives nearby, but the beaver cannot make a scent mound,
-  no beaver ever comes to the player's pond (note 28 leaves "should neighbours ever visit" open for the author), and no new
-  family ever moves in. It waits for scent mounds and visitors to be designed and built.
+Built later (#583, note 35): **Welcome**, the visitor who noticed a scent mound. The beaver pats a scent mound with Mark and the
+next morning a beaver comes to it; standing near that visitor wins it. It is won once per life, and `scents` and `welcomed`
+start again with each life.
 
 ## Notes on each
 
@@ -151,7 +148,7 @@ The author agreed on the list, and on these three points:
 - **The family and guide achievements** (Q38) are built: Mate, Kits, and Guide, above. Which moment each one is won at
   (a partner moved in, the kit due, a rescue) is a first reading for the author to keep or change.
 - **Three more of the family** (#220) are built: Growing up, Visit home, and Hand down, above, as first readings too. The
-  visitor and the scent mound is not built.
+  visitor and the scent mound is built later as Welcome (note 35).
 
 Built in `src/sim/achievements.ts`: one rule per achievement, checked each step by `tally`. Counters in `WorldState`:
 `padsPicked`, `mended`, `hauled`. `DamSpot.found` marks a spot a pond found. A piece counts as mended when it was worn
@@ -268,7 +265,7 @@ with the store never empty).
 Dropped by the author: a **close call** achievement (escaping a predator, which needs a new event) and a **never idle**
 streak (it adds pressure to a calm game).
 
-Not buildable yet: **welcome a visitor who noticed a scent mound** (see above, there are no scent mounds or visitors).
+The scent mound visitor, once left over from #220, is built as **Welcome** (#583, note 35).
 
 ## Not decided
 

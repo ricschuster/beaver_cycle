@@ -13,10 +13,15 @@ import { DAY_SECONDS, DAYS_PER_YEAR, dateAt } from './clock';
 import { mateOf } from './partners';
 import { kitDue, type WorldState } from './state';
 
-export type AchievementId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide' | 'grownUp' | 'visitHome' | 'handDown' | 'neighbour' | 'rescuer' | 'generations' | 'diver' | 'explorer' | 'tailSlap' | 'wellFed' | 'stripper' | 'winterStore' | 'manyDams' | 'bigPond' | 'fixerUpper' | 'animalFriend' | 'pondLife' | 'homesFar' | 'sweetDreams' | 'longWinter';
+type BaseId = 'wood' | 'home' | 'firstDam' | 'highDam' | 'pioneer' | 'pantry' | 'gardener' | 'handy' | 'hauler' | 'year' | 'mate' | 'kits' | 'guide' | 'grownUp' | 'visitHome' | 'handDown' | 'neighbour' | 'rescuer' | 'generations' | 'diver' | 'explorer' | 'tailSlap' | 'wellFed' | 'stripper' | 'winterStore' | 'manyDams' | 'bigPond' | 'fixerUpper' | 'animalFriend' | 'pondLife' | 'homesFar' | 'sweetDreams' | 'longWinter';
 
-/** The order they are listed and shown in. */
-export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide', 'grownUp', 'visitHome', 'handDown', 'neighbour', 'rescuer', 'generations', 'diver', 'explorer', 'tailSlap', 'wellFed', 'stripper', 'winterStore', 'manyDams', 'bigPond', 'fixerUpper', 'animalFriend', 'pondLife', 'homesFar', 'sweetDreams', 'longWinter'];
+/** The second and third tiers of the counting ones (#569). The first tier of each is the id it always had, so a save needs no change. */
+type TierId = 'wood2' | 'wood3' | 'gardener2' | 'gardener3' | 'hauler2' | 'hauler3' | 'tailSlap2' | 'tailSlap3' | 'wellFed2' | 'wellFed3' | 'stripper2' | 'stripper3' | 'mends3' | 'rescuer3' | 'neighbour2' | 'neighbour3' | 'generations2' | 'generations3' | 'manyDams2' | 'manyDams3';
+
+export type AchievementId = BaseId | TierId;
+
+/** The order they are won in and toasted: the first tiers in the order they always had, then the higher tiers. */
+export const ACHIEVEMENT_IDS: readonly AchievementId[] = ['wood', 'home', 'firstDam', 'highDam', 'pioneer', 'pantry', 'gardener', 'handy', 'hauler', 'year', 'mate', 'kits', 'guide', 'grownUp', 'visitHome', 'handDown', 'neighbour', 'rescuer', 'generations', 'diver', 'explorer', 'tailSlap', 'wellFed', 'stripper', 'winterStore', 'manyDams', 'bigPond', 'fixerUpper', 'animalFriend', 'pondLife', 'homesFar', 'sweetDreams', 'longWinter', 'wood2', 'wood3', 'gardener2', 'gardener3', 'hauler2', 'hauler3', 'tailSlap2', 'tailSlap3', 'wellFed2', 'wellFed3', 'stripper2', 'stripper3', 'mends3', 'rescuer3', 'neighbour2', 'neighbour3', 'generations2', 'generations3', 'manyDams2', 'manyDams3'];
 
 /** Trees to fell for the wood achievement (Q39). */
 export const WOOD_TREES = 30;
@@ -30,7 +35,7 @@ export const HANDY_MENDS = 1;
 export const NEIGHBOUR_FAMILIES = 3;
 /** Stuck beavers to dig out for the rescuer. */
 export const RESCUER_DIGS = 5;
-/** The generation (lives begun after the first) that wins the long line. 5 and 10 wait for tiers (#569). */
+/** The generation (lives begun after the first) that wins the long line; 5 and 10 are its higher tiers. */
 export const LINE_GENERATION = 3;
 /** Tail slaps for the tail slapper. */
 export const SLAP_COUNT = 10;
@@ -84,7 +89,7 @@ const sameCoat = (a: Coat, b: Coat): boolean => a.coat === b.coat && a.shade ===
 export const visitedHome = (w: Pick<WorldState, 'formerHomes' | 'parentCoats' | 'met'>): boolean =>
   w.formerHomes.some((h) => sameCoat(h.parents[0], w.parentCoats[0]) && sameCoat(h.parents[1], w.parentCoats[1]) && formerParentIds(h).some((id) => w.met[id] !== undefined));
 
-const RULES: Record<AchievementId, (w: Facts) => boolean> = {
+const BASE_RULES: Record<BaseId, (w: Facts) => boolean> = {
   wood: (w) => treesThisLife(w) >= WOOD_TREES,
   home: (w) => lodgeComplete(w.lodge) && mine(w, 'lodge'),
   firstDam: (w) => w.dams.some((d) => damWhole(d) && mine(w, `dam:${d.spot}`)),
@@ -128,6 +133,74 @@ const RULES: Record<AchievementId, (w: Facts) => boolean> = {
   homesFar: (w) => EXPLORER_PLACES.every((id) => w.homesIn.includes(id)),
   sweetDreams: (w) => w.dreamed,
   longWinter: (w) => w.longWinter,
+};
+
+/** The four tabs of the Things I did screen. */
+export type AchievementGroup = 'building' | 'gathering' | 'family' | 'valley';
+export const GROUP_NAME: Record<AchievementGroup, string> = { building: 'Building', gathering: 'Wood and food', family: 'Family', valley: 'Valley and animals' };
+
+/**
+ * One row of the Things I did screen (#569): one achievement, or the tiers of one counted thing (bronze, silver, gold). `ids` run from
+ * the first tier up and `need` is the count each asks for. The first tiers keep the ids they had, so a save needs no change; the
+ * higher tiers are ids of their own, won and kept like any other.
+ */
+interface Row {
+  key: string;
+  name: string;
+  group: AchievementGroup;
+  ids: readonly AchievementId[];
+  /** What the row counts, for the bar and the next tier: the number each tier asks for, and how much there is now. */
+  need?: readonly number[];
+  have?: (w: Facts) => number;
+  /** For the higher tiers: what is counted in the toast ("100 trees felled"), the hint for a number, and names where "<name> II" does not suit. */
+  noun?: string;
+  hint?: (n: number) => string;
+  tierNames?: readonly string[];
+}
+
+const ROWS: readonly Row[] = [
+  { key: 'wood', name: 'Wood', group: 'gathering', ids: ['wood', 'wood2', 'wood3'], need: [WOOD_TREES, 100, 300], have: treesThisLife, noun: 'trees felled', hint: (n) => `Gnaw down ${n} trees.` },
+  { key: 'home', name: 'Home', group: 'building', ids: ['home'] },
+  { key: 'firstDam', name: 'First dam', group: 'building', ids: ['firstDam'] },
+  { key: 'highDam', name: 'Higher dam', group: 'building', ids: ['highDam'] },
+  { key: 'pioneer', name: 'Pioneer', group: 'building', ids: ['pioneer'] },
+  { key: 'pantry', name: 'Pantry', group: 'gathering', ids: ['pantry'] },
+  { key: 'gardener', name: 'Water gardener', group: 'gathering', ids: ['gardener', 'gardener2', 'gardener3'], need: [GARDENER_PADS, 60, 150], have: (w) => w.padsPicked, noun: 'lily pads', hint: (n) => `Pick ${n} lily pads.` },
+  { key: 'mends', name: 'Mending', group: 'building', ids: ['handy', 'fixerUpper', 'mends3'], need: [HANDY_MENDS, FIXER_MENDS, 30], have: (w) => w.mended, noun: 'pieces mended', hint: (n) => `Mend ${n} worn pieces until they are as good as new.`, tierNames: ['Handy beaver', 'Fixer-upper', 'Master mender'] },
+  { key: 'hauler', name: 'Hauler', group: 'building', ids: ['hauler', 'hauler2', 'hauler3'], need: [HAULER_LOADS, 100, 300], have: (w) => w.hauled, noun: 'loads on the dams', hint: (n) => `Carry ${n} loads of mud and rocks to your dams.` },
+  { key: 'year', name: 'A full year', group: 'gathering', ids: ['year'] },
+  { key: 'mate', name: 'Mate', group: 'family', ids: ['mate'] },
+  { key: 'kits', name: 'Kits', group: 'family', ids: ['kits'] },
+  { key: 'rescue', name: 'Rescuing', group: 'family', ids: ['guide', 'rescuer', 'rescuer3'], need: [1, RESCUER_DIGS, 15], have: rescuesThisLife, noun: 'beavers dug out', hint: (n) => `Dig out ${n} stuck beavers.`, tierNames: ['Guide', 'Rescuer', 'Snow rescuer'] },
+  { key: 'grownUp', name: 'Growing up', group: 'family', ids: ['grownUp'] },
+  { key: 'visitHome', name: 'Visit home', group: 'family', ids: ['visitHome'] },
+  { key: 'handDown', name: 'Hand down', group: 'family', ids: ['handDown'] },
+  { key: 'neighbour', name: 'Good neighbour', group: 'family', ids: ['neighbour', 'neighbour2', 'neighbour3'], need: [NEIGHBOUR_FAMILIES, 6, 10], have: familiesMet, noun: 'families talked to', hint: (n) => `Talk to beavers of ${n} different families.` },
+  { key: 'generations', name: 'Long line', group: 'family', ids: ['generations', 'generations2', 'generations3'], need: [LINE_GENERATION, 5, 10], have: (w) => w.generation, noun: 'kits down the family line', hint: (n) => `Play the ${n}th life down the family line, kit of the kit of the kit.` },
+  { key: 'diver', name: 'Diver', group: 'valley', ids: ['diver'] },
+  { key: 'explorer', name: 'Explorer', group: 'valley', ids: ['explorer'], need: [EXPLORER_PLACES.length], have: (w) => EXPLORER_PLACES.filter((p) => w.visited.includes(p)).length },
+  { key: 'tailSlap', name: 'Tail slapper', group: 'valley', ids: ['tailSlap', 'tailSlap2', 'tailSlap3'], need: [SLAP_COUNT, 50, 200], have: (w) => w.slaps, noun: 'slaps', hint: (n) => `Slap your tail ${n} times.` },
+  { key: 'wellFed', name: 'Well fed', group: 'gathering', ids: ['wellFed', 'wellFed2', 'wellFed3'], need: [WELL_FED_MEALS, 100, 300], have: (w) => w.meals, noun: 'meals eaten', hint: (n) => `Eat ${n} pieces of food.` },
+  { key: 'stripper', name: 'Stripper', group: 'gathering', ids: ['stripper', 'stripper2', 'stripper3'], need: [STRIPPER_BRANCHES, 150, 500], have: (w) => w.branchesStripped, noun: 'branches stripped', hint: (n) => `Strip ${n} branches off logs.` },
+  { key: 'winterStore', name: 'Winter store', group: 'gathering', ids: ['winterStore'] },
+  { key: 'manyDams', name: 'Many dams', group: 'building', ids: ['manyDams', 'manyDams2', 'manyDams3'], need: [MANY_DAMS, 5, 8], have: (w) => w.dams.filter((d) => damWhole(d) && mine(w, `dam:${d.spot}`)).length, noun: 'dams standing', hint: (n) => `Have ${n} whole dams standing at the same time.` },
+  { key: 'bigPond', name: 'Big pond', group: 'building', ids: ['bigPond'] },
+  { key: 'animalFriend', name: 'Animal friend', group: 'valley', ids: ['animalFriend'], need: [FRIEND_KINDS.length], have: (w) => FRIEND_KINDS.filter((k) => w.fedKinds.includes(k)).length },
+  { key: 'pondLife', name: 'Pond life', group: 'valley', ids: ['pondLife'], need: [POND_KINDS.length], have: (w) => POND_KINDS.filter((k) => w.guestKinds.includes(k)).length },
+  { key: 'homesFar', name: 'Homes far and wide', group: 'building', ids: ['homesFar'], need: [EXPLORER_PLACES.length], have: (w) => EXPLORER_PLACES.filter((p) => w.homesIn.includes(p)).length },
+  { key: 'sweetDreams', name: 'Sweet dreams', group: 'valley', ids: ['sweetDreams'] },
+  { key: 'longWinter', name: 'Long winter', group: 'gathering', ids: ['longWinter'] },
+];
+
+const ROMAN = ['', ' II', ' III'];
+const BASE_IDS = new Set<AchievementId>(Object.keys(BASE_RULES) as BaseId[]);
+/** The rows' higher tiers: `[id, its row, its place in the row]`. */
+const TIERS: readonly [TierId, Row, number][] = ROWS.flatMap((r) => r.ids.map((id, i): [AchievementId, Row, number] => [id, r, i])).filter(([id]) => !BASE_IDS.has(id)) as [TierId, Row, number][];
+const tierName = (r: Row, i: number): string => r.tierNames?.[i] ?? `${r.name}${ROMAN[i]}`;
+
+const RULES: Record<AchievementId, (w: Facts) => boolean> = {
+  ...BASE_RULES,
+  ...(Object.fromEntries(TIERS.map(([id, r, i]) => [id, (w: Facts) => r.have!(w) >= r.need![i]!])) as Record<TierId, (w: Facts) => boolean>),
 };
 
 /** The ids of the play locations the beaver is at (within `VISIT_RADIUS`), added to those already visited. The same array when nothing is new. */
@@ -226,8 +299,7 @@ export function tally(before: WorldState, after: WorldState): WorldState {
   return { ...counted, achievements: won.length ? [...before.achievements, ...won] : before.achievements };
 }
 
-/** The words shown when an achievement is won. */
-export const ACHIEVEMENT_TEXT: Record<AchievementId, string> = {
+const BASE_TEXT: Record<BaseId, string> = {
   wood: `Wood achievement: ${WOOD_TREES} trees felled`,
   home: 'Home achievement: a lodge of your own',
   firstDam: 'First dam achievement: the stream holds water',
@@ -263,8 +335,7 @@ export const ACHIEVEMENT_TEXT: Record<AchievementId, string> = {
   longWinter: 'Long winter achievement: a winter with food to the end',
 };
 
-/** The names for the list in the test menu. */
-export const ACHIEVEMENT_NAME: Record<AchievementId, string> = {
+const BASE_NAME: Record<BaseId, string> = {
   wood: 'Wood',
   home: 'Home',
   firstDam: 'First dam',
@@ -300,8 +371,7 @@ export const ACHIEVEMENT_NAME: Record<AchievementId, string> = {
   longWinter: 'Long winter',
 };
 
-/** How to win each one, for the Things I did card (#557). Short sentences for kids from 8; a number is the constant the rule uses. */
-export const ACHIEVEMENT_HINT: Record<AchievementId, string> = {
+const BASE_HINT: Record<BaseId, string> = {
   wood: `Gnaw down ${WOOD_TREES} trees.`,
   home: 'Build a lodge of your own.',
   firstDam: 'Build a dam so the stream holds water.',
@@ -337,30 +407,51 @@ export const ACHIEVEMENT_HINT: Record<AchievementId, string> = {
   longWinter: 'Live through a whole winter in your lodge and never let your food store run empty.',
 };
 
-/** The rows for the Things I did card: the line (as `achievementLines`) and the hint to show on a tap. */
-export function achievementRows(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey' | 'met' | 'rescued' | 'slaps' | 'meals' | 'branchesStripped' | 'visited' | 'mended' | 'fedKinds' | 'guestKinds' | 'homesIn'>): { line: string; hint: string }[] {
-  const lines = achievementLines(world);
-  return ACHIEVEMENT_IDS.map((id, i) => ({ line: lines[i] ?? '', hint: ACHIEVEMENT_HINT[id] }));
+/** The words shown when an achievement is won. */
+export const ACHIEVEMENT_TEXT: Record<AchievementId, string> = {
+  ...BASE_TEXT,
+  ...(Object.fromEntries(TIERS.map(([id, r, i]) => [id, `${tierName(r, i)} achievement: ${r.need![i]!} ${r.noun}`])) as Record<TierId, string>),
+};
+
+/** The names for the list in the test menu. */
+export const ACHIEVEMENT_NAME: Record<AchievementId, string> = {
+  ...BASE_NAME,
+  ...(Object.fromEntries(TIERS.map(([id, r, i]) => [id, tierName(r, i)])) as Record<TierId, string>),
+};
+
+/** How to win each one, for the Things I did card (#557). Short sentences for kids from 8; a number is the constant the rule uses. */
+export const ACHIEVEMENT_HINT: Record<AchievementId, string> = {
+  ...BASE_HINT,
+  ...(Object.fromEntries(TIERS.map(([id, r, i]) => [id, r.hint!(r.need![i]!)])) as Record<TierId, string>),
+};
+
+/** A row of the Things I did card: the line (as `achievementLines`), the hint of the next tier to win, and what the screen needs to draw it. */
+export interface AchievementRow {
+  line: string;
+  hint: string;
+  name: string;
+  group: AchievementGroup;
+  /** Tiers won, and tiers in all (1 for an achievement without tiers). */
+  tier: number;
+  tiers: number;
+  /** The count toward the next tier, or null when there is none or all are won. */
+  progress: { have: number; need: number } | null;
 }
 
-/** The list for the test menu: one line per achievement, with a mark for won and the count where there is one. */
-export function achievementLines(world: Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey' | 'met' | 'rescued' | 'slaps' | 'meals' | 'branchesStripped' | 'visited' | 'mended' | 'fedKinds' | 'guestKinds' | 'homesIn'>): string[] {
-  const count = (id: AchievementId): string => {
-    if (world.achievements.includes(id)) return '';
-    if (id === 'wood') return ` ${treesThisLife(world)}/${WOOD_TREES}`;
-    if (id === 'gardener') return ` ${world.padsPicked}/${GARDENER_PADS}`;
-    if (id === 'hauler') return ` ${world.hauled}/${HAULER_LOADS}`;
-    if (id === 'neighbour') return ` ${Math.min(familiesMet(world), NEIGHBOUR_FAMILIES)}/${NEIGHBOUR_FAMILIES}`;
-    if (id === 'rescuer') return ` ${Math.min(rescuesThisLife(world), RESCUER_DIGS)}/${RESCUER_DIGS}`;
-    if (id === 'tailSlap') return ` ${Math.min(world.slaps, SLAP_COUNT)}/${SLAP_COUNT}`;
-    if (id === 'wellFed') return ` ${Math.min(world.meals, WELL_FED_MEALS)}/${WELL_FED_MEALS}`;
-    if (id === 'stripper') return ` ${Math.min(world.branchesStripped, STRIPPER_BRANCHES)}/${STRIPPER_BRANCHES}`;
-    if (id === 'fixerUpper') return ` ${Math.min(world.mended, FIXER_MENDS)}/${FIXER_MENDS}`;
-    if (id === 'animalFriend') return ` ${FRIEND_KINDS.filter((k) => world.fedKinds.includes(k)).length}/${FRIEND_KINDS.length}`;
-    if (id === 'pondLife') return ` ${POND_KINDS.filter((k) => world.guestKinds.includes(k)).length}/${POND_KINDS.length}`;
-    if (id === 'homesFar') return ` ${EXPLORER_PLACES.filter((p) => world.homesIn.includes(p)).length}/${EXPLORER_PLACES.length}`;
-    if (id === 'explorer') return ` ${EXPLORER_PLACES.filter((p) => world.visited.includes(p)).length}/${EXPLORER_PLACES.length}`;
-    return '';
-  };
-  return ACHIEVEMENT_IDS.map((id) => `${world.achievements.includes(id) ? '[x]' : '[ ]'} ${ACHIEVEMENT_NAME[id]}${count(id)}`);
+export type AchievementFacts = Pick<WorldState, 'achievements' | 'felled' | 'padsPicked' | 'hauled' | 'journey' | 'met' | 'rescued' | 'slaps' | 'meals' | 'branchesStripped' | 'visited' | 'mended' | 'fedKinds' | 'guestKinds' | 'homesIn' | 'dams' | 'generation'>;
+
+/** The rows for the Things I did card, in the order of the first tiers. */
+export function achievementRows(world: AchievementFacts): AchievementRow[] {
+  return ROWS.map((r) => {
+    const tier = r.ids.filter((id) => world.achievements.includes(id)).length;
+    const next = Math.min(tier, r.ids.length - 1);
+    const need = r.need?.[tier];
+    const progress = r.have && need !== undefined ? { have: Math.min(r.have(world as Facts), need), need } : null;
+    const medals = r.ids.length > 1 ? ` ${r.ids.map((_, i) => (i < tier ? '\u25CF' : '\u25CB')).join('')}` : '';
+    const line = `${tier > 0 ? '[x]' : '[ ]'} ${r.name}${medals}${progress ? ` ${progress.have}/${progress.need}` : ''}`;
+    return { line, hint: ACHIEVEMENT_HINT[r.ids[next]!], name: r.name, group: r.group, tier, tiers: r.ids.length, progress };
+  });
 }
+
+/** The list for the test menu: one line per row, with a mark for won, a ring or dot for each tier, and the count where there is one. */
+export const achievementLines = (world: AchievementFacts): string[] => achievementRows(world).map((r) => r.line);

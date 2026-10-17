@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { noIntent, type Intent } from './buttons';
-import { ACHIEVEMENT_HINT, ACHIEVEMENT_IDS, ACHIEVEMENT_TEXT, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, noteFed, noteHomes, rescuesThisLife, seeGuests, tally, visitPlaces, visitedHome } from './achievements';
+import { ACHIEVEMENT_HINT, ACHIEVEMENT_IDS, ACHIEVEMENT_NAME, ACHIEVEMENT_TEXT, type AchievementId, GARDENER_PADS, HAULER_LOADS, WOOD_TREES, mendsBetween, newlyWon, padsBetween, noteFed, noteHomes, rescuesThisLife, seeGuests, tally, visitPlaces, visitedHome } from './achievements';
 import { DAY_SECONDS, DAYS_PER_YEAR, START_CLOCK, dateAt, nextSpringStart } from './clock';
 import { LEVEL1_COST, LEVEL_COST } from './dam';
 import type { DamSpot } from './damSpots';
@@ -388,26 +388,72 @@ describe('the cheap counters (#570)', () => {
 });
 
 describe('the list', () => {
-  it('marks what is won and counts what is counted', async () => {
+  it('has one row for each achievement and for the tiers of a counted one', async () => {
     const { achievementLines } = await import('./achievements');
-    const lines = achievementLines({ achievements: ['home'], felled: ids(12), padsPicked: 3, hauled: 0, journey: base().journey, met: {}, rescued: [], slaps: 0, meals: 0, branchesStripped: 0, visited: [], mended: 4, fedKinds: [], guestKinds: ['duck'], homesIn: [] });
-    expect(lines[0]).toBe('[ ] Wood 12/30');
-    expect(lines).toContain('[ ] Fixer-upper 4/10');
+    const lines = achievementLines({ ...base(), achievements: ['home', 'handy'], felled: ids(12), padsPicked: 3, mended: 4, guestKinds: ['duck'] });
+    expect(lines[0]).toBe('[ ] Wood \u25CB\u25CB\u25CB 12/30');
+    expect(lines).toContain('[x] Mending \u25CF\u25CB\u25CB 4/10');
     expect(lines).toContain('[ ] Pond life 1/2');
     expect(lines[1]).toBe('[x] Home');
-    expect(lines).toContain('[ ] Water gardener 3/20');
+    expect(lines).toContain('[ ] Water gardener \u25CB\u25CB\u25CB 3/20');
     expect(lines).toContain('[ ] Mate');
     expect(lines).toContain('[ ] Kits');
-    expect(lines).toContain('[ ] Guide');
     expect(lines).toContain('[ ] Growing up');
     expect(lines).toContain('[ ] Visit home');
     expect(lines).toContain('[ ] Hand down');
-    expect(lines).toContain('[ ] Good neighbour 0/3');
-    expect(lines).toContain('[ ] Rescuer 0/5');
-    expect(lines).toContain('[ ] Long line');
-    expect(lines).toContain('[ ] Tail slapper 0/10');
+    expect(lines).toContain('[ ] Good neighbour \u25CB\u25CB\u25CB 0/3');
+    expect(lines).toContain('[ ] Rescuing \u25CB\u25CB\u25CB 0/1');
+    expect(lines).toContain('[ ] Long line \u25CB\u25CB\u25CB 0/3');
+    expect(lines).toContain('[ ] Tail slapper \u25CB\u25CB\u25CB 0/10');
     expect(lines).toContain('[ ] Explorer 0/6');
-    expect(lines).toHaveLength(33);
+    expect(lines).toHaveLength(31);
+  });
+});
+
+describe('tiers (#569)', () => {
+  const tiers = async (w: WorldState) => (await import('./achievements')).achievementRows(w);
+
+  it('the higher tiers are ids of their own, won in order by the count', () => {
+    expect(won({ ...base(), felled: ids(99) })).toEqual(['wood']);
+    expect(won({ ...base(), felled: ids(100) })).toEqual(['wood', 'wood2']);
+    expect(won({ ...base(), felled: ids(300) })).toEqual(['wood', 'wood2', 'wood3']);
+    expect(won({ ...base(), felled: ids(300), achievements: ['wood', 'wood2'] })).toEqual(['wood3']);
+  });
+  it('the old ids are the lower tiers, so a save of the old kind keeps what it won', () => {
+    expect(won({ ...base(), mended: 30 })).toEqual(['handy', 'fixerUpper', 'mends3']);
+    expect(won({ ...base(), mended: 30, achievements: ['handy', 'fixerUpper'] })).toEqual(['mends3']);
+    expect(won({ ...base(), generation: 10 })).toEqual(['generations', 'generations2', 'generations3']);
+  });
+  it('every tier counts what this life did, from the same counters', () => {
+    expect(won({ ...base(), padsPicked: 60 })).toEqual(['gardener', 'gardener2']);
+    expect(won({ ...base(), hauled: 100 })).toEqual(['hauler', 'hauler2']);
+    expect(won({ ...base(), slaps: 50 })).toEqual(['tailSlap', 'tailSlap2']);
+    expect(won({ ...base(), meals: 100 })).toEqual(['wellFed', 'wellFed2']);
+    expect(won({ ...base(), branchesStripped: 150 })).toEqual(['stripper', 'stripper2']);
+    const year = dateAt(base().clock).year;
+    expect(won({ ...base(), rescued: Array.from({ length: 15 }, (_, i) => `family:${i}:0:stuck:${year}`) })).toEqual(['guide', 'rescuer', 'rescuer3']);
+  });
+  it('a new life starts the tiers again', () => {
+    const w = newLife({ ...base(), felled: ids(300), achievements: ['wood', 'wood2', 'wood3'], padsPicked: 150, mended: 30 });
+    expect(w.achievements).toEqual([]);
+    expect(won(w)).toEqual([]);
+  });
+  it('has a toast, a name and a hint for each tier', () => {
+    expect(ACHIEVEMENT_TEXT.wood2).toBe('Wood II achievement: 100 trees felled');
+    expect(ACHIEVEMENT_TEXT.mends3).toBe('Master mender achievement: 30 pieces mended');
+    expect(ACHIEVEMENT_HINT.hauler3).toBe('Carry 300 loads of mud and rocks to your dams.');
+    for (const id of ACHIEVEMENT_IDS) expect(ACHIEVEMENT_NAME[id].length).toBeGreaterThan(0);
+  });
+  it('the row shows the tiers won and the count to the next', async () => {
+    const wood = async (n: number, got: AchievementId[]) => (await tiers({ ...base(), felled: ids(n), achievements: got })).find((r) => r.name === 'Wood')!;
+    expect(await wood(40, ['wood'])).toMatchObject({ tier: 1, tiers: 3, progress: { have: 40, need: 100 }, hint: 'Gnaw down 100 trees.', line: '[x] Wood \u25CF\u25CB\u25CB 40/100' });
+    expect(await wood(500, ['wood', 'wood2', 'wood3'])).toMatchObject({ tier: 3, progress: null, line: '[x] Wood \u25CF\u25CF\u25CF' });
+    expect(await wood(5, [])).toMatchObject({ tier: 0, group: 'gathering', hint: 'Gnaw down 30 trees.' });
+  });
+  it('every achievement is in exactly one row, and the rows fit the four tabs', async () => {
+    const rows = await tiers(base());
+    expect(rows.reduce((n, r) => n + r.tiers, 0)).toBe(ACHIEVEMENT_IDS.length);
+    for (const g of ['building', 'gathering', 'family', 'valley']) expect(rows.filter((r) => r.group === g).length).toBeLessThanOrEqual(9);
   });
 });
 

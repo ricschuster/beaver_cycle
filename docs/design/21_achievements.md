@@ -170,7 +170,7 @@ Built: three more, reading state that is already saved (`met`, `rescued`, `gener
 
 Guides, partners and the parents of a former home are not neighbours: only beavers of the valley's families count. `met`
 starts again with each life, so each life meets its neighbours afresh. Long line is won on the first step of the life at that
-generation, so each later life wins it too. Generation 5 and 10 wait for tiers (#569).
+generation, so each later life wins it too. Generation 5 and 10 are its higher tiers (#569).
 
 Dropped by the author, since the game cannot see them: **Raised a kit** (a kit of this life becoming a teenager while this life still
 lives in the lodge) and **Big family** (two kits in a litter, or kits in two springs). The player becomes the kit the moment
@@ -203,6 +203,39 @@ Pond life asks for the two guests a pond has (duck, frog). A sleep that jumps ov
 Diver is the whole-breath reading, not the deepest bed. Explorer says "landmark" in the issue; the game has no landmark list, so
 the six play locations stand for it. All numbers are first guesses for the tablet.
 
+## Tiers (#569)
+
+Built: the counting achievements have three tiers (bronze, silver, gold) in one row, instead of more rows. A tier is an
+achievement id of its own, won and kept in `WorldState.achievements` like any other, so a save needs no change and a tier cannot
+be taken back. The first tier of each row is the id it always had (`wood`, `gardener`, ...), so an old save has the first tier
+won and wins the higher ones by its counters. Two pairs that were already ids join their row: Handy beaver (1 mend) and
+Fixer-upper (10) are tiers 1 and 2 of Mending, Guide (1 dug out) and Rescuer (5) of Rescuing. Each tier has its own toast, name
+and hint; the rows are the `ROWS` table in `achievements.ts` and the higher tiers' rules, texts and hints are made from it.
+
+| Row | Tier 1 | Tier 2 | Tier 3 | Counts |
+| --- | --- | --- | --- | --- |
+| Wood | 30 | 100 | 300 | trees felled this life |
+| Water gardener | 20 | 60 | 150 | lily pads picked |
+| Mending | 1 | 10 | 30 | pieces mended back to new |
+| Hauler | 30 | 100 | 300 | loads on dams |
+| Rescuing | 1 | 5 | 15 | stuck beavers dug out this life |
+| Good neighbour | 3 | 6 | 10 | families talked to this life |
+| Long line | generation 3 | 5 | 10 | the life's generation |
+| Tail slapper | 10 | 50 | 200 | slaps |
+| Well fed | 25 | 100 | 300 | pieces eaten |
+| Stripper | 50 | 150 | 500 | branches stripped |
+| Many dams | 3 | 5 | 8 | whole dams of this life at once |
+
+That is 53 ids in 31 rows. Counters run per life (`newLife` starts them again), so each life climbs the tiers afresh. The
+tier 2 and 3 numbers are first guesses to tune on the tablet, like all the others.
+
+Rows belong to four groups for the screen: Building (home, dams, mending, hauler, big pond, homes far and wide), Wood and food
+(wood, stripper, pantry, water gardener, well fed, winter store, long winter, a full year), Family (mate, kits, growing up,
+visit home, hand down, long line, good neighbour, rescuing) and Valley and animals (explorer, diver, tail slapper, animal
+friend, pond life, sweet dreams). `achievementRows` gives each row its group, tiers won, and the count to the next tier.
+
+The screen itself (four tabs of tiles with bars) is the next PR.
+
 ## Next batch (#220, ideas agreed)
 
 Ideas from session 134, kept or dropped by the author. The first three and the cheap counters are built (see above). Each one reads what the game already keeps, or
@@ -214,8 +247,8 @@ First, in this order of interest:
   lodge. Needs the kit's birth time and stage, which the family state keeps.
 - **Good neighbour**: talk to beavers of N different families (`met`).
 - **Rescuer**: dig out 5 stuck beavers (`rescuesThisLife`; Guide asks for one).
-- **Many generations**: reach generation 3, 5 and 10.
-- **Tiers** (bronze, silver, gold) for the counting ones, such as wood 30, 100, 300, instead of more ids.
+- **Many generations**: reach generation 3, 5 and 10 (built as tiers, #569).
+- **Tiers** (bronze, silver, gold) for the counting ones, such as wood 30, 100, 300, instead of more ids (built, see above).
 - **A progress screen** with bars ("17 of 30 trees") and locked ones as silhouettes, in the art pass (#105).
 
 Then (the newer-system ones are built too, #571, except big family) the cheap counters from the issue: diver, Almsee explorer, tail slap (10), well fed (25 pieces), stripper (50 branches),

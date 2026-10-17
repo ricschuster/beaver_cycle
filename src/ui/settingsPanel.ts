@@ -144,14 +144,19 @@ export interface AchievementRow {
 export function createAchievementsPanel(parent: HTMLElement, rows: () => AchievementRow[]): AchievementsPanel {
   const list = document.createElement('div');
   let timer: number | undefined;
-  // The hints that are open, by row, kept over a refresh. A tap opens a hint under its row and a second tap closes it.
+  // A tap opens the hint under its row and a second tap closes it. A mouse also shows it while it is over the row; a finger
+  // leaves no hover, so only the tap counts there.
   const shown = new Set<number>();
+  let hovered = -1;
   let drawn = '';
+  let hints: HTMLElement[] = [];
+  const showHints = (): void => hints.forEach((h, i) => (h.style.display = shown.has(i) || hovered === i ? 'block' : 'none'));
   const refresh = (): void => {
     const now = rows();
-    const key = JSON.stringify([now, [...shown]]);
+    const key = JSON.stringify(now);
     if (key === drawn) return;
     drawn = key;
+    hints = [];
     list.replaceChildren(
       ...now.map((r, i) => {
         const item = document.createElement('div');
@@ -159,24 +164,31 @@ export function createAchievementsPanel(parent: HTMLElement, rows: () => Achieve
         button.type = 'button';
         button.dataset.action = 'achievement';
         button.textContent = prettyLine(r.line);
-        button.title = r.hint;
-        button.setAttribute('aria-expanded', String(shown.has(i)));
         button.style.cssText = 'display:block;width:100%;min-height:36px;padding:4px 0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;';
         button.onclick = () => {
           if (!shown.delete(i)) shown.add(i);
-          refresh();
+          showHints();
         };
-        item.appendChild(button);
-        if (shown.has(i)) {
-          const hint = document.createElement('div');
-          hint.dataset.role = 'achievement-hint';
-          hint.textContent = r.hint;
-          hint.style.cssText = 'margin:0 0 6px 18px;font-size:14px;color:#6b5d44;';
-          item.appendChild(hint);
-        }
+        item.onpointerenter = (e) => {
+          if (e.pointerType !== 'mouse') return;
+          hovered = i;
+          showHints();
+        };
+        item.onpointerleave = (e) => {
+          if (e.pointerType !== 'mouse') return;
+          if (hovered === i) hovered = -1;
+          showHints();
+        };
+        const hint = document.createElement('div');
+        hint.dataset.role = 'achievement-hint';
+        hint.textContent = r.hint;
+        hint.style.cssText = 'display:none;margin:0 0 6px 18px;font-size:14px;color:#6b5d44;';
+        hints.push(hint);
+        item.append(button, hint);
         return item;
       }),
     );
+    showHints();
   };
   const ui = cardWithButton(parent, 'achievements', '\u{1F3C6}', 'Things I did', 232, 'Things I did', (open) => {
     window.clearInterval(timer);

@@ -67,7 +67,7 @@ describe('food line', () => {
     const info = foodInfoOf(w, flatTerrain(0))!;
     expect(info.store!.capacity).toBe(24);
     expect(info.repair).toEqual({ what: 'store', percent: 25, wood: 8, broken: false });
-    expect(formatCarry(0, true, null, 1, null, null, info)).toBe('0 of 30 trees felled, lodge done, dragging a log, store worn 25%, needs 8 wood (a long log is 2), press Mend to add it');
+    expect(formatCarry(0, true, null, 1, null, null, info)).toBe('0 of 30 trees felled, lodge done, dragging a log, store 25% left, needs 8 wood (a long log is 2), press Mend to add it');
   });
 
   it('names the worse of a worn lodge and a broken store, and says the other needs wood too', () => {
@@ -122,7 +122,7 @@ describe('dam line', () => {
     expect(worn.repair).toEqual({ what: 'dam', percent: 40, wood: 6, broken: false });
     expect(worn.dam).toMatchObject({ whole: true, canAdd: true });
     const text = formatCarry(0, false, null, null, null, null, worn);
-    expect(text).toContain('dam worn 40%, needs 6 units (a long log is 2, mud 1, a rock 2)');
+    expect(text).toContain('dam 40% left, needs 6 units (a long log is 2, mud 1, a rock 2)');
     expect(text).not.toContain('dam done, as high as a dam can go here');
     const mended = [{ ...dams[0]!, repairing: true, wear: { level: 0.6, since: 12 * DAY_SECONDS, mend: 0 } }];
     const part = foodInfoOf({ ...base, dams: mended, clock: 12 * DAY_SECONDS }, flatTerrain(0))!; // good again, not new

@@ -32,7 +32,7 @@ test.describe('a worn lodge and store', () => {
     expect(storeCondition(w0.storeWear, w0.clock)).toBeCloseTo(0.25, 2);
     await walkToStore(page);
     const text = await hudText(page);
-    expect(text).toContain('store worn 25%');
+    expect(text).toContain('store 25% left');
     expect(text).toContain('needs 8 wood');
     expect(text).toContain('store 0 of 24');
     // The good lodge asks for nothing.
@@ -164,7 +164,7 @@ test.describe('dams', () => {
       const d = await damAt(page);
       crests[age] = d.crest;
       levels[age] = damCondition(d.dam, d.clock);
-      if (age === 12) expect(d.text).toMatch(/dam worn 40%, needs \d+ units/);
+      if (age === 12) expect(d.text).toMatch(/dam 40% left, needs \d+ units/);
       if (age === 20) {
         expect(d.text).toContain('dam broken, build it again');
         await shot(page, 'wear-05-broken-dam');

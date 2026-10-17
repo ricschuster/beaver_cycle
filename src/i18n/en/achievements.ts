@@ -177,7 +177,7 @@ export const achievements = {
   'achievement.hint.homesFar': 'Have a lodge or a whole dam of yours in each of the six places of the valley.',
   'achievement.hint.sweetDreams': 'Sleep at night and have a dream.',
   'achievement.hint.longWinter': 'Live through a whole winter in your lodge and never let your food store run empty.',
-  'achievement.hint.welcome': 'Pat mud into a scent mound by your lodge, with Mark. Next morning a beaver comes to sniff it. Go and say hello.',
+  'achievement.hint.welcome': 'Pat mud into a scent mound by your lodge. Next morning a beaver comes to sniff it. Go and say hello.',
   'achievement.hint.wood2': 'Gnaw down 100 trees.',
   'achievement.hint.wood3': 'Gnaw down 300 trees.',
   'achievement.hint.gardener2': 'Pick 60 lily pads.',

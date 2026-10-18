@@ -111,6 +111,24 @@ async function start(): Promise<void> {
   const treeScale = Number(query.get('trees'));
   if (treeScale > 0) treeTuning.densityScale = treeScale;
 
+  // The language is set first, since every panel below builds its words when it is made.
+  // The browser's storage (blocked in some modes, then null) holds the saved game, the sound settings and the Settings choices.
+  const storage: SaveStorage | null = (() => {
+    try {
+      return localStorage;
+    } catch {
+      return null;
+    }
+  })();
+  // The Settings panel's choices (src/ui/prefs.ts). A dev URL parameter wins over them; the shadows are fixed at the start, so
+  // changing them restarts the game.
+  const prefs = loadPrefs(storage);
+  // The words follow the Settings choice, or the device language (docs/design/36_languages.md); a new choice restarts the game.
+  setLang(resolveLang(prefs.lang, navigator.languages ?? navigator.language));
+  // Changing the language starts the game again, so the page language is set once here.
+  document.documentElement.lang = getLang();
+  let langChoice: LangChoice = prefs.lang;
+
   const base = `${import.meta.env.BASE_URL}tiles/`;
   const store = await loadTileStore(base);
   const streamer = store ? new Streamer(store, httpFetchTile(base), streamOptions, httpFetchWater(base)) : null;
@@ -176,22 +194,6 @@ async function start(): Promise<void> {
     if (wantsWelcome(remembered(WELCOME_KEY), query, navigator.webdriver)) help.showWelcome();
     else if (wantsCoach(remembered(COACH_KEY), query, navigator.webdriver)) coachPending = true;
   }
-  // The browser's storage (blocked in some modes, then null) holds the saved game, the sound settings and the Settings choices.
-  const storage: SaveStorage | null = (() => {
-    try {
-      return localStorage;
-    } catch {
-      return null;
-    }
-  })();
-  // The Settings panel's choices (src/ui/prefs.ts). A dev URL parameter wins over them; the shadows are fixed at the start, so
-  // changing them restarts the game.
-  const prefs = loadPrefs(storage);
-  // The words follow the Settings choice, or the device language (docs/design/36_languages.md); a new choice restarts the game.
-  setLang(resolveLang(prefs.lang, navigator.languages ?? navigator.language));
-  // Changing the language starts the game again, so the page language is set once here.
-  document.documentElement.lang = getLang();
-  let langChoice: LangChoice = prefs.lang;
   const keptPrefs = (shadows: boolean) => ({ minimap: minimap.mode(), shadows, lang: langChoice });
   const shadowsAtStart = (query.has('shadows') ? query.get('shadows') === '1' : prefs.shadows) && !free;
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {

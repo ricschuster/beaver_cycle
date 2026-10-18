@@ -61,6 +61,7 @@ import { createMuteButton } from './ui/muteButton';
 import { createOsmCredit } from './ui/osmCredit';
 import { getLang, resolveLang, setLang, t, text, type LangChoice } from './i18n';
 import { loadPrefs, savePrefs } from './ui/prefs';
+import { FRAME_CAP_FPS, createFrameCap } from './frameCap';
 import { createAchievementsPanel, createSettingsPanel } from './ui/settingsPanel';
 import { createFlyButtons } from './ui/flyButtons';
 import { createMinimap, minimapMode, nextMode, type MinimapMode } from './ui/minimap';
@@ -679,8 +680,16 @@ async function start(): Promise<void> {
     if (warmer) toast.show(t('toast.wordGetsAround', { pond: pondName(warmer.lodge, homeAt) }));
   };
 
+  // The draw loop runs at most FRAME_CAP_FPS frames a second, however fast the screen is (#605); ?fps=N changes it and 0 lifts it (dev builds).
+  const fpsParam = query.get('fps');
+  const frameCap = createFrameCap(fpsParam !== null && fpsParam !== '' && Number.isFinite(Number(fpsParam)) ? Number(fpsParam) : FRAME_CAP_FPS);
+
   // One bad frame must not freeze the game: log the error and schedule the next frame anyway.
   function frame(now: number): void {
+    if (!frameCap.due(now)) {
+      requestAnimationFrame(frame);
+      return;
+    }
     try {
       frameBody(now);
     } catch (err) {

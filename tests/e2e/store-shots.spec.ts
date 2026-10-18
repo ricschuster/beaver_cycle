@@ -5,12 +5,18 @@ import { goToNearestSpot, hasTiles, menuClick, startGame, world } from './helper
 // another place. It does nothing unless STORE_SHOTS names a folder; pick the best by eye and copy them to
 // tools/standalone-apk/store/. Needs the local tiles, about 1 to 2 minutes:
 //   STORE_SHOTS=some/dir npx playwright test tests/e2e/store-shots.spec.ts
+// With STORE_LANG=de the game runs in German and the pictures go to a de/ folder inside (the language must be in `LANGS` of
+// src/i18n/index.ts, so until German ships, add it there for the run).
 
-const DIR = process.env.STORE_SHOTS;
+const LANG = process.env.STORE_LANG ?? 'en';
+const DIR = process.env.STORE_SHOTS && (LANG === 'en' ? process.env.STORE_SHOTS : `${process.env.STORE_SHOTS}/${LANG}`);
 
 test.describe('pictures for the store listing', () => {
   test.skip(!DIR, 'set STORE_SHOTS to a folder to take them');
   test.use({ viewport: { width: 1024, height: 600 }, deviceScaleFactor: 2 });
+  test.beforeEach(async ({ page }) => {
+    if (LANG !== 'en') await page.addInitScript((lang) => localStorage.setItem('beaver-cycle.prefs', JSON.stringify({ lang })), LANG);
+  });
 
   type P = import('@playwright/test').Page;
   const take = async (page: P, name: string): Promise<void> => {
@@ -124,11 +130,15 @@ test.describe('pictures for the store listing', () => {
     await menuClick(page, 'button[data-action="store-fill"]');
     await page.waitForTimeout(800);
     await take(page, 'e-store');
-    await menuClick(page, 'button[data-action="dream"]');
+    // The dream covers the test menu's button, so open the menu and click Dream without closing it again.
+    await page.getByRole('button', { name: 'Test menu' }).click();
+    await page.locator('button[data-action="dream"]').click();
     for (let i = 0; i < 3; i++) {
       await page.waitForTimeout(4000);
       await take(page, `f-dream-${i}`);
     }
+    await page.locator('button[data-action="dream-wake"]').click();
+    await page.waitForTimeout(2500);
 
     // Other places in the valley.
     for (const id of ['north', 'south', 'east-oedseen', 'vorderer-springbach', 'hinterer-springbach']) {

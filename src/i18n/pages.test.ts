@@ -33,7 +33,8 @@ describe.each(['manual', 'privacy'])('%s in German', (name) => {
   });
 
   it('uses the same pictures and links', () => {
-    expect(all(de, /<img src="([^"]+)"/g)).toEqual(all(en, /<img src="([^"]+)"/g));
+    // The German page has its own pictures, with German words on the screen, in manual/de/.
+    expect(all(de, /<img src="([^"]+)"/g).map((src) => src.replace('manual/de/', 'manual/'))).toEqual(all(en, /<img src="([^"]+)"/g));
     const external = (html: string): string[] => all(html, /href="(https?:[^"]+|mailto:[^"]+)"/g);
     expect(external(de)).toEqual(external(en));
   });

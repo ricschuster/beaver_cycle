@@ -21,6 +21,11 @@ minutes each, sampled every 30 s over Wi-Fi adb (`dumpsys battery`, `batterystat
 | of which CPU, GPU, screen | 63, 26, 16 | 32, 11, 11 |
 | Janky frames | 1.35 % | 0.05 % |
 
+The cap build (`src/frameCap.ts`, a fresh save, the screen still at 120 Hz) gave 36,060 frames (60 fps), 35.3 to 36.2 C (+0.9),
+thermal status 0, 44 mAh for the game (CPU 20, GPU 12, screen 12) and 2.5 % janky frames. The scene was a new game, not the
+author's save, so the saving against the uncapped run (58 %) is probably a little high; the forced 60 Hz run on the real save gave
+48 %. The author played it and the motion felt fine.
+
 The 60 Hz run started 4 C warmer and still heated a quarter as much. The game drew at the screen rate with no idle mode, so a
 120 Hz phone drew twice the frames of a 60 Hz one. The CPU share is the largest, which matches the desktop profile below.
 
@@ -43,7 +48,7 @@ in dev builds and `?fps=0` lifts it, to compare.
 
 ## Not built yet, in order of value
 
-1. Check the cap on a phone and the tablets, and the 90 Hz spacing by eye.
+1. Check the cap on the tablets (90 Hz spacing by eye). The phone is done.
 2. Slower redraws when nothing moves (standing still, a panel open), and a Battery saver choice at 30 fps in Settings.
 3. `matrixAutoUpdate = false` on the static tile meshes.
 4. Fewer draw calls: merge the 208 coarse tile meshes the way the far chunks are.

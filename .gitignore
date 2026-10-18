@@ -51,3 +51,4 @@ tools/standalone-apk/android/
 
 # Candidate recordings for the sound preview (CC0, not yet chosen)
 public/audio-candidates/
+stress-report*.json

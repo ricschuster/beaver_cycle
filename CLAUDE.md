@@ -75,6 +75,7 @@ Everyday (gate means CI blocks a merge on it):
   80 MB of the BEV 1 m terrain in `data/raw/` for the fine tiles, ADR 0008); it also snaps the stream lines to the terrain channel, ADR 0010, `--no-snap` skips that; `python3 -m pytest tools/tiles`
   checks them (needs `data/raw/`)
 - `MANUAL_SHOTS=public/manual npx playwright test tests/e2e/manual-shots.spec.ts` - retake the pictures in the manual from the real valley (needs the local tiles, 1 to 2 minutes; skips without `MANUAL_SHOTS`; `MANUAL_LANG=de` takes the German ones into `public/manual/de/`, with `'de'` added to `LANGS` for the run)
+- `npm run stress` - stress run by script (jumps, walks, seasons, sleep, dream, save and resume) with a JSON report and budgets; dev server first, `STRESS_TARGET=tablet` for a tablet (`docs/design/39_stress_test.md`, #603)
 - `python3 tools/dam-sites/scan_dam_sites.py` - draft scan of the streams in `public/tiles/` for dam
   sites (writes `public/tiles/dam_sites.json`, 10 s; the test menu toggles them, `?damsites=1` starts with them on); `python3 -m pytest tools/dam-sites` checks it
 - Pages: `.github/workflows/pages.yml` deploys `main` to <https://ricschuster.github.io/beaver_cycle/> by hand only (`gh workflow run pages.yml --ref main`; a push to `main` does not deploy) with the tiles from the `tiles` release (`tar -czf tiles.tar.gz -C public tiles`, then `gh release upload tiles tiles.tar.gz --clobber` after a tile rebuild)

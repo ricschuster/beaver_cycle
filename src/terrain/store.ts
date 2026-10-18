@@ -100,6 +100,17 @@ export class TileStore implements Terrain {
     return counts;
   }
 
+  /** Bytes of height and class arrays held, per level, for the memory readout (docs/design/38_memory.md). */
+  bytesByLevel(): number[] {
+    const bytes: number[] = [];
+    for (const levels of this.data.values()) {
+      levels.forEach((t, l) => {
+        if (t) bytes[l] = (bytes[l] ?? 0) + t.heights.byteLength + t.classes.byteLength;
+      });
+    }
+    return bytes;
+  }
+
   private locate(x: number, z: number): { tile: DecodedTile; u: number; v: number } | undefined {
     const { tx, tz } = this.index.tileRange;
     const s = this.size;

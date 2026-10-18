@@ -1049,6 +1049,8 @@ async function start(): Promise<void> {
     },
     view: () => rig.view,
     stats: () => renderer.terrain?.stats() ?? null,
+    // GPU object counts and the bytes of ground held, for the soak measurement (docs/design/38_memory.md).
+    memory: () => ({ ...renderer.memory(), tileBytes: store?.bytesByLevel() ?? [] }),
     // Per part tile build times since the last call, for the tablet bench.
     buildTimes: drainBuildTimes,
     // Where a playtest can find things to work on: the nearest standing tree, and the nearest spot a lodge could start.

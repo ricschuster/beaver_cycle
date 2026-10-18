@@ -60,6 +60,8 @@ export interface Renderer {
   terrain: TerrainView | null;
   /** Turn the sun shadows on or off while running. Does nothing if the game started without them. */
   setShadows(on: boolean): void;
+  /** What the GPU side holds now: geometries, textures and shader programs (three.js `info`), for the memory readout. */
+  memory(): { inScene: number; top: number; groups: number[]; geometries: number; textures: number; programs: number; calls: number; triangles: number };
   /** Show or hide the ring where a lodge would start (see `LodgeView.preview`). */
   setLodgePreview(at: { x: number; y: number; z: number; ok: boolean } | null): void;
   /** Debug: put the marks of the scanned dam sites in the scene, once. Shown at first. */
@@ -133,6 +135,25 @@ function createSunTexture(): THREE.CanvasTexture {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
+}
+
+/** Moves the entries of `models` whose id is not in `now` to `spare`, hidden, to be taken by the next new id. */
+function recycle<K extends string, E extends { model: BeaverModel }>(models: Map<K, E>, spare: E[], now: readonly { id: string }[]): void {
+  for (const [id, entry] of models) {
+    if (now.some((b) => b.id === id)) continue;
+    entry.model.group.visible = false;
+    spare.push(entry);
+    models.delete(id);
+  }
+}
+
+function sceneGeometries(scene: THREE.Scene): number {
+  const seen = new Set<THREE.BufferGeometry>();
+  scene.traverse((o) => {
+    const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+    if (g) seen.add(g);
+  });
+  return seen.size;
 }
 
 export function createRenderer(parent: HTMLElement, source: TerrainSource | null, options: RenderOptions = {}): Renderer {
@@ -239,6 +260,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const partnerModels = new Map<string, { model: BeaverModel; pace: number; x: number; z: number }>();
   // The beavers of the other families, one model each, made when first seen, and the lodges they live in.
   const neighbourModels = new Map<string, { model: BeaverModel; coat: string; pace: number }>();
+  // Models whose beaver is gone (a kit's id carries the year, so a new year brings new ids): the next new id takes one, so the
+  // scene does not grow with the years played (#604).
+  const neighbourSpare: { model: BeaverModel; coat: string; pace: number }[] = [];
+  const parentSpare: { model: BeaverModel; pace: number; coat: string }[] = [];
   const neighbourViews: LodgeView[] = [];
   const driftMeshes: THREE.Mesh[] = [];
   const driftGeometry = new THREE.SphereGeometry(1, 14, 9);
@@ -353,6 +378,17 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     setShadows(on) {
       shadowsOn = on && shadows;
     },
+    memory: () => ({
+      // Geometries a mesh in the scene uses; `geometries` above this is held on the GPU for meshes that are gone (a leak).
+      inScene: sceneGeometries(scene),
+      top: scene.children.length,
+      groups: scene.children.map((c) => { let n = 0; c.traverse(() => n++); return n; }),
+      geometries: gl.info.memory.geometries,
+      textures: gl.info.memory.textures,
+      programs: gl.info.programs?.length ?? 0,
+      calls: gl.info.render.calls,
+      triangles: gl.info.render.triangles,
+    }),
     draw(world, view, parents = [], animals = [], neighbours = [], drifts = [], digging = false) {
       const b = world.beaver;
       const moved = Math.hypot(b.x - lastX, b.z - lastZ);
@@ -394,13 +430,17 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         beaverModel.setCoat(world.coat.coat, world.coat.shade);
       }
       for (const entry of parentModels.values()) entry.model.group.visible = false;
+      recycle(parentModels, parentSpare, parents);
       for (const p of parents) {
         let entry = parentModels.get(p.id);
         if (!entry) {
-          const model = createBeaverModel(p.coat.coat);
-          scene.add(model.group);
-          prepareBeaver(model.group);
-          entry = { model, pace: 0, coat: '' };
+          entry = parentSpare.pop();
+          if (!entry) {
+            const model = createBeaverModel(p.coat.coat);
+            scene.add(model.group);
+            prepareBeaver(model.group);
+            entry = { model, pace: 0, coat: '' };
+          }
           parentModels.set(p.id, entry);
         }
         const g = entry.model.group;
@@ -433,13 +473,17 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         if (d) m.position.set(d.x, d.y + 0.2, d.z);
       });
       for (const entry of neighbourModels.values()) entry.model.group.visible = false;
+      recycle(neighbourModels, neighbourSpare, neighbours);
       for (const n of neighbours) {
         let entry = neighbourModels.get(n.id);
         if (!entry) {
-          const model = createBeaverModel(n.coat.coat);
-          scene.add(model.group);
-          prepareBeaver(model.group);
-          entry = { model, coat: '', pace: 0 };
+          entry = neighbourSpare.pop();
+          if (!entry) {
+            const model = createBeaverModel(n.coat.coat);
+            scene.add(model.group);
+            prepareBeaver(model.group);
+            entry = { model, coat: '', pace: 0 };
+          }
           neighbourModels.set(n.id, entry);
         }
         const g = entry.model.group;

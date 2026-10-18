@@ -4,8 +4,11 @@ import { dragLog, fellNearestTree, goToNearestSpot, hasTiles, startGame, tap, wa
 // Takes the pictures for the manual (public/manual/*.jpg) from the real valley, in a tablet sized window. It does nothing
 // unless MANUAL_SHOTS names a folder, so CI and the other playtests skip it. Run it again when the look of the game changes:
 //   MANUAL_SHOTS=public/manual npx playwright test tests/e2e/manual-shots.spec.ts
+// With MANUAL_LANG=de the game runs in German and the pictures go to public/manual/de/ for manual.de.html (the language must be
+// in `LANGS` of src/i18n/index.ts, so until German ships, add it there for the run).
 
-const DIR = process.env.MANUAL_SHOTS;
+const LANG = process.env.MANUAL_LANG ?? 'en';
+const DIR = process.env.MANUAL_SHOTS && (LANG === 'en' ? process.env.MANUAL_SHOTS : `${process.env.MANUAL_SHOTS}/${LANG}`);
 
 test.describe('pictures for the manual', () => {
   test.skip(!DIR, 'set MANUAL_SHOTS to a folder to take them');
@@ -40,6 +43,7 @@ test.describe('pictures for the manual', () => {
 
   test('the screen, a tree, a log, a ring and a pond', async ({ page }) => {
     test.setTimeout(300_000);
+    if (LANG !== 'en') await page.addInitScript((lang) => localStorage.setItem('beaver-cycle.prefs', JSON.stringify({ lang })), LANG);
     await startGame(page, 'touch=1&coach=0');
     test.skip(!(await hasTiles(page)), 'needs the tiles built locally');
     await page.waitForTimeout(1500);

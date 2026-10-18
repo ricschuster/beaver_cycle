@@ -726,7 +726,7 @@ async function start(): Promise<void> {
       // What Do and Take mean here (#341): the words on the buttons, and what a press of each does this frame.
       const doNow = doHere(world, terrain, trees, nearby);
       const takeNow = takeHere(world, withPonds(terrain, world.ponds), terrain);
-      touch.setLabel('do', doNow ? DO_LABEL[doNow] : 'Do');
+      touch.setLabel('do', doNow ? DO_LABEL[doNow] : t('btn.do'));
       touch.setEnabled('do', doNow !== null);
       touch.setLabel('take', takeLabel(takeNow));
       touch.setEnabled('take', takeNow !== null);
@@ -923,7 +923,7 @@ async function start(): Promise<void> {
         if (remark) toast.show(t('toast.said', { who: remark.who, text: remark.text }));
       }
     }
-    talkBubble.prompt(near && doShown === 'talk' ? near.name : null, touchOn ? 'Talk' : 'E');
+    talkBubble.prompt(near && doShown === 'talk' ? near.name : null, touchOn ? DO_LABEL.talk : 'E');
     talkBubble.tick(dt);
     // Winter: a beaver stuck in a drift calls for help, the player digs it out by gnawing beside it, and it becomes a guide (#346).
     const homeAt = world.formerHomes.at(-1) ?? world.lodge ?? world.beaver;

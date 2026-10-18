@@ -12,6 +12,9 @@ export interface StashPanel {
 /** Places in a row: eight by five fits a tablet held sideways. */
 export const STASH_COLUMNS = 8;
 
+/** The side of a place: 56 px, less on a phone held upright so the eight columns fit between the screen edges. */
+const CELL = `min(56px,calc((100vw - 56px) / ${STASH_COLUMNS} - 4px))`;
+
 /** What one place of the grid shows: its piece or empty, and whether wear has taken the place away. */
 export interface Cell {
   food: Food | null;
@@ -48,11 +51,11 @@ export function createStashPanel(parent: HTMLElement, handlers: { onTap(slot: nu
   root.setAttribute('aria-label', t('stash.label'));
   root.style.cssText = 'display:none;position:fixed;inset:0;z-index:8;background:rgba(0,0,0,.5);align-items:center;justify-content:center;font:14px system-ui,sans-serif;color:#fff';
   const box = document.createElement('div');
-  box.style.cssText = 'padding:14px 16px;border-radius:12px;background:rgba(32,40,36,.95);border:2px solid rgba(255,255,255,.5);max-width:96vw;max-height:96vh;overflow:auto';
+  box.style.cssText = 'box-sizing:border-box;padding:14px 16px;border-radius:12px;background:rgba(32,40,36,.95);border:2px solid rgba(255,255,255,.5);max-width:96vw;max-height:96vh;overflow:auto';
   const summary = document.createElement('div');
   summary.style.cssText = 'margin-bottom:10px;font-weight:600';
   const grid = document.createElement('div');
-  grid.style.cssText = `display:grid;grid-template-columns:repeat(${STASH_COLUMNS},56px);gap:4px`;
+  grid.style.cssText = `display:grid;grid-template-columns:repeat(${STASH_COLUMNS},${CELL});gap:4px`;
   const foot = document.createElement('div');
   foot.style.cssText = 'display:flex;align-items:center;gap:12px;margin-top:12px';
   const mouth = document.createElement('div');
@@ -95,7 +98,7 @@ export function createStashPanel(parent: HTMLElement, handlers: { onTap(slot: nu
           b.dataset.slot = String(i);
           b.disabled = cell.lost;
           b.setAttribute('aria-label', cell.lost ? t('stash.lostPlace') : cell.food ? NAME[cell.food]() : t('stash.emptyPlace'));
-          b.style.cssText = `display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:8px;border:2px solid rgba(255,255,255,${cell.lost ? 0.12 : 0.5});background:${cell.lost ? 'rgba(90,90,90,.35)' : 'rgba(255,255,255,.1)'};padding:0`;
+          b.style.cssText = `display:flex;align-items:center;justify-content:center;width:${CELL};height:${CELL};border-radius:8px;border:2px solid rgba(255,255,255,${cell.lost ? 0.12 : 0.5});background:${cell.lost ? 'rgba(90,90,90,.35)' : 'rgba(255,255,255,.1)'};padding:0`;
           if (cell.food) b.appendChild(drawPiece(cell.food));
           b.addEventListener('click', () => handlers.onTap(i));
           return b;

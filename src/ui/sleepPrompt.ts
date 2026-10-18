@@ -46,7 +46,7 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   panel.id = 'sleep-prompt';
   panel.style.cssText =
     'display:none;position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:6;gap:12px;padding:10px;' +
-    'border-radius:14px;background:rgba(0,0,0,.5)';
+    'flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 16px);box-sizing:border-box;border-radius:14px;background:rgba(0,0,0,.5)';
 
   const skipButton = document.createElement('button');
   skipButton.textContent = t('sleep.morning');

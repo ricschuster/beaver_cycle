@@ -9,7 +9,7 @@ export type Lang = 'en' | 'de';
 export type LangChoice = Lang | 'auto';
 
 /** The languages whose tables are complete and shipped; Settings offers only these. German joins when its table is done. */
-export const LANGS: readonly Lang[] = ['en'];
+export const LANGS: readonly Lang[] = ['en', 'de'];
 
 const TABLES: Partial<Record<Lang, Partial<Table>>> = { en, de };
 

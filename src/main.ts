@@ -41,6 +41,7 @@ import { createToast } from './ui/toast';
 import { createClockHud } from './ui/clockHud';
 import { createStashPanel } from './ui/stashPanel';
 import { filledBut, storeCapacity, storeCondition } from './sim/food';
+import { installNarrowHud } from './ui/narrowHud';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createKeyHints } from './ui/keyHints';
 import { WELCOME_KEY, createHelpPanel, manualUrl, wantsWelcome } from './ui/helpPanel';
@@ -128,6 +129,8 @@ async function start(): Promise<void> {
   // Changing the language starts the game again, so the page language is set once here.
   document.documentElement.lang = getLang();
   let langChoice: LangChoice = prefs.lang;
+
+  installNarrowHud();
 
   const base = `${import.meta.env.BASE_URL}tiles/`;
   const store = await loadTileStore(base);

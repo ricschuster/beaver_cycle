@@ -169,6 +169,10 @@ interface Open {
   picked: DreamInput['pick'];
   onKey: (e: KeyboardEvent) => void;
   waking: boolean;
+  /** True once the first frame is drawn and the screen has started to fade in. */
+  warm: boolean;
+  /** True while the view compiles its shaders in the background, before the first draw. */
+  compiling: boolean;
 }
 
 export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions): DreamScreen {
@@ -266,10 +270,8 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         if (want && open && !open.waking && hideOrSeek(open.state) !== null) open.picked = want;
       };
       window.addEventListener('keydown', onKey);
-      // Read the layout once so the fade starts from 0.
-      void root.offsetWidth;
-      root.style.opacity = '1';
-      return {
+      // The fade starts after the first draw (`frame`), which compiles the shaders and makes the models in a stall of its own.
+      const o: Open = {
         root,
         view,
         rig,
@@ -284,7 +286,17 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         picked: undefined,
         onKey,
         waking: false,
+        warm: false,
+        compiling: false,
       };
+      if (view.warm) {
+        o.compiling = true;
+        const done = (): void => {
+          o.compiling = false;
+        };
+        view.warm().then(done, done);
+      }
+      return o;
     } catch (e) {
       root.remove();
       throw e;
@@ -343,6 +355,16 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     frame(dt, actions) {
       const o = open;
       if (!o) return;
+      if (!o.warm && o.compiling) return;
+      if (!o.warm) {
+        // Draw once while the screen is still clear (the sleep prompt's dark covers the game), so the stall of the first draw
+        // (#638) is not in the fade and not in the same frame as the build. The dream's time starts after it.
+        o.view.draw(o.state, o.rig.view, []);
+        o.warm = true;
+        void o.root.offsetWidth; // read the layout once so the fade starts from 0
+        o.root.style.opacity = '1';
+        return;
+      }
       if (o.waking) {
         o.view.draw(o.state, o.rig.view, []);
         return;

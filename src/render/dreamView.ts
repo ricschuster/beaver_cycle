@@ -16,6 +16,8 @@ export interface DreamView {
   canvas: HTMLCanvasElement;
   /** Draw the dream as it is, from the view. `events` are this step's, for little effects such as a sparkle on a sweet. */
   draw(state: DreamState, view: ViewState, events: readonly DreamEvent[]): void;
+  /** Compile the shader programs of the scene as it is, without holding the page (the browser does it on other threads). */
+  warm?(): Promise<void>;
   /** Free the GPU memory and remove the canvas. */
   dispose(): void;
   /** Draw calls and triangles of the last frame, for the preview page and tuning. */
@@ -457,6 +459,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       sunSprite.position.copy(eye).addScaledVector(sunDir, 500);
       gl.render(scene, camera);
     },
+    warm: () => gl.compileAsync(scene, camera).then(() => undefined),
     stats() {
       return { calls: gl.info.render.calls, triangles: gl.info.render.triangles };
     },

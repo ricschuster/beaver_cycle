@@ -40,6 +40,6 @@ describe.each(['manual', 'privacy'])('%s in German', (name) => {
 
   it('has a language tag and no em dash', () => {
     expect(read(`${name}.de.html`)).toContain('<html lang="de">');
-    expect(read(`${name}.de.html`)).not.toContain('—');
+    expect(read(`${name}.de.html`)).not.toContain(String.fromCharCode(0x2014));
   });
 });

@@ -58,7 +58,7 @@ import { babbleCue, dreamCues } from './audio/talkDream';
 import { LAYERS, createSound, wireBrowser } from './audio/sound';
 import { createMuteButton } from './ui/muteButton';
 import { createOsmCredit } from './ui/osmCredit';
-import { resolveLang, setLang, t, text, type LangChoice } from './i18n';
+import { getLang, resolveLang, setLang, t, text, type LangChoice } from './i18n';
 import { loadPrefs, savePrefs } from './ui/prefs';
 import { createAchievementsPanel, createSettingsPanel } from './ui/settingsPanel';
 import { createFlyButtons } from './ui/flyButtons';
@@ -189,6 +189,8 @@ async function start(): Promise<void> {
   const prefs = loadPrefs(storage);
   // The words follow the Settings choice, or the device language (docs/design/36_languages.md); a new choice restarts the game.
   setLang(resolveLang(prefs.lang, navigator.languages ?? navigator.language));
+  // Changing the language starts the game again, so the page language is set once here.
+  document.documentElement.lang = getLang();
   let langChoice: LangChoice = prefs.lang;
   const keptPrefs = (shadows: boolean) => ({ minimap: minimap.mode(), shadows, lang: langChoice });
   const shadowsAtStart = (query.has('shadows') ? query.get('shadows') === '1' : prefs.shadows) && !free;

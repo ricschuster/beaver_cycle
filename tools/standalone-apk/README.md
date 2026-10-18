@@ -77,3 +77,7 @@ ANDROID_HOME=~/Android/Sdk JAVA_HOME=~/Android/jdk-21 ./build_aab.sh
 scaled from 2048x1200 and trimmed a little at the top and bottom). To take new candidates:
 `STORE_SHOTS=some/dir npx playwright test tests/e2e/store-shots.spec.ts`
 (needs the tiles, 1 to 2 minutes; the seasons, a dam, the family, the dream, the other places), pick by eye, and copy them here.
+`store/de/` holds the same eight scenes in German (`screenshot-*.png`, 1920x1080, scripted rather than the author's own captures, so
+they differ a little from the English ones). Retake them with
+`STORE_LANG=de STORE_SHOTS=some/dir npx playwright test tests/e2e/store-shots.spec.ts -g "the set"` (about 1.5 minutes; until German
+ships, add `'de'` to `LANGS` in `src/i18n/index.ts` for the run), and leave `STORE_LANG` out for the English set.

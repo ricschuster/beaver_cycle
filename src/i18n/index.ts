@@ -23,6 +23,11 @@ export function getLang(): Lang {
   return current;
 }
 
+/** The file of a plain page (`manual`, `privacy`) in a language: `manual.html` for English, `manual.de.html` for German. */
+export function pageFile(name: string, lang: Lang = current): string {
+  return lang === 'en' ? `${name}.html` : `${name}.${lang}.html`;
+}
+
 /** The language for a choice: the device language (`de-AT` gives `de`) for "auto", English when that is not shipped. */
 export function resolveLang(choice: LangChoice, device: readonly string[] | string | null | undefined): Lang {
   const want: string = choice === 'auto' ? firstOf(device) : choice;

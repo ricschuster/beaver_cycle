@@ -1,7 +1,7 @@
 // Help for a new player (the manual, public/manual.html): a "?" button at the top right that opens the manual over the
 // game, and a welcome card the first time the game starts. DOM only. The manual is a plain page, shown in a frame so a
 // tablet needs no browser chrome to get back to the game.
-import { t } from '../i18n';
+import { pageFile, t } from '../i18n';
 
 /** The key that remembers the welcome card was seen. */
 export const WELCOME_KEY = 'beaver-cycle.welcomed';
@@ -19,6 +19,11 @@ export function wantsWelcome(seen: boolean, query: URLSearchParams, automated: b
   return !seen && !automated;
 }
 
+/** The manual page for the language set now, under the base path of the game. */
+export function manualUrl(base: string): string {
+  return `${base}${pageFile('manual')}`;
+}
+
 export interface HelpPanel {
   /** Open the manual over the game. */
   openManual(): void;
@@ -27,8 +32,8 @@ export interface HelpPanel {
 }
 
 export interface HelpOptions {
-  /** Where the manual page is, relative to the game page. */
-  manualUrl: string;
+  /** Where the manual page of the language set now is, relative to the game page. */
+  manualUrl(): string;
   /** True on a touch device, which gets the touch wording. */
   touch: boolean;
   /** Called when the welcome card is closed, so the caller can remember it. */
@@ -113,8 +118,12 @@ export function createHelpPanel(parent: HTMLElement, opts: HelpOptions): HelpPan
   parent.append(open, welcome, manual);
 
   const openManual = (): void => {
-    // Load the page the first time it is asked for, so the game start does not wait for it.
-    if (!frame.src) frame.src = opts.manualUrl;
+    // Load the page the first time it is asked for, so the game start does not wait for it, and again if the language changed.
+    const url = opts.manualUrl();
+    if (frame.dataset.url !== url) {
+      frame.dataset.url = url;
+      frame.src = url;
+    }
     manual.style.display = 'flex';
   };
   const closeManual = (): void => {

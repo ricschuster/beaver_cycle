@@ -43,7 +43,7 @@ import { createStashPanel } from './ui/stashPanel';
 import { filledBut, storeCapacity, storeCondition } from './sim/food';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createKeyHints } from './ui/keyHints';
-import { WELCOME_KEY, createHelpPanel, wantsWelcome } from './ui/helpPanel';
+import { WELCOME_KEY, createHelpPanel, manualUrl, wantsWelcome } from './ui/helpPanel';
 import { COACH_KEY, createCoach, wantsCoach } from './ui/coach';
 import { askSlot } from './ui/slotCard';
 import { AUTOSAVE_EVERY, ago, clearSave, loadSave, parseSlot, readSlots, renameSave, wantsSave, writeSave, cleanName, type SaveStorage, type SavedCoach } from './persist/save';
@@ -163,7 +163,7 @@ async function start(): Promise<void> {
   if (!free) {
     createOsmCredit(document.body);
     const help = createHelpPanel(document.body, {
-      manualUrl: `${import.meta.env.BASE_URL}manual.html`,
+      manualUrl: () => manualUrl(import.meta.env.BASE_URL),
       touch: wantsTouchControls(navigator, query),
       onWelcomed() {
         remember(WELCOME_KEY);

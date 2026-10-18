@@ -89,7 +89,7 @@ hash of the English). The page also shows the static pages (manual, privacy) by 
 1. Done: `src/i18n/`, the Settings choice, the test, and the `ui/` strings.
 2. Done: the sim text modules, the HUD and toasts, and the review page `tools/text-review/` (English and German side by side,
    edit, tick Reviewed, export `de.ts` and `reviewed.de.json`; a tick holds a hash of the English so it lapses when the English changes).
-3. Done: machine draft of the German tables in `src/i18n/de.ts` (all keys, du-form, button words as infinitives), the risky part reviewed by the author on a phone page (session 144). Other beavers have no sex, so German avoids pronouns for them. Still to do: `LANGS` gets `de`, the manual and the privacy page in German.
+3. Done: machine draft of the German tables in `src/i18n/de.ts` (all keys, du-form, button words as infinitives), the risky part reviewed by the author on a phone page (session 144). Other beavers have no sex, so German avoids pronouns for them. Done after: `manual.de.html` and `privacy.de.html` (machine draft, not yet read by the author), `pageFile` picks the file by language, the help panel reloads the frame when the language changed, and `src/i18n/pages.test.ts` compares shape, pictures and links with the English pages. Still to do: the author reads the German manual, the privacy page links its own language from the English page, and `LANGS` gets `de`.
 4. Listing text and screenshots in German.
 
 French is a later issue if a reader turns up.

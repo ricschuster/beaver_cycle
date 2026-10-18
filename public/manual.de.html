@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Biber-Kreislauf Anleitung</title>
+<style>
+  :root { --bg: #f6f1e4; --fg: #2a1f0e; --muted: #6b5d44; --card: #fffaf0; --line: #d9ccae; --accent: #2f6a30; --key: #efe3c4; --pop: #c2410c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1d231e; --fg: #ece6d4; --muted: #b3ab94; --card: #262e27; --line: #3b463d; --accent: #8fe08f; --key: #36423a; --pop: #ffb070; }
+  }
+  html { background: var(--bg); }
+  body { margin: 0 auto; max-width: 46rem; padding: 16px 16px 64px; background: var(--bg); color: var(--fg); font: 20px/1.5 system-ui, sans-serif; }
+  h1 { font-size: 2.1rem; margin: .6rem 0 .2rem; line-height: 1.2; }
+  h2 { font-size: 1.5rem; margin: 2.4rem 0 .5rem; color: var(--accent); }
+  p, li { margin: .5rem 0; }
+  .lead { color: var(--muted); margin-top: 0; }
+  a { color: var(--accent); }
+  kbd { padding: .05rem .45rem; border-radius: 6px; border: 1px solid var(--line); background: var(--key); font: 600 .85em ui-monospace, monospace; white-space: nowrap; }
+  .btn { display: inline-block; padding: .05rem .6rem; border-radius: 999px; border: 2px solid var(--accent); font-weight: 700; white-space: nowrap; }
+
+  /* The quick start: a big number, one short sentence, and a picture. */
+  .steps { list-style: none; padding: 0; margin: 1rem 0; counter-reset: step; }
+  .steps li { counter-increment: step; position: relative; margin: 1.2rem 0; padding: .8rem .9rem .9rem 4.2rem; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+  .steps li::before { content: counter(step); position: absolute; left: .8rem; top: .7rem; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--accent); color: var(--bg); font-weight: 800; font-size: 1.4rem; line-height: 2.5rem; text-align: center; }
+  .steps li > b { display: block; font-size: 1.25rem; }
+  @media (max-width: 520px) { .steps li { padding: 3.6rem .8rem .8rem; } .steps li > b { position: absolute; left: 3.7rem; top: 1rem; } }
+  .steps p { margin: .2rem 0 .6rem; }
+  figure { margin: .5rem 0 0; }
+  figure img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); }
+  figcaption { font-size: .85rem; color: var(--muted); margin-top: .25rem; }
+  .done { text-align: center; padding: 1rem; margin: 1.5rem 0; background: var(--card); border: 2px solid var(--accent); border-radius: 14px; font-size: 1.2rem; font-weight: 700; }
+
+  /* Tap to open: each answer or card is a details box with a big target. */
+  details { margin: .6rem 0; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+  summary { cursor: pointer; padding: .8rem 1rem; min-height: 1.5rem; font-weight: 700; font-size: 1.1rem; list-style: none; display: flex; align-items: center; gap: .6rem; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+"; flex: none; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--key); text-align: center; line-height: 1.7rem; font-weight: 800; color: var(--accent); }
+  details[open] > summary::before { content: "\2212"; }
+  details > :not(summary) { margin-left: 1rem; margin-right: 1rem; }
+  details > :last-child { margin-bottom: 1rem; }
+  details ul { padding-left: 1.3rem; }
+  .help summary { color: var(--pop); }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0; background: var(--card); font-size: .95rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--key); }
+  .scroll { overflow-x: auto; }
+  .small { font-size: .9rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<h1>Biber-Kreislauf: So wird gespielt</h1>
+<p class="lead">Du bist ein Biber in einem echten Tal in Österreich. Dir kann nichts passieren, und du kannst nicht verlieren. Es eilt nicht. Sieh dich um und bau etwas!</p>
+
+<h2 id="baby">Dein erster Tag</h2>
+<p>Du fängst als Babybiber an, zu Hause im Bau bei Mama und Papa. Die kleine Karte oben links zeigt, was zu tun ist. Ihre Knöpfe heißen <b>Zurück</b>, <b>Weiter</b> und <b>Schließen</b>.</p>
+<ol class="steps">
+  <li><b>Hinausschwimmen.</b> Geh zum Wasserloch im Boden und drücke <span class="btn">Tauchen</span> (<kbd>Leertaste</kbd>).</li>
+  <li><b>Schwimmen und tauchen.</b> Halte <span class="btn">Tauchen</span> (<kbd>Leertaste</kbd>), um unter Wasser zu gehen.</li>
+  <li><b>Mit dem Schwanz klatschen.</b> Drücke <span class="btn">Klatschen</span> (<kbd>T</kbd>) an der Wasseroberfläche.</li>
+  <li><b>Nach Hause gehen und schlafen.</b> Tauche an der Tür ein, sie liegt unter Wasser. Geh zum Nest und wähle <i>Schlafen, bis du ein Jugendlicher bist</i>.</li>
+</ol>
+<p class="done">Jetzt bist du ein Jugendlicher und kannst nagen, ziehen und bauen.</p>
+
+<h2 id="start">Dein erster Damm</h2>
+<p>Das macht ein Jugendlicher. Iss zuerst eine Kleinigkeit im Bau: Nimm ein Seerosenblatt, trag es hinein und drücke <span class="btn">Essen</span> (<kbd>E</kbd>), um es zu essen. Leg ein zweites in das Vorratslager an der Tür. Dann der Reihe nach:</p>
+
+<ol class="steps">
+  <li>
+    <b>Gehen und schwimmen</b>
+    <p>Schieb den <b>Stick</b>, um zu gehen. Zieh über den leeren Bildschirm, um die Ansicht zu drehen. Geh ins Wasser, um zu schwimmen.</p>
+    <figure><img src="manual/screen.jpg" alt="Das Spiel auf einem Tablet: der Biber am See, der Stick unten links und vier runde Knöpfe unten rechts: Nehmen, Tun, Klatschen und Tauchen" loading="lazy" /><figcaption>Der Stick ist links. Die Knöpfe sind rechts. Ein grauer Knopf kann hier nichts tun.</figcaption></figure>
+  </li>
+  <li>
+    <b>Einen Baum benagen</b>
+    <p>Geh zu einem Baum und bleib stehen. Drücke <span class="btn">Nagen</span> (<kbd>E</kbd>), bis er fällt. Nagen ist der Knopf <span class="btn">Tun</span>: Das Wort darauf ändert sich, je nachdem, was du tun kannst.</p>
+    <figure><img src="manual/tree.jpg" alt="Der Biber steht neben einem großen Baum am Seeufer" loading="lazy" /><figcaption>Stell dich nah an den Baum und beweg dich nicht.</figcaption></figure>
+  </li>
+  <li>
+    <b>Den Stamm nehmen</b>
+    <p>Der Baum ist jetzt ein Stamm. Stell dich an den Stamm und drücke <span class="btn">Nehmen</span> (<kbd>G</kbd>), um ihn zwischen die Zähne zu nehmen. Drücke noch einmal (jetzt steht Ablegen darauf), um loszulassen.</p>
+    <figure><img src="manual/log.jpg" alt="Ein gefällter Stamm liegt am Ufer neben dem Biber" loading="lazy" /></figure>
+  </li>
+  <li>
+    <b>Zu einem weißen Ring tragen</b>
+    <p>In der Nähe eines Baches liegt ein <b>weißer Ring</b> auf dem Boden. Das ist ein Platz für einen Damm. Trag den Stamm in den Ring.</p>
+    <figure><img src="manual/drag.jpg" alt="Der Biber zieht einen Stamm am Ufer entlang" loading="lazy" /></figure>
+  </li>
+  <li>
+    <b>Bauen drücken</b>
+    <p>Stell dich in den Ring und drücke <span class="btn">Bauen</span> (<kbd>E</kbd>). Der Damm braucht auch <b>Schlamm</b> und <b>Steine</b>. Oben links steht, was fehlt.</p>
+    <figure><img src="manual/ring.jpg" alt="Ein weißer Ring auf dem Boden mit einem Stamm darin, und oben links steht, dass der Damm Holz, Schlamm und Steine braucht" loading="lazy" /><figcaption>Oben links steht, was der Damm noch braucht.</figcaption></figure>
+  </li>
+  <li>
+    <b>Schlamm und Steine</b>
+    <p>Stell dich ins seichte Wasser und drücke <span class="btn">Nehmen</span>, um Schlamm aufzunehmen. Geh zu einem Stein und drücke <span class="btn">Nehmen</span>, um ihn aufzuheben. Trag ihn in den Ring und drücke <span class="btn">Bauen</span>.</p>
+  </li>
+  <li>
+    <b>Den Teich beobachten</b>
+    <p>Wenn der Damm fertig ist, staut sich das Wasser zu einem Teich. Dort wachsen Seerosenblätter. Teiche sind sichere Orte.</p>
+    <figure><img src="manual/pond.jpg" alt="Ein fertiger Damm aus Steinen und Holz, dahinter das gestaute Wasser" loading="lazy" /></figure>
+  </li>
+</ol>
+<p class="done">Du hast einen Teich gemacht! Wenn du erwachsen bist, baust du dir einen eigenen Bau.</p>
+
+<h2 id="stuck">Was mache ich jetzt?</h2>
+<p>Tippe auf eine Frage.</p>
+<div class="help">
+  <details><summary>Oben links steht Text. Was ist das?</summary>
+    <p>Er sagt dir, was jeder Knopf <b>gerade jetzt</b> tun würde. Zum Beispiel: <i>Drücke Nehmen, um ein Seerosenblatt aufzuheben</i>. Wenn du unsicher bist, lies ihn.</p>
+  </details>
+  <details><summary>Nichts passiert, wenn ich Nehmen oder Tun drücke</summary>
+    <ul>
+      <li>Bleib stehen. Nagen geht nicht, während du gehst.</li>
+      <li>Vielleicht ist dein Maul voll. Du kannst eine Sache tragen. Drücke <span class="btn">Ablegen</span> (der Nehmen-Knopf), um sie abzulegen.</li>
+      <li>Geh näher an den Baum, den Stein, das Seerosenblatt oder den Schlamm.</li>
+    </ul>
+  </details>
+  <details><summary>Ich finde keinen weißen Ring</summary>
+    <p>Geh an einem Bach entlang. Die Ringe erscheinen, wenn du nah bist. Die kleine Karte oben links sagt, in welcher Richtung der nächste Ring liegt.</p>
+  </details>
+  <details><summary>Der Damm will mehr</summary>
+    <p>Lies den Text oben links. Dort steht, wie viel Holz, Schlamm und wie viele Steine noch fehlen. Bring sie nacheinander und drücke im Ring <span class="btn">Bauen</span>.</p>
+  </details>
+  <details><summary>Ich kann keinen Bau bauen</summary>
+    <p>Zieh einen Stamm ins seichte Wasser. Sieh zum Wasser und drücke <span class="btn">Bauen</span>. Oben links steht, was nicht stimmt: zu tief, kein Wasser vor dir oder kein tiefes Wasser in der Nähe. Versuch es an einer anderen Stelle.</p>
+  </details>
+  <details><summary>Ich bin ein Baby und kann nichts tun</summary>
+    <p>Das ist Absicht. Babys bleiben in der Nähe von Mama und Papa. Geh in den Bau und benutze die Schlafknöpfe, um groß zu werden, oder erkunde einfach die Gegend am Teich.</p>
+  </details>
+  <details><summary>Ich habe mich verirrt</summary>
+    <p>Such den See. Der Bau liegt an seinem Ufer. Ein Erwachsener kann auch das <b>Test</b>-Menü benutzen, um an einen Ort zu springen.</p>
+  </details>
+  <details><summary>Das Spiel ist langsam</summary>
+    <p>Schließe die anderen Apps auf dem Tablet und öffne das Spiel noch einmal. Wenn es immer noch langsam ist, frag einen Erwachsenen.</p>
+  </details>
+  <details><summary>Ich habe das Spiel geschlossen. Ist mein Biber weg?</summary>
+    <p>Nein. Das Spiel speichert alle halbe Minute von selbst. Wenn du es wieder öffnest, siehst du deine Spiele. Drücke bei deinem auf <b>Weiterspielen</b>. Es gibt vier Plätze für Spiele, also kann auch ein Freund eines haben. <b>Umbenennen</b> gibt einem Spiel einen Namen. <b>Löschen</b> wirft einen Biber weg, deshalb fragt es zweimal.</p>
+  </details>
+</div>
+
+<h2 id="controls">Die Knöpfe</h2>
+<p>Auf einem Tablet gibt es unten links einen Stick und unten rechts runde Knöpfe. Am Computer benutzt du Tastatur und Maus. Die Tasten stehen auch unten links auf dem Bildschirm (<kbd>H</kbd> versteckt sie).</p>
+<div class="scroll"><table>
+  <tr><th>Was</th><th>Tablet</th><th>Computer</th></tr>
+  <tr><td>Gehen und schwimmen</td><td>Der Stick</td><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> oder die Pfeiltasten</td></tr>
+  <tr><td>Die Ansicht drehen</td><td>Über den leeren Bildschirm ziehen</td><td>Mit der Maus ziehen</td></tr>
+  <tr><td>Zoomen</td><td>Zwei Finger zusammen- oder auseinanderziehen</td><td>Mausrad</td></tr>
+  <tr><td>Tauchen (halten)</td><td><span class="btn">Tauchen</span></td><td><kbd>Leertaste</kbd></td></tr>
+  <tr><td>Schwanzklatschen</td><td><span class="btn">Klatschen</span></td><td><kbd>T</kbd></td></tr>
+  <tr><td>Einen Stamm, ein Seerosenblatt, Schlamm oder einen Stein aufheben oder ablegen</td><td><span class="btn">Nehmen</span> (<span class="btn">Ablegen</span>, wenn du etwas hältst)</td><td><kbd>G</kbd></td></tr>
+  <tr><td>Tun, was gerade dran ist: Nagen, Bauen, Flicken, Lagern, Essen, Reden, Graben</td><td><span class="btn">Tun</span> (das Wort darauf ändert sich)</td><td><kbd>E</kbd></td></tr>
+  </table></div>
+<p>Der <b>?</b>-Knopf oben rechts öffnet diese Seite. Hier bringt <b>Die ersten Schritte zeigen</b> die kleine Karte zurück.</p>
+<p>Der <b>Lautsprecher</b>-Knopf neben dem <b>?</b> schaltet den Ton aus und an. In der Nähe eines Baches hörst du ihn rauschen. Im Tal hörst du den Wind, tagsüber Vögel und nachts Grillen und eine Eule. Im Bau und unter Wasser ist es leiser. Auch was du tust, macht Geräusche: Nagen, ein fallender Baum, ein Platschen, ein Schwanzklatschen, Schwimmen, Essen, Dinge aufheben und ablegen und Bauen: Stämme, Schlamm und Steine an einem Damm oder Bau, und ein fröhliches Klingeln, wenn ein Stück fertig ist. Biber plappern, wenn sie reden, und ein Partner zwitschert, wenn er mit dir kommt. Im Tal spielt leise Musik, im Traum eine hellere, klimpernde Melodie. Im Traum klingeln die Süßigkeiten, und die anderen kichern und jubeln. Auch Tiere sprechen. Eine Ente quakt, und Eule, Fuchs, Luchs und Bär rufen eine Warnung, wenn sie dich bemerken. Der Ton startet nach deiner ersten Berührung.</p>
+<p>Der <b>Zahnrad</b>-Knopf öffnet die <b>Einstellungen</b>. Du kannst die Musik und die Geräusche lauter oder leiser machen, die runde Karte ändern (drehend, Norden oben oder aus) und die Schatten an- oder ausschalten. <b>Startbildschirm</b> speichert dein Spiel und geht zurück zur Liste der Spiele. Schatten sehen schön aus, aber manche Tablets werden damit langsam, deshalb sind sie am Anfang aus. Wenn du sie änderst, startet das Spiel neu, genau da, wo du warst.</p>
+<p>Der <b>Pokal</b>-Knopf öffnet <b>Was ich geschafft habe</b>. Es hat vier Reiter: Bauen, Holz und Futter, Familie, und Tal und Tiere. Ein Haken heißt, dass du es geschafft hast. Ein Ring heißt, noch nicht. Was man zählt, zeigt einen Balken, zum Beispiel 3 von 10, und drei Punkte für die drei Stufen. Tippe eins an, um über den Kacheln zu lesen, wie du es schaffst. Tippe noch einmal, um den Hinweis zu verstecken. Mit der Maus zeigst du einfach darauf.</p>
+<p><b>Neu, zum Ausprobieren:</b> Die runde Karte darunter zeigt das Land um dich herum. Der gelbe Pfeil bist du. Die braune Kuppel ist dein Zuhause. <b>N</b> zeigt Norden. Oben auf der Karte ist die Richtung, in die du schaust.</p>
+
+<h2 id="more">Mehr lesen</h2>
+<p>Tippe auf einen Titel, um ihn zu öffnen.</p>
+
+<details><summary>Dämme und Teiche</summary>
+  <p>Ein Damm braucht <b>Holz, Schlamm und Steine</b>. Ein langer Stamm zählt als zwei Stücke Holz. Du kannst immer nur eine Sache tragen.</p>
+  <p>Wenn er fertig ist, kannst du zurückkommen und ihn höher machen, bis zu drei Stufen. Ein höherer Damm macht einen größeren Teich. Ein fertiger Damm kann den nächsten Dammplatz in der Nähe öffnen.</p>
+  <p>Ein <b>grüner Ring</b> ist ein Damm, den du begonnen hast. Ein <b>goldener, leuchtender Ring</b> heißt, dass etwas abgenutzt ist und geflickt werden will.</p>
+</details>
+
+<details><summary>Dein Bau</summary>
+  <p>Ein Bau besteht aus zehn Stücken Holz. Er steht im Wasser. Seine Tür liegt <b>unter Wasser</b>: Tauche an der Tür, um hineinzugehen.</p>
+  <p>Drinnen kannst du essen, auf dem Nest ruhen und schlafen. Um hinauszugehen, stell dich an das Wasserloch im Boden und drücke <span class="btn">Tauchen</span>.</p>
+  <p>Dämme, der Bau und das Vorratslager nutzen sich mit der Zeit ab. Ein abgenutztes zeigt Lücken und einen goldenen Ring. Stell dich daneben, bring, was oben links verlangt wird, und drücke <span class="btn">Flicken</span>. Wenn Bau und Lager beide Holz brauchen, nennt der Text oben links zuerst das schlechtere und sagt, dass das andere auch Holz braucht. Wenn du zu lange wartest, geht es kaputt, und du baust es neu. Niemand wird verletzt.</p>
+</details>
+
+<details><summary>Futter und das Lager</summary>
+  <ul>
+    <li><b>Seerosenblätter:</b> Schwimm neben eines und drücke <span class="btn">Nehmen</span>. Im Winter sterben sie ab und wachsen im Frühling nach.</li>
+    <li><b>Äste:</b> Drücke <span class="btn">Nagen</span> an einem gefallenen Stamm, um einen Ast abzunagen.</li>
+    <li><b>Essen:</b> Trag das Futter in den Bau und drücke <span class="btn">Essen</span>. Von einem Seerosenblatt schwimmst du eine Minute lang schneller. Ein Ast macht satt: Du nagst einen Tag lang Bäume schneller.</li>
+    <li><b>Das Vorratslager:</b> Wenn der Bau fertig ist, liegt ein Vorratslager im Wasser neben der Tür. Schwimm hin und drücke <span class="btn">Lagern</span>. Tippe auf einen Platz, um Futter zwischen Lager und Maul zu bewegen.</li>
+  </ul>
+  <p>Das Lager hält Futter für den Winter. Nichts Schlimmes passiert, wenn es leer ist.</p>
+</details>
+
+<details><summary>Tag, Nacht und Schlaf</summary>
+  <p>Ein Spieltag dauert acht echte Minuten. Es gibt eine Dämmerung, einen hellen Tag und eine dunkle Nacht. Eine Jahreszeit dauert zehn Tage. Das Tal ist im Frühling grün, im Sommer hell, im Herbst bunt und im Winter verschneit.</p>
+  <p>Im Bau kannst du dich mit einer Tafel ausruhen:</p>
+  <ul>
+    <li><b>Bis zum Morgen schlafen</b>, nachts.</li>
+    <li><b>Bis zur nächsten Jahreszeit schlafen</b>, auf dem Nest.</li>
+    <li><b>Schlafen, bis du erwachsen bist</b>, für ein Baby oder einen Jugendlichen.</li>
+    <li><b>Träumen</b>, nachts. Siehe den nächsten Teil.</li>
+  </ul>
+</details>
+
+<details><summary>Träumen im Süßigkeitenland</summary>
+  <p>Drücke nachts im Bau auf <b>Träumen</b>. Dein Biber schläft ein und träumt vom Süßigkeitenland. Jede Nacht ist es ein neues Land. Im Traum ist dein Biber auch ein Marshmallow-Biber, in allen Farben des Regenbogens.</p>
+  <ul>
+    <li><b>Der Weg:</b> Folge dem kleinen Weg aus Bonbonsteinen. Er führt an Lutscherbäumen, Zuckerwattebäumen und Gummibärchen-Büschen vorbei zu einem Schokoladenfluss.</li>
+    <li><b>Süßigkeiten:</b> Geh oder schwimm in eine Süßigkeit, um sie einzusammeln. Die Zahl steht oben links. Ein goldener Stern gibt dir einen Zuckerrausch, und du bist einen Moment lang extra schnell. Die Süßigkeiten gelten nur für diesen Traum.</li>
+    <li><b>Marshmallow-Biber:</b> Weiche Biber in Rosa, Mint, Zitronengelb und mehr. Jeder hat einen Namen. Sie kommen und sagen Hallo.</li>
+    <li><b>Fangen:</b> Schwimm im Schokoladenfluss zu einem Marshmallow-Biber und drücke <span class="btn">Spielen</span> (<kbd>E</kbd>). Wer dran ist, jagt die anderen. Berühre jemanden, damit er dran ist. Nach einer Minute jubeln alle, und es regnet Süßigkeiten.</li>
+    <li><b>Verstecken:</b> Geh an Land zu einem Marshmallow-Biber und drücke <span class="btn">Spielen</span> (<kbd>E</kbd>). Wähle dann <span class="btn">Ich suche</span> (<kbd>2</kbd>) oder <span class="btn">Ich verstecke mich</span> (<kbd>1</kbd>).</li>
+    <li><b>Ich suche:</b> Du zählst bis zehn, während sie sich verstecken. Horch auf ein Kichern. Geh zu einem versteckten Biber, um ihn zu finden. Finde alle, und es gibt einen Regen aus Süßigkeiten.</li>
+    <li><b>Ich verstecke mich:</b> Sie zählen bis zehn. Lauf und versteck dich hinter einer großen Süßigkeit! Dann kommen sie suchen. Wenn du ein Kichern hörst, ist einer nah, also schleich auf die andere Seite. Gefunden zu werden macht auch Spaß. Nach einer Minute, oder wenn sie dich alle gefunden haben, regnet es Süßigkeiten.</li>
+  </ul>
+  <p>Die Knöpfe sind fast dieselben wie im Tal. Der Stick oder <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> geht und schwimmt. <span class="btn">Hüpfen</span> (<kbd>Leertaste</kbd>) hüpft an Land und springt aus der Schokolade. <span class="btn">Planschen</span> (<kbd>T</kbd>) planscht mit dem Schwanz.</p>
+  <p>Der Traum dauert, so lange du willst. Drücke oben rechts auf <b>Aufwachen</b>, um aufzuwachen. Dann ist es Morgen im Bau.</p>
+</details>
+
+<details><summary>Groß werden und der nächste Biber</summary>
+  <p>Das Spiel endet nie. Jeder Biber wird erwachsen, und dann übernimmt ein Junges.</p>
+  <ol>
+    <li><b>Baby:</b> Bleib in der Nähe des Baus bei Mama und Papa. Mama ruft dich zurück, wenn du dich entfernst. Du kannst noch keine Bäume fällen oder bauen.</li>
+    <li><b>Jugendlicher:</b> Du kannst alles, was ein Erwachsener kann, und hilfst am Teich.</li>
+    <li><b>Erwachsener:</b> Mama und Papa sagen, es ist Zeit für eine eigene Familie.</li>
+  </ol>
+  <p>Such als Erwachsener einen einzelnen Biber. Horch auf ein Schwanzklatschen in der Ferne und folge den Nachrichten, die sagen, in welche Richtung du gehen sollst. Nach einer Nachricht zeigen dir weiche goldene Funken auf dem Boden eine Weile den Weg. Wenn du in seine Nähe schwimmst, klatscht er mit dem Schwanz und folgt dir. Bau einen Bau und einen Damm an einem guten Platz. Dein Partner zieht ein, wenn der Bau fertig ist. Hin und wieder erzählt dir dein Partner, was er sieht, zum Beispiel einen guten Dammplatz oder Seerosenblätter. Am ersten Frühlingstag, nachdem ihr eine Jahreszeit zusammen wart, kommt ein Junges zur Welt, und du spielst das Junge.</p>
+</details>
+
+<details><summary>Tiere und andere Biber</summary>
+  <ul>
+    <li><b>Rehe und Enten</b> sind scheu. Leg ein Seerosenblatt in ihrer Nähe ab, dann frisst es das Tier und vertraut dir mehr. Ein Schwanzklatschen lässt sie hochspringen.</li>
+    <li><b>Biberfamilien</b> leben in Bauen an anderen Teichen. Am Anfang sind sie scheu und halten Abstand. Leg einen Ast oder ein Seerosenblatt in ihrer Nähe ab, dann vertrauen sie dir mehr. Wenn sie dir vertrauen, schwimmen die Jungen herüber und sehen sich um. Ein Schwanzklatschen erschreckt sie. Familien reden über dich, und die Nachricht von einer guten Tat verbreitet sich: Wenn du einer Familie hilfst, vertrauen dir die anderen, die du kennst, auch ein bisschen mehr.</li>
+    <li><b>Reden:</b> Geh zu einem Biber, zum Beispiel Mama, Papa, deinem Partner oder einem Nachbarn, der dir vertraut. Unten steht zum Beispiel <i>Willow ist hier, drücke Reden</i>. Drücke <span class="btn">Reden</span> (der Tun-Knopf), und er antwortet. Sogar ein Baby kann mit Mama und Papa reden. Du kannst auch im Bau mit Mama und Papa reden. Reden kommt vor Nagen, also tritt an Bäumen ein Stück vom Biber weg, um zu nagen. Beim ersten Mal sagt dir ein Biber seinen Namen und seinen Teich. Beim nächsten Mal kennt er dich. Dann kannst du eine Frage antippen. <b>Was machst du gerade?</b> sagt dir, womit der Biber beschäftigt ist. <b>Gibt es Neuigkeiten?</b> bringt dir etwas Wahres von einem Biber, der dir vertraut: wo Seerosenblätter wachsen, dass ein Fuchs in der Nähe ist oder dass ein Damm geflickt werden muss. <b>Kann ich helfen?</b> gibt dir eine Aufgabe. Eine Familie bittet vielleicht darum, einen Ast oder ein Seerosenblatt in ihrer Nähe abzulegen. Mama und Papa sagen dir, was euer Zuhause braucht. Du kannst zwei Fragen stellen. Tippe auf <b>Tschüss</b>, und der Biber verabschiedet sich. Vielleicht hörst du auch, wie eine Familie einander ruft.</li>
+    <li><b>Im Schnee festgesteckt:</b> Im Winter hörst du vielleicht jemanden um Hilfe rufen. Ein Biber aus einer Familie, die dich kennt, steckt in einer Schneewehe an seinem Teich fest. Stell dich neben die Wehe, drücke <span class="btn">Graben</span> und bleib still, bis er ausgegraben ist. Dann rede mit ihm und tippe auf <b>Zeig mir den Weg</b>. Er führt dich zu einem einzelnen Biber, einem freien Dammplatz oder nach Hause und wartet, wenn du zurückbleibst.</li>
+    <li><b>Otter und Eisvögel</b> führen dich zu Seerosenblättern. Folge ihnen. Sie warten, wenn du zurückbleibst.</li>
+    <li><b>Füchse und Eulen</b> kommen vielleicht an dein Futter oder jagen dich. Wölfe kommen zu zweit und heulen, bevor sie auf dich zulaufen. Nur das Wasser ist vor einem Wolf sicher. Klatsche mit dem Schwanz, um sie zu verscheuchen. Sie können dir nur Angst machen, dir aber nie wehtun. Ein Teich ist ein sicherer Ort.</li>
+    <li><b>Andere Biberfamilien</b> leben in Teichen im ganzen Tal.</li>
+  </ul>
+</details>
+
+<details><summary>Was ich geschafft habe</summary>
+  <p>Jedes Leben hat seine eigene Liste. Eine Nachricht erscheint, wenn du etwas schaffst. Was man zählt, hat drei Stufen: ein Punkt für jede geschaffte Stufe, wie ●○○, und eine Zahl, wie weit du bis zur nächsten bist.</p>
+  <ul>
+    <li><b>Holz:</b> Fälle 30 Bäume. Dann 100, dann 300.</li>
+    <li><b>Zuhause:</b> Bau dir einen eigenen Bau.</li>
+    <li><b>Erster Damm:</b> Bau einen Damm fertig, sodass der Bach Wasser staut.</li>
+    <li><b>Höherer Damm:</b> Mach einen Damm so hoch, wie der Platz es erlaubt.</li>
+    <li><b>Pionier:</b> Bau einen Damm an einem Platz, den ein Teich geöffnet hat.</li>
+    <li><b>Vorratskammer:</b> Füll das Vorratslager.</li>
+    <li><b>Wassergärtner:</b> Pflück 20 Seerosenblätter. Dann 60, dann 150.</li>
+    <li><b>Flicken:</b> Flick etwas Abgenutztes, bis es wie neu ist (Geschickter Biber). Dann flick 10 (Heimwerker), dann 30 (Flickmeister).</li>
+    <li><b>Lastenträger:</b> Bring 30 Ladungen Schlamm und Steine zu Dämmen. Dann 100, dann 300.</li>
+    <li><b>Ein ganzes Jahr:</b> Erlebe alle vier Jahreszeiten.</li>
+    <li><b>Partner:</b> Bring einen Partner nach Hause, damit er in deinem Bau wohnt.</li>
+    <li><b>Junge:</b> Bekomm ein eigenes Junges. Dann spielst du das Junge.</li>
+    <li><b>Retten:</b> Grab einen im Schnee steckenden Biber aus. Er wird dein Führer (Führer). Dann grab 5 aus (Retter), dann 15 (Schneeretter).</li>
+    <li><b>Groß werden:</b> Wachse vom Baby zum Jugendlichen.</li>
+    <li><b>Zu Besuch daheim:</b> Schwimm, nachdem du von zu Hause weg bist, zurück und rede mit Mama oder Papa.</li>
+    <li><b>Weitergeben:</b> Bekomm ein Junges, während ein Damm, den du gebaut hast, heil ist. Dein Junges bekommt deinen Bau und deinen Damm.</li>
+    <li><b>Willkommen:</b> Nimm Schlamm auf, stell dich ans Ufer bei deinem Bau und drücke <span class="btn">Markieren</span> (<kbd>E</kbd>), um einen Dufthügel zu formen. Am nächsten Morgen kommt ein Biber und schnuppert daran. Geh hin und sag Hallo, und drücke <span class="btn">Reden</span>. Nach drei Tagen geht er weg. Wenn du Hallo gesagt hast, zieht er in einen Bau an einem Teich in der Nähe. Der Hügel trocknet aus und ist nach vier Tagen weg.</li>
+    <li><b>Guter Nachbar:</b> Rede mit Bibern aus 3 verschiedenen Familien. Dann 6, dann 10.</li>
+    <li><b>Lange Linie:</b> Spiel das Junge vom Jungen vom Jungen des ersten Bibers. Dann das 5. Leben, dann das 10.</li>
+    <li><b>Taucher:</b> Tauche und bleib unter Wasser, bis du zum Luftholen auftauchen musst.</li>
+    <li><b>Entdecker:</b> Besuche alle sechs Bereiche des Tals.</li>
+    <li><b>Schwanzklatscher:</b> Klatsche 10 Mal mit dem Schwanz. Dann 50, dann 200.</li>
+    <li><b>Gut genährt:</b> Iss 25 Stück Futter. Dann 100, dann 300.</li>
+    <li><b>Entrinder:</b> Nage 50 Äste von Stämmen ab. Dann 150, dann 500.</li>
+    <li><b>Wintervorrat:</b> Das Vorratslager ist am ersten Wintertag mindestens halb voll.</li>
+    <li><b>Viele Dämme:</b> Habe 3 heile Dämme gleichzeitig. Dann 5, dann 8.</li>
+    <li><b>Großer Teich:</b> Mach mit einem deiner Dämme einen großen Teich.</li>
+    <li><b>Tierfreund:</b> Leg Futter für ein Reh und für eine Ente hin. Sie fressen es.</li>
+    <li><b>Teichleben:</b> Mach einen Teich, der alt genug für Enten und Frösche ist, und sieh beide an.</li>
+    <li><b>Heime nah und fern:</b> Habe in jedem der sechs Bereiche des Tals einen Bau oder einen heilen Damm von dir.</li>
+    <li><b>Süße Träume:</b> Schlaf nachts und hab einen Traum.</li>
+    <li><b>Langer Winter:</b> Erlebe einen ganzen Winter in deinem Bau und lass das Vorratslager nie leer werden.</li>
+  </ul>
+</details>
+
+<details><summary>Für Erwachsene</summary>
+  <ul>
+    <li>Das <b>Test</b>-Menü oben rechts ist für den Autor: Es beschleunigt die Zeit, springt zu den sechs Bereichen des Tals und schaltet, wenn das Spiel mit <code>?shadows=1</code> geöffnet wird, die Schatten der Sonne an oder aus. Sie sind am Anfang aus, weil das Tablet damit zu langsam ist.</li>
+    <li>Das Test-Menü hat zwei Lautstärkeregler (Effekte und Musik, auf dem Tablet gespeichert) und einen Schalter für jede Tonschicht sowie je einen für die Musik und die einzelnen Geräusche. <code>?sound=0</code> startet das Spiel ohne Ton.</li>
+    <li>Der Knopf <b>Dream now</b> im Test-Menü öffnet jederzeit einen Traum. Die Adresse <code>?dream=1</code> startet das Spiel in einem Traum, und <code>?seed=5</code> wählt das Süßigkeitenland.</li>
+    <li>Das Spiel speichert von selbst (vier Spiele pro Tablet, jedes mit einem Namen, wenn man will) und zeigt sie am Anfang. Wenn das Tablet die Daten der App löscht, ist auch der Spielstand weg.</li>
+    <li>Das Spiel beginnt als Baby in einem fertigen Bau. Die Coach-Karte folgt jeder Lebensstufe und beginnt neu, wenn der Biber groß wird. <b>Schließen</b> schaltet sie aus. Das Test-Menü kann zu einem Jugendlichen oder Erwachsenen springen.</li>
+    <li>Wenn beim Tauchen die Luft ausgeht, treibt der Biber nach oben. Nichts geht verloren.</li>
+    <li>Das Spiel ist noch in Arbeit. Sag dem Autor, was dich verwirrt hat. So wird diese Seite besser.</li>
+  </ul>
+</details>
+
+<p class="small"><a href="privacy.de.html">Datenschutz</a>: Das Spiel sammelt nichts über dich.</p>
+<p class="small">Kartendaten: &copy; OpenStreetMap-Mitwirkende (ODbL, <a href="https://www.openstreetmap.org/copyright">openstreetmap.org/copyright</a>) für Wasser und Bodenbedeckung. Gelände: BEV, Österreich (CC BY 4.0). Die Bilder auf dieser Seite sind aus diesen Daten gezeichnet.</p>
+<p class="small">Geräusche: Aufnahmen von BigSoundBank (Joseph Sardin und andere, CC0), OpenGameArt (CC0) und Freesound (CC0). Der Jubel ist &bdquo;Video Game Cheerful Ending&ldquo; von Almitory (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), und der fallende Baum stammt aus Yo Frankie! der Blender Foundation (<a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>). Die ganze Liste steht in <code>public/audio/CREDITS.md</code>.</p>
+</body>
+</html>

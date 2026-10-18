@@ -104,7 +104,7 @@ Everyday (gate means CI blocks a merge on it):
 - `tools/area-editor/` - browser editor for the play area and its data build.
 - `tools/tiles/` - cuts terrain, land cover, and water into game tiles.
 - `tools/tablet-live/` - Capacitor shell that loads the dev server on a tablet.
-- `public/manual.html` - the player manual, shown in the game by the ? button (`src/ui/helpPanel.ts`). Update it when
+- `public/manual.html` - the player manual, shown in the game by the ? button (`src/ui/helpPanel.ts`); `manual.de.html` is the German one, picked by the language (`pageFile` in `src/i18n/`), and `src/i18n/pages.test.ts` checks that it keeps the English shape. Update both when
   controls, HUD text, or rules change, and keep the first steps in step with `src/ui/coachSteps.ts` (the in-game coach). Written for kids from 8, short sentences, pictures in `public/manual/`.
 - `src/` - the game. `sim/` is state and rules (no DOM, no three.js, no
   input; the ground comes in through its `Terrain` interface), `terrain/` is

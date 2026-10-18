@@ -26,8 +26,9 @@ are built once, and the shared tree and shrub geometries are never rebuilt.
   leaves, so it climbs to a high water mark (most animals near at once) and stops. This is not a leak.
 - The other beavers and the parents keep one model per id. A kit's id carries the year (`family:3:kit:7:0`), so every game year
   brought new ids and the old models stayed in the scene for good. They are now handed back to a spare pool and taken by the
-  next new id (`recycle` in `src/render/renderer.ts`). The tour runs at normal speed, so no game year passes in it and the
-  soak does not show this; it follows from reading the code.
+  next new id (`recycle` in `src/render/renderer.ts`). A second soak test moves the clock on one game year at each jump
+  (`__game.skipYears`, 48 years in 8 laps). Without the recycling the scene grew from 2365 to 8239 geometries and the heap from
+  40 to 83 MB; with it, 1537 to 1687 geometries and 36 to 39 MB (the pools' high water marks).
 
 ## Budget
 
@@ -44,4 +45,4 @@ and last lap, textures to +5, programs to +3, and the scene's geometries to +150
 - Android memory pressure (`onTrimMemory`): with this little held, dropping tiles would gain almost nothing. The GPU and the
   WebView are the likely users; measure first.
 - Garbage per frame in the sim and render loops.
-- Years of play (a generation change, a dream ending) are not in the tour; the next soak should run at a high game speed.
+- A generation change and a dream ending are not in the tour; the years are (the clock is moved on, the beaver does not age).

@@ -7,7 +7,7 @@ import { createRenderer } from './render/renderer';
 import { SEASON_FULL_DAY } from './render/seasonLook';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, checkSpot, lodgeProgress } from './sim/lodge';
-import { DAY_SECONDS, dateAt, daylight, withSeason, withTimeOfDay } from './sim/clock';
+import { DAYS_PER_YEAR, DAY_SECONDS, dateAt, daylight, withSeason, withTimeOfDay } from './sim/clock';
 import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { formerParentsAt, parentsAt } from './sim/family';
@@ -1050,6 +1050,10 @@ async function start(): Promise<void> {
     view: () => rig.view,
     stats: () => renderer.terrain?.stats() ?? null,
     // GPU object counts and the bytes of ground held, for the soak measurement (docs/design/38_memory.md).
+    // Moves the clock on by this many game years (age stays as it is), for the memory soak: a kit's id carries the year.
+    skipYears: (years: number) => {
+      world = setClock(world, world.clock + years * DAYS_PER_YEAR * DAY_SECONDS);
+    },
     memory: () => ({ ...renderer.memory(), tileBytes: store?.bytesByLevel() ?? [] }),
     // Per part tile build times since the last call, for the tablet bench.
     buildTimes: drainBuildTimes,

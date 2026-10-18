@@ -81,3 +81,6 @@ scaled from 2048x1200 and trimmed a little at the top and bottom). To take new c
 they differ a little from the English ones). Retake them with
 `STORE_LANG=de STORE_SHOTS=some/dir npx playwright test tests/e2e/store-shots.spec.ts -g "the set"` (about 1.5 minutes; until German
 ships, add `'de'` to `LANGS` in `src/i18n/index.ts` for the run), and leave `STORE_LANG` out for the English set.
+`store/de/feature-graphic.png` is the English feature graphic with the title and tagline replaced by German ones:
+`python3 tools/standalone-apk/make_feature_graphic_de.py` (Pillow, numpy, Noto Sans) paints the English text out of the water and sets the
+German text in its place.

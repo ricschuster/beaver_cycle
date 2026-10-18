@@ -30,11 +30,12 @@ describe('t', () => {
 });
 
 describe('resolveLang', () => {
-  it('follows the device for auto, and English for what is not shipped', () => {
+  it('follows the device for auto, and English for what is not shipped (French)', () => {
     expect(resolveLang('auto', ['fr-FR'])).toBe('en');
     expect(resolveLang('auto', null)).toBe('en');
     expect(resolveLang('en', ['de-AT'])).toBe('en');
-    if (LANGS.includes('de')) expect(resolveLang('auto', ['de-AT', 'en'])).toBe('de');
+    expect(resolveLang('auto', ['de-AT', 'en'])).toBe('de');
+    expect(resolveLang('de', ['en'])).toBe('de');
   });
 });
 

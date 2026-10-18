@@ -46,8 +46,8 @@ Email: <ric.schuster@gmail.com> (shown publicly on the listing). Website, option
 ## German listing (draft)
 
 Machine draft for #600, to be read by the author before it goes into the Play Console as the de-DE translation. Same limits as
-above. The privacy policy URL for German is the Pages site's `privacy.de.html`. The screenshots are still the English ones until the
-manual and store shots are retaken in German.
+above. The privacy policy URL for German is the Pages site's `privacy.de.html`. The German screenshots are in `store/de/` (same eight
+scenes, taken in German by `tests/e2e/store-shots.spec.ts`, see the standalone-apk README). The German feature graphic is `store/de/feature-graphic.png` (made by `make_feature_graphic_de.py`).
 
 ### App name (de)
 

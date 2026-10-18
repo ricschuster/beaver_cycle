@@ -41,6 +41,7 @@ import { createToast } from './ui/toast';
 import { createClockHud } from './ui/clockHud';
 import { createStashPanel } from './ui/stashPanel';
 import { filledBut, storeCapacity, storeCondition } from './sim/food';
+import { installNarrowHud } from './ui/narrowHud';
 import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createKeyHints } from './ui/keyHints';
 import { WELCOME_KEY, createHelpPanel, manualUrl, wantsWelcome } from './ui/helpPanel';
@@ -111,6 +112,26 @@ async function start(): Promise<void> {
   const treeScale = Number(query.get('trees'));
   if (treeScale > 0) treeTuning.densityScale = treeScale;
 
+  // The language is set first, since every panel below builds its words when it is made.
+  // The browser's storage (blocked in some modes, then null) holds the saved game, the sound settings and the Settings choices.
+  const storage: SaveStorage | null = (() => {
+    try {
+      return localStorage;
+    } catch {
+      return null;
+    }
+  })();
+  // The Settings panel's choices (src/ui/prefs.ts). A dev URL parameter wins over them; the shadows are fixed at the start, so
+  // changing them restarts the game.
+  const prefs = loadPrefs(storage);
+  // The words follow the Settings choice, or the device language (docs/design/36_languages.md); a new choice restarts the game.
+  setLang(resolveLang(prefs.lang, navigator.languages ?? navigator.language));
+  // Changing the language starts the game again, so the page language is set once here.
+  document.documentElement.lang = getLang();
+  let langChoice: LangChoice = prefs.lang;
+
+  installNarrowHud();
+
   const base = `${import.meta.env.BASE_URL}tiles/`;
   const store = await loadTileStore(base);
   const streamer = store ? new Streamer(store, httpFetchTile(base), streamOptions, httpFetchWater(base)) : null;
@@ -176,22 +197,6 @@ async function start(): Promise<void> {
     if (wantsWelcome(remembered(WELCOME_KEY), query, navigator.webdriver)) help.showWelcome();
     else if (wantsCoach(remembered(COACH_KEY), query, navigator.webdriver)) coachPending = true;
   }
-  // The browser's storage (blocked in some modes, then null) holds the saved game, the sound settings and the Settings choices.
-  const storage: SaveStorage | null = (() => {
-    try {
-      return localStorage;
-    } catch {
-      return null;
-    }
-  })();
-  // The Settings panel's choices (src/ui/prefs.ts). A dev URL parameter wins over them; the shadows are fixed at the start, so
-  // changing them restarts the game.
-  const prefs = loadPrefs(storage);
-  // The words follow the Settings choice, or the device language (docs/design/36_languages.md); a new choice restarts the game.
-  setLang(resolveLang(prefs.lang, navigator.languages ?? navigator.language));
-  // Changing the language starts the game again, so the page language is set once here.
-  document.documentElement.lang = getLang();
-  let langChoice: LangChoice = prefs.lang;
   const keptPrefs = (shadows: boolean) => ({ minimap: minimap.mode(), shadows, lang: langChoice });
   const shadowsAtStart = (query.has('shadows') ? query.get('shadows') === '1' : prefs.shadows) && !free;
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
@@ -721,7 +726,7 @@ async function start(): Promise<void> {
       // What Do and Take mean here (#341): the words on the buttons, and what a press of each does this frame.
       const doNow = doHere(world, terrain, trees, nearby);
       const takeNow = takeHere(world, withPonds(terrain, world.ponds), terrain);
-      touch.setLabel('do', doNow ? DO_LABEL[doNow] : 'Do');
+      touch.setLabel('do', doNow ? DO_LABEL[doNow] : t('btn.do'));
       touch.setEnabled('do', doNow !== null);
       touch.setLabel('take', takeLabel(takeNow));
       touch.setEnabled('take', takeNow !== null);
@@ -918,7 +923,7 @@ async function start(): Promise<void> {
         if (remark) toast.show(t('toast.said', { who: remark.who, text: remark.text }));
       }
     }
-    talkBubble.prompt(near && doShown === 'talk' ? near.name : null, touchOn ? 'Talk' : 'E');
+    talkBubble.prompt(near && doShown === 'talk' ? near.name : null, touchOn ? DO_LABEL.talk : 'E');
     talkBubble.tick(dt);
     // Winter: a beaver stuck in a drift calls for help, the player digs it out by gnawing beside it, and it becomes a guide (#346).
     const homeAt = world.formerHomes.at(-1) ?? world.lodge ?? world.beaver;

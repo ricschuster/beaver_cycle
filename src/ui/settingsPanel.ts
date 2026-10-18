@@ -126,6 +126,8 @@ export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions):
     const names: Record<LangChoice, string> = { auto: t('settings.langAuto'), en: t('settings.langEn'), de: t('settings.langDe') };
     const choices: LangChoice[] = ['auto', ...LANGS];
     const box = row(t('settings.language'));
+    // Three buttons and the label are wider than a phone card in German, so they wrap instead of squeezing.
+    box.style.flexWrap = 'wrap';
     for (const choice of choices) {
       const b = document.createElement('button');
       b.type = 'button';

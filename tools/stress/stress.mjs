@@ -37,12 +37,21 @@ async function connect() {
   const adb = `${process.env.ANDROID_HOME ?? `${process.env.HOME}/Android/Sdk`}/platform-tools/adb`;
   const pid = execSync(`${adb} shell pidof ${PACKAGE}`, { encoding: 'utf8' }).trim();
   if (!pid) throw new Error(`${PACKAGE} is not running`);
+  // A tablet that dozes hides the page: no animation frames, and the clicks wait for a stable element until they time out.
+  // Stay awake while plugged in for the run, and put the old setting back at the end.
+  const stayOn = execSync(`${adb} shell settings get global stay_on_while_plugged_in`, { encoding: 'utf8' }).trim();
+  execSync(`${adb} shell settings put global stay_on_while_plugged_in 7`);
+  execSync(`${adb} shell input keyevent KEYCODE_WAKEUP`);
+  process.on('exit', () => {
+    try { execSync(`${adb} shell settings put global stay_on_while_plugged_in ${/^\d+$/.test(stayOn) ? stayOn : 0}`); } catch { /* tablet gone */ }
+  });
   execSync(`${adb} forward tcp:9223 localabstract:webview_devtools_remote_${pid}`);
   const browser = await chromium.connectOverCDP('http://localhost:9223');
   return { browser, page: browser.contexts()[0].pages()[0] };
 }
 
 const { browser, page } = await connect();
+await page.waitForFunction(() => document.visibilityState === 'visible', null, { timeout: 30_000 });
 const problems = [];
 page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
 page.on('console', (m) => { if (m.type() === 'error') problems.push(`console error: ${m.text()}`); });

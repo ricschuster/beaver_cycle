@@ -74,6 +74,19 @@ export function sweetHeight(sweet: Pick<Sweet, 'floating'>, ground: number, time
 
 /** The scene for one night's land, with the player as a rainbow marshmallow beaver. The canvas fills `parent`. */
 export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView {
+  const steps = dreamViewSteps(parent, land);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
+}
+
+/**
+ * `createDreamView` in steps (#638): the build is about 450 ms on a desktop and more on a tablet, so it yields between its
+ * heavy parts and a caller can spend one step a frame. The first step makes the canvas and yields it (the camera rig needs it);
+ * the view is the return value of the last. A caller that stops half way must finish the steps before `dispose`.
+ */
+export function* dreamViewSteps(parent: HTMLElement, land: DreamLand): Generator<HTMLCanvasElement | undefined, DreamView, undefined> {
   const gl = new THREE.WebGLRenderer({ antialias: true });
   gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, DREAM_PIXEL_RATIO));
   const canvas = gl.domElement;
@@ -81,6 +94,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   canvas.style.width = '100%';
   canvas.style.height = '100%';
   parent.append(canvas);
+  yield canvas;
 
   const heightAt = (x: number, z: number): number => dreamHeight(land, x, z);
   /** The top of what is under a point: the ground, or the chocolate over the river bed. */
@@ -111,15 +125,19 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   sunSprite.scale.setScalar(150);
   sunSprite.renderOrder = -1;
   scene.add(sunSprite);
+  yield;
   scene.add(farScoops(land));
   for (let side = 0; side < 4; side++) scene.add(hillScoops(land, side));
+  yield;
 
   const ground = new THREE.Mesh(groundGeometry(land), new THREE.MeshLambertMaterial({ vertexColors: true }));
   scene.add(ground);
+  yield;
   const river = createChocolateRiver(land);
   scene.add(river.mesh);
   const candyMaterial = (shininess: number): THREE.MeshPhongMaterial => new THREE.MeshPhongMaterial({ vertexColors: true, shininess, specular: 0x3a3a3a });
   scene.add(new THREE.Mesh(pathStones(land.path, heightAt), candyMaterial(50)));
+  yield;
 
   // The props, merged by patches of land, so the patches behind the camera are not drawn.
   const PATCHES = 3;
@@ -135,6 +153,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     });
     geo.computeBoundingSphere();
     scene.add(new THREE.Mesh(geo, propMaterial));
+    yield;
   }
 
   // Sugar twinkles over the meadow: tiny points that flash now and then, each at its own beat.
@@ -169,10 +188,12 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     };
     scene.add(new THREE.Points(geo, material));
   }
+  yield;
 
   // The beavers: the player's rainbow one, and a marshmallow beaver for each one in the dream, made when first seen.
   const player = dreamPlayer();
   scene.add(player.group);
+  yield;
   const mallows = new Map<string, { model: BeaverModel; far: THREE.Mesh }>();
 
   // A soft round shadow under each beaver, all in one instanced mesh.

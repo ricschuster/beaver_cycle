@@ -5,7 +5,7 @@
 import { t, tList } from '../i18n';
 import { mergeActions, noActions, relativeToView, type Actions } from '../actions/actions';
 import { createCameraRig, type CameraRig } from '../render/cameraRig';
-import { createDreamView, type DreamView } from '../render/dreamView';
+import { dreamViewSteps, type DreamView } from '../render/dreamView';
 import { hideOrSeek, newDream, playPrompt, stepDream, type DreamEvent, type DreamInput, type DreamState } from '../sim/dream';
 import { DARK_MS, FADE_MS } from './sleepPrompt';
 import { createTouchControls, type TouchControls } from './touchControls';
@@ -144,7 +144,9 @@ const text = (e: HTMLElement, value: string): void => {
 
 interface Open {
   root: HTMLElement;
-  view: DreamView;
+  /** Null while the scene is built a step a frame (`steps`). */
+  view: DreamView | null;
+  steps: ReturnType<typeof dreamViewSteps> | null;
   rig: CameraRig;
   touch: TouchControls | null;
   hud: {
@@ -188,8 +190,16 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     o.root.style.pointerEvents = 'none';
     opts.onWake();
     window.removeEventListener('keydown', o.onKey);
+    // A dream cut short while the scene is still being built finishes the build first, so dispose frees all of it.
+    while (o.steps) {
+      const step = o.steps.next();
+      if (step.done) {
+        o.view = step.value;
+        o.steps = null;
+      }
+    }
     setTimeout(() => {
-      o.view.dispose();
+      o.view?.dispose();
       o.root.remove();
       if (open === o) open = null;
     }, DARK_MS);
@@ -205,8 +215,9 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     );
     parent.appendChild(root);
     try {
-      const view = createDreamView(root, state.land);
-      const rig = createCameraRig(view.canvas);
+      const steps = dreamViewSteps(root, state.land);
+      const canvas = steps.next().value as HTMLCanvasElement;
+      const rig = createCameraRig(canvas);
 
       const countBox = el('div', `${PILL};position:absolute;left:max(16px,env(safe-area-inset-left));top:16px;z-index:2;display:flex;align-items:center;gap:8px;padding:6px 18px 6px 10px;font-size:26px;pointer-events:none`, 'dream-count');
       const count = el('span', 'display:inline-block;min-width:1.2em');
@@ -273,7 +284,8 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       // The fade starts after the first draw (`frame`), which compiles the shaders and makes the models in a stall of its own.
       const o: Open = {
         root,
-        view,
+        view: null,
+        steps,
         rig,
         touch,
         hud: { count, status, big, line, prompt, promptText, choice, choiceText },
@@ -289,13 +301,6 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         warm: false,
         compiling: false,
       };
-      if (view.warm) {
-        o.compiling = true;
-        const done = (): void => {
-          o.compiling = false;
-        };
-        view.warm().then(done, done);
-      }
       return o;
     } catch (e) {
       root.remove();
@@ -355,18 +360,46 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     frame(dt, actions) {
       const o = open;
       if (!o) return;
-      if (!o.warm && o.compiling) return;
+      if (o.steps) {
+        // One step of the scene's build a frame, so no frame holds the whole of it (#638).
+        let step: IteratorResult<HTMLCanvasElement | undefined, DreamView>;
+        try {
+          step = o.steps.next();
+        } catch (e) {
+          // As in `start`: a dream that cannot be built must not leave the player in the dark.
+          console.error('dream: could not build the scene', e);
+          window.removeEventListener('keydown', o.onKey);
+          o.root.remove();
+          open = null;
+          opts.onWake();
+          return;
+        }
+        if (step.done) {
+          o.steps = null;
+          o.view = step.value;
+          if (step.value.warm) {
+            o.compiling = true;
+            const done = (): void => {
+              o.compiling = false;
+            };
+            step.value.warm().then(done, done);
+          }
+        }
+        return;
+      }
+      const view = o.view;
+      if (!view || (!o.warm && o.compiling)) return;
       if (!o.warm) {
         // Draw once while the screen is still clear (the sleep prompt's dark covers the game), so the stall of the first draw
         // (#638) is not in the fade and not in the same frame as the build. The dream's time starts after it.
-        o.view.draw(o.state, o.rig.view, []);
+        view.draw(o.state, o.rig.view, []);
         o.warm = true;
         void o.root.offsetWidth; // read the layout once so the fade starts from 0
         o.root.style.opacity = '1';
         return;
       }
       if (o.waking) {
-        o.view.draw(o.state, o.rig.view, []);
+        view.draw(o.state, o.rig.view, []);
         return;
       }
       // The dream's own touch buttons add to the game's input, as the game's touch buttons add to the keys.
@@ -380,7 +413,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       const stepped = stepDream(o.state, input, dt);
       o.state = stepped.state;
       o.rig.update(dt, o.state.beaver.heading, merged.move.x !== 0 || merged.move.z !== 0);
-      o.view.draw(o.state, o.rig.view, stepped.events);
+      view.draw(o.state, o.rig.view, stepped.events);
       showHud(o, stepped.events, dt, countBefore);
       if (stepped.events.length > 0) opts.onEvents?.(stepped.events);
     },

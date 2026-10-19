@@ -52,8 +52,8 @@ A run fails on a page error, a console error, a crash, a lost WebGL context, a c
 Geometries on the GPU and in the scene, textures and programs end each stretch at the same values as the one before (the tablet:
 about 800 and 1250 in the scene, 7 textures, 20 programs), as in `38_memory.md`. The one finding is the stall at the start of a
 dream (#638; on the desktop GPU the first draw's stall of about 290 ms is now 100 ms, the shader compile runs in the
-background and the first draw is before the fade, the scene build is now staged, one step a frame (`dreamViewSteps`); on the tablet the worst frame of a dream went from 400 to 600 ms
-(11 laps, session 153) to 245 to 356 ms in a 14 minute run, session 154, with a few more frames over 50 ms in the dream phase). The budgets above stay as first guesses; the tablet's p95 of 40 ms is wide because 33.4 ms is only three frames at
+background and the first draw is before the fade, the 400 ms to build the scene is left. On the tablet the worst frame of a dream is 400 to 600 ms (11 laps, session 153). It is not a
+player problem: the first draw is under the sleep prompt's dark, and play has shown nothing. Staging the build was tried and dropped, see #638). The budgets above stay as first guesses; the tablet's p95 of 40 ms is wide because 33.4 ms is only three frames at
 90 Hz, and tightening it waits for a second tablet and a longer run.
 
 ## Not done

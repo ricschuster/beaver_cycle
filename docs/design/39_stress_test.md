@@ -21,7 +21,8 @@ geometries and ground bytes from `__game.memory()` (see `38_memory.md`).
   so run it in a copy of the shell under its own app id, never in an install with a save you want: copy `tools/tablet-live`
   with `com.beavercycle.live` replaced by another id (also in `android/app/src/main/assets/capacitor.config.json`), build it with
   JDK 21, install it beside the others, and run with `STRESS_PACKAGE=<id> STRESS_URL=http://localhost:<port>/` and that port in
-  `adb reverse` and the dev server. With more than one device, `ANDROID_SERIAL=<serial>`. Do not touch the tablet during a run.
+  `adb reverse` and the dev server. With more than one device, `ANDROID_SERIAL=<serial>`. Do not touch the tablet during a run. The run keeps the screen on while plugged in and puts the old setting back at the end; a tablet that dozes hides the page and
+  every click times out. Unlock the tablet before the run.
 - The run plays in English (`en-US` on the desktop) because it finds the picker's buttons by their text. It adds `save=1`, since an
   automated browser does not save otherwise.
 
@@ -51,7 +52,8 @@ A run fails on a page error, a console error, a crash, a lost WebGL context, a c
 Geometries on the GPU and in the scene, textures and programs end each stretch at the same values as the one before (the tablet:
 about 800 and 1250 in the scene, 7 textures, 20 programs), as in `38_memory.md`. The one finding is the stall at the start of a
 dream (#638; on the desktop GPU the first draw's stall of about 290 ms is now 100 ms, the shader compile runs in the
-background and the first draw is before the fade, the 400 ms to build the scene is left, not re-measured on the tablet). The budgets above stay as first guesses; the tablet's p95 of 40 ms is wide because 33.4 ms is only three frames at
+background and the first draw is before the fade, the 400 ms to build the scene is left. On the tablet the worst frame of a dream is 400 to 600 ms (11 laps, session 153). It is not a
+player problem: the first draw is under the sleep prompt's dark, and play has shown nothing. Staging the build was tried and dropped, see #638). The budgets above stay as first guesses; the tablet's p95 of 40 ms is wide because 33.4 ms is only three frames at
 90 Hz, and tightening it waits for a second tablet and a longer run.
 
 ## Not done

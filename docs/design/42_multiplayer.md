@@ -88,6 +88,10 @@ These are their own pieces of work, and each can be built and played alone befor
   The name is not drawn over the head yet; that waits for the other players. `?look=1` opens the card in an automated browser.
 - **Five starting families.** The start of a game places five lodges with a family each, and the player takes a baby. Today the
   player starts as a baby in a lodge, so this is the same start with four more families beside it.
+  Built (#660): `startFamilies` in `src/sim/neighbours.ts` puts up to four families on rings of 90 to 210 m round the home lodge, at
+  least 50 m from it and from each other, the same every time. They are ordinary neighbour families (`family:start:N`), so they age
+  with the clock and have litters. A late friend cannot yet take the baby of a free lodge; that waits for the network. Automated
+  browsers leave them out unless `?families=1`.
 - **Sleep outside a lodge.** The author wants it, maybe, for the early adult who cannot build a dam and a lodge in one day. Today
   only a beaver on the nest in a lodge can sleep (`canRest`, `canSleep` in `src/sim/state.ts`). Open: where it is safe, whether it
   ends skips, and how the dream and a night skip work from there.

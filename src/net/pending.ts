@@ -18,7 +18,7 @@ export function cleanAddress(text: string): string | null {
   return ADDRESS.test(a) ? a : null;
 }
 
-/** Where to join and as whom. `me` is null when only an address is known (a dev URL parameter). */
+/** Where to join and as whom. `me` is null when only an address is known (the start screen, a dev URL parameter): the guest then picks a look. */
 export interface PendingJoin {
   address: string;
   me: { coat: Coat; look: Look } | null;
@@ -35,7 +35,7 @@ export function pendingJoin(storage: Pick<Storage, 'getItem'> | null): PendingJo
   }
 }
 
-export function setPendingJoin(storage: Pick<Storage, 'setItem' | 'removeItem'> | null, join: { address: string; coat: Coat; look: Look } | null): void {
+export function setPendingJoin(storage: Pick<Storage, 'setItem' | 'removeItem'> | null, join: { address: string; coat?: Coat; look?: Look } | null): void {
   try {
     if (join) storage?.setItem(KEY, JSON.stringify(join));
     else storage?.removeItem(KEY);

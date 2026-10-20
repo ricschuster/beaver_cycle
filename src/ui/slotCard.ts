@@ -2,6 +2,7 @@
 // game, with a name if the player likes. Deleting is asked twice, since it throws the saved game away. DOM only: the caller owns
 // the storage and passes what it needs in `SlotActions`.
 import { t } from '../i18n';
+import { cleanAddress } from '../net/pending';
 import { NAME_MAX, type SlotInfo } from '../persist/save';
 import { stageAt } from '../sim/life';
 
@@ -10,9 +11,15 @@ export interface SlotChoice {
   action: 'continue' | 'new';
   /** The name for a new game, possibly empty. */
   name: string;
+  /** The player ticked "Let friends join" (ADR 0014): the game starts hosting. */
+  host?: boolean;
+  /** The address of a friend's game to join, checked: the game is not this slot's but the friend's. */
+  join?: string;
 }
 
 export interface SlotActions {
+  /** Playing together: whether this app can host, and the address typed last time. Null leaves the section out. */
+  together?: { canHost: boolean; lastHost: string } | null;
   /** The slots as they are now, read again after a rename or a delete. */
   slots(): SlotInfo[];
   rename(slot: number, name: string): void;
@@ -42,9 +49,10 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
     root.appendChild(card);
     parent.appendChild(root);
 
+    let hostTicked = false;
     const done = (choice: SlotChoice): void => {
       root.remove();
-      resolve(choice);
+      resolve(hostTicked ? { ...choice, host: true } : choice);
     };
     const button = (label: string, action: string, colours: string): HTMLButtonElement => {
       const b = document.createElement('button');
@@ -75,7 +83,56 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
       const heading = document.createElement('div');
       heading.textContent = t('slots.heading');
       heading.style.cssText = 'font-size:22px;font-weight:700;margin-bottom:8px';
-      card.replaceChildren(heading, ...actions.slots().map(row));
+      card.replaceChildren(heading, ...actions.slots().map(row), ...(actions.together ? [together(actions.together)] : []));
+    };
+
+    /** The Play together box under the slots: a tick to host the game picked above, and an address to join a friend's. */
+    const together = (opts: { canHost: boolean; lastHost: string }): HTMLElement => {
+      const box = document.createElement('div');
+      box.dataset.role = 'together';
+      box.style.cssText = 'padding:10px 12px;margin:12px 0 0;border-radius:10px;border:1px solid #b9a97d;background:#ebe2c8';
+      const title = document.createElement('div');
+      title.textContent = t('together.title');
+      title.style.cssText = 'font-weight:700';
+      box.append(title);
+      if (opts.canHost) {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex;align-items:center;gap:10px;min-height:44px;margin-top:6px';
+        const tick = document.createElement('input');
+        tick.type = 'checkbox';
+        tick.checked = hostTicked;
+        tick.dataset.action = 'together-host';
+        tick.style.cssText = 'width:24px;height:24px';
+        tick.onchange = () => {
+          hostTicked = tick.checked;
+        };
+        const words = document.createElement('span');
+        words.textContent = t('together.hostTick');
+        label.append(tick, words);
+        box.append(label);
+      }
+      const joinRow = document.createElement('div');
+      joinRow.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px';
+      const address = document.createElement('input');
+      address.type = 'text';
+      address.inputMode = 'decimal';
+      address.value = opts.lastHost;
+      address.placeholder = '192.168.0.7';
+      address.dataset.action = 'together-address';
+      address.setAttribute('aria-label', t('together.address'));
+      address.style.cssText = 'box-sizing:border-box;width:9rem;min-height:44px;padding:6px 10px;font:inherit;border-radius:8px;border:1px solid #b9a97d;background:#fff;color:inherit';
+      const note = document.createElement('div');
+      note.style.cssText = 'font-size:14px;color:#6b5d44;margin-top:4px;min-height:1.4em';
+      note.textContent = t('together.startNote');
+      const join = button(t('together.join'), 'together-join', SAND);
+      join.onclick = () => {
+        const a = cleanAddress(address.value);
+        if (a) done({ slot: 0, action: 'new', name: '', join: a });
+        else note.textContent = t('together.addressBad');
+      };
+      joinRow.append(address, join);
+      box.append(joinRow, note);
+      return box;
     };
 
     const row = (info: SlotInfo): HTMLElement => {

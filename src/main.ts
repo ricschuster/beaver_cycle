@@ -44,7 +44,7 @@ import { loadTileStore } from './terrain/loader';
 import { createBreathMeter } from './ui/breathMeter';
 import { createCarryHud, foodInfoOf } from './ui/carryHud';
 import { ACHIEVEMENT_TEXT, achievementLines, achievementRows, visitPlaces, noteFed, noteHomes, seeGuests } from './sim/achievements';
-import { createToast } from './ui/toast';
+import { createToast, type Toast } from './ui/toast';
 import { createClockHud } from './ui/clockHud';
 import { createStashPanel } from './ui/stashPanel';
 import { filledBut, storeCapacity, storeCondition } from './sim/food';
@@ -53,7 +53,7 @@ import { createTouchControls, wantsTouchControls } from './ui/touchControls';
 import { createKeyHints } from './ui/keyHints';
 import { WELCOME_KEY, createHelpPanel, manualUrl, wantsWelcome } from './ui/helpPanel';
 import { COACH_KEY, createCoach, wantsCoach } from './ui/coach';
-import { askSlot } from './ui/slotCard';
+import { askSlot, type SlotChoice } from './ui/slotCard';
 import { AUTOSAVE_EVERY, ago, clearSave, loadSave, parseSlot, readSlots, renameSave, wantsSave, writeSave, cleanName, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createDreamScreen } from './ui/dreamScreen';
@@ -336,11 +336,13 @@ async function start(): Promise<void> {
   let slot = 1;
   let slotName = '';
   let freshGame = false;
+  // Chosen on the start screen: host this game for friends (ADR 0014). Joining reloads as a guest, below.
+  let hostFromStart = false;
   const saving = storage !== null && !free && !netJoin && wantsSave(query, navigator.webdriver);
   if (saving) {
     const wanted = parseSlot(query.get('slot'));
     const slots = readSlots(storage, world);
-    let choice: { slot: number; action: 'continue' | 'new'; name: string };
+    let choice: SlotChoice;
     if (wanted) choice = { slot: wanted, action: slots[wanted - 1]!.kind === 'used' ? 'continue' : 'new', name: '' };
     else if (slots.every((i) => i.kind !== 'used')) choice = { slot: 1, action: 'new', name: '' };
     else {
@@ -349,8 +351,18 @@ async function start(): Promise<void> {
         rename: (n, name) => void renameSave(storage, n, name),
         remove: (n) => clearSave(storage, n),
         ago: (at) => ago(at, Date.now()),
+        together: { canHost: hostPlugin() !== null, lastHost },
       });
     }
+    if (choice.join) {
+      // A guest plays a fresh world of the host's, so the game starts again as one (it picks its look on the way in).
+      lastHost = choice.join;
+      savePrefs(storage, keptPrefs(shadowsAtStart));
+      setPendingJoin(sessionStorageOrNull(), { address: choice.join });
+      location.reload();
+      await new Promise(() => {});
+    }
+    hostFromStart = !!choice.host;
     slot = choice.slot;
     if (choice.action === 'continue') {
       const found = loadSave(storage, world, slot);
@@ -382,6 +394,9 @@ async function start(): Promise<void> {
     await chooseNewLook();
     // The beaver's name names the game too, unless the player named the game already.
     if (!slotName) slotName = cleanName(world.look.name);
+  } else if (netJoin && !pending?.me && asksLook) {
+    // A guest who joined from the start screen has no beaver of its own yet.
+    await chooseNewLook();
   }
   const savedCoach = (): SavedCoach => ({ on: coachOn, stage: coachStage, state: coach?.state() ?? null });
   let savedAt = performance.now();
@@ -400,6 +415,7 @@ async function start(): Promise<void> {
   // The shared valley (ADR 0014): a host holds a room of guests, a guest holds a link to its host.
   let room: Room | null = null;
   let hostLine = '';
+  let hostToast: Toast | null = null;
   // Starts listening for guests; ?host=1 does it at once, the Host button of Settings later. Only the app can (a browser has no plugin).
   const beginHosting = (): void => {
     if (room || netJoin) return;
@@ -409,6 +425,7 @@ async function start(): Promise<void> {
       (a) => {
         room = mine;
         hostLine = t('together.hosting', { ip: `${a.ip}` });
+        hostToast?.show(hostLine);
         menu.setStatus(`Hosting at ${a.ip}:${a.port}`);
       },
       (e) => {
@@ -422,7 +439,7 @@ async function start(): Promise<void> {
   let lastSnap: Parameters<typeof othersOf>[0] = null;
   let netSentAt = 0;
   let gnawPending = false;
-  if (netHost) beginHosting();
+  if (netHost || hostFromStart) beginHosting();
   if (netJoin) link = joinHost(netJoin, { t: 'hello', coat: world.coat, look: world.look });
   let last = performance.now();
 
@@ -478,10 +495,8 @@ async function start(): Promise<void> {
           location.assign(location.pathname + (qs ? `?${qs}` : ''));
         },
       },
-      together: {
-        canHost: hostPlugin() !== null,
+      together: netJoin || netHost || hostFromStart ? {
         isGuest: !!netJoin,
-        lastHost: () => lastHost,
         line() {
           if (!netJoin) return hostLine;
           if (!link) return '';
@@ -489,23 +504,12 @@ async function start(): Promise<void> {
           const st = link.status();
           return st === 'failed' ? t('together.failed', { ip: netJoin }) : st === 'closed' ? t('together.lost') : t('together.joining', { ip: netJoin });
         },
-        onHost: beginHosting,
-        onJoin(text) {
-          const address = cleanAddress(text);
-          if (!address) return false;
-          lastHost = address;
-          savePrefs(storage, keptPrefs(shadowsAtStart));
-          saveNow();
-          setPendingJoin(sessionStorageOrNull(), { address, coat: world.coat, look: world.look });
-          location.reload();
-          return true;
-        },
         onLeave() {
           setPendingJoin(sessionStorageOrNull(), null);
           link?.close();
           location.reload();
         },
-      },
+      } : null,
       language: {
         value: () => langChoice,
         onChange(choice) {
@@ -639,6 +643,8 @@ async function start(): Promise<void> {
   const lifeHud = createLifeHud(hud);
   const carryHud = createCarryHud(hud);
   const toast = createToast(hud);
+  hostToast = toast;
+  if (room) toast.show(hostLine);
   if (startNote) toast.show(startNote);
   let wasCalled = false;
   let lastStage: Stage | null = null;

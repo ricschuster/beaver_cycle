@@ -100,6 +100,8 @@ export const hud = {
   'hud.gnawing': 'gnawing {percent}%',
 
   'toast.unreadable': 'A saved game could not be read, so it was put aside.',
+  'toast.hostLost': 'Lost the host. Trying to join again...',
+  'toast.hostBack': 'Back in the valley of the host',
   'toast.escortAlready': '{name} is already showing you the way',
   'toast.escortNowhere': '{name}: I do not know where to take you yet. Build a lodge first',
   'toast.escortStart': '{name} leads the way. Follow',

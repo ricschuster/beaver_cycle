@@ -436,6 +436,8 @@ async function start(): Promise<void> {
     );
   };
   let link: GuestLink | null = null;
+  let wasLinked = false;
+  let lostShown = false;
   let guestSnap: ReturnType<typeof othersOf> = [];
   let lastSnap: Parameters<typeof othersOf>[0] = null;
   let netSentAt = 0;
@@ -893,6 +895,14 @@ async function start(): Promise<void> {
           }
           world = { ...world, time: world.time + dt };
           guestSnap = link.id ? othersOf(lastSnap, link.id) : [];
+          const linked = !!link.id;
+          if (linked !== wasLinked) {
+            if (!linked && link.status() === 'closed') toast.show(t('toast.hostLost'));
+            else if (linked && lostShown) toast.show(t('toast.hostBack'));
+            lostShown = lostShown || (!linked && link.status() === 'closed');
+            if (linked) lostShown = false;
+            wasLinked = linked;
+          }
           menu.setStatus(link.id ? `Joined ${netJoin} as ${link.id}` : `Joining ${netJoin}: ${link.status()}`);
         } else {
           world = step(world, { move, dive: actions.dive, diveTap: actions.diveTap, slap: actions.slap, do: doPressed, take: actions.take ? takeNow : null, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);

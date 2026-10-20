@@ -16,6 +16,14 @@ export const COATS = [
   { fur: 0x9a6a3a, dark: 0x4f3a2a, belly: 0xb88b55 },
 ] as const;
 export const TAIL = 0x3b2a1a;
+/** Tail colours the player can choose (`Look.tail`): the natural dark one first. */
+export const TAILS = [TAIL, 0x55575c, 0x9a4a25, 0x2f6f73, 0x6b3a6b] as const;
+/** Scarf colours (`Look.scarf`); 0 is no scarf. */
+export const SCARVES = [null, 0xd6453d, 0x3b78c4, 0xe8c23a, 0xe58bb0, 0x4fa05a] as const;
+/** Hats (`Look.hat`); 0 is no hat. */
+export const HATS = [null, 'cap', 'straw', 'party', 'top'] as const;
+const HAT_COLOURS = { cap: 0xc0392b, straw: 0xe3c565, party: 0x8e44ad, top: 0x26262b } as const;
+const HAT_BAND = 0xd6453d;
 /** Beaver teeth are orange, from the iron in them. */
 export const TEETH = 0xe0904a;
 export const NOSE = 0x1a1210;
@@ -23,6 +31,13 @@ const EYE = 0x0d0a08;
 
 /** How far a shade of 1 moves a coat toward white (or of -1 toward black). */
 const SHADE_STRENGTH = 0.18;
+
+/** The colours of a coat with a shade of -1 to 1 on it: the whole coat a little darker or lighter, so no two beavers of a coat look the same. */
+export function coatColours(index: number, shade = 0): { fur: THREE.Color; dark: THREE.Color; belly: THREE.Color } {
+  const c = COATS[index % COATS.length]!;
+  const tint = (hex: number): THREE.Color => new THREE.Color(hex).lerp(new THREE.Color(shade < 0 ? 0x000000 : 0xffffff), Math.abs(shade) * SHADE_STRENGTH);
+  return { fur: tint(c.fur), dark: tint(c.dark), belly: tint(c.belly) };
+}
 
 /** Seconds a tail slap takes to play: wind up, slam, settle. */
 export const SLAP_DURATION = 0.7;
@@ -113,6 +128,8 @@ export interface BeaverModel {
   setCoat(coat: number, shade?: number): void;
   /** Paint the coat in any colours, such as the dream's pastel marshmallow beavers. */
   setColours(colours: CoatColours): void;
+  /** Put on a hat and scarf and colour the tail, as indices into `HATS`, `SCARVES` and `TAILS` (`Look` in the sim). */
+  setLook(look: { hat: number; scarf: number; tail: number }): void;
   /**
    * Poses the model. `time` is seconds, `speed01` is 0 standing and 1 at full pace,
    * `mode` picks the pose, `tilt` (-1 rising to 1 sinking) pitches a diver's nose,
@@ -265,6 +282,38 @@ function leg(x: number, z: number, length: number, hind: boolean, fur: number, d
   return g;
 }
 
+/** A hat for the top of the head, in the head's frame (the ears sit at y 0.14). */
+function hatShape(kind: Exclude<(typeof HATS)[number], null>): THREE.Group {
+  const g = new THREE.Group();
+  const colour = HAT_COLOURS[kind];
+  if (kind === 'cap') {
+    g.add(part(new THREE.SphereGeometry(0.175, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), colour, 0, 0.1, 0));
+    g.add(ellipsoid(0.13, 0.012, 0.1, colour, 0, 0.105, 0.17));
+  } else if (kind === 'straw') {
+    g.add(part(new THREE.CylinderGeometry(0.29, 0.29, 0.015, 18), colour, 0, 0.15, 0));
+    g.add(part(new THREE.CylinderGeometry(0.12, 0.14, 0.1, 14), colour, 0, 0.2, 0));
+    g.add(part(new THREE.CylinderGeometry(0.143, 0.143, 0.025, 14), HAT_BAND, 0, 0.17, 0));
+  } else if (kind === 'party') {
+    const cone = part(new THREE.ConeGeometry(0.1, 0.26, 12), colour, 0, 0.3, -0.02);
+    cone.rotation.x = -0.15;
+    g.add(cone, part(new THREE.SphereGeometry(0.03, 8, 6), 0xf2d04a, 0, 0.44, -0.06));
+  } else {
+    g.add(part(new THREE.CylinderGeometry(0.2, 0.2, 0.014, 16), colour, 0, 0.15, 0));
+    g.add(part(new THREE.CylinderGeometry(0.115, 0.125, 0.19, 14), colour, 0, 0.25, 0));
+    g.add(part(new THREE.CylinderGeometry(0.127, 0.127, 0.03, 14), HAT_BAND, 0, 0.18, 0));
+  }
+  return g;
+}
+
+/** A scarf round the neck with an end hanging down the chest, in the head's frame. */
+function scarfShape(colour: number): THREE.Group {
+  const g = new THREE.Group();
+  const ring = part(new THREE.TorusGeometry(0.16, 0.05, 8, 18).rotateX(Math.PI / 2), colour, 0, -0.11, -0.01);
+  ring.scale.set(1.05, 1, 1.1);
+  g.add(ring, ellipsoid(0.04, 0.12, 0.02, colour, 0.09, -0.22, 0.14));
+  return g;
+}
+
 export function createBeaverModel(coat = 0): BeaverModel {
   const { fur: FUR, dark: DARK_FUR, belly: BELLY } = COATS[coat % COATS.length]!;
   const group = new THREE.Group();
@@ -329,7 +378,8 @@ export function createBeaverModel(coat = 0): BeaverModel {
   tail.position.set(0, 0.24, -0.58);
   tail.rotation.x = 0.35;
   body.add(tail);
-  tail.add(tailShape());
+  const tailMesh = tailShape();
+  tail.add(tailMesh);
 
   // The legs ride on the body, so they go with it when it bobs, dips, or sits up.
   const legs = [leg(-0.15, 0.27, 0.27, false, FUR, DARK_FUR), leg(0.15, 0.27, 0.27, false, FUR, DARK_FUR), leg(-0.19, -0.3, 0.28, true, FUR, DARK_FUR), leg(0.19, -0.3, 0.28, true, FUR, DARK_FUR)];
@@ -362,14 +412,35 @@ export function createBeaverModel(coat = 0): BeaverModel {
     torso.paint(new THREE.Color(fur), new THREE.Color(belly));
   };
 
+  // Hat and scarf are made when first chosen, so the many beavers without them carry no extra parts.
+  const hats = new Map<string, THREE.Group>();
+  let scarf: THREE.Group | null = null;
+  let scarfColour = 0;
+  const setLook = ({ hat, scarf: scarfIndex, tail: tailIndex }: { hat: number; scarf: number; tail: number }): void => {
+    const kind = HATS[hat] ?? null;
+    for (const [k, h] of hats) h.visible = k === kind;
+    if (kind && !hats.has(kind)) {
+      const h = hatShape(kind);
+      hats.set(kind, h);
+      head.add(h);
+    }
+    const colour = SCARVES[scarfIndex] ?? null;
+    if (colour !== null && colour !== scarfColour) {
+      scarf?.removeFromParent();
+      scarf = scarfShape(colour);
+      scarfColour = colour;
+      head.add(scarf);
+    }
+    if (scarf) scarf.visible = colour !== null;
+    (tailMesh.material as THREE.MeshLambertMaterial).color.set(TAILS[tailIndex] ?? TAIL);
+  };
+
   return {
     group,
     head,
+    setLook,
     setCoat(index, shade = 0) {
-      const c = COATS[index % COATS.length]!;
-      // A shade of -1 to 1 makes the whole coat a little darker or lighter, so no two beavers of a coat look the same.
-      const tint = (hex: number): THREE.Color => new THREE.Color(hex).lerp(new THREE.Color(shade < 0 ? 0x000000 : 0xffffff), Math.abs(shade) * SHADE_STRENGTH);
-      setColours({ fur: tint(c.fur), dark: tint(c.dark), belly: tint(c.belly) });
+      setColours(coatColours(index, shade));
     },
     setColours,
     update(time, speed01, mode = 'walk', tilt = 0, slapAge = null, carry = null, action = null) {

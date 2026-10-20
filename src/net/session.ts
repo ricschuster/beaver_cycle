@@ -20,6 +20,8 @@ export function hostPlugin(): HostPlugin | null {
 export interface HostGame {
   hostAt(): { x: number; z: number };
   terrain: Terrain;
+  /** The lodges of the starting families, which a guest may take as its home (the host's own lodge is not one). */
+  homes?(): { x: number; z: number }[];
 }
 
 /** Starts listening and feeds the room. Resolves with the address to show, or rejects when this app cannot host. */
@@ -34,7 +36,7 @@ export async function startHosting(room: Room, game: HostGame, log: (s: string) 
     room.leave(e.id!);
     log(`${e.id} left`);
   });
-  await plugin.addListener('message', (e) => room.receive(e.id!, e.text!, performance.now() / 1000, game.hostAt(), game.terrain));
+  await plugin.addListener('message', (e) => room.receive(e.id!, e.text!, performance.now() / 1000, game.hostAt(), game.terrain, game.homes?.()));
   await plugin.addListener('error', (e) => log(`server error ${e.error}`));
   return plugin.start({ port: PORT });
 }

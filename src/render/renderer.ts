@@ -259,10 +259,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   // The lone beavers of the valley, one model each, made when first seen.
   const partnerModels = new Map<string, { model: BeaverModel; pace: number; x: number; z: number }>();
   // The beavers of the other families, one model each, made when first seen, and the lodges they live in.
-  const neighbourModels = new Map<string, { model: BeaverModel; coat: string; pace: number }>();
+  const neighbourModels = new Map<string, { model: BeaverModel; coat: string; look?: string; pace: number }>();
   // Models whose beaver is gone (a kit's id carries the year, so a new year brings new ids): the next new id takes one, so the
   // scene does not grow with the years played (#604).
-  const neighbourSpare: { model: BeaverModel; coat: string; pace: number }[] = [];
+  const neighbourSpare: { model: BeaverModel; coat: string; look?: string; pace: number }[] = [];
   const parentSpare: { model: BeaverModel; pace: number; coat: string }[] = [];
   const neighbourViews: LodgeView[] = [];
   const driftMeshes: THREE.Mesh[] = [];
@@ -499,6 +499,11 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
         if (nCoat !== entry.coat) {
           entry.coat = nCoat;
           entry.model.setCoat(n.coat.coat, n.coat.shade);
+        }
+        const nLook = n.look ? `${n.look.hat}:${n.look.scarf}:${n.look.tail}` : '0:0:0';
+        if (nLook !== entry.look) {
+          entry.look = nLook;
+          entry.model.setLook(n.look ?? { hat: 0, scarf: 0, tail: 0 });
         }
         entry.pace += (n.pace - entry.pace) * 0.1;
         // Walking on the bank or swimming, with the load of its errand and the pose of its task (routines.ts).

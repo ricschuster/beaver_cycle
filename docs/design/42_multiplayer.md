@@ -113,6 +113,16 @@ changes. A dam only floods the ground upstream of itself (`pond.ts`, a flood fil
 drain it. A friend's dam below your pond only raises it. A pond runs low only when its own dam wears (Q99), and the lodge
 walk-in over the mud (#647) means nobody gets stuck.
 
+## Built so far (#662, #678)
+
+The transport is an embedded WebSocket server on the host tablet ([ADR 0014](../decisions/0014-multiplayer-transport.md)). Code:
+`src/sim/guests.ts` (a guest beaver that walks, swims, dives, and gnaws, stepped on the host), `src/net/protocol.ts` (the messages,
+checked on arrival), `src/net/room.ts` (the host's room of guests, no socket), `src/net/view.ts` (what a guest shows),
+`src/net/session.ts` (the two ends of the socket), wired in `main.ts` behind the dev parameters `?host=1` and `?join=IP`. A guest
+shows the host's clock, felled trees, and logs, and never saves. Not yet shared: dams, ponds, lodges, food, carrying, other
+families, and the look of a guest's lodge. The host's own beaver is drawn to guests without leg movement. There is no Host or Join
+screen yet.
+
 ## Open
 
 Sleep outside a lodge, how a friend answers a dialog, how hide and seek invites work, and what a first spike should prove. The

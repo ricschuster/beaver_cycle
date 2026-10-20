@@ -58,6 +58,8 @@ export interface NeighbourBeaver {
   mode?: 'walk' | 'swim';
   /** Size of the model against an adult. */
   scale: number;
+  /** Hat, scarf, and tail of a friend's beaver (`guests.ts`); the families have none. */
+  look?: { hat: number; scarf: number; tail: number };
 }
 
 /** A family lodge is at least this far from the home (metres), and from the other families. */

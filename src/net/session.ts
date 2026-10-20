@@ -1,0 +1,103 @@
+// The two ends of a connection on the WLAN (ADR 0014, #678): the host listens through the HostServer plugin of the app, a guest
+// opens a WebSocket to the host's IP. Both pass plain text; `room.ts` and `protocol.ts` decide what it means.
+import { PORT, readToGuest, type Snapshot, type ToHost } from './protocol';
+import type { Room } from './room';
+import type { Terrain } from '../sim/terrain';
+
+interface HostPlugin {
+  start(o: { port: number }): Promise<{ ip: string; port: number }>;
+  send(o: { text: string; to?: string }): Promise<void>;
+  stop(): Promise<void>;
+  addListener(name: 'open' | 'close' | 'message' | 'error', fn: (e: { id?: string; text?: string; error?: string }) => void): Promise<unknown>;
+}
+
+/** The HostServer plugin, when this is the app that has it; a browser cannot host. */
+export function hostPlugin(): HostPlugin | null {
+  return (window as unknown as { Capacitor?: { Plugins?: { HostServer?: HostPlugin } } }).Capacitor?.Plugins?.HostServer ?? null;
+}
+
+/** What the host session needs from the game each time a message comes in. */
+export interface HostGame {
+  hostAt(): { x: number; z: number };
+  terrain: Terrain;
+}
+
+/** Starts listening and feeds the room. Resolves with the address to show, or rejects when this app cannot host. */
+export async function startHosting(room: Room, game: HostGame, log: (s: string) => void): Promise<{ ip: string; port: number }> {
+  const plugin = hostPlugin();
+  if (!plugin) throw new Error('This app cannot host: no HostServer plugin (a browser can only join).');
+  await plugin.addListener('open', (e) => {
+    room.open(e.id!);
+    log(`${e.id} connected`);
+  });
+  await plugin.addListener('close', (e) => {
+    room.leave(e.id!);
+    log(`${e.id} left`);
+  });
+  await plugin.addListener('message', (e) => room.receive(e.id!, e.text!, performance.now() / 1000, game.hostAt(), game.terrain));
+  await plugin.addListener('error', (e) => log(`server error ${e.error}`));
+  return plugin.start({ port: PORT });
+}
+
+/** Sends text to one guest or, without `to`, to all. The room's way out. */
+export function hostSender(): (to: string, text: string) => void {
+  const plugin = hostPlugin();
+  return (to, text) => void plugin?.send({ to, text });
+}
+
+/** A guest's connection: the id the host gave, the latest state, and a way to send what the player wants. */
+export interface GuestLink {
+  /** Null until the host welcomes this guest. */
+  id: string | null;
+  /** The newest state, taken once by `take`. */
+  take(): Snapshot | null;
+  send(m: ToHost): void;
+  status(): 'connecting' | 'open' | 'closed' | 'failed';
+  close(): void;
+}
+
+export function joinHost(ip: string, hello: ToHost): GuestLink {
+  let id: string | null = null;
+  let latest: Snapshot | null = null;
+  let state: 'connecting' | 'open' | 'closed' | 'failed' = 'connecting';
+  let ws: WebSocket | null = null;
+  try {
+    ws = new WebSocket(`ws://${ip}:${PORT}`);
+  } catch {
+    state = 'failed';
+  }
+  if (ws) {
+    ws.onopen = () => {
+      state = 'open';
+      ws!.send(JSON.stringify(hello));
+    };
+    ws.onerror = () => {
+      if (state === 'connecting') state = 'failed';
+    };
+    ws.onclose = () => {
+      if (state !== 'failed') state = 'closed';
+    };
+    ws.onmessage = (ev) => {
+      const m = readToGuest(String(ev.data));
+      if (m?.t === 'welcome') id = m.id;
+      else if (m?.t === 'state') latest = m.snapshot;
+    };
+  }
+  return {
+    get id() {
+      return id;
+    },
+    take() {
+      const s = latest;
+      latest = null;
+      return s;
+    },
+    send(m) {
+      if (ws && ws.readyState === 1) ws.send(JSON.stringify(m));
+    },
+    status: () => state,
+    close() {
+      ws?.close();
+    },
+  };
+}

@@ -24,7 +24,7 @@ import { CALL_SLOT, deedsFor, giftThanks, greetingFor, overheard, partnerRemark 
 import { BYE_SECONDS, TALK_END, LINE_SECONDS, choicesFor, factsFor, greeting, nearestSpeaker, noteTalk, replyLine, roleOf, speakersOf, type Reply, type Speaker, type TalkFacts } from './sim/talk';
 import { REPLY_LABEL } from './sim/talkLines';
 import { createTalkBubble } from './ui/talkBubble';
-import { giftFamilies, greetedBy, familyMood, familyTrust, reactFamilies, spreadWord, startleFamilies } from './sim/familyMoods';
+import { giftFamilies, giveFamily, greetedBy, takerNear, familyMood, familyTrust, reactFamilies, spreadWord, startleFamilies } from './sim/familyMoods';
 import { FEED_TRUST, banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
 import { lead, leaderAnimal } from './sim/guides';
 import { pondGuests, trackPonds } from './sim/pondGuests';
@@ -909,6 +909,14 @@ async function start(): Promise<void> {
     }
     const gifts = giftFamilies(world, familyBeavers);
     world = gifts.world;
+    // Food handed over by a press of Do when it reads Give (#663): thanked and passed on like a gift put down.
+    if (doPressed === 'give') {
+      const given = giveFamily(world, familyBeavers);
+      if (given) {
+        world = given.world;
+        gifts.gifts.push({ family: given.family, kind: given.kind });
+      }
+    }
     // Each gift is thanked for what it is, and word of it gets around (chatter.ts, familyMoods.ts).
     for (const g of gifts.gifts) {
       gave.add(g.family);
@@ -970,7 +978,7 @@ async function start(): Promise<void> {
     }
     const drift = nearestStuck(stuckList, world.beaver, DIG_REACH);
     dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, doPressed === 'dig', movingNow, dt) : 0;
-    nearby = { speaker: near !== null, following: near?.kind === 'partner' && near.id === follower(world.partners)?.id, drift: drift !== null };
+    nearby = { taker: takerNear(familyBeavers, world.beaver) !== null, speaker: near !== null, following: near?.kind === 'partner' && near.id === follower(world.partners)?.id, drift: drift !== null };
     doPressed = null;
     if (drift && dug >= DIG_TIME) {
       world = rescue(world, drift);

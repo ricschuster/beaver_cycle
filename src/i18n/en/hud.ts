@@ -21,6 +21,7 @@ export const hud = {
   'btn.mend': 'Mend',
   'btn.store': 'Store',
   'btn.dig': 'Dig',
+  'btn.give': 'Give',
   'btn.talk': 'Talk',
   'btn.gnaw': 'Gnaw',
   'btn.strip': 'Gnaw',

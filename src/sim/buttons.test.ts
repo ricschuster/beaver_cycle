@@ -24,6 +24,11 @@ describe('Do', () => {
     expect(doHere(world(), flat, noTrees, none)).toBeNull();
   });
 
+  it('gives food to a beaver with an empty mouth close by, before it talks', () => {
+    expect(doHere({ ...world(), carry: 'branch' }, flat, trees, { speaker: true, drift: false, taker: true })).toBe('give');
+    expect(doHere(world(), flat, trees, { speaker: true, drift: false, taker: true })).toBe('talk');
+  });
+
   it('talks before it gnaws, and digs before it talks', () => {
     expect(doHere(world(), flat, trees, { speaker: true, drift: false })).toBe('talk');
     expect(doHere(world(), flat, trees, { speaker: true, drift: true })).toBe('dig');

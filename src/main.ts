@@ -356,8 +356,9 @@ async function start(): Promise<void> {
     }
     if (choice.join) {
       // A guest plays a fresh world of the host's, so the game starts again as one (it picks its look on the way in).
+      // The minimap does not exist yet, so the choices are saved as they were read, with the address added.
       lastHost = choice.join;
-      savePrefs(storage, keptPrefs(shadowsAtStart));
+      savePrefs(storage, { ...prefs, lastHost });
       setPendingJoin(sessionStorageOrNull(), { address: choice.join });
       location.reload();
       await new Promise(() => {});

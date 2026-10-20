@@ -6,6 +6,7 @@ import type { Leader } from './guides';
 import type { Predator } from './predators';
 import { START_CLOCK, nextDawn, nextSeasonStart, nextSpringStart, isNight } from './clock';
 import { FIRST_PARENTS, coatOf, kitCoat, type Coat, type FormerHome } from './family';
+import { DEFAULT_LOOK, cleanLook, type Look } from './look';
 import { bornAtFor, growUpDawn, stageAt, type Stage } from './life';
 import { emptyStock, type Food, type Stock } from './food';
 import { DOOR_DISTANCE, NEST, atNest, doorPoint, lodgeComplete, type Lodge } from './lodge';
@@ -57,6 +58,8 @@ export interface WorldState {
   bornAt: number;
   /** The coat of the player beaver, from its parents' (`kitCoat`). */
   coat: Coat;
+  /** Hat, scarf, tail colour and name of the player beaver, chosen at the start of each life (`chooseLook`). */
+  look: Look;
   /** The coats of Mama and Papa: the first family's, then the player beaver's and its partner's once a kit is born. */
   parentCoats: [Coat, Coat];
   /** Lives begun so far after the first, which the game announces. */
@@ -215,7 +218,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, padAt: null, branchAt: null, rescued: [], guides: [], escort: null, leader: null, ledAt: {}, met: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, slaps: 0, meals: 0, branchesStripped: 0, longDives: 0, visited: [], winterStocked: false, fedKinds: [], guestKinds: [], homesIn: [], dreamed: false, winterClean: false, longWinter: false, scents: [], welcomed: [], speedMultiplier: 1 };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, look: DEFAULT_LOOK, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, padAt: null, branchAt: null, rescued: [], guides: [], escort: null, leader: null, ledAt: {}, met: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, slaps: 0, meals: 0, branchesStripped: 0, longDives: 0, visited: [], winterStocked: false, fedKinds: [], guestKinds: [], homesIn: [], dreamed: false, winterClean: false, longWinter: false, scents: [], welcomed: [], speedMultiplier: 1 };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {
@@ -259,6 +262,11 @@ export function sleepUntil(world: WorldState, goal: SleepGoal): WorldState {
 export function sleep(world: WorldState): WorldState {
   if (!canSleep(world)) return world;
   return { ...world, clock: nextDawn(world.clock) };
+}
+
+/** The player's choice of look for the life that begins: the fur, and the hat, scarf, tail colour and name. */
+export function chooseLook(world: WorldState, coat: Coat, look: Partial<Look>): WorldState {
+  return { ...world, coat, look: cleanLook(look) };
 }
 
 /** Set the game clock directly. A test tool, like the speed multiplier. */

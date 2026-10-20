@@ -4,11 +4,13 @@ import { createHeldKeys, createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
 import { fly as flyStep, flyTarget, glide, look as lookAround, pickGround, zoomFree, type FlyTarget } from './render/flyCam';
 import { createRenderer } from './render/renderer';
+import { createLookPreview } from './render/lookPreview';
+import { askLook } from './ui/lookCard';
 import { SEASON_FULL_DAY } from './render/seasonLook';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, checkSpot, lodgeProgress } from './sim/lodge';
 import { DAYS_PER_YEAR, DAY_SECONDS, dateAt, daylight, withSeason, withTimeOfDay } from './sim/clock';
-import { canRest, canSleep, newLife, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
+import { canRest, canSleep, newLife, chooseLook, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { formerParentsAt, parentsAt } from './sim/family';
 import { homeDam } from './sim/routines';
@@ -309,6 +311,7 @@ async function start(): Promise<void> {
   let startNote: string | null = null;
   let slot = 1;
   let slotName = '';
+  let freshGame = false;
   const saving = storage !== null && !free && wantsSave(query, navigator.webdriver);
   if (saving) {
     const wanted = parseSlot(query.get('slot'));
@@ -336,8 +339,25 @@ async function start(): Promise<void> {
         coachStage = found.save.coach.stage;
         if (coachOn && found.save.coach.state) coach?.resume(world, found.save.coach.state);
       }
-    } else slotName = cleanName(choice.name);
+    } else {
+      slotName = cleanName(choice.name);
+      freshGame = true;
+    }
     if (!wanted && slots.some((i) => i.kind === 'unreadable')) startNote = t('toast.unreadable');
+  }
+  // The look card (#659) opens on a new game, and again when each kit is born. An automated browser skips it unless ?look=1.
+  const asksLook = navigator.webdriver ? query.get('look') === '1' : !free;
+  let lookOpen = false;
+  const chooseNewLook = async (): Promise<void> => {
+    lookOpen = true;
+    const picked = await askLook(document.body, { coat: world.coat, look: world.look }, createLookPreview);
+    world = chooseLook(world, picked.coat, picked.look);
+    lookOpen = false;
+  };
+  if (freshGame && asksLook) {
+    await chooseNewLook();
+    // The beaver's name names the game too, unless the player named the game already.
+    if (!slotName) slotName = cleanName(world.look.name);
   }
   const savedCoach = (): SavedCoach => ({ on: coachOn, stage: coachStage, state: coach?.state() ?? null });
   let savedAt = performance.now();
@@ -703,6 +723,7 @@ async function start(): Promise<void> {
     const dt = Math.max(0, Math.min((now - last) / 1000, 0.1));
     last = now;
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
+    if (lookOpen) return;
     if (dreamScreen.active()) {
       dreamScreen.frame(dt, mergeActions(readKeyboard(), touch.read()));
       if (!silent) sound.music('dream', fps, now / 1000);
@@ -828,7 +849,10 @@ async function start(): Promise<void> {
     if (season === 'winter' && lastSeason !== 'winter' && world.partners.length > 0 && !mateOf(world.partners)) toast.show(t('toast.kitsInSpring'));
     if (season !== lastSeason) saveNow();
     lastSeason = season;
-    if (world.generation > lastGeneration) toast.show(t('toast.kitBorn'));
+    if (world.generation > lastGeneration) {
+      toast.show(t('toast.kitBorn'));
+      if (asksLook) void chooseNewLook().then(saveNow);
+    }
     if (world.generation !== lastGeneration) saveNow();
     lastGeneration = world.generation;
     // A toast for each achievement won since the last frame.

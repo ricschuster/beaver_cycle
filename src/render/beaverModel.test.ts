@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { COATS, SLAP_DURATION, actionPose, createBeaverModel, slapPose } from './beaverModel';
+import { COATS, HATS, SCARVES, SLAP_DURATION, TAILS, actionPose, createBeaverModel, slapPose } from './beaverModel';
+import { COAT_COUNT } from '../sim/family';
+import { HAT_COUNT, SCARF_COUNT, TAIL_COUNT } from '../sim/look';
 import { SHOT_SECONDS, type BeaverAction } from './beaverAction';
 
 /** The box of what is drawn: hidden parts do not count. */
@@ -12,6 +14,29 @@ function visibleBox(group: THREE.Object3D): THREE.Box3 {
   });
   return box;
 }
+
+describe('look palettes', () => {
+  it('have as many entries as the sim counts', () => {
+    expect(COATS).toHaveLength(COAT_COUNT);
+    expect(HATS).toHaveLength(HAT_COUNT);
+    expect(SCARVES).toHaveLength(SCARF_COUNT);
+    expect(TAILS).toHaveLength(TAIL_COUNT);
+  });
+
+  it('put a hat and a scarf on and take them off, and colour the tail', () => {
+    const m = createBeaverModel(0);
+    const before = visibleBox(m.group);
+    m.setLook({ hat: 4, scarf: 2, tail: 3 });
+    const after = visibleBox(m.group);
+    expect(after.max.y).toBeGreaterThan(before.max.y + 0.1);
+    const colours = new Set<number>();
+    m.group.traverseVisible((o) => o instanceof THREE.Mesh && colours.add((o.material as THREE.MeshLambertMaterial).color.getHex()));
+    expect(colours.has(TAILS[3])).toBe(true);
+    expect(colours.has(SCARVES[2]!)).toBe(true);
+    m.setLook({ hat: 0, scarf: 0, tail: 0 });
+    expect(visibleBox(m.group).max.y).toBeCloseTo(before.max.y, 5);
+  });
+});
 
 describe('createBeaverModel', () => {
   it('paints the body in the coat, and again when the coat changes', () => {

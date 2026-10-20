@@ -269,6 +269,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const driftGeometry = new THREE.SphereGeometry(1, 14, 9);
   const driftMaterial = new THREE.MeshStandardMaterial({ color: 0xf2f6fa, roughness: 1 });
   let coatShown = '';
+  let lookShown = '';
 
   // A ring that spreads over the water where the beaver slapped its tail.
   const SPLASH_SECONDS = 0.9;
@@ -428,6 +429,11 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       if (coat !== coatShown) {
         coatShown = coat;
         beaverModel.setCoat(world.coat.coat, world.coat.shade);
+      }
+      const lookKey = `${world.look.hat}:${world.look.scarf}:${world.look.tail}`;
+      if (lookKey !== lookShown) {
+        lookShown = lookKey;
+        beaverModel.setLook(world.look);
       }
       for (const entry of parentModels.values()) entry.model.group.visible = false;
       recycle(parentModels, parentSpare, parents);

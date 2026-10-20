@@ -179,5 +179,12 @@ describe('the room', () => {
       expect(friendTaker(snap, 'a', near)?.id).toBe('host');
       expect(friendTaker(snap, 'host', near)?.id).not.toBe('a');
     });
+
+    it('shares the pads picked and the branches stripped with every guest', () => {
+      const room = two();
+      const snap = room.snapshot({ ...world, picked: { 'lily:1:1': 3 }, stripped: { log1: 2 } });
+      expect(snap.picked).toEqual({ 'lily:1:1': 3 });
+      expect(applySnapshot(world, snap, 'a').stripped).toEqual({ log1: 2 });
+    });
   });
 });

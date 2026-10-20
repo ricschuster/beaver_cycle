@@ -7,9 +7,11 @@ import { flatTerrain, type Terrain } from './terrain';
 import { damAt } from './dam';
 import type { DamSpot } from './damSpots';
 import { fallenLog } from './logs';
+import { DAY_SECONDS, DAYS_PER_SEASON } from './clock';
+import { lilyPadsNear } from './lily';
 
 const ground = flatTerrain(0);
-const shared: Shared = { felled: [], logs: [], clock: 0, dams: [], spots: [], rocksTaken: [], dropped: [] };
+const shared: Shared = { felled: [], logs: [], clock: 0, dams: [], spots: [], rocksTaken: [], dropped: [], ground, picked: {}, stripped: {} };
 const at = { x: 0, z: 0 };
 const coat = { coat: 1, shade: 0 };
 const tree = { id: 't1', x: 1, z: 0, wood: 4 };
@@ -126,6 +128,26 @@ describe('guest beavers', () => {
       const down = stepGuest(got.guest, { ...noIntent(), take: 'drop' }, 0.1, shared, ground, noTrees);
       expect(down.guest.carry).toBeNull();
       expect(down.dropped.map((d) => d.kind)).toEqual(['branch']);
+    });
+
+    it('takes a lily pad off the water, and the pad is gone for everyone', () => {
+      const lake: Terrain = { heightAt: () => 0, isWater: () => true, waterDepth: () => 1.5 };
+      const clock = DAY_SECONDS * DAYS_PER_SEASON * 1.5;
+      const pad = lilyPadsNear(lake, 0, 0, 50, clock)[0]!;
+      const g = newGuest('g1', { x: pad.x, z: pad.z }, lake, coat, undefined);
+      const r = stepGuest(g, { ...noIntent(), take: 'pad' }, 0.1, { ...shared, clock, ground: lake }, lake, noTrees);
+      expect(r.guest.carry).toBe('lily');
+      expect(Object.keys(r.picked)).toContain(pad.id);
+    });
+
+    it('strips a branch off a log by it, until the log has none left', () => {
+      const log = fallenLog(ground, 'log1', 0, 0, 0, 4);
+      const g = newGuest('g1', { x: 0, z: 1 }, ground, coat, undefined);
+      const r = stepGuest(g, { ...noIntent(), do: 'strip' }, 0.1, { ...shared, logs: [log] }, ground, noTrees);
+      expect(r.guest.carry).toBe('branch');
+      expect(r.stripped['log1']).toBe(1);
+      const again = stepGuest({ ...g, carry: null }, { ...noIntent(), do: 'strip' }, 0.1, { ...shared, logs: [log], stripped: { log1: 99 } }, ground, noTrees);
+      expect(again.guest.carry).toBeNull();
     });
 
     it('does not gnaw with food in the mouth', () => {

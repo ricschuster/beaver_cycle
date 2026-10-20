@@ -4,6 +4,7 @@ import type { Intent } from '../sim/buttons';
 import { newGuest, stepGuest, type Guest } from '../sim/guests';
 import type { Dam } from '../sim/dam';
 import type { Dropped } from '../sim/haul';
+import type { Picked } from '../sim/lily';
 import type { Log } from '../sim/logs';
 import { GIVE_REACH } from '../sim/familyMoods';
 import { withPonds } from '../sim/pond';
@@ -83,7 +84,7 @@ export class Room {
 
   /** Every guest advanced by `dt`. Returns the world with what they changed: trees felled, the logs, the dams they built, the rocks taken. */
   step(world: WorldState, dt: number, now: number, ground: Terrain, trees: TreeSource): WorldState {
-    let { felled, logs, dams, rocksTaken, dropped }: { felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[] } = world;
+    let { felled, logs, dams, rocksTaken, dropped, picked, stripped }: { felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[]; picked: Picked; stripped: Readonly<Record<string, number>> } = world;
     const terrain = withPonds(ground, world.ponds);
     const solids = [world.lodge, ...world.formerHomes, ...world.neighbours.map((n) => n.lodge)].flatMap((l) => (l ? [{ x: l.x, z: l.z, radius: 4 }] : []));
     let hostCarry = world.carry;
@@ -96,15 +97,15 @@ export class Room {
         else if (to) to.carry = seat.guest.carry;
         if (to) seat.guest = { ...seat.guest, carry: null };
       }
-      const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock, dams, spots: world.spots, rocksTaken, dropped }, terrain, trees, solids);
+      const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock, dams, spots: world.spots, rocksTaken, dropped, ground, picked, stripped }, terrain, trees, solids);
       seat.guest = r.guest;
       // A press arrives once: the next step must not repeat it.
       seat.intent = { ...seat.intent, do: seat.intent.do === 'gnaw' ? 'gnaw' : null, take: null };
-      ({ felled, logs, dams, rocksTaken, dropped } = r);
+      ({ felled, logs, dams, rocksTaken, dropped, picked, stripped } = r);
     }
-    const same = felled === world.felled && logs === world.logs && dams === world.dams && rocksTaken === world.rocksTaken && dropped === world.dropped;
+    const same = felled === world.felled && logs === world.logs && dams === world.dams && rocksTaken === world.rocksTaken && dropped === world.dropped && picked === world.picked && stripped === world.stripped;
     if (hostCarry !== world.carry) world = { ...world, carry: hostCarry };
-    return same ? world : { ...world, felled: [...felled], logs: [...logs], dams: [...dams], rocksTaken: [...rocksTaken], dropped: [...dropped] };
+    return same ? world : { ...world, felled: [...felled], logs: [...logs], dams: [...dams], rocksTaken: [...rocksTaken], dropped: [...dropped], picked, stripped: { ...stripped } };
   }
 
   /**
@@ -141,7 +142,7 @@ export class Room {
   snapshot(world: WorldState): Snapshot {
     const b = world.beaver;
     const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null };
-    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped };
+    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped };
   }
 
   /** Sends the state to every guest that has said hello. */

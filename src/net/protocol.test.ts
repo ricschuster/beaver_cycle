@@ -39,7 +39,7 @@ describe('messages from the host', () => {
     const m = readToHost('{"t":"intent","x":0,"z":0,"dive":false,"gnaw":false,"do":"build","take":"mud"}');
     expect(m).toMatchObject({ do: 'build', take: 'mud' });
     expect(intentOf(m as never)).toMatchObject({ do: 'build', take: 'mud' });
-    const bad = readToHost('{"t":"intent","x":0,"z":0,"do":"eat","take":"pad"}') as Record<string, unknown>;
+    const bad = readToHost('{"t":"intent","x":0,"z":0,"do":"eat","take":"stash"}') as Record<string, unknown>;
     expect(bad.do).toBeUndefined();
     expect(bad.take).toBeUndefined();
   });

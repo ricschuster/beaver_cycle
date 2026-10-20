@@ -106,7 +106,8 @@ These are their own pieces of work, and each can be built and played alone befor
   Built for friends too (#663): a guest can pick up food that lies on the ground, put it down again, and hand it over with Do
   (reads Give) to the host or another guest within 4 m whose mouth is empty (`Room.step`, `Room.hand`, `friendTaker` in
   `src/net/view.ts`). Every beaver in the snapshot says what it holds (`BeaverView.carry`, `haul`), so a tablet can tell an empty
-  mouth. A guest cannot get food by itself yet (a lily pad, a branch off a log): it takes what a friend puts down or gives.
+  mouth. A guest gets food by itself as the host does: Take on a lily pad, Do by a log strips a branch (`stepGuest` in `src/sim/guests.ts`); the
+  pads picked and branches stripped are shared in the snapshot, so a pad one friend took is gone for all.
 - **Talk.** The dialog with beavers of other families ([27_families_and_dialog.md](27_families_and_dialog.md)), with a friend's
   answer coming back. Open.
 

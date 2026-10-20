@@ -11,11 +11,11 @@ import type { Lodge } from '../sim/lodge';
 import { cleanLook, type Look } from '../sim/look';
 import type { Intent } from '../sim/buttons';
 
-/** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam, hand food to a friend; let go, put down, take a log, a rock, mud, or a piece put down. */
-export type GuestDo = 'gnaw' | 'build' | 'mend' | 'give';
-export type GuestTake = 'let-go' | 'drop' | 'item' | 'log' | 'rock' | 'mud';
-const DOS: readonly string[] = ['gnaw', 'build', 'mend', 'give'];
-const TAKES: readonly string[] = ['let-go', 'drop', 'item', 'log', 'rock', 'mud'];
+/** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam, hand food to a friend, strip a branch off a log; let go, put down, take a log, a pad, a rock, mud, or a piece put down. */
+export type GuestDo = 'gnaw' | 'build' | 'mend' | 'give' | 'strip';
+export type GuestTake = 'let-go' | 'drop' | 'item' | 'log' | 'pad' | 'rock' | 'mud';
+const DOS: readonly string[] = ['gnaw', 'build', 'mend', 'give', 'strip'];
+const TAKES: readonly string[] = ['let-go', 'drop', 'item', 'log', 'pad', 'rock', 'mud'];
 
 /** The port the host listens on. */
 export const PORT = 8765;
@@ -36,6 +36,9 @@ export interface Snapshot {
   /** Rocks taken and pieces put down, shared so each tablet's Take button reads the same as the host's. */
   rocksTaken?: string[];
   dropped?: Dropped[];
+  /** Pads picked and branches stripped, so a guest's Take and Do read the same as the host's. */
+  picked?: Record<string, number>;
+  stripped?: Record<string, number>;
   /** The dams of the host's world and the host's lodge: a guest draws them and works out the ponds from the dams. */
   dams?: Dam[];
   lodge?: Lodge | null;

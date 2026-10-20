@@ -9,12 +9,12 @@ and the meaning is kept. The handout stays the source. The questions come from t
 | 78 | Cost of mending a broken dam | Mending a dam should cost less wood, rocks and mud. (Keeping its size is not answered; session 163 keeps the level, #646.) |
 | 79 | The lodge door under water when the pond is low | The beaver should be able to go into the lodge any time, except when building the lodge. |
 | 80 | Cotton candy boats | Press a button to go in and out. Steer with the stick like swimming. |
-| 81 | Dam and lodge built in a dream | They do not stay for other dreams, except if you want to. |
-| 82 | Chopping a candy tree | You get candy logs and can peel bark off of them. |
+| 81 | Dam and lodge built in a dream | They do not stay for other dreams, except if you want to. At the end of the dream you can select to keep them. |
+| 82 | Chopping a candy tree | You get candy logs and can peel bark off of them. The peeled bark is sugar and can be eaten. |
 | 83 | Other ponds in the dream | Three ponds and a river to play in. Lily pads grow in them, and marshmallow beavers. Also lodges. |
-| 84 | The golden beaver statue | It is in the veggie dream and kind of easy to find. (How long the speed boost lasts is not answered.) |
+| 84 | The golden beaver statue | It is in the veggie dream and kind of easy to find. There is no statue in candy land. The player picks how long the speed boost lasts. |
 | 85 | Choosing the veggie garden dream | You can choose the veggie dream for the first night and any night. |
-| 86 | The vegetable beavers | Peas, carrots, tomatoes, radishes and pumpkins. Their names are Veggie, Spice, Planty, Cabbagey, Kale and Lettuce. |
+| 86 | The vegetable beavers | Peas, carrots, tomatoes, radishes and pumpkins. Their names are Veggie, Spice, Planty, Cabbagey, Kale and Lettuce. Start from the beginning of the list and fill until full: the vegetables and names are given out in order, from the first, until the dream has all its beavers. |
 | 87 | The player's beaver in the veggie dream | The nose is a pea, the tail is a pumpkin, the body is a tomato, two feet are tomatoes and two are carrots. |
 | 88 | What to do in the garden | See who can grow the biggest plant fastest with watering cans. |
 | 89 | Bigger than candy land | A bigger carrot juice river and more to find. |
@@ -25,6 +25,6 @@ and the meaning is kept. The handout stays the source. The questions come from t
 - Q78: whether a mended dam keeps its size is not stated. The code keeps the level and charges about 10 wood units from 0 to
   new; "less" is not a number yet.
 - Q79: needs a rule for a lodge door under water (the beaver may enter at any pond level, but not while the lodge is being built).
-- Q81 and Q82: "if you want to" on a dream dam and lodge, and what peeled bark is for, are not clear. Ask again.
-- Q84: the statue is read as being in the veggie dream; candy land may also keep one. The boost length is open.
-- Q86: six names for five vegetables (pea, carrot, tomato, radish, pumpkin). Check which name goes with which.
+- Q84: "the player picks the length" is read as a setting (for example short, medium, long) rather than a number to type. Check.
+- Q86: read as giving out the five vegetables and six names in order, going round again from the start, until the garden is full.
+  Check that this is what was meant.

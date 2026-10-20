@@ -26,6 +26,12 @@ start screen instead, so tick "Let friends join this game" and Continue there (a
 - `guest-mend.mjs 9302` - after the host's clock has moved on (`__game.skipYears(0.3)` on the host; the clock does not speed up
   while hosting), cycles log, mud and rock until the worn dam is mended.
 
+- `gift.mjs 9301 9302` - the host (an adult, standing on a lily pad, the test menu has Adult) takes a pad and hands it to the guest
+  beside it with Do, the guest hands it back (#663). Keys: E is Do, G is Take.
+
+A guest is a thin client, so `__game.goToSpot` does nothing on it (the host steps its beaver); walk it with `walk.mjs`.
+Food put down in the water cannot be picked up again by a swimming beaver (Take reads item only on land).
+
 A second guest is a third AVD (copy `tablet2` to `tablet3`) on port 5558 with `boot.sh emulator-5558 9303 ...?join=10.0.2.2`. To test
 sleep and wake: `adb -s emulator-5556 shell input keyevent KEYCODE_SLEEP`, then `KEYCODE_WAKEUP`.
 

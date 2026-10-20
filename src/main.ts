@@ -15,6 +15,10 @@ import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/lif
 import { formerParentsAt, parentsAt } from './sim/family';
 import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
+import { Room } from './net/room';
+import { hostSender, joinHost, startHosting, type GuestLink } from './net/session';
+import { applySnapshot, friendBeaver, othersOf } from './net/view';
+import { SEND_HZ, viewOfGuest } from './net/protocol';
 import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
 import { WALK_IN, departsAt, settleFamily, settledId, visitorsAt } from './sim/scent';
@@ -306,7 +310,11 @@ async function start(): Promise<void> {
   // ?stage=baby|teenager|adult starts the beaver at the start of that life stage. A baby starts in the lodge. A game starts as a
   // baby (the brief: you grow up in the lodge), except in an automated browser, where the tests and playtests expect an adult.
   const stageParam = query.get('stage');
-  const startAs = STAGES.includes(stageParam as Stage) ? (stageParam as Stage) : navigator.webdriver ? 'adult' : 'baby';
+  // ?host=1 listens for friends (the app only), ?join=IP joins a host's valley as a guest (ADR 0014, #678). The guest shows the host's
+  // world, so it starts a grown beaver and never saves.
+  const netHost = __DEV_TOOLS__ && query.get('host') === '1';
+  const netJoin = __DEV_TOOLS__ ? query.get('join') : null;
+  const startAs = netJoin ? 'adult' : STAGES.includes(stageParam as Stage) ? (stageParam as Stage) : navigator.webdriver ? 'adult' : 'baby';
   if (startAs !== 'adult') world = startStage(world, startAs);
   // The saved game (docs/design/26_saving.md): four slots. With a saved game the player picks a slot on the start screen; ?slot=N
   // goes straight to that slot (the Settings shadows restart uses it), and with no saved game at all the game starts in slot 1.
@@ -314,7 +322,7 @@ async function start(): Promise<void> {
   let slot = 1;
   let slotName = '';
   let freshGame = false;
-  const saving = storage !== null && !free && wantsSave(query, navigator.webdriver);
+  const saving = storage !== null && !free && !netJoin && wantsSave(query, navigator.webdriver);
   if (saving) {
     const wanted = parseSlot(query.get('slot'));
     const slots = readSlots(storage, world);
@@ -375,6 +383,20 @@ async function start(): Promise<void> {
     });
     window.addEventListener('pagehide', saveNow);
   }
+  // The shared valley (ADR 0014): a host holds a room of guests, a guest holds a link to its host.
+  const room = netHost ? new Room(hostSender()) : null;
+  let link: GuestLink | null = null;
+  let guestSnap: ReturnType<typeof othersOf> = [];
+  let lastSnap: Parameters<typeof othersOf>[0] = null;
+  let netSentAt = 0;
+  let gnawPending = false;
+  if (room) {
+    startHosting(room, { hostAt: () => world.beaver, terrain }, (s) => menu.setStatus(s)).then(
+      (a) => menu.setStatus(`Hosting at ${a.ip}:${a.port}`),
+      (e) => menu.setStatus(String(e)),
+    );
+  }
+  if (netJoin) link = joinHost(netJoin, { t: 'hello', coat: world.coat, look: world.look });
   let last = performance.now();
 
   // A jump holds the beaver while the streamer loads the target, then moves it.
@@ -785,7 +807,30 @@ async function start(): Promise<void> {
         world = step(world, noIntent(), dt, terrain, trees);
         streamer?.update(rig.view.focus.x, rig.view.focus.z);
       } else {
-        world = step(world, { move, dive: actions.dive, diveTap: actions.diveTap, slap: actions.slap, do: doPressed, take: actions.take ? takeNow : null, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
+        if (link) {
+          // A guest: the host steps its beaver. Here the wish goes out SEND_HZ times a second and the state comes back.
+          if (doPressed === 'gnaw') gnawPending = true;
+          if (now - netSentAt > 1000 / SEND_HZ && link.id) {
+            netSentAt = now;
+            link.send({ t: 'intent', x: move.x, z: move.z, dive: !!actions.dive, gnaw: gnawPending });
+            gnawPending = false;
+          }
+          const snap = link.take();
+          if (snap) lastSnap = snap;
+          if (snap && link.id) world = applySnapshot(world, snap, link.id);
+          world = { ...world, time: world.time + dt };
+          guestSnap = link.id ? othersOf(lastSnap, link.id) : [];
+          menu.setStatus(link.id ? `Joined ${netJoin} as ${link.id}` : `Joining ${netJoin}: ${link.status()}`);
+        } else {
+          world = step(world, { move, dive: actions.dive, diveTap: actions.diveTap, slap: actions.slap, do: doPressed, take: actions.take ? takeNow : null, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
+          if (room) {
+            world = room.step(world, dt, now / 1000, terrain, trees);
+            if (now - netSentAt > 1000 / SEND_HZ) {
+              netSentAt = now;
+              room.broadcast(world);
+            }
+          }
+        }
         streamer?.update(world.beaver.x, world.beaver.z);
         rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
       }
@@ -1022,7 +1067,7 @@ async function start(): Promise<void> {
     const engaged = new Set(world.predators.map((p) => p.id));
     if (world.leader) engaged.add(world.leader.id);
     const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded), ...(world.leader ? [leaderAnimal(world.leader, ponded, world)] : [])];
-    const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : []), ...visitors];
+    const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : []), ...visitors, ...(room ? room.guests().map((g) => friendBeaver(viewOfGuest(g))) : guestSnap)];
     // The sparkles toward a lone beaver, until time is up or the player is close.
     const wayTo = pointerTarget(wayPointer, world);
     if (!wayTo) wayPointer = null;

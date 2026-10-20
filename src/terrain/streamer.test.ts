@@ -93,6 +93,16 @@ describe('Streamer', () => {
     expect(store.has(4, 0, 1)).toBe(true); // 1120 m
   });
 
+  it('loads the ground around another beaver', async () => {
+    const { store, streamer, flush } = setup();
+    for (let i = 0; i < 10; i++) {
+      streamer.update(160, 160, [{ x: 4 * 320 + 160, z: 160 }]); // a guest on tile 4
+      await flush();
+    }
+    expect(store.has(4, 0, 0)).toBe(true); // under the guest
+    expect(store.has(3, 0, 0)).toBe(true); // next to the guest, where the host alone would give level 1
+  });
+
   it('drops fine levels after the beaver moves away and keeps the horizon', async () => {
     const { store, streamer, flush } = setup();
     for (let i = 0; i < 10; i++) {

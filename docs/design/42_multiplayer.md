@@ -142,3 +142,10 @@ sleeps for 40 seconds loses its socket and never rejoins, and shows no message (
 Sleep outside a lodge, how a friend answers a dialog, how hide and seek invites work, and what a first spike should prove. The
 spike comes next: the host runs the sim, a guest joins by IP on two real tablets and a laptop browser, and the guest's beaver
 moves and chops in the host's world.
+
+## Streaming around guests (#696)
+
+The host's streamer follows its own beaver and also each guest: a tile near a guest gets the level that twice its distance would
+get (level 0 within 320 m, level 1 within 650 m), and the fine ring is measured to the nearest beaver. So a guest 1 km away can
+gnaw and stand on the right ground. The cost is memory on the host tablet; measure the heap with guests far apart before adding more
+guests (`MAX_GUESTS` in `src/net/room.ts`).

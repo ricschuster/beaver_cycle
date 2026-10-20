@@ -33,7 +33,7 @@ export const ui = {
   'together.joining': 'Joining {ip}...',
   'together.joined': 'Playing in the valley of {ip}',
   'together.failed': 'Could not reach {ip}. Same Wi-Fi? Is the host hosting?',
-  'together.lost': 'The host went away.',
+  'together.lost': 'The host went away. Trying again...',
   'together.leave': 'Leave',
 
   'help.open': 'Open the manual',

@@ -16,8 +16,8 @@ import { CHOP_REACH, type TreeSource } from './trees';
 import type { Terrain } from './terrain';
 import type { WorldState } from './state';
 
-/** What Do does: eat, build or mend with what is carried, pat a scent mound with mud by the lodge, open the store, dig out a stuck beaver, talk, fell a tree, or strip a branch off a log. */
-export type DoKind = 'eat' | 'build' | 'mend' | 'store' | 'dig' | 'talk' | 'gnaw' | 'strip' | 'mark';
+/** What Do does: eat, build or mend with what is carried, hand food to a beaver with an empty mouth, pat a scent mound with mud by the lodge, open the store, dig out a stuck beaver, talk, fell a tree, or strip a branch off a log. */
+export type DoKind = 'eat' | 'build' | 'mend' | 'store' | 'dig' | 'give' | 'talk' | 'gnaw' | 'strip' | 'mark';
 /** What Take does: let go of the log, put down what is in the mouth, or pick up something put down, a log, a lily pad, a rock, or mud. */
 export type TakeKind = 'let-go' | 'drop' | 'item' | 'log' | 'pad' | 'rock' | 'mud';
 
@@ -53,6 +53,8 @@ export interface Around {
   /** The nearest speaker is a partner who follows the player, who is always close, so Talk would hide Gnaw at every tree. */
   following?: boolean;
   drift: boolean;
+  /** A beaver of a family with an empty mouth is close enough to be handed food (`takerNear`). */
+  taker?: boolean;
 }
 
 /** A lodge that could start ahead of the beaver, in the lake or in a pond that a level 2 dam holds; one in a pond is tagged with it. */
@@ -133,6 +135,7 @@ export function doHere(world: WorldState, ground: Terrain, trees: TreeSource, ar
   if (log || world.haul) return grown && b.mode !== 'dive' ? placeHere(world, ground, log) ?? (canMark(world) ? 'mark' : null) : null;
   if (grown && b.mode !== 'dive' && lodgeComplete(world.lodge) && atStore(world.lodge, b.x, b.z)) return 'store';
   if (grown && around.drift && b.mode === 'walk') return 'dig';
+  if (world.carry && around.taker) return 'give';
   if (around.speaker && !around.following) return 'talk';
   const work = grown && !world.carry && b.mode !== 'dive';
   if (work && b.mode === 'walk' && (world.chop || trees.nearest(b.x, b.z, CHOP_REACH, felledAsSet(world.felled)))) return 'gnaw';

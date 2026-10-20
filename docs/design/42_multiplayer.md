@@ -100,6 +100,9 @@ These are their own pieces of work, and each can be built and played alone befor
 - **Hide and seek.** The dream mechanics, behind trees, in the waking game. A beaver can send a note to friends who are near, they
   walk over, and the game starts.
 - **Gifts.** A beaver can put food on the ground for a friend, or hand it over to a friend whose mouth is empty.
+  Built (#663) for the families first: with food in the mouth and a family beaver with an empty mouth within 4 m, Do reads Give
+  (`takerNear`, `giveFamily` in `src/sim/familyMoods.ts`), and the family trusts more, as for a gift put down. A wary family keeps
+  12 m away, so it needs a gift on the ground first. A friend's tablet will use the same rule.
 - **Talk.** The dialog with beavers of other families ([27_families_and_dialog.md](27_families_and_dialog.md)), with a friend's
   answer coming back. Open.
 

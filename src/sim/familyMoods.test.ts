@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FAMILY_KEEP_AWAY, FAMILY_START_TRUST, GIFT_REACH, KIT_CLOSE, familyMood, familyTrust, giftFamilies, greetedBy, reactFamilies, startleFamilies } from './familyMoods';
+import { FAMILY_KEEP_AWAY, FAMILY_START_TRUST, GIFT_REACH, GIVE_REACH, KIT_CLOSE, familyMood, familyTrust, giftFamilies, giveFamily, greetedBy,takerNear, reactFamilies, startleFamilies } from './familyMoods';
 import { FEED_TRUST, SLAP_TRUST } from './moods';
 import type { NeighbourBeaver } from './neighbours';
 import { createWorld, type WorldState } from './state';
@@ -85,5 +85,21 @@ describe('greetedBy', () => {
     const w = world();
     expect(greetedBy([beaver('a', 'mama', 15, 0), beaver('b', 'mama', 5, 0)], w)).toBe('b');
     expect(greetedBy([beaver('a', 'mama', 50, 0)], w)).toBeNull();
+  });
+});
+
+describe('handing food over', () => {
+  const holding = { ...world(), carry: 'branch' as const };
+  it('gives the piece to a beaver with an empty mouth close by, and the family trusts more', () => {
+    const r = giveFamily(holding, [beaver('f', 'mama', GIVE_REACH - 1, 0)]);
+    expect(r?.family).toBe('f');
+    expect(r?.kind).toBe('branch');
+    expect(r?.world.carry).toBeNull();
+    expect(familyTrust(r!.world, 'f')).toBeCloseTo(FAMILY_START_TRUST + FEED_TRUST, 5);
+  });
+  it('does nothing when the mouth is full, the beaver is far, or the player holds nothing', () => {
+    expect(takerNear([{ ...beaver('f', 'mama', 1, 0), carry: 'mud' }], holding.beaver)).toBeNull();
+    expect(giveFamily(holding, [beaver('f', 'mama', GIVE_REACH + 1, 0)])).toBeNull();
+    expect(giveFamily(world(), [beaver('f', 'mama', 1, 0)])).toBeNull();
   });
 });

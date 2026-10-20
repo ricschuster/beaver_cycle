@@ -19,6 +19,8 @@ export const KIT_RANGE = 25;
 export const KIT_CLOSE = 4;
 /** A gift put down within this many metres of a family's beaver is taken. */
 export const GIFT_REACH = 12;
+/** A piece of food in the mouth can be handed over to a beaver of a family this close (metres). A wary family keeps further away, so it first needs a gift put down. */
+export const GIVE_REACH = 4;
 /** The beaver is greeted by a family when it comes within this many metres of one of its beavers. */
 export const GREET_RANGE = 20;
 
@@ -124,4 +126,26 @@ export function spreadWord(world: WorldState, from: string, gain: number = FEED_
     next = withTrust(next, n.id, familyTrust(next, n.id) + gain * WORD_SHARE);
   }
   return next;
+}
+
+/** The nearest beaver of a family within `GIVE_REACH` whose mouth is empty, or null: someone food can be handed to. */
+export function takerNear(beavers: readonly NeighbourBeaver[], at: { x: number; z: number }): NeighbourBeaver | null {
+  let best: NeighbourBeaver | null = null;
+  let bestD = GIVE_REACH;
+  for (const n of beavers) {
+    const d = Math.hypot(n.x - at.x, n.z - at.z);
+    if (n.carry === null && d <= bestD) {
+      best = n;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** The food in the beaver's mouth goes to the beaver that `takerNear` finds, whose family trusts the beaver more. Null when there is none. */
+export function giveFamily(world: WorldState, beavers: readonly NeighbourBeaver[]): { world: WorldState; family: string; kind: Food } | null {
+  const to = world.carry ? takerNear(beavers, world.beaver) : null;
+  if (!to || !world.carry) return null;
+  const kind = world.carry;
+  return { world: withTrust({ ...world, carry: null }, to.family, familyTrust(world, to.family) + FEED_TRUST), family: to.family, kind };
 }

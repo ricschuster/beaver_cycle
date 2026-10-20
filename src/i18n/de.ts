@@ -826,6 +826,7 @@ export const de: Partial<Table> = {
   'btn.mend': 'Flicken',
   'btn.store': 'Lagern',
   'btn.dig': 'Graben',
+  'btn.give': 'Geben',
   'btn.talk': 'Reden',
   'btn.gnaw': 'Nagen',
   'btn.strip': 'Nagen',

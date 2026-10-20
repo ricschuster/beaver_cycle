@@ -3,10 +3,13 @@ import { newGuest, stepGuest, type Shared } from './guests';
 import { noIntent } from './buttons';
 import { CHOP_TIME, noTrees, type TreeSource } from './trees';
 import { WALK_SPEED } from './state';
-import { flatTerrain } from './terrain';
+import { flatTerrain, type Terrain } from './terrain';
+import { damAt } from './dam';
+import type { DamSpot } from './damSpots';
+import { fallenLog } from './logs';
 
 const ground = flatTerrain(0);
-const shared: Shared = { felled: [], logs: [], clock: 0 };
+const shared: Shared = { felled: [], logs: [], clock: 0, dams: [], spots: [], rocksTaken: [], dropped: [] };
 const at = { x: 0, z: 0 };
 const coat = { coat: 1, shade: 0 };
 const tree = { id: 't1', x: 1, z: 0, wood: 4 };
@@ -62,5 +65,54 @@ describe('guest beavers', () => {
   it('clean a look that is out of range', () => {
     const g = newGuest('g1', at, ground, coat, { hat: 99, scarf: -3, tail: 2, name: 'Pip' });
     expect(g.look).toMatchObject({ hat: 0, scarf: 0, tail: 2, name: 'Pip' });
+  });
+
+  describe('working on a dam', () => {
+    const spot: DamSpot = { id: 'core:50:0', bed: { x: 50, z: 0 }, bedY: 0, flow: { x: 1, z: 0 }, maxCrest: 2, pondM2: 900 };
+    const wet: Terrain = { heightAt: () => 0, isWater: () => false, waterDepth: () => 0.1 };
+    const at50 = { x: 50, z: 0 };
+    const work: Shared = { ...shared, spots: [spot] };
+
+    it('scoops mud, carries it, and puts it on a dam at a spot', () => {
+      let g = newGuest('g1', at50, wet, coat, undefined);
+      g = stepGuest(g, { ...noIntent(), take: 'mud' }, 0.1, work, wet, noTrees).guest;
+      expect(g.haul).toEqual({ kind: 'mud' });
+      const r = stepGuest(g, { ...noIntent(), do: 'build' }, 0.1, work, wet, noTrees);
+      expect(r.guest.haul).toBeNull();
+      expect(damAt(r.dams, spot)?.mud).toBe(1);
+    });
+
+    it('keeps mud in the mouth away from a spot, and puts it down for later', () => {
+      let g = newGuest('g1', { x: 0, z: 0 }, wet, coat, undefined);
+      g = stepGuest(g, { ...noIntent(), take: 'mud' }, 0.1, work, wet, noTrees).guest;
+      const r = stepGuest(g, { ...noIntent(), do: 'build' }, 0.1, work, wet, noTrees);
+      expect(r.guest.haul).toEqual({ kind: 'mud' });
+      expect(r.dams).toEqual([]);
+      const d = stepGuest(r.guest, { ...noIntent(), take: 'drop' }, 0.1, work, wet, noTrees);
+      expect(d.guest.haul).toBeNull();
+      expect(d.dropped).toHaveLength(1);
+      const back = stepGuest(d.guest, { ...noIntent(), take: 'item' }, 0.1, { ...work, dropped: d.dropped }, wet, noTrees);
+      expect(back.guest.haul).toEqual({ kind: 'mud' });
+      expect(back.dropped).toHaveLength(0);
+    });
+
+    it('drags a log and builds it into the dam', () => {
+      const log = fallenLog(ground, 'log1', 49, 0, 0, 4);
+      const withLog: Shared = { ...work, logs: [log] };
+      let g = newGuest('g1', at50, ground, coat, undefined);
+      g = stepGuest(g, { ...noIntent(), take: 'log' }, 0.1, withLog, ground, noTrees).guest;
+      expect(g.drag).toBe('log1');
+      const r = stepGuest(g, { ...noIntent(), do: 'build' }, 0.1, withLog, ground, noTrees);
+      expect(r.logs).toHaveLength(0);
+      expect(r.guest.drag).toBeNull();
+      expect(damAt(r.dams, spot)?.wood).toBeGreaterThan(0);
+    });
+
+    it('cannot gnaw with the mouth full', () => {
+      let g = newGuest('g1', at, wet, coat, undefined);
+      g = stepGuest(g, { ...noIntent(), take: 'mud' }, 0.1, work, wet, oneTree).guest;
+      const r = stepGuest(g, { ...noIntent(), do: 'gnaw' }, 0.1, work, wet, oneTree);
+      expect(r.guest.chop).toBeNull();
+    });
   });
 });

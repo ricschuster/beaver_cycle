@@ -84,7 +84,7 @@ export const hud = {
   'hud.pressMend': 'press Mend to add it',
   'hud.also.lodge': 'the lodge needs wood too',
   'hud.also.store': 'the store needs wood too',
-  'hud.repair.damBroken': 'dam broken, build it again',
+  'hud.repair.damBroken': 'dam broken, mend it: {percent}% left, needs {wood} units (a long log is 2, mud 1, a rock 2)',
   'hud.repair.damWorn': 'dam {percent}% left, needs {wood} units (a long log is 2, mud 1, a rock 2)',
   'hud.repair.lodgeBroken': 'lodge broken',
   'hud.repair.lodgeWorn': 'lodge {percent}% left',

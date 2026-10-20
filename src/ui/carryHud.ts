@@ -3,7 +3,7 @@ import { t, text } from '../i18n';
 import { atStore, storeCapacity, storeCondition, stockMeals, stockTotal, strippable } from '../sim/food';
 import { WOOD_TREES } from '../sim/achievements';
 import { maxLevel } from '../sim/damSpots';
-import { damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, levelOf, needs, raised, settled, spotAt } from '../sim/dam';
+import { damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, levelOf, needs, raised, spotAt } from '../sim/dam';
 import { canScoopMud, reachableDropped, reachableRock } from '../sim/haul';
 import { reachablePad } from '../sim/lily';
 import type { Terrain } from '../sim/terrain';
@@ -49,8 +49,8 @@ const alsoText = (r: FoodInfo['repair']): string => (r?.also ? `, ${text(`hud.al
 
 /** "store 25% left, needs 6 wood (a long log is 2)", or "broken" for a piece that has to be rebuilt. */
 export function formatRepair(r: NonNullable<FoodInfo['repair']>): string {
-  // A dam takes wood, mud, and rocks alike. A broken one is built again, which the dam line says.
-  if (r.what === 'dam') return r.broken ? t('hud.repair.damBroken') : t('hud.repair.damWorn', { percent: r.percent, wood: r.wood });
+  // A dam takes wood, mud, and rocks alike. A broken one is mended the same way and keeps its level.
+  if (r.what === 'dam') return t(r.broken ? 'hud.repair.damBroken' : 'hud.repair.damWorn', { percent: r.percent, wood: r.wood });
   const state = r.broken ? text(`hud.repair.${r.what}Broken`) : text(`hud.repair.${r.what}Worn`, { percent: r.percent });
   return `${state}, ${t('hud.repair.needsWood', { wood: r.wood })}`;
 }
@@ -105,16 +105,15 @@ export function foodInfoOf(world: WorldState, terrain: Terrain, ground: Terrain 
   }
   const lodgeRepair = whole && !world.inLodge ? repairInfoOf(world) : null;
   const spot = world.inLodge ? null : spotAt(world.spots, b.x, b.z);
-  const stored = spot ? damAt(world.dams, spot) : undefined;
-  const dam = spot ? settled(stored, world.clock, spot) : stored;
+  const dam = spot ? damAt(world.dams, spot) : undefined;
   // A good whole dam that the spot can hold bigger shows what raising it needs.
   const up = spot ? raised(dam, spot, world.clock) : undefined;
   const need = needs(up ?? dam);
   const log = world.drag ? world.logs.find((l) => l.id === world.drag) : undefined;
   const mendable = damMendUnits(dam, world.clock) > 0;
   const canAdd = mendable ? !!haul || !!log : (haul?.kind === 'mud' && need.mud > 0) || (haul?.kind === 'rock' && need.rock > 0) || (!!log && need.wood > 0);
-  const level = damCondition(stored, world.clock);
-  const damRepair: FoodInfo['repair'] = damNeedsRepair(stored, world.clock) ? { what: 'dam', percent: Math.round(level * 100), wood: damMendUnits(dam, world.clock), broken: stageOf(level) === 'broken' } : null;
+  const level = damCondition(dam, world.clock);
+  const damRepair: FoodInfo['repair'] = damNeedsRepair(dam, world.clock) ? { what: 'dam', percent: Math.round(level * 100), wood: damMendUnits(dam, world.clock), broken: stageOf(level) === 'broken' } : null;
   const damInfo: FoodInfo['dam'] = spot ? { percent: Math.round(damProgress(up ?? dam) * 100), ...need, whole: damWhole(dam) && !up, canAdd, level: levelOf(up ?? dam), raise: !!up, top: damWhole(dam) && !up && levelOf(dam) >= maxLevel(spot) } : null;
   if (!carry && !haul && !whole && !hint && !damInfo) return null;
   const capacity = storeCapacity(storeCondition(world.storeWear, world.clock));

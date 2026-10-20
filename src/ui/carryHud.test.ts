@@ -115,7 +115,7 @@ describe('dam line', () => {
     const part = { ...w, dams: [{ spot: 's', level: 2 as const, wood: 14, mud: 4, rock: 2 }], haul: null };
     expect(formatCarry(0, false, null, null, null, null, foodInfoOf(part, flatTerrain(0)))).toContain('dam level 2 46%, needs 4 mud, 3 rocks');
   });
-  it('shows a worn dam as a repair that takes any material, and a broken one as built again', () => {
+  it('shows a worn dam as a repair that takes any material, and a broken one the same', () => {
     const dams = [{ spot: 's', wood: 8, mud: 4, rock: 2, wear: newWear(0) }];
     const base = { ...createWorld(flatTerrain(0)), spots: [spot], dams, haul: { kind: 'rock' as const } };
     const worn = foodInfoOf({ ...base, clock: 12 * DAY_SECONDS }, flatTerrain(0))!; // condition 0.4
@@ -129,7 +129,7 @@ describe('dam line', () => {
     expect(part.repair).toEqual({ what: 'dam', percent: 60, wood: 4, broken: false });
     const broken = foodInfoOf({ ...base, clock: 18 * DAY_SECONDS }, flatTerrain(0))!;
     expect(broken.repair).toMatchObject({ what: 'dam', broken: true });
-    expect(broken.dam).toMatchObject({ whole: false, percent: 0 });
-    expect(formatCarry(0, false, null, null, null, null, broken)).toContain('dam broken, build it again, dam 0%, needs 8 wood, 4 mud, 2 rocks');
+    expect(broken.dam).toMatchObject({ whole: true, canAdd: true });
+    expect(formatCarry(0, false, null, null, null, null, broken)).toContain('dam broken, mend it: 10% left, needs 9 units');
   });
 });

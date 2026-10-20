@@ -900,7 +900,7 @@ export const de: Partial<Table> = {
   'hud.pressMend': 'drücke Flicken, um es hinzuzufügen',
   'hud.also.lodge': 'der Bau braucht auch Holz',
   'hud.also.store': 'das Lager braucht auch Holz',
-  'hud.repair.damBroken': 'Damm kaputt, bau ihn neu',
+  'hud.repair.damBroken': 'Damm kaputt, flick ihn: noch {percent}%, braucht {wood} Einheiten (ein langer Stamm zählt 2, Schlamm 1, ein Stein 2)',
   'hud.repair.damWorn': 'Damm noch {percent}%, braucht {wood} Einheiten (ein langer Stamm zählt 2, Schlamm 1, ein Stein 2)',
   'hud.repair.lodgeBroken': 'Bau kaputt',
   'hud.repair.lodgeWorn': 'Bau noch {percent}%',

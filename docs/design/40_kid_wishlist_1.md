@@ -26,15 +26,9 @@ Items 2 and 3 are crossed out on the page. They are not built and not tracked.
 
 ### 4. Mending a dam
 
-Today a worn dam is mended with wood, mud, and rock and keeps its level. A broken dam (condition below 0.15) is built
-again from nothing at level 1 ([20_dams_and_ponds.md](20_dams_and_ponds.md), "A broken dam is built again from nothing").
-That is probably what the author saw: the dam seems to vanish and the work starts over. First step is to reproduce it, and
-to read the author's "disappear" as either that rule or a real bug (a dam removed while mending). Then decide, with the
-author, whether a broken dam should be mended for part of the cost and keep its level. Open question for the author.
-
-Checked (#646): no code path removes a dam while it is mended. `settled` in `src/sim/dam.ts` turns a broken dam (below 0.15) into
-a new level 1 dam on the next placed piece, which is the vanishing the author saw. Any mend or rebuild rule change waits for
-Q77 and Q78.
+A worn or broken dam is mended with wood, mud, and rock and keeps its level. A broken dam (condition below 0.15) used to be built
+again from nothing at level 1, which is the vanishing the author saw. Done (#646): `settled` is gone, so a broken dam is mended
+like a worn one, for the units that bring it back to new (about 10 wood units at most), and the HUD line says "dam broken, mend it".
 
 ### 5. Going into the lodge at low water
 

@@ -23,7 +23,14 @@ Connections, or WebRTC) gets its own spike and ADR after this note ([#41](https:
 - A friend can carry wood, mud, or rocks to a dam or lodge and place it, and the owner gets a chime and a heart.
 - Each player chooses how their beaver looks when the game starts. A friend can talk to a friend in the game.
 - Partners across families are wanted, the mechanics are open. A baby stays with its own family, but can share food.
-- Wanted later: dreams played together, games in the main game (hide and seek), and trade of food. Mechanics open.
+- Wanted later: dreams played together, games in the main game (hide and seek), and trade of food ([46_round7_answers.md](46_round7_answers.md)).
+- Games are independent: a friend who plays in another friend's game is a new family with a new lodge there. A laptop browser can
+  join as a player.
+- The five lodges each hold a family (Mama and Papa and a baby), until a player takes the baby. The lodges nobody plays hold
+  families like the other families in the game now, and go on with their day while their player is away, ageing with the clock.
+- A player chooses fur colour, hat and scarf, tail colour, and a name at the start.
+- Partners are adults who both say yes with a button or in a dialog, and they build a new lodge together. Each player gets their
+  own kit.
 
 ## Model
 
@@ -69,6 +76,25 @@ The clock is the world's, so it is shared and run by the host. Wear, seasons, an
 - When the host quits, the world is saved on the host's tablet as it is now. Guests go back to the title screen with their own
   tablet's data intact. To go on, a guest joins that host again. The family's home lives in the world where it was built.
 
+## Features that come with it
+
+These are their own pieces of work, and each can be built and played alone before the network exists.
+
+- **Beaver looks.** A start screen for fur colour, hat, scarf, tail colour, and a name, saved with the family. It also makes sense
+  in single player. The model has `coat` today (`?coat=2` in the model preview).
+- **Five starting families.** The start of a game places five lodges with a family each, and the player takes a baby. Today the
+  player starts as a baby in a lodge, so this is the same start with four more families beside it.
+- **Sleep outside a lodge.** The author wants it, maybe, for the early adult who cannot build a dam and a lodge in one day. Today
+  only a beaver on the nest in a lodge can sleep (`canRest`, `canSleep` in `src/sim/state.ts`). Open: where it is safe, whether it
+  ends skips, and how the dream and a night skip work from there.
+- **Dream together.** The dream room is run by the host for the players who are asleep. A popup tells the others when a beaver
+  goes to sleep.
+- **Hide and seek.** The dream mechanics, behind trees, in the waking game. A beaver can send a note to friends who are near, they
+  walk over, and the game starts.
+- **Gifts.** A beaver can put food on the ground for a friend, or hand it over to a friend whose mouth is empty.
+- **Talk.** The dialog with beavers of other families ([27_families_and_dialog.md](27_families_and_dialog.md)), with a friend's
+  answer coming back. Open.
+
 ## What stays unchanged
 
 The rules of the waking game stay the same for each beaver: chopping, building, food, wear, and life stages. Only what is shared
@@ -78,4 +104,6 @@ walk-in over the mud (#647) means nobody gets stuck.
 
 ## Open
 
-Round 7 asks about the five lodges, saves, partners, the dream together, and games and trade.
+Sleep outside a lodge, how a friend answers a dialog, how hide and seek invites work, and what a first spike should prove. The
+spike comes next: the host runs the sim, a guest joins by IP on two real tablets and a laptop browser, and the guest's beaver
+moves and chops in the host's world.

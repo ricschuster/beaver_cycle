@@ -914,7 +914,7 @@ async function start(): Promise<void> {
             }
           }
         }
-        streamer?.update(world.beaver.x, world.beaver.z);
+        streamer?.update(world.beaver.x, world.beaver.z, room ? room.guests().map((g) => g.beaver) : undefined);
         rig.update(dt, world.beaver.heading, move.x !== 0 || move.z !== 0);
       }
     }

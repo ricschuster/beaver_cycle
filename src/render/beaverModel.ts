@@ -339,13 +339,14 @@ function hatShape(kind: Exclude<(typeof HATS)[number], null>): THREE.Group {
  */
 function scarfShape(colour: number): THREE.Group {
   const g = new THREE.Group();
-  const wrap = part(new THREE.TorusGeometry(0.2, 0.05, 10, 28), colour, 0, -0.15, -0.22);
-  wrap.scale.set(1.05, 1.0, 1);
+  const wrap = part(new THREE.TorusGeometry(0.16, 0.048, 10, 28), colour, 0, -0.12, -0.19);
+  // Tipped so the back stays up the nape and the bottom comes forward under the throat, snug round the neck.
+  wrap.rotation.x = -0.4;
   g.add(wrap);
-  g.add(ellipsoid(0.065, 0.06, 0.06, colour, 0.17, -0.2, -0.17));
-  for (const [x, len] of [[0.15, 0.1], [0.2, 0.08]] as const) {
-    const end = ellipsoid(0.03, len, 0.022, colour, x, -0.26 - len * 0.7, -0.15);
-    end.rotation.z = x > 0.17 ? -0.15 : 0.12;
+  g.add(ellipsoid(0.06, 0.055, 0.055, colour, 0.13, -0.24, -0.06));
+  for (const [x, len] of [[0.13, 0.1], [0.18, 0.08]] as const) {
+    const end = ellipsoid(0.03, len, 0.022, colour, x, -0.27 - len * 0.7, -0.04);
+    end.rotation.z = x > 0.15 ? -0.15 : 0.12;
     g.add(end);
   }
   return g;

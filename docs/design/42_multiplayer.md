@@ -130,7 +130,12 @@ short of closing the app.
 A guest and a host were played on two tablet emulators through the real socket (`tools/emulator-pair/`, session 162): the guest
 felled a tree, dragged the log, took a rock and mud, and built a dam in the host's world, and both showed the same dam. It found one
 gap: the host streams terrain and trees only around its own beaver, so a guest far from the host cannot gnaw, since the host finds no
-trees there. Either the host also streams around each guest, or guests are meant to stay near the host; not decided.
+trees there (#696; not decided whether the host also streams around each guest or guests stay near it).
+
+The same setup then built a whole level 2 dam by a guest (17 logs, mud and rocks, through Take and Do), held a pond on both tablets,
+and a guest mended the worn dam with Mend. A second guest joined with the first still in; both got snapshots of all three beavers.
+The First dam achievement came to the host only (a guest's achievements are not shared; settled for the host's save). A guest that
+sleeps for 40 seconds loses its socket and never rejoins, and shows no message (#697). Not tried: the real tablets.
 
 ## Open
 

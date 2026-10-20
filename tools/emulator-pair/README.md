@@ -22,6 +22,12 @@ start screen instead, so tick "Let friends join this game" and Continue there (a
 - `walk.mjs PORT X Z [STOP]` - walks that beaver to a point with the W key, steering by the camera yaw.
 - `guest-dam.mjs 9302` - at a dam spot: fell a tree, grab the log, put it on the spot with Do.
 - `guest-load.mjs 9302` - at the spot: take a rock and mud and put each on the dam.
+- `guest-fulldam.mjs 9302` - builds the whole dam by logs, mud and rocks until the carry line stops saying it needs more.
+- `guest-mend.mjs 9302` - after the host's clock has moved on (`__game.skipYears(0.3)` on the host; the clock does not speed up
+  while hosting), cycles log, mud and rock until the worn dam is mended.
+
+A second guest is a third AVD (copy `tablet2` to `tablet3`) on port 5558 with `boot.sh emulator-5558 9303 ...?join=10.0.2.2`. To test
+sleep and wake: `adb -s emulator-5556 shell input keyevent KEYCODE_SLEEP`, then `KEYCODE_WAKEUP`.
 
 The host streams tiles only around its own beaver, so a guest far from the host cannot gnaw (the host finds no trees there).
 Put the host at the same spot first: leave the lodge by its hole, then `__game.goToSpot('core:-772:1107')` on the host.

@@ -118,9 +118,11 @@ walk-in over the mud (#647) means nobody gets stuck.
 The transport is an embedded WebSocket server on the host tablet ([ADR 0014](../decisions/0014-multiplayer-transport.md)). Code:
 `src/sim/guests.ts` (a guest beaver that walks, swims, dives, and gnaws, stepped on the host), `src/net/protocol.ts` (the messages,
 checked on arrival), `src/net/room.ts` (the host's room of guests, no socket), `src/net/view.ts` (what a guest shows),
-`src/net/session.ts` (the two ends of the socket), wired in `main.ts`. Settings has a Play together section (#681): Host a game (the app only) shows the host's address, and Join takes
-the address, remembers it (`lastHost` in the prefs), saves the game, and starts again as a guest; the address waits in the session
-storage (`src/net/pending.ts`) and Leave clears it. The dev parameters `?host=1` and `?join=IP` still work in a dev build. A guest
+`src/net/session.ts` (the two ends of the socket), wired in `main.ts`. the start screen (the saved games) has a Play together box under the slots: a tick, Let friends join this game (the app only), which
+hosts the game picked above and shows the address in a toast; and an address to join, remembered as `lastHost` in the prefs. Join
+starts the game again as a guest (the address waits in the session storage, `src/net/pending.ts`) and the guest picks its look on the
+look card. Settings shows how hosting or joining goes, and Leave for a guest. With no saved game the start screen is skipped, so a
+fresh tablet cannot host or join until it has a game. The dev parameters `?host=1` and `?join=IP` still work in a dev build. A guest
 shows the host's clock, felled trees, and logs, and never saves. Not yet shared: dams, ponds, lodges, food, carrying, other
 families, and the look of a guest's lodge. The host's own beaver is drawn to guests without leg movement. Hosting cannot be stopped
 short of closing the app.

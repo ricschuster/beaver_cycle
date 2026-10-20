@@ -16,19 +16,12 @@ export interface SettingsOptions {
   shadows: { on(): boolean; onToggle(on: boolean): void };
   /** The language: the choice now, and a new choice restarts the game, so the caller saves first. */
   language: { value(): LangChoice; onChange(choice: LangChoice): void };
-  /** Playing with friends on the Wi-Fi (ADR 0014); null leaves the section out (the free fly view). */
+  /** Playing with friends on the Wi-Fi (ADR 0014): hosting or joining is chosen on the start screen; here is how it goes, and Leave for a guest. Null when this run is on its own. */
   together: {
-    /** Only the app can host; a browser can only join. */
-    canHost: boolean;
-    /** A guest cannot host. */
+    /** A guest can leave; a host stops by closing the app. */
     isGuest: boolean;
-    /** The address typed last time. */
-    lastHost(): string;
     /** What the section says now: the host's address, or how the join is going. Read while the card is open. */
     line(): string;
-    onHost(): void;
-    /** The text as typed; the caller checks it and says false when it is not an address. */
-    onJoin(address: string): boolean;
     onLeave(): void;
   } | null;
 }
@@ -85,15 +78,13 @@ export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions):
   // The card is made first and `refresh` set after it, so the callback looks it up when it runs.
   let refresh = (): void => {};
   let timer: number | undefined;
-  // The "not an address" message stays a few seconds before the status line takes over again.
-  let noteUntil = 0;
   const ui = cardWithButton(parent, 'settings', '\u2699', t('settings.title'), 180, t('settings.title'), (open) => {
     window.clearInterval(timer);
     if (open) {
       refresh();
       // Joining and hosting take a moment, so the status line follows while the card is open.
       timer = window.setInterval(() => {
-        if (togetherLine && opts.together && Date.now() > noteUntil) togetherLine.textContent = opts.together.line();
+        if (togetherLine && opts.together) togetherLine.textContent = opts.together.line();
       }, 500);
     }
   });
@@ -197,12 +188,6 @@ export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions):
     togetherLine.dataset.role = 'together-status';
     togetherLine.style.cssText = 'margin:6px 0;min-height:1.4em';
     ui.body.appendChild(togetherLine);
-    const small = (text: string): void => {
-      const n = document.createElement('div');
-      n.textContent = text;
-      n.style.cssText = 'font-size:13px;color:#6b5d44;margin-top:4px';
-      ui.body.appendChild(n);
-    };
     if (tg.isGuest) {
       const leave = document.createElement('button');
       leave.type = 'button';
@@ -211,43 +196,6 @@ export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions):
       leave.style.cssText = CHOICE;
       leave.onclick = () => tg.onLeave();
       ui.body.appendChild(leave);
-    } else {
-      if (tg.canHost) {
-        const host = document.createElement('button');
-        host.type = 'button';
-        host.dataset.action = 'together-host';
-        host.textContent = t('together.host');
-        host.style.cssText = CHOICE;
-        host.onclick = () => {
-          tg.onHost();
-          refresh();
-        };
-        ui.body.appendChild(host);
-        small(t('together.hostNote'));
-      }
-      const box = row(t('together.join'));
-      box.style.flexWrap = 'wrap';
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.inputMode = 'decimal';
-      input.dataset.action = 'together-address';
-      input.value = tg.lastHost();
-      input.placeholder = '192.168.0.7';
-      input.setAttribute('aria-label', t('together.address'));
-      input.style.cssText = 'width:9rem;min-height:44px;box-sizing:border-box;font:inherit;padding:4px 8px;border-radius:8px;border:1px solid #b9a97d';
-      const join = document.createElement('button');
-      join.type = 'button';
-      join.dataset.action = 'together-join';
-      join.textContent = t('together.join');
-      join.style.cssText = CHOICE;
-      join.onclick = () => {
-        if (!tg.onJoin(input.value) && togetherLine) {
-          togetherLine.textContent = t('together.addressBad');
-          noteUntil = Date.now() + 4000;
-        }
-      };
-      box.append(input, join);
-      small(t('together.joinNote'));
     }
   }
 

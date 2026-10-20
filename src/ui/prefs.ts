@@ -12,12 +12,14 @@ export interface Prefs {
   shadows: boolean;
   /** The language the player picked, or 'auto' to follow the device (docs/design/36_languages.md). */
   lang: LangChoice;
+  /** The address of the host this tablet joined last, so the next Join starts with it ('' while there is none). */
+  lastHost: string;
 }
 
 /** The key the choices are kept under. */
 export const PREFS_KEY = 'beaver-cycle.prefs';
 
-export const DEFAULT_PREFS: Prefs = { minimap: null, shadows: false, lang: 'auto' };
+export const DEFAULT_PREFS: Prefs = { minimap: null, shadows: false, lang: 'auto', lastHost: '' };
 
 const MODES: readonly string[] = ['north', 'turn', 'off'];
 
@@ -31,6 +33,7 @@ export function parsePrefs(text: string | null): Prefs {
       minimap: typeof o.minimap === 'string' && MODES.includes(o.minimap) ? (o.minimap as MinimapMode) : null,
       shadows: o.shadows === true,
       lang: o.lang === 'en' || o.lang === 'de' ? o.lang : 'auto',
+      lastHost: typeof o.lastHost === 'string' ? o.lastHost.slice(0, 64) : '',
     };
   } catch {
     return DEFAULT_PREFS;

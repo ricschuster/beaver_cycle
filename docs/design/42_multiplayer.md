@@ -135,7 +135,8 @@ trees there (#696; not decided whether the host also streams around each guest o
 The same setup then built a whole level 2 dam by a guest (17 logs, mud and rocks, through Take and Do), held a pond on both tablets,
 and a guest mended the worn dam with Mend. A second guest joined with the first still in; both got snapshots of all three beavers.
 The First dam achievement came to the host only (a guest's achievements are not shared; settled for the host's save). A guest that
-sleeps for 40 seconds loses its socket and never rejoins, and shows no message (#697). Not tried: the real tablets.
+sleeps for 40 seconds lost its socket and never rejoined (#697). Now it tries the host again every 2 seconds with the same hello and
+shows a toast while the link is down. Not tried: the real tablets.
 
 ## Open
 

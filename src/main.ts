@@ -422,7 +422,7 @@ async function start(): Promise<void> {
     if (room || netJoin) return;
     const mine = new Room(hostSender());
     hostLine = t('together.hostStarting');
-    startHosting(mine, { hostAt: () => world.beaver, terrain }, (s) => menu.setStatus(s)).then(
+    startHosting(mine, { hostAt: () => world.beaver, terrain, homes: () => world.neighbours.filter((n) => n.id.startsWith('family:start:')).map((n) => n.lodge) }, (s) => menu.setStatus(s)).then(
       (a) => {
         room = mine;
         hostLine = t('together.hosting', { ip: `${a.ip}` });

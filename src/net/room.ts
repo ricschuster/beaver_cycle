@@ -14,11 +14,15 @@ export const MAX_GUESTS = 3;
 const SPAWN_OFFSET = 4;
 /** A guest whose last message is older than this many seconds stops its beaver. */
 const SILENT_AFTER = 3;
+/** How far from the middle of a free lodge a guest appears, outside its walls. */
+const HOME_OFFSET = 6;
 
 interface Seat {
   guest: Guest;
   intent: Intent;
   heard: number;
+  /** The index in `homes` of the free lodge this guest took, or null when it stands by the host. */
+  home: number | null;
 }
 
 export class Room {
@@ -42,7 +46,7 @@ export class Room {
   }
 
   /** A text message from a connection. `now` is real seconds, `host` is where the host beaver stands. */
-  receive(id: string, text: string, now: number, host: { x: number; z: number }, terrain: Terrain): void {
+  receive(id: string, text: string, now: number, host: { x: number; z: number }, terrain: Terrain, homes: readonly { x: number; z: number }[] = []): void {
     const m = readToHost(text);
     if (!m) return;
     if (m.t === 'ping') return this.reply(id, { t: 'pong', ts: m.ts });
@@ -50,9 +54,13 @@ export class Room {
       if (this.seats.has(id) || !this.strangers.has(id)) return;
       if (this.seats.size >= MAX_GUESTS) return;
       this.strangers.delete(id);
+      // The first free lodge of the five is the guest's home (note 42); with none left it stands by the host.
+      const taken = new Set([...this.seats.values()].map((s) => s.home));
+      const idx = homes.findIndex((_, i) => !taken.has(i));
+      const home = idx >= 0 ? idx : null;
       const n = this.seats.size + 1;
-      const at = { x: host.x + SPAWN_OFFSET * n, z: host.z + SPAWN_OFFSET };
-      this.seats.set(id, { guest: newGuest(id, at, terrain, m.coat, m.look), intent: { move: { x: 0, z: 0 } }, heard: now });
+      const at = home !== null ? { x: homes[home]!.x + HOME_OFFSET, z: homes[home]!.z } : { x: host.x + SPAWN_OFFSET * n, z: host.z + SPAWN_OFFSET };
+      this.seats.set(id, { guest: newGuest(id, at, terrain, m.coat, m.look), intent: { move: { x: 0, z: 0 } }, heard: now, home });
       return this.reply(id, { t: 'welcome', id });
     }
     const seat = this.seats.get(id);

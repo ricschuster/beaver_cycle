@@ -28,6 +28,24 @@ describe('the room', () => {
     expect(Math.hypot(room.guests()[0]!.beaver.x, room.guests()[0]!.beaver.z)).toBeGreaterThan(1);
   });
 
+  it('gives each guest a free lodge of its own, then the host\'s side', () => {
+    const room = new Room(() => undefined);
+    const homes = [{ x: 100, z: 0 }, { x: 0, z: 100 }];
+    for (const id of ['a', 'b', 'c']) {
+      room.open(id);
+      room.receive(id, hello, 0, host, ground, homes);
+    }
+    const near = (g: { beaver: { x: number; z: number } }, h: { x: number; z: number }) => Math.hypot(g.beaver.x - h.x, g.beaver.z - h.z) < 20;
+    const [a, b, c] = room.guests();
+    expect(near(a!, homes[0]!)).toBe(true);
+    expect(near(b!, homes[1]!)).toBe(true);
+    expect(near(c!, host)).toBe(true);
+    room.leave('a');
+    room.open('d');
+    room.receive('d', hello, 0, host, ground, homes);
+    expect(near(room.guests().find((g) => g.id === 'd')!, homes[0]!)).toBe(true);
+  });
+
   it('ignores an intent before the hello, a second hello, and nonsense', () => {
     const sent: string[] = [];
     const room = new Room((_t, text) => sent.push(text));

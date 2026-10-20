@@ -90,7 +90,7 @@ These are their own pieces of work, and each can be built and played alone befor
   player starts as a baby in a lodge, so this is the same start with four more families beside it.
   Built (#660): `startFamilies` in `src/sim/neighbours.ts` puts up to four families on rings of 90 to 210 m round the home lodge, at
   least 50 m from it and from each other, the same every time. They are ordinary neighbour families (`family:start:N`), so they age
-  with the clock and have litters. A late friend cannot yet take the baby of a free lodge; that waits for the network. Automated
+  with the clock and have litters. On the network a guest now appears beside the first free start lodge (`Room.receive` takes the `homes`; the lodge goes free again when the guest leaves, and with none left the guest stands by the host). Taking the baby itself, and the lodge as the guest's own, are still to do. Automated
   browsers leave them out unless `?families=1`.
 - **Sleep outside a lodge.** The author wants it, maybe, for the early adult who cannot build a dam and a lodge in one day. Today
   only a beaver on the nest in a lodge can sleep (`canRest`, `canSleep` in `src/sim/state.ts`). Open: where it is safe, whether it

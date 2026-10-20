@@ -2,7 +2,10 @@
 // The plugin or a test feeds it messages and gives it a way to send text; it never touches the network itself.
 import type { Intent } from '../sim/buttons';
 import { newGuest, stepGuest, type Guest } from '../sim/guests';
+import type { Dam } from '../sim/dam';
+import type { Dropped } from '../sim/haul';
 import type { Log } from '../sim/logs';
+import { withPonds } from '../sim/pond';
 import type { Terrain } from '../sim/terrain';
 import type { TreeSource } from '../sim/trees';
 import type { WorldState } from '../sim/state';
@@ -77,26 +80,28 @@ export class Room {
     }
   }
 
-  /** Every guest advanced by `dt`. Returns the world with the trees they felled and the logs that lie where those stood. */
-  step(world: WorldState, dt: number, now: number, terrain: Terrain, trees: TreeSource): WorldState {
-    let felled: readonly string[] = world.felled;
-    let logs: readonly Log[] = world.logs;
+  /** Every guest advanced by `dt`. Returns the world with what they changed: trees felled, the logs, the dams they built, the rocks taken. */
+  step(world: WorldState, dt: number, now: number, ground: Terrain, trees: TreeSource): WorldState {
+    let { felled, logs, dams, rocksTaken, dropped }: { felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[] } = world;
+    const terrain = withPonds(ground, world.ponds);
     const solids = [world.lodge, ...world.formerHomes, ...world.neighbours.map((n) => n.lodge)].flatMap((l) => (l ? [{ x: l.x, z: l.z, radius: 4 }] : []));
     for (const seat of this.seats.values()) {
       const intent = now - seat.heard > SILENT_AFTER ? { move: { x: 0, z: 0 } } : seat.intent;
-      const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock }, terrain, trees, solids);
+      const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock, dams, spots: world.spots, rocksTaken, dropped }, terrain, trees, solids);
       seat.guest = r.guest;
-      felled = r.felled;
-      logs = r.logs;
+      // A press arrives once: the next step must not repeat it.
+      seat.intent = { ...seat.intent, do: seat.intent.do === 'gnaw' ? 'gnaw' : null, take: null };
+      ({ felled, logs, dams, rocksTaken, dropped } = r);
     }
-    return felled === world.felled && logs === world.logs ? world : { ...world, felled: [...felled], logs: [...logs] };
+    const same = felled === world.felled && logs === world.logs && dams === world.dams && rocksTaken === world.rocksTaken && dropped === world.dropped;
+    return same ? world : { ...world, felled: [...felled], logs: [...logs], dams: [...dams], rocksTaken: [...rocksTaken], dropped: [...dropped] };
   }
 
   /** What every guest is sent: the shared world and every beaver in it, the host's first. */
   snapshot(world: WorldState): Snapshot {
     const b = world.beaver;
     const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null };
-    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played(), dams: world.dams, lodge: world.lodge };
+    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped };
   }
 
   /** Sends the state to every guest that has said hello. */

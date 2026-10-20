@@ -72,7 +72,7 @@ export const de: Partial<Table> = {
   'look.furN': 'Fell {n}',
   'look.scarfN': 'Schal {n}',
   'look.tailN': 'Schwanz {n}',
-  'look.hats': ['Keiner', 'Kappe', 'Strohhut', 'Partyhut', 'Zylinder'],
+  'look.hats': ['Keiner', 'Kappe', 'Strohhut', 'Partyhut', 'Zylinder', 'Mütze', 'Krone', 'Cowboyhut', 'Kochmütze', 'Blumenkranz'],
   'slots.label': 'Gespeicherte Spiele',
   'slots.heading': 'Deine Spiele',
   'slots.name': 'Name',

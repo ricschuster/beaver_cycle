@@ -1,6 +1,6 @@
 // A page that shows one beaver model under game-like light, for the art pass (#105).
 // Run `npm run dev` and open /tools/model-preview/. Query: ?mode=walk|swim|dive&speed=0..1&carry=branch|lily|mud|rock
-// &coat=0..4&hat=0..4&scarf=0..5&tail=0..4&yaw=degrees&pitch=degrees&dist=metres&t=seconds&slap=seconds&action=gnaw|dig|drag|build|eat|pick|groom.
+// &coat=0..4&hat=0..9&scarf=0..11&tail=0..9&yaw=degrees&pitch=degrees&dist=metres&t=seconds&slap=seconds&action=gnaw|dig|drag|build|eat|pick|groom.
 // Drag to turn the camera.
 import * as THREE from 'three';
 import { createBeaverModel } from '../../src/render/beaverModel';

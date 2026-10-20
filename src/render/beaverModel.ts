@@ -17,12 +17,12 @@ export const COATS = [
 ] as const;
 export const TAIL = 0x3b2a1a;
 /** Tail colours the player can choose (`Look.tail`): the natural dark one first. */
-export const TAILS = [TAIL, 0x55575c, 0x9a4a25, 0x2f6f73, 0x6b3a6b] as const;
+export const TAILS = [TAIL, 0x55575c, 0x9a4a25, 0x2f6f73, 0x6b3a6b, 0x3f6b3a, 0x2b3f73, 0xb03030, 0xc8a02f, 0xd987a8] as const;
 /** Scarf colours (`Look.scarf`); 0 is no scarf. */
-export const SCARVES = [null, 0xd6453d, 0x3b78c4, 0xe8c23a, 0xe58bb0, 0x4fa05a] as const;
+export const SCARVES = [null, 0xd6453d, 0x3b78c4, 0xe8c23a, 0xe58bb0, 0x4fa05a, 0xe8862f, 0x8e5bb5, 0x2fa7a0, 0xf2f2ee, 0x2b2b30, 0x7a4a2a] as const;
 /** Hats (`Look.hat`); 0 is no hat. */
-export const HATS = [null, 'cap', 'straw', 'party', 'top'] as const;
-const HAT_COLOURS = { cap: 0xc0392b, straw: 0xe3c565, party: 0x8e44ad, top: 0x26262b } as const;
+export const HATS = [null, 'cap', 'straw', 'party', 'top', 'beanie', 'crown', 'cowboy', 'chef', 'flowers'] as const;
+const HAT_COLOURS = { cap: 0xc0392b, straw: 0xe3c565, party: 0x8e44ad, top: 0x26262b, beanie: 0x3b78c4, crown: 0xe6b422, cowboy: 0x8a5a2b, chef: 0xf5f5f0, flowers: 0x4fa05a } as const;
 const HAT_BAND = 0xd6453d;
 /** Beaver teeth are orange, from the iron in them. */
 export const TEETH = 0xe0904a;
@@ -297,20 +297,54 @@ function hatShape(kind: Exclude<(typeof HATS)[number], null>): THREE.Group {
     const cone = part(new THREE.ConeGeometry(0.1, 0.26, 12), colour, 0, 0.3, -0.02);
     cone.rotation.x = -0.15;
     g.add(cone, part(new THREE.SphereGeometry(0.03, 8, 6), 0xf2d04a, 0, 0.44, -0.06));
-  } else {
+  } else if (kind === 'top') {
     g.add(part(new THREE.CylinderGeometry(0.2, 0.2, 0.014, 16), colour, 0, 0.15, 0));
     g.add(part(new THREE.CylinderGeometry(0.115, 0.125, 0.19, 14), colour, 0, 0.25, 0));
     g.add(part(new THREE.CylinderGeometry(0.127, 0.127, 0.03, 14), HAT_BAND, 0, 0.18, 0));
+  } else if (kind === 'beanie') {
+    g.add(part(new THREE.SphereGeometry(0.19, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), colour, 0, 0.09, 0));
+    g.add(part(new THREE.CylinderGeometry(0.196, 0.196, 0.05, 14), 0xf2f2ee, 0, 0.115, 0));
+    g.add(part(new THREE.SphereGeometry(0.045, 8, 6), 0xf2f2ee, 0, 0.29, 0));
+  } else if (kind === 'crown') {
+    g.add(part(new THREE.CylinderGeometry(0.13, 0.115, 0.07, 12), colour, 0, 0.19, 0));
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      g.add(part(new THREE.ConeGeometry(0.03, 0.07, 6), colour, Math.sin(a) * 0.12, 0.26, Math.cos(a) * 0.12));
+    }
+    g.add(part(new THREE.SphereGeometry(0.02, 8, 6), 0xd6453d, 0, 0.2, 0.125));
+  } else if (kind === 'cowboy') {
+    const brim = part(new THREE.CylinderGeometry(0.28, 0.28, 0.014, 18), colour, 0, 0.15, 0.02);
+    brim.scale.set(1, 1, 0.85);
+    g.add(brim, part(new THREE.CylinderGeometry(0.1, 0.13, 0.13, 14), colour, 0, 0.215, 0), part(new THREE.CylinderGeometry(0.133, 0.133, 0.025, 14), 0x4a2f18, 0, 0.17, 0));
+  } else if (kind === 'chef') {
+    g.add(part(new THREE.CylinderGeometry(0.14, 0.14, 0.07, 14), colour, 0, 0.17, 0));
+    const puff = ellipsoid(0.17, 0.12, 0.17, colour, 0, 0.29, 0);
+    g.add(puff);
+  } else {
+    // A ring of flowers on a green wreath.
+    g.add(part(new THREE.TorusGeometry(0.175, 0.025, 6, 20).rotateX(Math.PI / 2), colour, 0, 0.12, -0.01));
+    const petals = [0xe58bb0, 0xe8c23a, 0xffffff, 0x8e5bb5, 0xd6453d, 0x3b78c4];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      g.add(part(new THREE.SphereGeometry(0.05, 8, 6), petals[i % petals.length]!, Math.sin(a) * 0.175, 0.13, Math.cos(a) * 0.175 - 0.01));
+    }
   }
   return g;
 }
 
-/** A scarf round the neck with an end hanging down the chest, in the head's frame. */
+/** A scarf wound round the neck, just behind the chin, with a knot and two ends hanging down the chest, in the head's frame. */
 function scarfShape(colour: number): THREE.Group {
   const g = new THREE.Group();
-  const ring = part(new THREE.TorusGeometry(0.16, 0.05, 8, 18).rotateX(Math.PI / 2), colour, 0, -0.11, -0.01);
-  ring.scale.set(1.05, 1, 1.1);
-  g.add(ring, ellipsoid(0.04, 0.12, 0.02, colour, 0.09, -0.22, 0.14));
+  // The neck is where the head meets the body, behind and below the chin, so the wrap sits there and is wider than the head.
+  const wrap = part(new THREE.TorusGeometry(0.175, 0.07, 10, 24).rotateX(Math.PI / 2), colour, 0, -0.1, -0.08);
+  wrap.scale.set(1.1, 1, 1.05);
+  g.add(wrap);
+  g.add(ellipsoid(0.07, 0.065, 0.06, colour, 0.1, -0.12, 0.09));
+  for (const [x, len] of [[0.09, 0.09], [0.14, 0.07]] as const) {
+    const end = ellipsoid(0.035, len, 0.022, colour, x, -0.14 - len * 0.7, 0.125);
+    end.rotation.z = x > 0.12 ? -0.15 : 0.12;
+    g.add(end);
+  }
   return g;
 }
 

@@ -103,6 +103,10 @@ These are their own pieces of work, and each can be built and played alone befor
   Built (#663) for the families first: with food in the mouth and a family beaver with an empty mouth within 4 m, Do reads Give
   (`takerNear`, `giveFamily` in `src/sim/familyMoods.ts`), and the family trusts more, as for a gift put down. A wary family keeps
   12 m away, so it needs a gift on the ground first. A friend's tablet will use the same rule.
+  Built for friends too (#663): a guest can pick up food that lies on the ground, put it down again, and hand it over with Do
+  (reads Give) to the host or another guest within 4 m whose mouth is empty (`Room.step`, `Room.hand`, `friendTaker` in
+  `src/net/view.ts`). Every beaver in the snapshot says what it holds (`BeaverView.carry`, `haul`), so a tablet can tell an empty
+  mouth. A guest cannot get food by itself yet (a lily pad, a branch off a log): it takes what a friend puts down or gives.
 - **Talk.** The dialog with beavers of other families ([27_families_and_dialog.md](27_families_and_dialog.md)), with a friend's
   answer coming back. Open.
 

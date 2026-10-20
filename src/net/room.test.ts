@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Room, MAX_GUESTS } from './room';
-import { applySnapshot, othersOf } from './view';
+import { applySnapshot, friendTaker, othersOf } from './view';
 import { createWorld } from '../sim/state';
 import { flatTerrain } from '../sim/terrain';
 import { CHOP_TIME, type TreeSource } from '../sim/trees';
@@ -116,5 +116,68 @@ describe('the room', () => {
     const mine = applySnapshot(createWorld(ground, 50, 50), snap, 'g1');
     expect(mine.dams).toEqual(dams);
     expect(mine.lodge).toBeNull();
+  });
+
+  describe('gifts (#663)', () => {
+    const two = () => {
+      const room = new Room(() => undefined);
+      for (const id of ['a', 'b']) {
+        room.open(id);
+        room.receive(id, hello, 0, host, ground);
+      }
+      return room;
+    };
+
+    it('hands a guest\'s food to the host when its mouth is empty and it stands close', () => {
+      const room = two();
+      const [a] = room.guests();
+      a!.carry = 'lily';
+      a!.beaver = { ...a!.beaver, x: 1, z: 0 };
+      room.receive('a', intent({ do: 'give' }), 0, host, ground);
+      const after = room.step({ ...world, beaver: { ...world.beaver, x: 0, z: 0 } }, 0.05, 0, ground, oneTree);
+      expect(after.carry).toBe('lily');
+      expect(room.guests()[0]!.carry).toBeNull();
+    });
+
+    it('keeps the food when the host\'s mouth is full and nobody else is close', () => {
+      const room = two();
+      const [a, b] = room.guests();
+      a!.carry = 'lily';
+      a!.beaver = { ...a!.beaver, x: 1, z: 0 };
+      b!.beaver = { ...b!.beaver, x: 100, z: 100 };
+      room.receive('a', intent({ do: 'give' }), 0, host, ground);
+      const after = room.step({ ...world, carry: 'branch', beaver: { ...world.beaver, x: 0, z: 0 } }, 0.05, 0, ground, oneTree);
+      expect(after.carry).toBe('branch');
+      expect(room.guests()[0]!.carry).toBe('lily');
+    });
+
+    it('hands the host\'s food to the nearest guest with an empty mouth', () => {
+      const room = two();
+      const [a, b] = room.guests();
+      a!.beaver = { ...a!.beaver, x: 2, z: 0 };
+      b!.beaver = { ...b!.beaver, x: 1, z: 0 };
+      b!.carry = 'branch';
+      const to = room.guestTaker({ x: 0, z: 0 });
+      expect(to?.id).toBe('a');
+      const w = room.hand({ ...world, carry: 'lily' }, to!);
+      expect(w.carry).toBeNull();
+      expect(room.guests()[0]!.carry).toBe('lily');
+    });
+
+    it('tells every guest what each beaver holds', () => {
+      const room = two();
+      room.guests()[0]!.carry = 'lily';
+      const views = room.snapshot({ ...world, carry: 'branch' }).beavers;
+      expect(views.map((v) => v.carry ?? null)).toEqual(['branch', 'lily', null]);
+    });
+
+    it('finds a friend with an empty mouth from a snapshot, but not oneself', () => {
+      const room = two();
+      room.guests()[0]!.carry = 'lily';
+      const snap = room.snapshot(world);
+      const near = { x: snap.beavers[0]!.x, z: snap.beavers[0]!.z };
+      expect(friendTaker(snap, 'a', near)?.id).toBe('host');
+      expect(friendTaker(snap, 'host', near)?.id).not.toBe('a');
+    });
   });
 });

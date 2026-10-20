@@ -442,7 +442,7 @@ async function start(): Promise<void> {
   let lastSnap: Parameters<typeof othersOf>[0] = null;
   let netSentAt = 0;
   let gnawPending = false;
-  let pendingDo: 'build' | 'mend' | 'give' | null = null;
+  let pendingDo: 'build' | 'mend' | 'give' | 'strip' | null = null;
   let pendingTake: GuestTake | null = null;
   if (netHost || hostFromStart) beginHosting();
   if (netJoin) link = joinHost(netJoin, { t: 'hello', coat: world.coat, look: world.look });
@@ -876,8 +876,8 @@ async function start(): Promise<void> {
         if (link) {
           // A guest: the host steps its beaver. Here the wish goes out SEND_HZ times a second and the state comes back.
           if (doPressed === 'gnaw') gnawPending = true;
-          if (doPressed === 'build' || doPressed === 'mend' || doPressed === 'give') pendingDo = doPressed;
-          if (actions.take && takeNow && takeNow !== 'pad') pendingTake = takeNow;
+          if (doPressed === 'build' || doPressed === 'mend' || doPressed === 'give' || doPressed === 'strip') pendingDo = doPressed;
+          if (actions.take && takeNow) pendingTake = takeNow;
           if (now - netSentAt > 1000 / SEND_HZ && link.id) {
             netSentAt = now;
             link.send({ t: 'intent', x: move.x, z: move.z, dive: !!actions.dive, gnaw: gnawPending, ...(pendingDo ? { do: pendingDo } : {}), ...(pendingTake ? { take: pendingTake } : {}) });

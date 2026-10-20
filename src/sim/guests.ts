@@ -6,7 +6,8 @@ import { cleanLook, DEFAULT_LOOK, type Look } from './look';
 import type { Coat } from './family';
 import { placed, spotAt, type Dam } from './dam';
 import type { DamSpot } from './damSpots';
-import type { Food } from './food';
+import { pickedPad, reachablePad, type Picked } from './lily';
+import { strippable, type Food } from './food';
 import { canScoopMud, putDown, reachableDropped, reachableRock, type Dropped, type Haul } from './haul';
 import { DRAG_SPEED, GRAB_REACH, dragged, fallenLog, logLength, nearestLog, type Log } from './logs';
 import { logWood } from './lodge';
@@ -42,6 +43,11 @@ export interface Shared {
   spots: readonly DamSpot[];
   rocksTaken: readonly string[];
   dropped: readonly Dropped[];
+  /** The bare ground, where lily pads grow (`terrain` has the ponds' water). */
+  ground: Terrain;
+  /** The pads picked and the branches stripped so far, as in the world. */
+  picked: Picked;
+  stripped: Readonly<Record<string, number>>;
 }
 
 /** The longest stretch of a move checked for bumps in one go (as in `step.ts`). */
@@ -57,7 +63,7 @@ export function newGuest(id: string, at: { x: number; z: number }, terrain: Terr
  * One guest advanced by `dt` seconds on the host's ground. Returns the guest and the shared things its step changed: a tree it
  * gnawed through is felled for everyone and lies as a log. `solids` are the lodges and other things a beaver cannot walk through.
  */
-export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shared, terrain: Terrain, trees: TreeSource, solids: readonly { x: number; z: number; radius: number }[] = []): { guest: Guest; felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[] } {
+export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shared, terrain: Terrain, trees: TreeSource, solids: readonly { x: number; z: number; radius: number }[] = []): { guest: Guest; felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[]; picked: Picked; stripped: Readonly<Record<string, number>> } {
   const b = guest.beaver;
   let { x, z } = intent.move;
   const len = Math.hypot(x, z);
@@ -78,7 +84,7 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
   const beaver: BeaverState = { x: p.x, z: p.z, ...settled, heading: len > 0 ? Math.atan2(x, z) : b.heading, breath };
   // Take and Do, as for the host's beaver (`step.ts`): a log is dragged, mud or a rock is carried, and at a dam spot Do puts it on.
   let { haul, carry, drag } = guest;
-  let { dams, rocksTaken, dropped } = shared;
+  let { dams, rocksTaken, dropped, picked, stripped } = shared;
   let logs = shared.logs;
   if (drag && (beaver.mode === 'dive' || !logs.some((l) => l.id === drag))) drag = null;
   let chop = guest.chop;
@@ -88,8 +94,17 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
     dropped = [...dropped, putDown(haul ?? { kind: carry! }, beaver.x, beaver.z, beaver.heading, shared.clock, shared.clock)];
     haul = null;
     carry = null;
-  } else if (take && !drag && !haul && !carry && beaver.mode !== 'dive') {
-    if (take === 'log') {
+  } else if ((take || intent.do === 'strip') && !drag && !haul && !carry && beaver.mode !== 'dive') {
+    // Take a pad off the water, or Do by a log strips a branch off it, as for the host (`step.ts`).
+    const pad = take === 'pad' ? reachablePad(shared.ground, beaver.x, beaver.z, shared.clock, picked) : null;
+    const strip = intent.do === 'strip' ? strippable(logs, stripped, beaver.x, beaver.z) : null;
+    if (pad) {
+      picked = pickedPad(picked, pad, shared.clock);
+      carry = 'lily';
+    } else if (strip) {
+      stripped = { ...stripped, [strip.id]: (stripped[strip.id] ?? 0) + 1 };
+      carry = 'branch';
+    } else if (take === 'log') {
       const log = nearestLog(logs, beaver.x, beaver.z, GRAB_REACH);
       if (log) {
         drag = log.id;
@@ -139,5 +154,5 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
     felled = [...felled, chop.id];
     chop = null;
   }
-  return { guest: { ...guest, beaver, chop, haul, carry, drag, pace: len > 0 ? 1 : 0 }, felled, logs, dams, rocksTaken, dropped };
+  return { guest: { ...guest, beaver, chop, haul, carry, drag, pace: len > 0 ? 1 : 0 }, felled, logs, dams, rocksTaken, dropped, picked, stripped };
 }

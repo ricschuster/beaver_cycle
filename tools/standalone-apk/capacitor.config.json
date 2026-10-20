@@ -1,5 +1,11 @@
 {
   "appId": "com.beavercycle.game",
   "appName": "Beaver Cycle",
-  "webDir": "../../dist"
+  "webDir": "../../dist",
+  "server": {
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
 }

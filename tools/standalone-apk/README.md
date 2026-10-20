@@ -20,7 +20,7 @@ cd tools/standalone-apk
 npm install
 npx cap add android                # once
 python3 apply_icon.py              # the beaver icon, after every cap add
-python3 apply_shell.py             # our MainActivity (full screen), after every cap add
+python3 apply_shell.py --host      # our MainActivity (full screen), after every cap add; --host adds the host plugin and INTERNET
 npx cap sync android               # after every game build
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 cd android && ./gradlew assembleDebug
@@ -34,6 +34,12 @@ loops use `tools/tablet-live` instead.
 
 `apply_shell.py` copies `shell/MainActivity.java` into the generated project for the same reason. It hides the status bar and the
 navigation bar so the game fills the screen; a swipe from the screen edge shows them for a moment, and they hide again.
+
+`--host` is for the sideloaded APK that plays together (ADR 0014, design note 42): it adds the HostServer plugin (`tools/host-server`),
+registers it in our MainActivity, and puts the `INTERNET` permission back. Then the Host button in Settings shows, and a tablet can
+join a host by its address. `capacitor.config.json` carries `server.cleartext` and `android.allowMixedContent`, which the page
+(served from `https://localhost`) needs to open a `ws://` socket to the host; the origin stays, so saves stay. The Play bundle is
+built without `--host`: `build_aab.sh` drops `INTERNET`, so it has no plugin and cannot host or join.
 
 The app icon (a beaver face with its chin in the water) is copied into the generated project by `apply_icon.py`, because the
 `android/` folder is untracked and `cap add android` brings back the stock Capacitor icon. The PNGs in `icon/mipmap-*` are the

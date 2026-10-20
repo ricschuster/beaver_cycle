@@ -14,8 +14,13 @@ if ! grep -q HostServerPlugin "$MAIN"; then
 import re, sys
 p = sys.argv[1]
 s = open(p).read()
-s = s.replace("import com.getcapacitor.BridgeActivity;", "import android.os.Bundle;\nimport com.beavercycle.hostserver.HostServerPlugin;\nimport com.getcapacitor.BridgeActivity;")
-s = re.sub(r"public class MainActivity extends BridgeActivity \{\}", "public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        registerPlugin(HostServerPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n}", s)
+s = s.replace("import com.getcapacitor.BridgeActivity;", "import com.beavercycle.hostserver.HostServerPlugin;\nimport com.getcapacitor.BridgeActivity;")
+if "super.onCreate(savedInstanceState);" in s:
+    # A MainActivity of our own (tools/standalone-apk/shell): the plugin is registered before super.onCreate.
+    s = s.replace("super.onCreate(savedInstanceState);", "registerPlugin(HostServerPlugin.class);\n    super.onCreate(savedInstanceState);", 1)
+else:
+    s = s.replace("import com.beavercycle.hostserver.HostServerPlugin;", "import android.os.Bundle;\nimport com.beavercycle.hostserver.HostServerPlugin;")
+    s = re.sub(r"public class MainActivity extends BridgeActivity \{\}", "public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        registerPlugin(HostServerPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n}", s)
 open(p, "w").write(s)
 PY
 fi

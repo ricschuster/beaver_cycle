@@ -127,6 +127,11 @@ shows the host's clock, felled trees, and logs, and never saves. The snapshot al
 families, and the look of a guest's lodge. The host's own beaver is drawn to guests without leg movement. Hosting cannot be stopped
 short of closing the app.
 
+A guest and a host were played on two tablet emulators through the real socket (`tools/emulator-pair/`, session 162): the guest
+felled a tree, dragged the log, took a rock and mud, and built a dam in the host's world, and both showed the same dam. It found one
+gap: the host streams terrain and trees only around its own beaver, so a guest far from the host cannot gnaw, since the host finds no
+trees there. Either the host also streams around each guest, or guests are meant to stay near the host; not decided.
+
 ## Open
 
 Sleep outside a lodge, how a friend answers a dialog, how hide and seek invites work, and what a first spike should prove. The

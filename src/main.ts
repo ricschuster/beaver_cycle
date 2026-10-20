@@ -324,7 +324,10 @@ async function start(): Promise<void> {
   // world, so it starts a grown beaver and never saves.
   const netHost = __DEV_TOOLS__ && query.get('host') === '1';
   // The Join button of Settings keeps the address for the next run (src/net/pending.ts); ?join=IP does the same in a dev build.
-  const netJoin = (__DEV_TOOLS__ ? query.get('join') : null) ?? pendingJoin(sessionStorageOrNull());
+  const pending = pendingJoin(sessionStorageOrNull());
+  const netJoin = (__DEV_TOOLS__ ? query.get('join') : null) ?? pending?.address ?? null;
+  // The guest dresses as it did in its own game: the Join button kept the coat and the look.
+  if (netJoin && pending?.me) world = chooseLook(world, pending.me.coat, pending.me.look);
   const startAs = netJoin ? 'adult' : STAGES.includes(stageParam as Stage) ? (stageParam as Stage) : navigator.webdriver ? 'adult' : 'baby';
   if (startAs !== 'adult') world = startStage(world, startAs);
   // The saved game (docs/design/26_saving.md): four slots. With a saved game the player picks a slot on the start screen; ?slot=N
@@ -493,7 +496,7 @@ async function start(): Promise<void> {
           lastHost = address;
           savePrefs(storage, keptPrefs(shadowsAtStart));
           saveNow();
-          setPendingJoin(sessionStorageOrNull(), address);
+          setPendingJoin(sessionStorageOrNull(), { address, coat: world.coat, look: world.look });
           location.reload();
           return true;
         },

@@ -41,7 +41,7 @@ export type ToGuest = { t: 'welcome'; id: string } | { t: 'state'; snapshot: Sna
 
 const num = (v: unknown, lo = -1e7, hi = 1e7): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : 0);
 
-function coatOf(v: unknown): Coat {
+export function coatOf(v: unknown): Coat {
   const c = (v ?? {}) as Partial<Coat>;
   return { coat: Math.round(num(c.coat, 0, 4)), shade: num(c.shade, -1, 1) };
 }

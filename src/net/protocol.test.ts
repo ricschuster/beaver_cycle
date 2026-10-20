@@ -34,4 +34,13 @@ describe('messages from the host', () => {
     expect(readToGuest('{"t":"x"}')).toBeNull();
     expect(readToGuest('<')).toBeNull();
   });
+
+  it('reads Do and Take from a guest, and drops words it does not know', () => {
+    const m = readToHost('{"t":"intent","x":0,"z":0,"dive":false,"gnaw":false,"do":"build","take":"mud"}');
+    expect(m).toMatchObject({ do: 'build', take: 'mud' });
+    expect(intentOf(m as never)).toMatchObject({ do: 'build', take: 'mud' });
+    const bad = readToHost('{"t":"intent","x":0,"z":0,"do":"eat","take":"pad"}') as Record<string, unknown>;
+    expect(bad.do).toBeUndefined();
+    expect(bad.take).toBeUndefined();
+  });
 });

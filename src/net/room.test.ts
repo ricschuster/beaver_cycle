@@ -106,4 +106,15 @@ describe('the room', () => {
     const others = othersOf(snap, 'g1');
     expect(others.map((o) => o.id)).toEqual(['friend:host']);
   });
+
+  it('sends the dams and the host lodge, and a guest view takes them', () => {
+    const { room, sent } = joined();
+    sent.length = 0;
+    const dams = [{ spot: 's1', wood: 3, mud: 1, rock: 0 }];
+    room.broadcast({ ...world, dams });
+    const snap = JSON.parse(sent[0]![1]).snapshot;
+    const mine = applySnapshot(createWorld(ground, 50, 50), snap, 'g1');
+    expect(mine.dams).toEqual(dams);
+    expect(mine.lodge).toBeNull();
+  });
 });

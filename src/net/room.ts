@@ -23,6 +23,8 @@ interface Seat {
   heard: number;
   /** The index in `homes` of the free lodge this guest took, or null when it stands by the host. */
   home: number | null;
+  /** The family of that lodge, whose baby this guest plays. */
+  family: string | null;
 }
 
 export class Room {
@@ -41,12 +43,17 @@ export class Room {
     this.seats.delete(id);
   }
 
+  /** The families whose baby a guest plays. */
+  played(): string[] {
+    return [...this.seats.values()].flatMap((s) => (s.family ? [s.family] : []));
+  }
+
   guests(): Guest[] {
     return [...this.seats.values()].map((s) => s.guest);
   }
 
   /** A text message from a connection. `now` is real seconds, `host` is where the host beaver stands. */
-  receive(id: string, text: string, now: number, host: { x: number; z: number }, terrain: Terrain, homes: readonly { x: number; z: number }[] = []): void {
+  receive(id: string, text: string, now: number, host: { x: number; z: number }, terrain: Terrain, homes: readonly { x: number; z: number; id?: string }[] = []): void {
     const m = readToHost(text);
     if (!m) return;
     if (m.t === 'ping') return this.reply(id, { t: 'pong', ts: m.ts });
@@ -60,7 +67,7 @@ export class Room {
       const home = idx >= 0 ? idx : null;
       const n = this.seats.size + 1;
       const at = home !== null ? { x: homes[home]!.x + HOME_OFFSET, z: homes[home]!.z } : { x: host.x + SPAWN_OFFSET * n, z: host.z + SPAWN_OFFSET };
-      this.seats.set(id, { guest: newGuest(id, at, terrain, m.coat, m.look), intent: { move: { x: 0, z: 0 } }, heard: now, home });
+      this.seats.set(id, { guest: newGuest(id, at, terrain, m.coat, m.look), intent: { move: { x: 0, z: 0 } }, heard: now, home, family: home !== null ? homes[home]!.id ?? null : null });
       return this.reply(id, { t: 'welcome', id });
     }
     const seat = this.seats.get(id);
@@ -89,7 +96,7 @@ export class Room {
   snapshot(world: WorldState): Snapshot {
     const b = world.beaver;
     const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null };
-    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)] };
+    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played() };
   }
 
   /** Sends the state to every guest that has said hello. */

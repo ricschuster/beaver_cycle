@@ -30,7 +30,7 @@ describe('the room', () => {
 
   it('gives each guest a free lodge of its own, then the host\'s side', () => {
     const room = new Room(() => undefined);
-    const homes = [{ x: 100, z: 0 }, { x: 0, z: 100 }];
+    const homes = [{ x: 100, z: 0, id: 'family:start:0' }, { x: 0, z: 100, id: 'family:start:1' }];
     for (const id of ['a', 'b', 'c']) {
       room.open(id);
       room.receive(id, hello, 0, host, ground, homes);
@@ -40,7 +40,10 @@ describe('the room', () => {
     expect(near(a!, homes[0]!)).toBe(true);
     expect(near(b!, homes[1]!)).toBe(true);
     expect(near(c!, host)).toBe(true);
+    expect(room.played()).toEqual(['family:start:0', 'family:start:1']);
+    expect(room.snapshot(world).played).toEqual(room.played());
     room.leave('a');
+    expect(room.played()).toEqual(['family:start:1']);
     room.open('d');
     room.receive('d', hello, 0, host, ground, homes);
     expect(near(room.guests().find((g) => g.id === 'd')!, homes[0]!)).toBe(true);

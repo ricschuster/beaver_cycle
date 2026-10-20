@@ -105,6 +105,19 @@ describe('neighbour families', () => {
   });
 });
 
+describe('a played baby', () => {
+  it('leaves the first kit of this spring out of its family', () => {
+    const [f] = seed();
+    const t = DAYS_PER_YEAR * day * 2 + noon;
+    const kits = (played: Set<string>) => neighboursAt([f!], t, lake, played).filter((b) => b.role === 'kit').map((b) => b.id);
+    const all = kits(new Set());
+    const without = kits(new Set([f!.id]));
+    expect(all).toContain(`${f!.id}:kit:2:0`);
+    expect(without).not.toContain(`${f!.id}:kit:2:0`);
+    expect(without).toHaveLength(all.length - 1);
+  });
+});
+
 describe('starting families', () => {
   const near = { x: 280, z: 0 };
   it('are up to four whole lodges close to the home, apart from each other, the same every time', () => {

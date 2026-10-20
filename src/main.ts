@@ -422,7 +422,7 @@ async function start(): Promise<void> {
     if (room || netJoin) return;
     const mine = new Room(hostSender());
     hostLine = t('together.hostStarting');
-    startHosting(mine, { hostAt: () => world.beaver, terrain, homes: () => world.neighbours.filter((n) => n.id.startsWith('family:start:')).map((n) => n.lodge) }, (s) => menu.setStatus(s)).then(
+    startHosting(mine, { hostAt: () => world.beaver, terrain, homes: () => world.neighbours.filter((n) => n.id.startsWith('family:start:')).map((n) => ({ x: n.lodge.x, z: n.lodge.z, id: n.id })) }, (s) => menu.setStatus(s)).then(
       (a) => {
         room = mine;
         hostLine = t('together.hosting', { ip: `${a.ip}` });
@@ -1008,7 +1008,7 @@ async function start(): Promise<void> {
     // The families: shy, calm or curious by trust, thanking a gift, hurt by a slap, and greeting the beaver once each (#342).
     const stuckList = stuckNow(world, ponded);
     const away = new Set([...stuckList.map((st) => st.member), ...(world.escort ? [world.escort.id] : [])]);
-    const familyBeavers = reactFamilies(neighboursAt(world.neighbours, world.clock, ponded), world, ponded).filter((n) => !away.has(n.id));
+    const familyBeavers = reactFamilies(neighboursAt(world.neighbours, world.clock, ponded, new Set(room ? room.played() : lastSnap?.played)), world, ponded).filter((n) => !away.has(n.id));
     if (slappedNow) {
       const before = world;
       world = startleFamilies(world, familyBeavers);

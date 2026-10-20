@@ -21,6 +21,8 @@ export interface Snapshot {
   logs: Log[];
   /** The host's own beaver and the guests, in the shape the renderer draws. */
   beavers: BeaverView[];
+  /** The starting families whose baby a player has taken, so each tablet leaves that kit out of the family. */
+  played?: string[];
 }
 
 /** One beaver as the others see it. */

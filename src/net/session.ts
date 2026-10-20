@@ -21,7 +21,7 @@ export interface HostGame {
   hostAt(): { x: number; z: number };
   terrain: Terrain;
   /** The lodges of the starting families, which a guest may take as its home (the host's own lodge is not one). */
-  homes?(): { x: number; z: number }[];
+  homes?(): { x: number; z: number; id: string }[];
 }
 
 /** Starts listening and feeds the room. Resolves with the address to show, or rejects when this app cannot host. */

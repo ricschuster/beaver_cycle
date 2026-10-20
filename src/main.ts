@@ -17,7 +17,7 @@ import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
 import { cleanAddress, pendingJoin, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
-import { hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
+import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
 import { applySnapshot, friendBeaver, othersOf } from './net/view';
 import { SEND_HZ, viewOfGuest } from './net/protocol';
 import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
@@ -351,7 +351,7 @@ async function start(): Promise<void> {
         rename: (n, name) => void renameSave(storage, n, name),
         remove: (n) => clearSave(storage, n),
         ago: (at) => ago(at, Date.now()),
-        together: { canHost: hostPlugin() !== null, lastHost },
+        together: canPlayTogether() ? { canHost: hostPlugin() !== null, lastHost } : null,
       });
     }
     if (choice.join) {

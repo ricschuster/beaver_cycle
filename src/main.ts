@@ -74,7 +74,7 @@ import { createFlyButtons } from './ui/flyButtons';
 import { createMinimap, minimapMode, nextMode, type MinimapMode } from './ui/minimap';
 import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
-import { lodgeGround, pondsOf, withPonds } from './sim/pond';
+import { lodgeGround, pondsAt, pondsOf, withPonds } from './sim/pond';
 import { lilyPadsNear } from './sim/lily';
 import { rocksNear } from './sim/haul';
 import { withNewSpots } from './sim/newSpots';
@@ -879,7 +879,12 @@ async function start(): Promise<void> {
           }
           const snap = link.take();
           if (snap) lastSnap = snap;
-          if (snap && link.id) world = applySnapshot(world, snap, link.id);
+          if (snap && link.id) {
+            world = applySnapshot(world, snap, link.id);
+            // The host's dams make the ponds here too, worked out from the dams as the host does.
+            const set = pondsAt({ ponds: world.ponds, crests: world.pondCrests }, world.dams, world.spots, terrain, world.clock);
+            world = { ...world, ponds: set.ponds, pondCrests: set.crests };
+          }
           world = { ...world, time: world.time + dt };
           guestSnap = link.id ? othersOf(lastSnap, link.id) : [];
           menu.setStatus(link.id ? `Joined ${netJoin} as ${link.id}` : `Joining ${netJoin}: ${link.status()}`);

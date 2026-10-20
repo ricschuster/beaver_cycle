@@ -123,7 +123,7 @@ hosts the game picked above and shows the address in a toast; and an address to 
 starts the game again as a guest (the address waits in the session storage, `src/net/pending.ts`) and the guest picks its look on the
 look card. Settings shows how hosting or joining goes, and Leave for a guest. With no saved game the start screen is skipped, so a
 fresh tablet cannot host or join until it has a game. The dev parameters `?host=1` and `?join=IP` still work in a dev build. A guest
-shows the host's clock, felled trees, and logs, and never saves. Not yet shared: dams, ponds, lodges, food, carrying, other
+shows the host's clock, felled trees, and logs, and never saves. The snapshot also carries the host's dams and lodge, and a guest works the ponds out from the dams (`pondsAt`), so a guest sees them; it cannot build or mend yet. Not yet shared: building and mending by a guest, lodges of guests, food, carrying, other
 families, and the look of a guest's lodge. The host's own beaver is drawn to guests without leg movement. Hosting cannot be stopped
 short of closing the app.
 

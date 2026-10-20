@@ -1,9 +1,11 @@
 // The messages between a host and its guests (ADR 0014, docs/design/42_multiplayer.md). JSON text over a WebSocket. A guest
 // sends what its player wants (`Intent`, trimmed to what the host runs for a guest) and the host answers with the state of the
 // shared world. Everything that comes off the wire is checked here, since a friend's tablet is not trusted to be well made.
+import type { Dam } from '../sim/dam';
 import type { Coat } from '../sim/family';
 import type { Guest } from '../sim/guests';
 import type { Log } from '../sim/logs';
+import type { Lodge } from '../sim/lodge';
 import { cleanLook, type Look } from '../sim/look';
 import type { Intent } from '../sim/buttons';
 
@@ -23,6 +25,9 @@ export interface Snapshot {
   beavers: BeaverView[];
   /** The starting families whose baby a player has taken, so each tablet leaves that kit out of the family. */
   played?: string[];
+  /** The dams of the host's world and the host's lodge: a guest draws them and works out the ponds from the dams. */
+  dams?: Dam[];
+  lodge?: Lodge | null;
 }
 
 /** One beaver as the others see it. */

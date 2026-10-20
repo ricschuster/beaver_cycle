@@ -83,7 +83,7 @@ These are their own pieces of work, and each can be built and played alone befor
 - **Beaver looks.** A start screen for fur colour, hat, scarf, tail colour, and a name, saved with the family. It also makes sense
   in single player. The model has `coat` today (`?coat=2` in the model preview).
   Built (#659): `src/sim/look.ts`, `src/ui/lookCard.ts`, `setLook` in `beaverModel.ts`. The fur is one of 25 (the five browns in five
-  shade steps), then four hats, five scarf colours, four tail colours and a name. The card opens on a new game and at every birth,
+  shade steps), then nine hats, eleven scarf colours, nine tail colours and a name. The card opens on a new game and at every birth,
   with the kit's inherited fur first, so a tap on Go keeps it (the kit's fur is the player's choice from then on, not Q59's chance).
   The name is not drawn over the head yet; that waits for the other players. `?look=1` opens the card in an automated browser.
 - **Five starting families.** The start of a game places five lodges with a family each, and the player takes a baby. Today the

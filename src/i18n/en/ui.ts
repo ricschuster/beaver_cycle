@@ -78,7 +78,7 @@ export const ui = {
   'look.furN': 'Fur {n}',
   'look.scarfN': 'Scarf {n}',
   'look.tailN': 'Tail {n}',
-  'look.hats': ['None', 'Cap', 'Straw hat', 'Party hat', 'Top hat'],
+  'look.hats': ['None', 'Cap', 'Straw hat', 'Party hat', 'Top hat', 'Beanie', 'Crown', 'Cowboy hat', 'Chef hat', 'Flower crown'],
 
   'slots.label': 'Saved games',
   'slots.heading': 'Your games',

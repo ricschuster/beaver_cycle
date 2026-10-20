@@ -4,12 +4,12 @@ import { COAT_COUNT, type Coat } from './family';
 
 /** Steps of shade for the fur, -1 darker to 1 lighter. With the five browns that makes 25 furs. */
 export const SHADE_STEPS: readonly number[] = [-1, -0.5, 0, 0.5, 1];
-/** Hats: none, then four shapes. */
-export const HAT_COUNT = 5;
-/** Scarves: none, then five colours. */
-export const SCARF_COUNT = 6;
-/** Tail colours: the natural dark one, then four. */
-export const TAIL_COUNT = 5;
+/** Hats: none, then nine shapes. */
+export const HAT_COUNT = 10;
+/** Scarves: none, then eleven colours. */
+export const SCARF_COUNT = 12;
+/** Tail colours: the natural dark one, then nine. */
+export const TAIL_COUNT = 10;
 
 /** What the player chooses besides the fur (`WorldState.coat`). 0 is no hat, no scarf, and the natural tail. */
 export interface Look {

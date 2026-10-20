@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Net spike</title>
+<style>
+  body { margin: 0; font: 16px system-ui, sans-serif; background: #1d2a22; color: #eee; }
+  main { padding: 12px; }
+  button, input { font: inherit; padding: 10px 14px; margin: 4px 4px 4px 0; }
+  canvas { background: #2f4a38; width: 100%; max-width: 640px; touch-action: none; display: block; }
+  pre { background: #0006; padding: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Net spike (#662)</h1>
+  <div id="menu">
+    <button id="host">Host</button>
+    <input id="ip" placeholder="host IP" inputmode="decimal">
+    <button id="join">Join</button>
+  </div>
+  <pre id="log"></pre>
+  <canvas id="c" width="640" height="400"></canvas>
+</main>
+<script type="module" src="./main.ts"></script>
+</body>
+</html>

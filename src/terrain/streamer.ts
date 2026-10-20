@@ -25,6 +25,9 @@ export const defaultStreamerOptions: StreamerOptions = {
 
 export const COARSEST = 2;
 
+/** A tile's distance from another beaver counts this many times over for its detail level. */
+const OTHER_SCALE = 2;
+
 /** An idle streamer looks again after the beaver moves this many metres. */
 const REPASS_DISTANCE = 2;
 
@@ -81,6 +84,7 @@ export class Streamer {
   private lastX = 0;
   private lastZ = 0;
   private lastInFlight = 0;
+  private lastOthers: { x: number; z: number }[] = [];
   private lastVersion = -1;
   private readonly keys: string[];
   /** 1 for a far tile whose coarse ground is loaded: nothing more to do for it. */
@@ -110,10 +114,15 @@ export class Streamer {
     return this.inFlight.size;
   }
 
-  update(x: number, z: number): void {
+  /**
+   * `others` are the places of other beavers (the guests of a host) that need their ground and trees here too. A tile
+   * near one gets the level that distance doubled would get, so a guest's surroundings cost a ring half as wide.
+   */
+  update(x: number, z: number, others: readonly { x: number; z: number }[] = []): void {
     // Where the beaver stands matters to the decisions only a little at a time, so a pass that asked for nothing is not
     // repeated until it moves a couple of metres, a fetch ends, or the tiles held change.
-    if (this.idle && Math.hypot(x - this.lastX, z - this.lastZ) < REPASS_DISTANCE && this.inFlight.size === this.lastInFlight && this.store.version === this.lastVersion) return;
+    if (this.idle && Math.hypot(x - this.lastX, z - this.lastZ) < REPASS_DISTANCE && this.inFlight.size === this.lastInFlight && this.store.version === this.lastVersion && !this.othersMoved(others)) return;
+    this.lastOthers = others.map((o) => ({ x: o.x, z: o.z }));
     this.lastX = x;
     this.lastZ = z;
     const size = this.store.size;
@@ -127,8 +136,14 @@ export class Streamer {
       const t = tiles[i]!;
       if (this.farDone[i]) continue;
       const key = this.keys[i]!;
-      const dist = distToTile(x, z, t.tx, t.tz, size);
-      const level = t.far ? COARSEST : levelFor(dist, this.desired.get(key), this.options);
+      let dist = distToTile(x, z, t.tx, t.tz, size);
+      let levelDist = dist;
+      for (const o of others) {
+        const d = distToTile(o.x, o.z, t.tx, t.tz, size);
+        if (d < dist) dist = d;
+        if (d * OTHER_SCALE < levelDist) levelDist = d * OTHER_SCALE;
+      }
+      const level = t.far ? COARSEST : levelFor(levelDist, this.desired.get(key), this.options);
       this.desired.set(key, level);
       if (level !== COARSEST && !this.store.hasKey(key, COARSEST)) {
         missing = true;
@@ -163,6 +178,11 @@ export class Streamer {
     this.idle = !missing;
     this.lastInFlight = this.inFlight.size;
     this.lastVersion = this.store.version;
+  }
+
+  private othersMoved(others: readonly { x: number; z: number }[]): boolean {
+    if (others.length !== this.lastOthers.length) return true;
+    return others.some((o, i) => Math.hypot(o.x - this.lastOthers[i]!.x, o.z - this.lastOthers[i]!.z) >= REPASS_DISTANCE);
   }
 
   private evict(key: string, desired: number): void {

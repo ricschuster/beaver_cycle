@@ -164,8 +164,10 @@ function litter(n: Neighbour, year: number): { id: string; bornAt: number; coat:
   return Array.from({ length: size }, (_, k) => ({ id: `${n.id}:kit:${year}:${k}`, bornAt, coat: kitCoat(n.parents, hash(n.seed, year * 8 + k + 100)) }));
 }
 
+const NONE: ReadonlySet<string> = new Set();
+
 /** The beavers of the families at a clock value: those awake, each on its errand (`routines.ts`). At night everyone sleeps in the lodge. */
-export function neighboursAt(families: readonly Neighbour[], clock: number, ground: Terrain): NeighbourBeaver[] {
+export function neighboursAt(families: readonly Neighbour[], clock: number, ground: Terrain, played: ReadonlySet<string> = NONE): NeighbourBeaver[] {
   if (families.length === 0 || isNight(clock)) return [];
   const out: NeighbourBeaver[] = [];
   for (const n of families) {
@@ -181,6 +183,8 @@ export function neighboursAt(families: readonly Neighbour[], clock: number, grou
       for (const kit of litter(n, y)) {
         const life = lifeAt(clock, kit.bornAt);
         if (kit.bornAt > clock || life.stage === 'adult' || life.ageDays > KIT_SEASON * 2) continue;
+        // A friend plays the first baby of this spring's litter, so the family does not draw it too.
+        if (played.has(n.id) && kit.id === `${n.id}:kit:${year}:0`) continue;
         members.push({ id: kit.id, role: 'kit', stage: life.stage, coat: kit.coat });
       }
     }

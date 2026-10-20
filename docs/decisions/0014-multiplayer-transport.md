@@ -35,6 +35,13 @@ a second and each guest sent its wish 30 times a second.
 - The tablet app joined from its bundled `https://localhost` page only with the two settings above.
 - A guest that stopped (app killed) was dropped by the server after its ping timeout, and the same IP joined again at once.
 
+## Played in the real game (2026-10-20, #678)
+
+The same two tablets ran the real game: the host (`?host=1`) and a guest (`?join=192.168.1.67`) in the tablet live shell, on the real
+valley. The guest joined, swam off across the lake and walked ashore (the host drew it moving, with its fur and look), pressed
+Gnaw by a tree, and the tree fell: both tablets showed "1 of 30 trees felled" and the log lay in both worlds. The guest's
+tablet shows the host's clock, felled trees, and logs, and its own beaver where the host puts it.
+
 ## Why not the others
 
 - **WebRTC.** Needs a signalling step. Without internet it would be copied by hand (a code or a QR), which is worse than typing an

@@ -157,6 +157,21 @@ describe('solid lodge', () => {
     expect(step(wrongSide, toward, 0.1, shore).inLodge).toBe(false);
   });
 
+  it('lets a walker in over the mud when the pond is too low to dive, and out the same way', () => {
+    const low: Terrain = { ...shore, waterDepth: (_x, z) => Math.min(0.4, Math.max(0, z * 0.5)) };
+    const w = { ...wholeLodge(), beaver: { ...wholeLodge().beaver, y: 0, mode: 'walk' as const } };
+    const door = w.lodge!.door;
+    const toward = { ...noIntent(), move: { x: -Math.sin(door), z: -Math.cos(door) } };
+    expect(step(w, toward, 0.1, shore).inLodge).toBe(false);
+    const inside = step(w, toward, 0.1, low);
+    expect(inside.inLodge).toBe(true);
+    const l = w.lodge!;
+    const atPool = { ...inside, beaver: { ...inside.beaver, x: l.x + HOLE.x, z: l.z + HOLE.z - HOLE.radius - 0.5 } };
+    const out = step(atPool, tapDive, 0.1, low);
+    expect(out.inLodge).toBe(false);
+    expect(out.beaver.mode).toBe('walk');
+  });
+
   it('stays in the room and walks round the water hole', () => {
     const w = wholeLodge();
     const door = w.lodge!.door;

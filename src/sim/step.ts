@@ -17,7 +17,7 @@ import { moveIn, stepPartners } from './partners';
 import { tally } from './achievements';
 import { WELCOME_TRUST, canMark, keepMounds, newMound, settledId, welcomeNear } from './scent';
 import { hurtFactor } from './predators';
-import { birth, kitDue, BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, type BeaverState, type WorldState } from './state';
+import { birth, kitDue, BREATH_MIN_START, DIVE_FLOOR, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, SLAP_COOLDOWN, SWIM_EXIT_DEPTH, SWIM_SPEED, WALK_SPEED, settle, DIVE_MIN_DEPTH, type BeaverState, type WorldState } from './state';
 
 /** The longest stretch of a move, in metres, checked for bumps in one go. */
 const SWEEP_STEP = 0.4;
@@ -168,8 +168,8 @@ function advance(world: WorldState, actions: Intent, dt: number, ground: Terrain
 /**
  * Do as Build or Mend: a dragged log goes on the lodge, which starts a new one at a spot in shallow water ahead of the
  * beaver if there is none yet, and a log, mud, or a rock goes on a dam. The lodge is solid, and its entrance is under
- * water: a diving beaver that swims at the entrance of a whole lodge goes in, into the round room. Inside, a press of
- * Dive at the water hole dives out through the entrance. A log that cannot be placed stays in the beaver's mouth.
+ * water: a diving beaver that swims at the entrance of a whole lodge goes in, into the round room. When the pond is too low to dive, it walks in over the mud instead. Inside, a press of
+ * Dive at the water hole dives out through the entrance (or walks out when it is too shallow). A log that cannot be placed stays in the beaver's mouth.
  */
 function build(world: WorldState, b: BeaverState, actions: Intent, move: { x: number; z: number }, terrain: Terrain, ground: Terrain, works: boolean): { world: WorldState; beaver: BeaverState } {
   let { lodge, logs, drag, inLodge, storeWear, dams, haul, hauled } = world;
@@ -179,9 +179,12 @@ function build(world: WorldState, b: BeaverState, actions: Intent, move: { x: nu
       const out = doorPoint(lodge, DOOR_DISTANCE);
       inLodge = false;
       // Out of the hole the beaver is under water and rises by itself.
-      beaver = { ...b, ...out, y: terrain.heightAt(out.x, out.z) + DIVE_FLOOR, mode: 'dive' };
+      // When the pond is too low to dive in, the beaver walks out over the mud.
+      beaver = terrain.waterDepth(out.x, out.z) < DIVE_MIN_DEPTH
+        ? { ...b, ...out, y: terrain.heightAt(out.x, out.z), mode: 'walk' }
+        : { ...b, ...out, y: terrain.heightAt(out.x, out.z) + DIVE_FLOOR, mode: 'dive' };
     }
-  } else if (lodgeComplete(lodge) && lodgeCondition(lodge, world.clock) >= BROKEN_BELOW && b.mode === 'dive' && atDoor(lodge, b.x, b.z) && towardDoor(lodge, move.x, move.z) < -0.3) {
+  } else if (lodgeComplete(lodge) && lodgeCondition(lodge, world.clock) >= BROKEN_BELOW && (b.mode === 'dive' || terrain.waterDepth(b.x, b.z) < DIVE_MIN_DEPTH) && atDoor(lodge, b.x, b.z) && towardDoor(lodge, move.x, move.z) < -0.3) {
     inLodge = true;
     beaver = { ...b, ...doorPoint(lodge, ENTER_DISTANCE), y: lodge.base, mode: 'walk' };
   } else if (works && (actions.do === 'build' || actions.do === 'mend') && b.mode !== 'dive') {

@@ -32,13 +32,18 @@ That is probably what the author saw: the dam seems to vanish and the work start
 to read the author's "disappear" as either that rule or a real bug (a dam removed while mending). Then decide, with the
 author, whether a broken dam should be mended for part of the cost and keep its level. Open question for the author.
 
+Checked (#646): no code path removes a dam while it is mended. `settled` in `src/sim/dam.ts` turns a broken dam (below 0.15) into
+a new level 1 dam on the next placed piece, which is the vanishing the author saw. Any mend or rebuild rule change waits for
+Q77 and Q78.
+
 ### 5. Going into the lodge at low water
 
 The lodge entrance is under water, so the beaver dives in, and the water at the door must be deep enough
 (`src/sim/lodge.ts`). When the pond sinks (a worn or broken dam, a dry spell) the door is too shallow and the beaver
 cannot enter, so it cannot eat, sleep, or hide. The author wants to get in anyway. Proposal: when the water at the door is
 too shallow to dive, the beaver walks in over the mud, with the same Do or move-in control, and the lodge looks the same
-inside. Needs a look at how entry is tested before the rule is settled.
+inside. Built (#647): entry in `build` in `src/sim/step.ts` also lets a walking beaver in when the water at the door is under
+`DIVE_MIN_DEPTH`, and the water hole walks it out when the water outside is that shallow. Q79 may still change the rule.
 
 ## The dream
 

@@ -6,6 +6,7 @@ import { cleanLook, DEFAULT_LOOK, type Look } from './look';
 import type { Coat } from './family';
 import { placed, spotAt, type Dam } from './dam';
 import type { DamSpot } from './damSpots';
+import type { Food } from './food';
 import { canScoopMud, putDown, reachableDropped, reachableRock, type Dropped, type Haul } from './haul';
 import { DRAG_SPEED, GRAB_REACH, dragged, fallenLog, logLength, nearestLog, type Log } from './logs';
 import { logWood } from './lodge';
@@ -24,6 +25,8 @@ export interface Guest {
   chop: { id: string; x: number; z: number; wood: number; progress: number } | null;
   /** Mud or a rock in the mouth. */
   haul: Haul | null;
+  /** Food in the mouth, picked up where a friend put it down or handed over (#663). */
+  carry: Food | null;
   /** The id of the log being dragged, or null. */
   drag: string | null;
   /** 0 standing, 1 on the move, for the legs. */
@@ -47,7 +50,7 @@ const SWEEP_STEP = 0.4;
 /** A guest at a place, standing still. */
 export function newGuest(id: string, at: { x: number; z: number }, terrain: Terrain, coat: Coat, look: Partial<Look> | undefined): Guest {
   const { y, mode } = settle(terrain, at.x, at.z, { mode: 'walk', y: 0 });
-  return { id, coat, look: cleanLook(look) ?? DEFAULT_LOOK, beaver: { x: at.x, y, z: at.z, mode, heading: 0, breath: 1 }, chop: null, haul: null, drag: null, pace: 0 };
+  return { id, coat, look: cleanLook(look) ?? DEFAULT_LOOK, beaver: { x: at.x, y, z: at.z, mode, heading: 0, breath: 1 }, chop: null, haul: null, carry: null, drag: null, pace: 0 };
 }
 
 /**
@@ -74,17 +77,18 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
   const breath = settled.mode === 'dive' ? Math.max(0, b.breath - dt / BREATH_TIME) : Math.min(1, b.breath + dt / BREATH_REFILL_TIME);
   const beaver: BeaverState = { x: p.x, z: p.z, ...settled, heading: len > 0 ? Math.atan2(x, z) : b.heading, breath };
   // Take and Do, as for the host's beaver (`step.ts`): a log is dragged, mud or a rock is carried, and at a dam spot Do puts it on.
-  let { haul, drag } = guest;
+  let { haul, carry, drag } = guest;
   let { dams, rocksTaken, dropped } = shared;
   let logs = shared.logs;
   if (drag && (beaver.mode === 'dive' || !logs.some((l) => l.id === drag))) drag = null;
   let chop = guest.chop;
   const take = intent.take;
   if (take === 'let-go') drag = null;
-  else if (take === 'drop' && haul) {
-    dropped = [...dropped, putDown(haul, beaver.x, beaver.z, beaver.heading, 0, shared.clock)];
+  else if (take === 'drop' && (haul || carry)) {
+    dropped = [...dropped, putDown(haul ?? { kind: carry! }, beaver.x, beaver.z, beaver.heading, shared.clock, shared.clock)];
     haul = null;
-  } else if (take && !drag && !haul && beaver.mode !== 'dive') {
+    carry = null;
+  } else if (take && !drag && !haul && !carry && beaver.mode !== 'dive') {
     if (take === 'log') {
       const log = nearestLog(logs, beaver.x, beaver.z, GRAB_REACH);
       if (log) {
@@ -97,6 +101,9 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
       if (lying && (lying.kind === 'mud' || lying.kind === 'rock')) {
         dropped = dropped.filter((d) => d !== lying);
         haul = { kind: lying.kind };
+      } else if (lying) {
+        dropped = dropped.filter((d) => d !== lying);
+        carry = lying.kind as Food;
       } else if (rock) {
         rocksTaken = [...rocksTaken, rock.id];
         haul = { kind: 'rock' };
@@ -120,8 +127,8 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
     }
   }
   // Gnawing needs standing still on land with the mouth empty; moving stops it. At CHOP_TIME seconds the tree is down and lies as a log.
-  if (chop && (len > 0 || beaver.mode !== 'walk' || drag || haul)) chop = null;
-  if (!chop && intent.do === 'gnaw' && len === 0 && beaver.mode === 'walk' && !drag && !haul) {
+  if (chop && (len > 0 || beaver.mode !== 'walk' || drag || haul || carry)) chop = null;
+  if (!chop && intent.do === 'gnaw' && len === 0 && beaver.mode === 'walk' && !drag && !haul && !carry) {
     const t = trees.nearest(beaver.x, beaver.z, CHOP_REACH, new Set(shared.felled));
     if (t) chop = { id: t.id, x: t.x, z: t.z, wood: t.wood, progress: 0 };
   } else if (chop) chop = { ...chop, progress: chop.progress + dt };
@@ -132,5 +139,5 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
     felled = [...felled, chop.id];
     chop = null;
   }
-  return { guest: { ...guest, beaver, chop, haul, drag, pace: len > 0 ? 1 : 0 }, felled, logs, dams, rocksTaken, dropped };
+  return { guest: { ...guest, beaver, chop, haul, carry, drag, pace: len > 0 ? 1 : 0 }, felled, logs, dams, rocksTaken, dropped };
 }

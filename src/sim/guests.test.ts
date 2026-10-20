@@ -115,4 +115,22 @@ describe('guest beavers', () => {
       expect(r.guest.chop).toBeNull();
     });
   });
+
+  describe('food in the mouth (#663)', () => {
+    it('picks up food a friend put on the ground, and puts it down again', () => {
+      const lying = { id: 'drop:1', kind: 'branch' as const, at: 0, x: 0.5, z: 0 };
+      const g = newGuest('g1', at, ground, coat, undefined);
+      const got = stepGuest(g, { ...noIntent(), take: 'item' }, 0.1, { ...shared, dropped: [lying] }, ground, noTrees);
+      expect(got.guest.carry).toBe('branch');
+      expect(got.dropped).toHaveLength(0);
+      const down = stepGuest(got.guest, { ...noIntent(), take: 'drop' }, 0.1, shared, ground, noTrees);
+      expect(down.guest.carry).toBeNull();
+      expect(down.dropped.map((d) => d.kind)).toEqual(['branch']);
+    });
+
+    it('does not gnaw with food in the mouth', () => {
+      const g = { ...newGuest('g1', at, ground, coat, undefined), carry: 'lily' as const };
+      expect(stepGuest(g, { ...noIntent(), do: 'gnaw' }, 0.1, shared, ground, oneTree).guest.chop).toBeNull();
+    });
+  });
 });

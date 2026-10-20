@@ -4,16 +4,17 @@
 import type { Dam } from '../sim/dam';
 import type { Coat } from '../sim/family';
 import type { Guest } from '../sim/guests';
+import type { Food } from '../sim/food';
 import type { Dropped } from '../sim/haul';
 import type { Log } from '../sim/logs';
 import type { Lodge } from '../sim/lodge';
 import { cleanLook, type Look } from '../sim/look';
 import type { Intent } from '../sim/buttons';
 
-/** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam; let go, put down, take a log, a rock, mud, or a piece put down. */
-export type GuestDo = 'gnaw' | 'build' | 'mend';
+/** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam, hand food to a friend; let go, put down, take a log, a rock, mud, or a piece put down. */
+export type GuestDo = 'gnaw' | 'build' | 'mend' | 'give';
 export type GuestTake = 'let-go' | 'drop' | 'item' | 'log' | 'rock' | 'mud';
-const DOS: readonly string[] = ['gnaw', 'build', 'mend'];
+const DOS: readonly string[] = ['gnaw', 'build', 'mend', 'give'];
 const TAKES: readonly string[] = ['let-go', 'drop', 'item', 'log', 'rock', 'mud'];
 
 /** The port the host listens on. */
@@ -55,6 +56,8 @@ export interface BeaverView {
   /** What the beaver carries: mud or a rock in the mouth, the id of the log it drags. */
   haul?: 'mud' | 'rock' | null;
   drag?: string | null;
+  /** Food in the mouth. */
+  carry?: Food | null;
 }
 
 export type ToGuest = { t: 'welcome'; id: string } | { t: 'state'; snapshot: Snapshot } | { t: 'pong'; ts: number };
@@ -110,5 +113,5 @@ export function intentOf(m: Extract<ToHost, { t: 'intent' }>): Intent {
 /** A guest as the others see it. */
 export function viewOfGuest(g: Guest): BeaverView {
   const b = g.beaver;
-  return { id: g.id, coat: g.coat, look: g.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: g.pace, chopping: g.chop !== null, haul: g.haul?.kind ?? null, drag: g.drag };
+  return { id: g.id, coat: g.coat, look: g.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: g.pace, chopping: g.chop !== null, haul: g.haul?.kind ?? null, carry: g.carry, drag: g.drag };
 }

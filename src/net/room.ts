@@ -5,6 +5,7 @@ import { newGuest, stepGuest, type Guest } from '../sim/guests';
 import type { Dam } from '../sim/dam';
 import type { Dropped } from '../sim/haul';
 import type { Log } from '../sim/logs';
+import { GIVE_REACH } from '../sim/familyMoods';
 import { withPonds } from '../sim/pond';
 import type { Terrain } from '../sim/terrain';
 import type { TreeSource } from '../sim/trees';
@@ -85,8 +86,16 @@ export class Room {
     let { felled, logs, dams, rocksTaken, dropped }: { felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[] } = world;
     const terrain = withPonds(ground, world.ponds);
     const solids = [world.lodge, ...world.formerHomes, ...world.neighbours.map((n) => n.lodge)].flatMap((l) => (l ? [{ x: l.x, z: l.z, radius: 4 }] : []));
+    let hostCarry = world.carry;
     for (const seat of this.seats.values()) {
       const intent = now - seat.heard > SILENT_AFTER ? { move: { x: 0, z: 0 } } : seat.intent;
+      if (intent.do === 'give' && seat.guest.carry) {
+        // Food handed to the host or another guest whose mouth is empty (#663).
+        const to = this.taker(seat.guest.id, seat.guest.beaver, world.beaver, hostCarry === null && world.haul === null && world.drag === null);
+        if (to === 'host') hostCarry = seat.guest.carry;
+        else if (to) to.carry = seat.guest.carry;
+        if (to) seat.guest = { ...seat.guest, carry: null };
+      }
       const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock, dams, spots: world.spots, rocksTaken, dropped }, terrain, trees, solids);
       seat.guest = r.guest;
       // A press arrives once: the next step must not repeat it.
@@ -94,13 +103,44 @@ export class Room {
       ({ felled, logs, dams, rocksTaken, dropped } = r);
     }
     const same = felled === world.felled && logs === world.logs && dams === world.dams && rocksTaken === world.rocksTaken && dropped === world.dropped;
+    if (hostCarry !== world.carry) world = { ...world, carry: hostCarry };
     return same ? world : { ...world, felled: [...felled], logs: [...logs], dams: [...dams], rocksTaken: [...rocksTaken], dropped: [...dropped] };
+  }
+
+  /**
+   * Who can be handed food by the one at `from`: the host when its mouth is empty, else the nearest guest within `GIVE_REACH` with an
+   * empty mouth (not `except`). Null when there is none.
+   */
+  private taker(except: string, from: { x: number; z: number }, host: { x: number; z: number }, hostEmpty: boolean): 'host' | Guest | null {
+    let best: 'host' | Guest | null = hostEmpty && Math.hypot(host.x - from.x, host.z - from.z) <= GIVE_REACH ? 'host' : null;
+    let bestD = best ? Math.hypot(host.x - from.x, host.z - from.z) : GIVE_REACH;
+    for (const s of this.seats.values()) {
+      const g = s.guest;
+      const d = Math.hypot(g.beaver.x - from.x, g.beaver.z - from.z);
+      if (g.id !== except && !g.carry && !g.haul && d <= bestD) {
+        best = g;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  /** The guest the host's food can go to, or null: the nearest friend within `GIVE_REACH` with an empty mouth. */
+  guestTaker(at: { x: number; z: number }): Guest | null {
+    const to = this.taker('host', at, at, false);
+    return to && to !== 'host' ? to : null;
+  }
+
+  /** The host's food goes into the mouth of `to`. Returns the world with the host's mouth empty. */
+  hand(world: WorldState, to: Guest): WorldState {
+    to.carry = world.carry;
+    return { ...world, carry: null };
   }
 
   /** What every guest is sent: the shared world and every beaver in it, the host's first. */
   snapshot(world: WorldState): Snapshot {
     const b = world.beaver;
-    const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null };
+    const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null };
     return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped };
   }
 

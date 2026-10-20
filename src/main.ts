@@ -18,7 +18,7 @@ import { AnimalField, capFor, type Animal } from './sim/animals';
 import { cleanAddress, pendingJoin, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
 import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
-import { applySnapshot, friendBeaver, othersOf } from './net/view';
+import { applySnapshot, friendBeaver, friendTaker, othersOf } from './net/view';
 import { SEND_HZ, viewOfGuest, type GuestTake } from './net/protocol';
 import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
@@ -442,7 +442,7 @@ async function start(): Promise<void> {
   let lastSnap: Parameters<typeof othersOf>[0] = null;
   let netSentAt = 0;
   let gnawPending = false;
-  let pendingDo: 'build' | 'mend' | null = null;
+  let pendingDo: 'build' | 'mend' | 'give' | null = null;
   let pendingTake: GuestTake | null = null;
   if (netHost || hostFromStart) beginHosting();
   if (netJoin) link = joinHost(netJoin, { t: 'hello', coat: world.coat, look: world.look });
@@ -876,7 +876,7 @@ async function start(): Promise<void> {
         if (link) {
           // A guest: the host steps its beaver. Here the wish goes out SEND_HZ times a second and the state comes back.
           if (doPressed === 'gnaw') gnawPending = true;
-          if (doPressed === 'build' || doPressed === 'mend') pendingDo = doPressed;
+          if (doPressed === 'build' || doPressed === 'mend' || doPressed === 'give') pendingDo = doPressed;
           if (actions.take && takeNow && takeNow !== 'pad') pendingTake = takeNow;
           if (now - netSentAt > 1000 / SEND_HZ && link.id) {
             netSentAt = now;
@@ -1043,6 +1043,10 @@ async function start(): Promise<void> {
       if (given) {
         world = given.world;
         gifts.gifts.push({ family: given.family, kind: given.kind });
+      } else if (room && world.carry) {
+        // No family beaver close: a friend with an empty mouth takes it (#663).
+        const friend = room.guestTaker(world.beaver);
+        if (friend) world = room.hand(world, friend);
       }
     }
     // Each gift is thanked for what it is, and word of it gets around (chatter.ts, familyMoods.ts).
@@ -1106,7 +1110,7 @@ async function start(): Promise<void> {
     }
     const drift = nearestStuck(stuckList, world.beaver, DIG_REACH);
     dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, doPressed === 'dig', movingNow, dt) : 0;
-    nearby = { taker: takerNear(familyBeavers, world.beaver) !== null, speaker: near !== null, following: near?.kind === 'partner' && near.id === follower(world.partners)?.id, drift: drift !== null };
+    nearby = { taker: takerNear(familyBeavers, world.beaver) !== null || (room ? room.guestTaker(world.beaver) !== null : link?.id ? friendTaker(lastSnap, link.id, world.beaver) !== null : false), speaker: near !== null, following: near?.kind === 'partner' && near.id === follower(world.partners)?.id, drift: drift !== null };
     doPressed = null;
     if (drift && dug >= DIG_TIME) {
       world = rescue(world, drift);

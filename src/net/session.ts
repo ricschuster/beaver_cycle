@@ -64,33 +64,54 @@ export interface GuestLink {
   close(): void;
 }
 
+/** How long a guest waits before it tries the host again after the link closed (a sleep, a Wi-Fi gap). */
+export const RECONNECT_MS = 2000;
+
 export function joinHost(ip: string, hello: ToHost): GuestLink {
   let id: string | null = null;
   let latest: Snapshot | null = null;
   let state: 'connecting' | 'open' | 'closed' | 'failed' = 'connecting';
   let ws: WebSocket | null = null;
-  try {
-    ws = new WebSocket(`ws://${ip}:${PORT}`);
-  } catch {
-    state = 'failed';
-  }
-  if (ws) {
-    ws.onopen = () => {
+  let everOpen = false;
+  let leaving = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const connect = () => {
+    timer = null;
+    let w: WebSocket;
+    try {
+      w = new WebSocket(`ws://${ip}:${PORT}`);
+    } catch {
+      state = 'failed';
+      return;
+    }
+    ws = w;
+    w.onopen = () => {
+      everOpen = true;
       state = 'open';
-      ws!.send(JSON.stringify(hello));
+      w.send(JSON.stringify(hello));
     };
-    ws.onerror = () => {
-      if (state === 'connecting') state = 'failed';
+    w.onerror = () => {
+      if (state === 'connecting' && !everOpen) state = 'failed';
     };
-    ws.onclose = () => {
-      if (state !== 'failed') state = 'closed';
+    w.onclose = () => {
+      if (w !== ws || leaving) return;
+      if (state === 'failed') return;
+      // Never reached the host: the address is wrong. After a good link, the host seats the same hello again, so try again.
+      if (!everOpen) {
+        state = 'failed';
+        return;
+      }
+      state = 'closed';
+      id = null;
+      timer = setTimeout(connect, RECONNECT_MS);
     };
-    ws.onmessage = (ev) => {
+    w.onmessage = (ev) => {
       const m = readToGuest(String(ev.data));
       if (m?.t === 'welcome') id = m.id;
       else if (m?.t === 'state') latest = m.snapshot;
     };
-  }
+  };
+  connect();
   return {
     get id() {
       return id;
@@ -105,6 +126,8 @@ export function joinHost(ip: string, hello: ToHost): GuestLink {
     },
     status: () => state,
     close() {
+      leaving = true;
+      if (timer) clearTimeout(timer);
       ws?.close();
     },
   };

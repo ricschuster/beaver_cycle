@@ -16,6 +16,12 @@ export function hostPlugin(): HostPlugin | null {
   return (window as unknown as { Capacitor?: { Plugins?: { HostServer?: HostPlugin } } }).Capacitor?.Plugins?.HostServer ?? null;
 }
 
+/** True in a browser and in the app that hosts; false in the Play bundle, an app with no networking, where Join could only fail. */
+export function canPlayTogether(): boolean {
+  const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return hostPlugin() !== null || !cap?.isNativePlatform?.();
+}
+
 /** What the host session needs from the game each time a message comes in. */
 export interface HostGame {
   hostAt(): { x: number; z: number };

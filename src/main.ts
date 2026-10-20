@@ -19,7 +19,7 @@ import { cleanAddress, pendingJoin, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
 import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
 import { applySnapshot, friendBeaver, othersOf } from './net/view';
-import { SEND_HZ, viewOfGuest } from './net/protocol';
+import { SEND_HZ, viewOfGuest, type GuestTake } from './net/protocol';
 import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
 import { WALK_IN, departsAt, settleFamily, settledId, visitorsAt } from './sim/scent';
@@ -74,7 +74,7 @@ import { createFlyButtons } from './ui/flyButtons';
 import { createMinimap, minimapMode, nextMode, type MinimapMode } from './ui/minimap';
 import { loadDamSites } from './render/damSites';
 import { LEVEL_COST, placed, spotAt } from './sim/dam';
-import { lodgeGround, pondsOf, withPonds } from './sim/pond';
+import { lodgeGround, pondsAt, pondsOf, withPonds } from './sim/pond';
 import { lilyPadsNear } from './sim/lily';
 import { rocksNear } from './sim/haul';
 import { withNewSpots } from './sim/newSpots';
@@ -440,6 +440,8 @@ async function start(): Promise<void> {
   let lastSnap: Parameters<typeof othersOf>[0] = null;
   let netSentAt = 0;
   let gnawPending = false;
+  let pendingDo: 'build' | 'mend' | null = null;
+  let pendingTake: GuestTake | null = null;
   if (netHost || hostFromStart) beginHosting();
   if (netJoin) link = joinHost(netJoin, { t: 'hello', coat: world.coat, look: world.look });
   let last = performance.now();
@@ -872,14 +874,23 @@ async function start(): Promise<void> {
         if (link) {
           // A guest: the host steps its beaver. Here the wish goes out SEND_HZ times a second and the state comes back.
           if (doPressed === 'gnaw') gnawPending = true;
+          if (doPressed === 'build' || doPressed === 'mend') pendingDo = doPressed;
+          if (actions.take && takeNow && takeNow !== 'pad') pendingTake = takeNow;
           if (now - netSentAt > 1000 / SEND_HZ && link.id) {
             netSentAt = now;
-            link.send({ t: 'intent', x: move.x, z: move.z, dive: !!actions.dive, gnaw: gnawPending });
+            link.send({ t: 'intent', x: move.x, z: move.z, dive: !!actions.dive, gnaw: gnawPending, ...(pendingDo ? { do: pendingDo } : {}), ...(pendingTake ? { take: pendingTake } : {}) });
             gnawPending = false;
+            pendingDo = null;
+            pendingTake = null;
           }
           const snap = link.take();
           if (snap) lastSnap = snap;
-          if (snap && link.id) world = applySnapshot(world, snap, link.id);
+          if (snap && link.id) {
+            world = applySnapshot(world, snap, link.id);
+            // The host's dams make the ponds here too, worked out from the dams as the host does.
+            const set = pondsAt({ ponds: world.ponds, crests: world.pondCrests }, world.dams, world.spots, terrain, world.clock);
+            world = { ...world, ponds: set.ponds, pondCrests: set.crests };
+          }
           world = { ...world, time: world.time + dt };
           guestSnap = link.id ? othersOf(lastSnap, link.id) : [];
           menu.setStatus(link.id ? `Joined ${netJoin} as ${link.id}` : `Joining ${netJoin}: ${link.status()}`);

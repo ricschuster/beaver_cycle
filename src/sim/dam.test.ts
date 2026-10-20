@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { noIntent, type Intent } from './buttons';
-import { LEVEL_COST, LEVEL1_COST, costOf, damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, levelOf, needs, placed, raised, settled, spotAt } from './dam';
+import { MEND_PER_WOOD } from './wear';
+import { LEVEL_COST, LEVEL1_COST, costOf, damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, levelOf, needs, placed, raised, spotAt } from './dam';
 import { widthFactor } from './damSpots';
 import { DAY_SECONDS } from './clock';
 import { newWear } from './wear';
@@ -122,16 +123,15 @@ describe('dam wear', () => {
     expect(placed(dams, small, { wood: 2 }, undefined, 0)).toBe(dams);
   });
 
-  it('has to be built again, with the full set, once broken', () => {
+  it('is mended, not built again, once broken', () => {
     const dams = wholeAt(0);
     const clock = 18 * day; // condition 0.1
-    expect(damAt(dams, spot)!.wood).toBe(8);
-    expect(settled(damAt(dams, spot), clock, spot)).toEqual({ spot: spot.id, wood: 0, mud: 0, rock: 0 });
-    const again = placed(dams, spot, { wood: 2 }, undefined, clock);
-    expect(damAt(again, spot)).toEqual({ spot: spot.id, wood: 2, mud: 0, rock: 0 });
-    const done = placed(again, spot, LEVEL1_COST, undefined, clock);
-    expect(damAt(done, spot)!.wear).toEqual(newWear(clock));
-    expect(damWhole(damAt(done, spot))).toBe(true);
+    const mended = placed(dams, spot, { wood: 2 }, undefined, clock);
+    const dam = damAt(mended, spot)!;
+    expect(dam.wood).toBe(8);
+    expect(damWhole(dam)).toBe(true);
+    expect(damCondition(dam, clock)).toBeCloseTo(0.1 + 2 * MEND_PER_WOOD / (dam.scale ?? 1));
+    expect(damNeedsRepair(dam, clock)).toBe(true);
   });
 
   it('is mended in the world by a dragged log at the build button', () => {
@@ -191,10 +191,12 @@ describe('dam levels', () => {
     expect(levelOf(damAt(mended, spot))).toBe(1);
   });
 
-  it('starts again at level 1 when it breaks', () => {
+  it('keeps its level when it breaks, and is mended from there', () => {
     const dams = placed(level1(), spot, LEVEL_COST[2]!, undefined, 0);
     expect(levelOf(damAt(dams, spot))).toBe(2);
-    expect(settled(damAt(dams, spot), 40 * day, spot)).toEqual({ spot: spot.id, wood: 0, mud: 0, rock: 0 });
+    const mended = placed(dams, spot, { wood: 1 }, undefined, 40 * day);
+    expect(levelOf(damAt(mended, spot))).toBe(2);
+    expect(damCondition(damAt(mended, spot), 40 * day)).toBeGreaterThan(0);
   });
 
   it('never raises a dam without a clock (a test dam)', () => {
@@ -249,9 +251,4 @@ describe('dam cost follows the length of the wall', () => {
     expect(damCondition(damAt(next, wide), 15 * day)).toBeCloseTo(0.35);
   });
 
-  it('builds a broken dam again at the price of level 1 at that spot', () => {
-    const dams = placed(placed([], wide, LEVEL_COST[2]!, undefined, 0), wide, LEVEL_COST[2]!, undefined, 0);
-    expect(levelOf(damAt(dams, wide))).toBe(2);
-    expect(settled(damAt(dams, wide), 40 * day, wide)).toEqual({ spot: wide.id, wood: 0, mud: 0, rock: 0, scale: 2 });
-  });
 });

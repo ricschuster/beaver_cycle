@@ -1,8 +1,8 @@
 // The dam (docs/design/20_dams_and_ponds.md): at a dam spot the beaver places wood, mud, and rocks until the level 1 dam
 // is whole. A whole dam wears (15_build_and_repair.md): it is mended by placing wood, mud, and rocks, and a broken one
-// is rebuilt with the full set. Plain data and pure functions, no three.js (ADR 0007).
+// is mended the same way and keeps its level. Plain data and pure functions, no three.js (ADR 0007).
 import { maxLevel, widthFactor, type DamSpot } from './damSpots';
-import { DAM_WORN_DAYS, MEND_PER_WOOD, WORN_BELOW, condition, newWear, stageOf, type Wear } from './wear';
+import { DAM_WORN_DAYS, MEND_PER_WOOD, WORN_BELOW, condition, newWear, type Wear } from './wear';
 
 export interface Dam {
   /** The `DamSpot.id` it stands at. */
@@ -99,12 +99,6 @@ export function raised(dam: Dam | undefined, spot: DamSpot, clock: number): Dam 
   return { ...plain, level, ...(scale !== 1 ? { scale } : {}) };
 }
 
-/** A broken dam is gone to its footings: it has to be built again with the full set, so it counts as one not started. */
-export function settled(dam: Dam | undefined, clock: number, spot: DamSpot): Dam | undefined {
-  if (!dam?.wear || stageOf(damCondition(dam, clock)) !== 'broken') return dam;
-  return newDam(dam.spot, widthFactor(spot, 1));
-}
-
 /** Wood units (a long log is 2, mud 1, a rock 2) still needed to make a worn dam new, 0 for a dam that is not whole. */
 export function damMendUnits(dam: Dam | undefined, clock: number): number {
   if (!dam?.wear || !damWhole(dam)) return 0;
@@ -131,12 +125,12 @@ export const damAt = (dams: readonly Dam[], spot: DamSpot): Dam | undefined => d
 /**
  * The dams with `add` placed at a spot, started if need be. A dam still being built takes each material up to what it
  * needs, and gets its wear record the moment it is whole. A whole dam takes any material as a mend. A good whole dam that
- * the spot can hold bigger is raised to the next level instead (it keeps what it has and takes more). A broken dam starts
- * again from nothing, at level 1. Same list when nothing could be placed. Without `clock` a dam never wears (tests).
+ * the spot can hold bigger is raised to the next level instead (it keeps what it has and takes more). A broken dam is
+ * mended the same way and keeps its level (#646). Same list when nothing could be placed. Without `clock` a dam never wears (tests).
  */
 export function placed(dams: readonly Dam[], spot: DamSpot, add: Partial<Cost>, override?: Cost, clock?: number): Dam[] {
   const stored = damAt(dams, spot);
-  let dam = (clock === undefined ? stored : settled(stored, clock, spot)) ?? newDam(spot.id, widthFactor(spot, 1));
+  let dam = stored ?? newDam(spot.id, widthFactor(spot, 1));
   if (clock !== undefined && !override && (add.wood ?? 0) + (add.mud ?? 0) + (add.rock ?? 0) > 0) dam = raised(dam, spot, clock) ?? dam;
   const cost = override ?? costOf(dam);
   const rest = dams.filter((d) => d.spot !== spot.id);

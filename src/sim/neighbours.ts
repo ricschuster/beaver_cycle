@@ -123,6 +123,38 @@ export function growNeighbours(families: readonly Neighbour[], ground: Terrain, 
   return out;
 }
 
+/** The four other families of a new game (note 42): lodges 50 to 200 m from the home, at least this far from it and from each other. */
+export const START_FAMILIES = 4;
+const START_APART = 50;
+const START_RINGS = [90, 130, 170, 210];
+
+/**
+ * The families beside the player's home at the start of a game, so five lodges stand close together and a late friend can take a
+ * free one. Sites are looked for on rings round the home in eight directions, nearest ring first, the same every time. Fewer than
+ * four come back where the water allows no more. They age with the clock like the other families (`neighboursAt`).
+ */
+export function startFamilies(ground: Terrain, home: { x: number; z: number }): Neighbour[] {
+  const out: Neighbour[] = [];
+  const key = Math.round(home.x * 3 + home.z * 7);
+  for (const r of START_RINGS) {
+    for (let i = 0; i < 8 && out.length < START_FAMILIES; i++) {
+      const a = ((i + (hash(r, key) % 8) / 8) * Math.PI) / 4;
+      const lodge = findSite(ground, home.x + Math.sin(a) * r, home.z + Math.cos(a) * r, 40);
+      if (!lodge || pondParts(lodge, ground).length < MIN_PARTS) continue;
+      const apart = (o: { x: number; z: number }): boolean => Math.hypot(o.x - lodge.x, o.z - lodge.z) >= START_APART;
+      if (!apart(home) || !out.every((o) => apart(o.lodge))) continue;
+      const n = out.length;
+      out.push({
+        id: `family:start:${n}`,
+        lodge: { ...lodge, wood: LODGE_WOOD },
+        parents: [{ coat: hash(n, key + 22) % COAT_COUNT, shade: 0 }, { coat: hash(n, key + 23) % COAT_COUNT, shade: 0 }],
+        seed: hash(n, key + 24),
+      });
+    }
+  }
+  return out;
+}
+
 /** The kits of the litter born in year `year`: how many, and when they were born (game seconds). */
 function litter(n: Neighbour, year: number): { id: string; bornAt: number; coat: Coat }[] {
   const size = 1 + (hash(n.seed, year) % MAX_LITTER);

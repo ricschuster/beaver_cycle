@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS, DAYS_PER_YEAR } from './clock';
 import { lodgeComplete } from './lodge';
-import { growNeighbours, neighboursAt, type Neighbour } from './neighbours';
+import { growNeighbours, neighboursAt, startFamilies, START_FAMILIES, type Neighbour } from './neighbours';
 import { flatTerrain, type Terrain } from './terrain';
 
 /** A lake east of x = 300 that deepens 0.2 m per metre to 6 m. */
@@ -102,5 +102,23 @@ describe('neighbour families', () => {
   it('give the same beavers for the same clock', () => {
     const families = seed().slice(0, 1);
     expect(neighboursAt(families, noon + 1000, lake)).toEqual(neighboursAt(families, noon + 1000, lake));
+  });
+});
+
+describe('starting families', () => {
+  const near = { x: 280, z: 0 };
+  it('are up to four whole lodges close to the home, apart from each other, the same every time', () => {
+    const found = startFamilies(lake, near);
+    expect(found.length).toBeGreaterThan(0);
+    expect(found.length).toBeLessThanOrEqual(START_FAMILIES);
+    for (const a of found) {
+      expect(lodgeComplete(a.lodge)).toBe(true);
+      expect(Math.hypot(a.lodge.x - near.x, a.lodge.z - near.z)).toBeGreaterThanOrEqual(50);
+      for (const b of found) if (a !== b) expect(Math.hypot(a.lodge.x - b.lodge.x, a.lodge.z - b.lodge.z)).toBeGreaterThanOrEqual(50);
+    }
+    expect(startFamilies(lake, near)).toEqual(found);
+  });
+  it('find nothing where there is no water', () => {
+    expect(startFamilies(flatTerrain(0), near)).toEqual([]);
   });
 });

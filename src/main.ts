@@ -15,7 +15,7 @@ import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/lif
 import { formerParentsAt, parentsAt } from './sim/family';
 import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
-import { growNeighbours, neighboursAt } from './sim/neighbours';
+import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
 import { WALK_IN, departsAt, settleFamily, settledId, visitorsAt } from './sim/scent';
 import { DIG_REACH, DIG_TIME, HEAR_RANGE, escortBeaver, nearestStuck, rescue, startEscort, stepEscort, stuckBeaver, stuckNow, whereTo, digging } from './sim/escort';
@@ -299,6 +299,8 @@ async function start(): Promise<void> {
       const wear = newWear(world.clock - age * DAY_SECONDS);
       // The test lodge is not the player's work, so Home counts as won without a toast (design note 21).
       world = { ...world, lodge: { ...site, wood: LODGE_WOOD, wear }, storeWear: wear, achievements: [...world.achievements, 'home'] };
+      // Four more families live close by (note 42, #660). Automated browsers leave them out unless ?families=1, so the tests keep their quiet valley.
+      if (!navigator.webdriver || query.get('families') === '1') world = { ...world, neighbours: startFamilies(terrain, site) };
     }
   }
   // ?stage=baby|teenager|adult starts the beaver at the start of that life stage. A baby starts in the lodge. A game starts as a

@@ -15,8 +15,9 @@ import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/lif
 import { formerParentsAt, parentsAt } from './sim/family';
 import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
+import { cleanAddress, pendingJoin, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
-import { hostSender, joinHost, startHosting, type GuestLink } from './net/session';
+import { hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
 import { applySnapshot, friendBeaver, othersOf } from './net/view';
 import { SEND_HZ, viewOfGuest } from './net/protocol';
 import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
@@ -128,6 +129,14 @@ async function start(): Promise<void> {
       return null;
     }
   })();
+  // The session's storage holds the host to join (src/net/pending.ts); it ends with the app run.
+  const sessionStorageOrNull = (): Storage | null => {
+    try {
+      return sessionStorage;
+    } catch {
+      return null;
+    }
+  };
   // The Settings panel's choices (src/ui/prefs.ts). A dev URL parameter wins over them; the shadows are fixed at the start, so
   // changing them restarts the game.
   const prefs = loadPrefs(storage);
@@ -204,7 +213,8 @@ async function start(): Promise<void> {
     if (wantsWelcome(remembered(WELCOME_KEY), query, navigator.webdriver)) help.showWelcome();
     else if (wantsCoach(remembered(COACH_KEY), query, navigator.webdriver)) coachPending = true;
   }
-  const keptPrefs = (shadows: boolean) => ({ minimap: minimap.mode(), shadows, lang: langChoice });
+  let lastHost = prefs.lastHost;
+  const keptPrefs = (shadows: boolean) => ({ minimap: minimap.mode(), shadows, lang: langChoice, lastHost });
   const shadowsAtStart = (query.has('shadows') ? query.get('shadows') === '1' : prefs.shadows) && !free;
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
     shadows: shadowsAtStart,
@@ -313,7 +323,8 @@ async function start(): Promise<void> {
   // ?host=1 listens for friends (the app only), ?join=IP joins a host's valley as a guest (ADR 0014, #678). The guest shows the host's
   // world, so it starts a grown beaver and never saves.
   const netHost = __DEV_TOOLS__ && query.get('host') === '1';
-  const netJoin = __DEV_TOOLS__ ? query.get('join') : null;
+  // The Join button of Settings keeps the address for the next run (src/net/pending.ts); ?join=IP does the same in a dev build.
+  const netJoin = (__DEV_TOOLS__ ? query.get('join') : null) ?? pendingJoin(sessionStorageOrNull());
   const startAs = netJoin ? 'adult' : STAGES.includes(stageParam as Stage) ? (stageParam as Stage) : navigator.webdriver ? 'adult' : 'baby';
   if (startAs !== 'adult') world = startStage(world, startAs);
   // The saved game (docs/design/26_saving.md): four slots. With a saved game the player picks a slot on the start screen; ?slot=N
@@ -384,18 +395,31 @@ async function start(): Promise<void> {
     window.addEventListener('pagehide', saveNow);
   }
   // The shared valley (ADR 0014): a host holds a room of guests, a guest holds a link to its host.
-  const room = netHost ? new Room(hostSender()) : null;
+  let room: Room | null = null;
+  let hostLine = '';
+  // Starts listening for guests; ?host=1 does it at once, the Host button of Settings later. Only the app can (a browser has no plugin).
+  const beginHosting = (): void => {
+    if (room || netJoin) return;
+    const mine = new Room(hostSender());
+    hostLine = t('together.hostStarting');
+    startHosting(mine, { hostAt: () => world.beaver, terrain }, (s) => menu.setStatus(s)).then(
+      (a) => {
+        room = mine;
+        hostLine = t('together.hosting', { ip: `${a.ip}` });
+        menu.setStatus(`Hosting at ${a.ip}:${a.port}`);
+      },
+      (e) => {
+        hostLine = t('together.hostFailed');
+        menu.setStatus(String(e));
+      },
+    );
+  };
   let link: GuestLink | null = null;
   let guestSnap: ReturnType<typeof othersOf> = [];
   let lastSnap: Parameters<typeof othersOf>[0] = null;
   let netSentAt = 0;
   let gnawPending = false;
-  if (room) {
-    startHosting(room, { hostAt: () => world.beaver, terrain }, (s) => menu.setStatus(s)).then(
-      (a) => menu.setStatus(`Hosting at ${a.ip}:${a.port}`),
-      (e) => menu.setStatus(String(e)),
-    );
-  }
+  if (netHost) beginHosting();
   if (netJoin) link = joinHost(netJoin, { t: 'hello', coat: world.coat, look: world.look });
   let last = performance.now();
 
@@ -449,6 +473,34 @@ async function start(): Promise<void> {
           if (saving) next.set('slot', String(slot));
           const qs = next.toString();
           location.assign(location.pathname + (qs ? `?${qs}` : ''));
+        },
+      },
+      together: {
+        canHost: hostPlugin() !== null,
+        isGuest: !!netJoin,
+        lastHost: () => lastHost,
+        line() {
+          if (!netJoin) return hostLine;
+          if (!link) return '';
+          if (link.id) return t('together.joined', { ip: netJoin });
+          const st = link.status();
+          return st === 'failed' ? t('together.failed', { ip: netJoin }) : st === 'closed' ? t('together.lost') : t('together.joining', { ip: netJoin });
+        },
+        onHost: beginHosting,
+        onJoin(text) {
+          const address = cleanAddress(text);
+          if (!address) return false;
+          lastHost = address;
+          savePrefs(storage, keptPrefs(shadowsAtStart));
+          saveNow();
+          setPendingJoin(sessionStorageOrNull(), address);
+          location.reload();
+          return true;
+        },
+        onLeave() {
+          setPendingJoin(sessionStorageOrNull(), null);
+          link?.close();
+          location.reload();
         },
       },
       language: {

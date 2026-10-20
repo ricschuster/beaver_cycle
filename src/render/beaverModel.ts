@@ -332,17 +332,20 @@ function hatShape(kind: Exclude<(typeof HATS)[number], null>): THREE.Group {
   return g;
 }
 
-/** A scarf wound round the neck, just behind the chin, with a knot and two ends hanging down the chest, in the head's frame. */
+/**
+ * A scarf wound round the neck, in the head's frame. The head sits in the front of the torso, so the neck is the torso's front just
+ * behind the head: the wrap is an upright ring there, round the torso, which covers the back of the neck and the shoulders. The knot
+ * is at the side with two short ends hanging down the chest.
+ */
 function scarfShape(colour: number): THREE.Group {
   const g = new THREE.Group();
-  // The neck is where the head meets the body, behind and below the chin, so the wrap sits there and is wider than the head.
-  const wrap = part(new THREE.TorusGeometry(0.175, 0.07, 10, 24).rotateX(Math.PI / 2), colour, 0, -0.1, -0.08);
-  wrap.scale.set(1.1, 1, 1.05);
+  const wrap = part(new THREE.TorusGeometry(0.2, 0.05, 10, 28), colour, 0, -0.15, -0.22);
+  wrap.scale.set(1.05, 1.0, 1);
   g.add(wrap);
-  g.add(ellipsoid(0.07, 0.065, 0.06, colour, 0.1, -0.12, 0.09));
-  for (const [x, len] of [[0.09, 0.09], [0.14, 0.07]] as const) {
-    const end = ellipsoid(0.035, len, 0.022, colour, x, -0.14 - len * 0.7, 0.125);
-    end.rotation.z = x > 0.12 ? -0.15 : 0.12;
+  g.add(ellipsoid(0.065, 0.06, 0.06, colour, 0.17, -0.2, -0.17));
+  for (const [x, len] of [[0.15, 0.1], [0.2, 0.08]] as const) {
+    const end = ellipsoid(0.03, len, 0.022, colour, x, -0.26 - len * 0.7, -0.15);
+    end.rotation.z = x > 0.17 ? -0.15 : 0.12;
     g.add(end);
   }
   return g;

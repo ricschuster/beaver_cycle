@@ -29,6 +29,7 @@ const SHADE_RADIUS: Record<DreamProp['kind'], number> = {
   iceCream: 0.8,
   marshmallowRock: 1.3,
   cottonCandy: 1.3,
+  cottonBush: 1.5,
   lettuceTree: 1.3,
   broccoliTree: 1.5,
   leek: 0.5,

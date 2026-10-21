@@ -159,6 +159,47 @@ function cottonCandy(colour: number, random: () => number): THREE.BufferGeometry
   return merge(parts);
 }
 
+/** A cotton candy bush (wish 1): a low heap of spun sugar puffs close to the ground, in two colours. About 1.3 m high, 1.6 m across. */
+function cottonBush(colour: number, random: () => number): THREE.BufferGeometry {
+  const main = COTTON[((colour % 3) + 3) % 3]!;
+  const swirl = COTTON[(((colour + 1) % 3) + 3) % 3]!;
+  const fluff = (base: THREE.Color): THREE.BufferGeometry =>
+    paint(new THREE.SphereGeometry(1, 9, 6), () => base.clone().lerp(WHITE, 0.08 + random() * 0.25));
+  const parts = [put(fluff(main), 0, 0.55, 0, 0, 0, 0, 0.8, 0.62, 0.8)];
+  const puffs = 6;
+  for (let i = 0; i < puffs; i++) {
+    const a = (i / puffs) * Math.PI * 2 + random() * 0.6;
+    const out = 0.45 + random() * 0.25;
+    const r = 0.3 + random() * 0.14;
+    parts.push(put(fluff(i % 2 === 1 ? swirl : main), Math.cos(a) * out, 0.3 + random() * 0.35, Math.sin(a) * out, 0, 0, 0, r, r * 0.85, r));
+  }
+  parts.push(put(fluff(swirl), 0.05, 1.05, -0.03, 0, 0, 0, 0.3, 0.26, 0.3));
+  return merge(parts);
+}
+
+/**
+ * A cotton candy boat (wish 1, Q80): a round bowl of spun sugar, long and low, with a ring of puffs on its rim and a curled
+ * bow. Its bow points along +z and it floats with its rim 0.4 m over the chocolate, about 1.4 m wide and 2.8 m long. `colour` picks pink, sky blue or lilac.
+ */
+export function cottonBoat(colour: number, random: () => number = () => 0.5): THREE.BufferGeometry {
+  const main = COTTON[((colour % 3) + 3) % 3]!;
+  const swirl = COTTON[(((colour + 1) % 3) + 3) % 3]!;
+  const fluff = (base: THREE.Color, segments = 12): THREE.BufferGeometry =>
+    paint(new THREE.SphereGeometry(1, segments, 7), () => base.clone().lerp(WHITE, 0.06 + random() * 0.2));
+  // The hull is the lower half of a sphere, squashed long and low, and its inside floor is a pale disc a little over the water.
+  const hull = paint(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), () => main.clone().lerp(WHITE, 0.05 + random() * 0.15));
+  const parts = [put(hull, 0, 0.4, 0, 0, 0, 0, 0.72, 0.55, 1.4)];
+  parts.push(put(plainPaint(new THREE.CircleGeometry(1, 14).rotateX(-Math.PI / 2), WHITE.clone().lerp(main, 0.25)), 0, 0.1, 0, 0, 0, 0, 0.52, 1, 1.15));
+  const rim = 10;
+  for (let i = 0; i < rim; i++) {
+    const a = (i / rim) * Math.PI * 2;
+    parts.push(put(fluff(i % 2 === 0 ? main : swirl, 8), Math.sin(a) * 0.72, 0.4, Math.cos(a) * 1.4, 0, 0, 0, 0.17, 0.15, 0.17));
+  }
+  // A curled bow: a few puffs that climb in front.
+  [[0, 0.55, 1.5, 0.2], [0, 0.72, 1.62, 0.16], [0, 0.88, 1.66, 0.12]].forEach(([x, y, z, r]) => parts.push(put(fluff(swirl, 8), x!, y!, z!, 0, 0, 0, r!, r!, r!)));
+  return merge(parts);
+}
+
 /** A sugared dome. */
 function drop(colour: THREE.Color, random: () => number, segments = 12): THREE.BufferGeometry {
   const geo = lathe([[0, 0], [0.8, 0], [0.84, 0.07], [0.8, 0.28], [0.68, 0.58], [0.46, 0.82], [0.2, 0.94], [0, 0.96]], segments);
@@ -336,6 +377,7 @@ const SHAPES: Partial<Record<PropKind, (colour: number, random: () => number) =>
   iceCream,
   marshmallowRock,
   cottonCandy,
+  cottonBush,
 };
 
 /** The shape of one prop at size 1, standing on the origin and facing +z, the same every time for the same prop. */

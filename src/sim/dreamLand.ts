@@ -37,6 +37,7 @@ export const PROP_RADIUS: Readonly<Record<PropKind, number>> = {
   iceCream: 0.35,
   marshmallowRock: 0.8,
   cottonCandy: 0.2,
+  cottonBush: 0.8,
   lettuceTree: 0.25,
   broccoliTree: 0.3,
   leek: 0.15,
@@ -199,13 +200,14 @@ function makePath(rand: () => number, river: readonly DreamPoint[], width: numbe
 }
 
 const PROP_KINDS: readonly [PropKind, number][] = [
-  ['lollipop', 0.21],
-  ['gumdrop', 0.19],
+  ['lollipop', 0.16],
+  ['gumdrop', 0.12],
   ['candyCane', 0.12],
   ['cupcake', 0.11],
   ['iceCream', 0.1],
   ['marshmallowRock', 0.12],
   ['cottonCandy', 0.15],
+  ['cottonBush', 0.12],
 ];
 
 /** The veggie garden's props: lettuce and broccoli trees, leeks, bean poles, and the cabbages, pumpkins and radishes that hide a beaver. */

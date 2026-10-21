@@ -1,7 +1,7 @@
 // A page that shows the dream's candy land (dreamView.ts) for the art pass, not the game. Run `npm run dev` and open
 // /tools/dream-preview/. Query: ?seed=N, &t=seconds (freezes the time), &yaw=degrees&pitch=degrees&dist=metres for the camera,
 // &swim=1 (the beaver in the chocolate), &tag=1 (the first mallow is it, or
-// &tag=player), &giggle=1 (the second mallow hides and giggles), &hop=1 (the mallows hop every second), &slap=1 (the beaver slaps its tail), &statue=1 (beside the golden statue), &build=1&logs=N (a candy dam and lodge, a log carried), &cycle=N (make and free N views first). Drag to turn the
+// &tag=player), &giggle=1 (the second mallow hides and giggles), &hop=1 (the mallows hop every second), &slap=1 (the beaver slaps its tail), &pond=1 (on the bank of the first pond), &statue=1 (beside the golden statue), &build=1&logs=N (a candy dam and lodge, a log carried), &cycle=N (make and free N views first). Drag to turn the
 // camera, wheel to zoom. Writes the draw calls and triangles to `window.dreamStats`.
 import { createDreamView } from '../../src/render/dreamView';
 import { createCameraRig } from '../../src/render/cameraRig';
@@ -24,7 +24,7 @@ function fixture(seed: number): DreamState {
       props.push({ id: `${kind}${i}`, kind, x: side * (5 + k * 3 + (i % 3)), z: -34 + i * 5 + k, size: 0.7 + ((i * 37) % 9) / 10, yaw: i * 1.3, colour: (i + k) % 7, hide: kind === 'cupcake' });
     }
   });
-  const land: DreamLand = { seed, half: 80, path, river, riverWidth: 9, start: { x: 0, z: -30, heading: 0 }, props, statue: { x: 8, z: -20 } };
+  const land: DreamLand = { seed, half: 80, path, river, riverWidth: 9, start: { x: 0, z: -30, heading: 0 }, props, statue: { x: 8, z: -20 }, ponds: [] };
   const sweets: Sweet[] = [];
   path.forEach((p, i) => {
     if (i % 3 === 0) sweets.push({ id: `s${i}`, kind: i % 9 === 0 ? 'star' : i % 2 === 0 ? 'drop' : 'swirl', x: p.x, z: p.z, colour: i % 7, floating: false, taken: false });
@@ -103,6 +103,14 @@ if (q.get('statue') === '1') {
   const st = state.land.statue;
   b.x = st.x - 3;
   b.z = st.z;
+  b.heading = Math.PI / 2;
+  b.y = ground(b.x, b.z);
+}
+if (q.get('pond') === '1' && state.land.ponds[0]) {
+  // On the bank of the first pond, looking in.
+  const o = state.land.ponds[0];
+  b.x = o.x - o.r - 1.5;
+  b.z = o.z;
   b.heading = Math.PI / 2;
   b.y = ground(b.x, b.z);
 }

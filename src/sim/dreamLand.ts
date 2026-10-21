@@ -3,7 +3,7 @@
 // measured from the chocolate's surface; dream.ts adds `CHOCOLATE_LEVEL`. The land itself stays plain data: what makes the
 // height quick (distance grids to the river and the path) is worked out once per land and kept in a WeakMap.
 // Pure, no DOM, no three.js.
-import type { DreamLand, DreamPoint, DreamProp, PropKind } from './dream';
+import type { DreamLand, DreamPoint, DreamPond, DreamProp, PropKind } from './dream';
 
 /** The land is this many metres either side of the middle. */
 export const DREAM_HALF = 80;
@@ -12,6 +12,9 @@ export const HILL_WIDTH = 15;
 const HILL_TOP = 12;
 /** The river bed in the middle of the chocolate is this deep. */
 export const RIVER_BED = 1.2;
+/** Ponds are this deep in the middle, and their bank climbs over this many metres (wish 8). */
+export const POND_BED = 0.9;
+const POND_BANK = 3;
 /** The bank climbs from the chocolate's edge to the land over this many metres. */
 const BANK = 5;
 /** River and path points are about this far apart (metres). */
@@ -210,7 +213,7 @@ const GROVE = 10;
 const HIDE_SHARE = 0.42;
 
 /** About 60 to 90 props: groups along the path, so the walk goes through candy, and the rest over the land. */
-function makeProps(rand: () => number, river: readonly DreamPoint[], width: number, path: readonly DreamPoint[]): DreamProp[] {
+function makeProps(rand: () => number, river: readonly DreamPoint[], width: number, path: readonly DreamPoint[], ponds: readonly DreamPond[]): DreamProp[] {
   const props: DreamProp[] = [];
   const want = 60 + Math.floor(rand() * 31);
   const tryPlace = (x: number, z: number, kind = pickKind(rand), size = 0.6 + rand() * 1.0): boolean => {
@@ -218,6 +221,7 @@ function makeProps(rand: () => number, river: readonly DreamPoint[], width: numb
     if (Math.abs(x) > INNER || Math.abs(z) > INNER) return false;
     if (lineDistance(path, x, z) < Math.max(PATH_CLEAR, r + 0.6)) return false;
     if (lineDistance(river, x, z) < width / 2 + BANK_CLEAR + r) return false;
+    if (ponds.some((o) => Math.hypot(o.x - x, o.z - z) < o.r + BANK_CLEAR + r)) return false;
     for (const p of props) {
       const gap = PROP_RADIUS[p.kind] * p.size + r + 1.2;
       if ((p.x - x) ** 2 + (p.z - z) ** 2 < gap * gap) return false;
@@ -276,9 +280,35 @@ export function makeLand(seed: number): DreamLand {
   const a = path[0]!;
   const b = path[1] ?? a;
   const start = { x: a.x, z: a.z, heading: Math.atan2(b.x - a.x, b.z - a.z) };
-  const props = makeProps(rand, river, riverWidth, path);
-  const statue = makeStatue(mixSeed(seed, 5), river, riverWidth, path, props);
-  return { seed, half: DREAM_HALF, path, river, riverWidth, start, props, statue };
+  const ponds = makePonds(mixSeed(seed, 6), river, riverWidth, path, start);
+  const props = makeProps(rand, river, riverWidth, path, ponds);
+  const statue = makeStatue(mixSeed(seed, 5), river, riverWidth, path, props, ponds);
+  return { seed, half: DREAM_HALF, path, river, riverWidth, start, props, statue, ponds };
+}
+
+/** Two or three chocolate ponds beside the river, each a strip of land away from it and from the path (wish 8). */
+function makePonds(state: number, river: readonly DreamPoint[], width: number, path: readonly DreamPoint[], start: DreamPoint): DreamPond[] {
+  const rand = rngFrom(state).next;
+  const want = 2 + (rand() < 0.5 ? 1 : 0);
+  const ponds: DreamPond[] = [];
+  for (let attempt = 0; attempt < 600 && ponds.length < want; attempt++) {
+    const i = 1 + Math.floor(rand() * (river.length - 2));
+    const p = river[i]!;
+    const a = river[i - 1]!;
+    const b = river[i + 1]!;
+    const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const side = rand() < 0.5 ? 1 : -1;
+    const r = 5 + rand() * 3;
+    const off = width / 2 + r + 5 + rand() * 10;
+    const x = p.x - ((b.z - a.z) / len) * off * side;
+    const z = p.z + ((b.x - a.x) / len) * off * side;
+    if (Math.abs(x) > INNER - r - 1 || Math.abs(z) > INNER - r - 1) continue;
+    if (lineDistance(river, x, z) < width / 2 + r + 4) continue;
+    if (lineDistance(path, x, z) < r + 5 || Math.hypot(x - start.x, z - start.z) < r + 10) continue;
+    if (ponds.some((o) => Math.hypot(o.x - x, o.z - z) < o.r + r + 8)) continue;
+    ponds.push({ x, z, r });
+  }
+  return ponds;
 }
 
 /** The golden beaver statue stands this far off the path (metres): a few steps, so it is a find and not a hunt. */
@@ -294,6 +324,7 @@ function makeStatue(
   width: number,
   path: readonly DreamPoint[],
   props: readonly DreamProp[],
+  ponds: readonly DreamPond[] = [],
 ): DreamPoint {
   const rand = rngFrom(state).next;
   const first = Math.floor(path.length * 0.3);
@@ -301,6 +332,7 @@ function makeStatue(
     Math.abs(x) <= INNER &&
     Math.abs(z) <= INNER &&
     lineDistance(river, x, z) > width / 2 + BANK_CLEAR + STATUE_RADIUS &&
+    ponds.every((o) => Math.hypot(o.x - x, o.z - z) > o.r + BANK_CLEAR + STATUE_RADIUS) &&
     props.every((p) => (p.x - x) ** 2 + (p.z - z) ** 2 > (PROP_RADIUS[p.kind] * p.size + STATUE_RADIUS + 0.8) ** 2);
   for (let attempt = 0; attempt < 400; attempt++) {
     const i = Math.max(1, Math.min(path.length - 2, first + Math.floor(rand() * (path.length - first))));
@@ -375,6 +407,7 @@ function field(land: DreamLand): Field {
     spots.push(p, { x: p.x + nx * (w2 + 1.5), z: p.z + nz * (w2 + 1.5) }, { x: p.x - nx * (w2 + 1.5), z: p.z - nz * (w2 + 1.5) });
   });
   for (const p of land.path) if (keep(p)) spots.push(p);
+  for (const o of land.ponds) spots.push({ x: o.x, z: o.z }, ...[0, 1, 2, 3].map((i) => ({ x: o.x + Math.sin((i / 4) * TAU + 0.4) * o.r * 0.5, z: o.z + Math.cos((i / 4) * TAU + 0.4) * o.r * 0.5 })));
   const made: Field = { half, n, river, path, k, ph, spots };
   fields.set(land, made);
   return made;
@@ -417,6 +450,13 @@ export function landRise(land: DreamLand, x: number, z: number): number {
     const t = (r - w2) / BANK;
     h = ground * (1 - (1 - t) * (1 - t));
   } else h = ground;
+  // Ponds: a round bowl of chocolate with its own gentle bank.
+  for (const pond of land.ponds) {
+    const d = Math.hypot(x - pond.x, z - pond.z);
+    if (d >= pond.r + POND_BANK) continue;
+    const bowl = d < pond.r ? -POND_BED * (1 - (d / pond.r) ** 2) : h * (1 - (1 - (d - pond.r) / POND_BANK) ** 2);
+    if (bowl < h) h = bowl;
+  }
   // The candy hills at the edges, with a gap where the river runs out.
   const m = Math.max(Math.abs(x), Math.abs(z));
   const t = clamp((m - (land.half - HILL_WIDTH)) / HILL_WIDTH, 0, 1);

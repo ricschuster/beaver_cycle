@@ -57,7 +57,7 @@ export function dreamLine(event: DreamEvent, state: DreamState, n: number): stri
   const one = (key: string, params?: Record<string, string | number>): string => pick(tList(key, params), n);
   switch (event.what) {
     case 'sweet':
-      return event.kind === 'star' ? one('dream.star') : null;
+      return event.kind === 'star' ? one('dream.star') : event.kind === 'lily' ? one('dream.lily') : null;
     case 'chop':
       return one('dream.chopped');
     case 'build':

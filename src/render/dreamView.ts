@@ -118,6 +118,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   scene.add(ground);
   const river = createChocolateRiver(land);
   scene.add(river.mesh);
+  for (const pond of river.ponds) scene.add(pond);
   const candyMaterial = (shininess: number): THREE.MeshPhongMaterial => new THREE.MeshPhongMaterial({ vertexColors: true, shininess, specular: 0x3a3a3a });
   scene.add(new THREE.Mesh(pathStones(land.path, heightAt), candyMaterial(50)));
 
@@ -261,7 +262,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     plain: new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x555555 }),
     star: new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0xd8a018, emissiveIntensity: 0.7 }),
   };
-  const sweetMeshes: Record<SweetKind, THREE.InstancedMesh[]> = { drop: [], swirl: [], star: [] };
+  const sweetMeshes: Record<SweetKind, THREE.InstancedMesh[]> = { drop: [], swirl: [], star: [], lily: [] };
   const makeSweetMeshes = (kind: SweetKind, room: number): void => {
     for (const old of sweetMeshes[kind]) {
       scene.remove(old);
@@ -276,7 +277,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       return mesh;
     });
   };
-  for (const kind of ['drop', 'swirl', 'star'] as const) makeSweetMeshes(kind, 48);
+  for (const kind of ['drop', 'swirl', 'star', 'lily'] as const) makeSweetMeshes(kind, 48);
   const starGlowTex = keep(dotTexture());
   const STAR_GLOWS = 64;
   const starGlowGeo = new THREE.BufferGeometry();
@@ -299,14 +300,14 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     const time = state.time;
     const glow = starGlowGeo.getAttribute('position') as THREE.BufferAttribute;
     let glows = 0;
-    for (const kind of ['drop', 'swirl', 'star'] as const) {
+    for (const kind of ['drop', 'swirl', 'star', 'lily'] as const) {
       const shown = state.sweets.filter((s) => s.kind === kind && !s.taken);
       if (shown.length > (sweetMeshes[kind][0]?.instanceMatrix.count ?? 0)) makeSweetMeshes(kind, Math.ceil(shown.length * 1.5));
       shown.forEach((s, i) => {
         const phase = phaseOf(s.id);
         const y = sweetHeight(s, heightAt(s.x, s.z), time, phase);
         // Spin about the upright, a star faster; a drop also rocks a little.
-        e.set(kind === 'drop' ? 0.25 * Math.sin(time * 2 + phase) : 0, time * (kind === 'star' ? 2.2 : 1.3) + phase, 0);
+        e.set(kind === 'drop' ? 0.25 * Math.sin(time * 2 + phase) : 0, time * (kind === 'star' ? 2.2 : kind === 'lily' ? 0.15 : 1.3) + phase, 0);
         m4.compose(v3.set(s.x, y, s.z), q.setFromEuler(e), s3.set(1, 1, 1));
         tint.copy(candy(s.colour, 0.04));
         for (const mesh of sweetMeshes[kind]) {
@@ -526,7 +527,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
           for (const m of Array.isArray(o.material) ? o.material : [o.material]) materials.add(m);
         }
       });
-      for (const kind of ['drop', 'swirl', 'star'] as const) for (const part of shapes[kind]) geometries.add(part.geometry);
+      for (const kind of ['drop', 'swirl', 'star', 'lily'] as const) for (const part of shapes[kind]) geometries.add(part.geometry);
       for (const mesh of propMeshes) geometries.add(mesh.geometry);
       river.dispose();
       sparkles.dispose();

@@ -36,7 +36,7 @@ export function dreamCues(events: readonly DreamEvent[]): Cue[] {
   for (const e of events) {
     switch (e.what) {
       case 'sweet':
-        cues.push({ effect: e.kind === 'drop' ? 'chime' : e.kind === 'swirl' ? 'chimeHigh' : 'chimeStar', gain: 0.6 });
+        cues.push({ effect: e.kind === 'lily' ? 'eat' : e.kind === 'drop' ? 'chime' : e.kind === 'swirl' ? 'chimeHigh' : 'chimeStar', gain: 0.6 });
         break;
       case 'chop':
         cues.push({ effect: 'chop', gain: 0.7 });

@@ -22,7 +22,7 @@ const mallow = (id: string, name: string): Mallow => ({
 
 /** A dream by hand, with only what the screen reads: the mallows, the time and the game. */
 const dream = (game: DreamGame = { kind: 'none' }, time = 0): DreamState => ({
-  land: { seed: 1, half: 80, path: [], river: [], riverWidth: 8, start: { x: 0, z: 0, heading: 0 }, props: [], statue: { x: 5, z: 5 } },
+  land: { seed: 1, half: 80, path: [], river: [], riverWidth: 8, start: { x: 0, z: 0, heading: 0 }, props: [], statue: { x: 5, z: 5 }, ponds: [] },
   time,
   beaver: { x: 0, y: 0, z: 0, heading: 0, speed: 0, mode: 'walk', hopAt: null, slapAt: null },
   mallows: [mallow('m0', 'Puff'), mallow('m1', 'Squish')],

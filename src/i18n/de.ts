@@ -1016,6 +1016,7 @@ export const de: Partial<Table> = {
   'dream.keepAsk': 'Deinen Zuckerdamm und Zuckerbau für die nächsten Träume behalten?',
   'dream.keep': 'Behalten',
   'dream.letGo': 'Loslassen',
+  'dream.lily': ['Mmh, ein Seerosenblatt aus weißer Schokolade!', 'Nom! Süßes Seerosenblatt!', 'Ein cremiges Seerosenblatt!'],
   'dream.chop': 'Den Zuckerbaum fällen',
   'dream.startDam': 'Einen Zuckerdamm beginnen',
   'dream.addDam': 'Den Stamm auf den Damm legen',

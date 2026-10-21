@@ -28,6 +28,7 @@ start screen instead, so tick "Let friends join this game" and Continue there (a
 
 - `gift.mjs 9301 9302` - the host (an adult, standing on a lily pad, the test menu has Adult) takes a pad and hands it to the guest
   beside it with Do, the guest hands it back (#663). Keys: E is Do, G is Take.
+- `partner.mjs 9301 9302` - the host and a guest within 4 m, both adults with empty mouths: the host asks with Do, the guest says yes with Do, and the script prints the Do label and the toast of each tablet (#666).
 
 A guest is a thin client, so `__game.goToSpot` does nothing on it (the host steps its beaver); walk it with `walk.mjs`.
 Food put down in the water cannot be picked up again by a swimming beaver (Take reads item only on land).

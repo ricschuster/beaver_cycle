@@ -252,7 +252,6 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
     housed = { ...beaver, ...doorPoint(home, ENTER_DISTANCE), y: home.base, mode: 'walk' };
     chop = null;
     haul = null;
-    carry = null;
     drag = null;
   }
   return { guest: { ...guest, beaver: housed, chop, haul, carry, drag, pace: len > 0 ? 1 : 0, inside }, felled, logs, dams, rocksTaken, dropped, picked, stripped, pairLodges };

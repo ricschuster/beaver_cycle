@@ -174,6 +174,13 @@ describe('guest beavers', () => {
       expect(Math.hypot(r.guest.beaver.x - home.x, r.guest.beaver.z - home.z)).toBeLessThan(INTERIOR_RADIUS);
     });
 
+    it('keeps the piece in its mouth through the door, so it can eat it in the room', () => {
+      const g = { ...diver(newGuest('g1', at, deep, coat, undefined)), carry: 'lily' as const };
+      const r = stepGuest(g, { ...noIntent(), move: { x: -1, z: 0 }, dive: true }, 0.05, withHome, deep, noTrees);
+      expect(r.guest.inside).toBe(true);
+      expect(r.guest.carry).toBe('lily');
+    });
+
     it('does not go in at a lodge that is not whole, is broken, or is another pair\'s', () => {
       const g = diver(newGuest('g1', at, deep, coat, undefined));
       const go = { ...noIntent(), move: { x: -1, z: 0 }, dive: true };

@@ -1,13 +1,15 @@
 // The dream's scene (docs/design/29_dream_candy_land.md): candy land drawn with three.js on its own canvas, made when a dream
 // starts and thrown away on waking. It reads the dream's state and never changes it.
 import * as THREE from 'three';
-import { CHOCOLATE, CHOCOLATE_LEVEL, dreamHeight, type DreamBeaver, type DreamEvent, type DreamLand, type DreamState, type Sweet, type SweetKind } from '../sim/dream';
+import { CHOCOLATE_LEVEL, GROW_STAGES, VEGS, dreamHeight, type DreamBeaver, type DreamEvent, type DreamLand, type DreamState, type Sweet, type SweetKind, type VegKind } from '../sim/dream';
 import { SWIM_SINK } from '../sim/state';
 import type { ViewState } from './cameraRig';
 import { SLAP_DURATION, type BeaverModel } from './beaverModel';
-import { FAR_MALLOW, disposeModel, dreamPlayer, candyBuild, goldenStatue, leapPitch, mallowFar, mallowModel, placeMallow } from './dreamBeavers';
+import { FAR_MALLOW, disposeModel, dreamPlayer, candyBuild, goldenStatue, leapPitch, mallowFar, mallowModel, placeMallow, veggiePlayer } from './dreamBeavers';
+import { bedsGeometry, disposePlants, plantGeometry, wateringCan } from './gardenProps';
+import { lookOf } from './dreamLook';
 import { candy, pathStones, propsGeometry, starShape, sweetShapes } from './dreamProps';
-import { DREAM_FOG, cloudRing, createChocolateRiver, farScoops, groundGeometry, hillScoops, skyDome, sunTexture } from './dreamScenery';
+import { cloudRing, createChocolateRiver, farScoops, groundGeometry, hillScoops, skyDome, sunTexture } from './dreamScenery';
 import { createParticles, dotTexture, giggleTexture, shadowTexture, sparkleTexture } from './dreamEffects';
 import { seedOf } from './propShapes';
 
@@ -74,6 +76,8 @@ export function sweetHeight(sweet: Pick<Sweet, 'floating'>, ground: number, time
 
 /** The scene for one night's land, with the player as a rainbow marshmallow beaver. The canvas fills `parent`. */
 export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView {
+  const look = lookOf(land);
+  const veggie = land.theme === 'veggie';
   const gl = new THREE.WebGLRenderer({ antialias: true });
   gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, DREAM_PIXEL_RATIO));
   const canvas = gl.domElement;
@@ -87,9 +91,9 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   const surfaceAt = (x: number, z: number): number => Math.max(heightAt(x, z), CHOCOLATE_LEVEL);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(DREAM_FOG);
-  scene.fog = new THREE.Fog(DREAM_FOG, 45, 290);
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
+  scene.background = new THREE.Color(look.fog);
+  scene.fog = new THREE.Fog(look.fog, 45, veggie ? 380 : 290);
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, veggie ? 1200 : 900);
   const textures: THREE.Texture[] = [];
   const keep = <T extends THREE.Texture>(t: T): T => {
     textures.push(t);
@@ -97,18 +101,18 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   };
 
   // Soft light: a warm pink white sky over a pink ground glow, and a gentle sun from high on one side.
-  scene.add(new THREE.HemisphereLight(0xfff6fb, 0xf3c3d6, 2.2));
+  scene.add(new THREE.HemisphereLight(look.hemiSky, look.hemiGround, 2.2));
   const sunDir = new THREE.Vector3(-0.4, 0.8, -0.45).normalize();
-  const sun = new THREE.DirectionalLight(0xfff0dc, 1.35);
+  const sun = new THREE.DirectionalLight(look.sun, 1.35);
   sun.position.copy(sunDir).multiplyScalar(100);
   scene.add(sun);
 
-  const sky = skyDome(600);
+  const sky = skyDome(veggie ? 800 : 600, look);
   scene.add(sky);
-  const clouds = cloudRing(380, land.seed);
+  const clouds = cloudRing(veggie ? 520 : 380, land.seed, look);
   scene.add(clouds);
   const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: keep(sunTexture()), fog: false, depthWrite: false, transparent: true }));
-  sunSprite.scale.setScalar(150);
+  sunSprite.scale.setScalar(veggie ? 200 : 150);
   sunSprite.renderOrder = -1;
   scene.add(sunSprite);
   scene.add(farScoops(land));
@@ -120,11 +124,11 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   scene.add(river.mesh);
   for (const pond of river.ponds) scene.add(pond);
   const candyMaterial = (shininess: number): THREE.MeshPhongMaterial => new THREE.MeshPhongMaterial({ vertexColors: true, shininess, specular: 0x3a3a3a });
-  scene.add(new THREE.Mesh(pathStones(land.path, heightAt), candyMaterial(50)));
+  scene.add(new THREE.Mesh(pathStones(land.path, heightAt, 1.7, veggie), candyMaterial(50)));
 
   // The props, merged by patches of land, so the patches behind the camera are not drawn. A chopped tree makes a new land with
   // one prop fewer, and the patches are made again.
-  const PATCHES = 3;
+  const PATCHES = veggie ? 5 : 3;
   const patchOf = (v: number): number => Math.min(PATCHES - 1, Math.max(0, Math.floor(((v + land.half) / (land.half * 2)) * PATCHES)));
   const propMaterial = candyMaterial(40);
   let propMeshes: THREE.Mesh[] = [];
@@ -172,7 +176,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   // Sugar twinkles over the meadow: tiny points that flash now and then, each at its own beat.
   const twinkleTime = { value: 0 };
   {
-    const n = 1400;
+    const n = veggie ? 2400 : 1400;
     const pos: number[] = [];
     const phase: number[] = [];
     let s = land.seed * 9301 + 49297;
@@ -191,7 +195,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('phase', new THREE.Float32BufferAttribute(phase, 1));
-    const material = new THREE.PointsMaterial({ size: 0.32, map: keep(sparkleTexture()), color: 0xffffff, transparent: true, depthWrite: false });
+    const material = new THREE.PointsMaterial({ size: 0.32, map: keep(sparkleTexture()), color: veggie ? 0xfff6b0 : 0xffffff, transparent: true, depthWrite: false });
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = twinkleTime;
       shader.vertexShader = `attribute float phase;\nuniform float uTime;\n${shader.vertexShader}`.replace(
@@ -203,7 +207,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   }
 
   // The beavers: the player's rainbow one, and a marshmallow beaver for each one in the dream, made when first seen.
-  const player = dreamPlayer();
+  const player = veggie ? veggiePlayer() : dreamPlayer();
   scene.add(player.group);
   const mallows = new Map<string, { model: BeaverModel; far: THREE.Mesh }>();
 
@@ -215,6 +219,55 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   statueGlow.position.y = 0.8;
   statue.add(statueGlow);
   scene.add(statue);
+
+
+  // The garden beds (Q88): posts round each, and a plant in each that grows as it is watered. A bed with no game yet has a sprout.
+  const bedMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const plantMeshes = new Map<string, { mesh: THREE.Mesh; veg: string; stage: number }>();
+  const beds = land.beds ?? [];
+  if (beds.length > 0) {
+    const posts = new THREE.Mesh(bedsGeometry(beds, heightAt), bedMaterial);
+    scene.add(posts);
+  }
+  const vegOfBed = (i: number): VegKind => VEGS[i % VEGS.length]!;
+  const drawPlants = (state: DreamState): void => {
+    beds.forEach((bed, i) => {
+      const plant = state.plants?.find((p) => p.bed === i);
+      const veg = plant ? (plant.owner === 'player' ? vegOfBed(i) : state.mallows.find((m) => m.id === plant.owner)?.veg ?? vegOfBed(i)) : vegOfBed(i);
+      const stage = plant?.stage ?? 0;
+      const shown = plantMeshes.get(String(i));
+      if (shown && shown.stage === stage && shown.veg === veg) return;
+      if (shown) scene.remove(shown.mesh);
+      const mesh = new THREE.Mesh(plantGeometry(veg, stage, GROW_STAGES), bedMaterial);
+      mesh.position.set(bed.x, heightAt(bed.x, bed.z) - 0.02, bed.z);
+      scene.add(mesh);
+      plantMeshes.set(String(i), { mesh, veg, stage });
+    });
+  };
+  // A watering can in the paws of whoever has a full one, and a gold star over the player's own bed while a game is on.
+  const canGeometry = wateringCan();
+  const canMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const cans = new Map<string, THREE.Mesh>();
+  const canOf = (id: string): THREE.Mesh => {
+    let c = cans.get(id);
+    if (!c) {
+      c = new THREE.Mesh(canGeometry, canMaterial);
+      c.visible = false;
+      scene.add(c);
+      cans.set(id, c);
+    }
+    return c;
+  };
+  const showCan = (id: string, b: { x: number; y: number; z: number; heading: number }, full: boolean): void => {
+    const c = canOf(id);
+    c.visible = full;
+    if (!full) return;
+    c.position.set(b.x + Math.sin(b.heading) * 0.42 + Math.cos(b.heading) * 0.12, b.y + 0.18, b.z + Math.cos(b.heading) * 0.42 - Math.sin(b.heading) * 0.12);
+    c.rotation.y = b.heading;
+  };
+  const bedStar = new THREE.Mesh(starShape(0.28, 0.08, new THREE.Color(0xffd84d)), new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0xc89a10, emissiveIntensity: 0.8 }));
+  bedStar.visible = false;
+  scene.add(bedStar);
 
   // A soft round shadow under each beaver, all in one instanced mesh.
   const shadowCount = 16;
@@ -257,7 +310,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   scene.add(marker);
 
   // The sweets, one instanced mesh per part of each kind, grown when there are more sweets than room.
-  const shapes = sweetShapes();
+  const shapes = sweetShapes(land.theme);
   const sweetMaterials = {
     plain: new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x555555 }),
     star: new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0xd8a018, emissiveIntensity: 0.7 }),
@@ -333,11 +386,11 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   const drops = createParticles(60, keep(dotTexture()), 0.16, 9);
   scene.add(drops.points);
   const GOLD = [0xffe066, 0xfff4c2, 0xffffff].map((c) => new THREE.Color(c));
-  const CONFETTI = [0, 1, 2, 3, 4, 5].map((i) => candy(i, 0)).concat(new THREE.Color(0xffffff));
-  const CHOC = [new THREE.Color(CHOCOLATE), new THREE.Color(0x8a5030)];
+  const CONFETTI = veggie ? [0x8fd860, 0xf2831c, 0xe8402e, 0xe0407a, 0xffd633, 0xffffff].map((c) => new THREE.Color(c)) : [0, 1, 2, 3, 4, 5].map((i) => candy(i, 0)).concat(new THREE.Color(0xffffff));
+  const CHOC = look.drops.map((c) => new THREE.Color(c));
   const ringGeo = new THREE.RingGeometry(0.7, 1, 32).rotateX(-Math.PI / 2);
   const rings = [0, 1, 2].map(() => {
-    const mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x9a6038, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    const mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: look.ring, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     mesh.visible = false;
     scene.add(mesh);
     return { mesh, at: -Infinity };
@@ -382,8 +435,10 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       else if (ev.what === 'chop') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 1, ev.z, time, 20, CONFETTI, 2.4, 2, 0.9);
       else if (ev.what === 'build') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.8, ev.z, time, ev.done ? 40 : 14, ev.done ? GOLD : CONFETTI, 3, 2.2, 1);
       else if (ev.what === 'statue') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.8, ev.z, time, 40, GOLD, 3.5, 2.5, 1.2);
+      else if (ev.what === 'water') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.9, ev.z, time, 16, CONFETTI, 2.2, 1.8, 0.9);
+      else if (ev.what === 'fill') drops.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.3, ev.z, time, 10, CHOC, 2.6, 1.6, 0.8);
       else if (ev.what === 'rush') sparkles.emit(b.x, b.y + 0.5, b.z, time, 24, GOLD, 3, 2.2, 1);
-      else if (ev.what === 'shower' || ev.what === 'tagEnd' || ev.what === 'seekEnd' || ev.what === 'hideEnd') sparkles.emit(b.x, b.y + 1.5, b.z, time, 50, CONFETTI, 4.5, 3.5, 1.4);
+      else if (ev.what === 'shower' || ev.what === 'growEnd' || ev.what === 'tagEnd' || ev.what === 'seekEnd' || ev.what === 'hideEnd') sparkles.emit(b.x, b.y + 1.5, b.z, time, 50, CONFETTI, 4.5, 3.5, 1.4);
       else if (ev.what === 'found' || ev.what === 'spotted' || ev.what === 'greet') {
         const m = near(ev.who);
         sparkles.emit(m.x, m.y + 0.8, m.z, time, ev.what === 'greet' ? 8 : 18, CONFETTI, 2.4, 1.2, 0.9);
@@ -445,7 +500,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
         seen.add(m.id);
         let entry = mallows.get(m.id);
         if (!entry) {
-          entry = { model: mallowModel(m.colour), far: mallowFar(m.colour) };
+          entry = { model: mallowModel(m.colour, m.veg), far: mallowFar(m.colour, m.veg) };
           mallows.set(m.id, entry);
           scene.add(entry.model.group, entry.far);
         }
@@ -498,6 +553,18 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       statueGlow.material.opacity = 0.4 + 0.15 * Math.sin(time * 3);
       if (state.land.props !== shownProps) drawProps(state.land.props);
       drawBuilds(state);
+      drawPlants(state);
+      if (beds.length > 0) {
+        const own = state.game.kind === 'grow' ? state.plants?.find((p) => p.owner === 'player') : undefined;
+        const bed = own ? beds[own.bed] : undefined;
+        bedStar.visible = !!bed;
+        if (bed) {
+          bedStar.position.set(bed.x, heightAt(bed.x, bed.z) + 3.1 + 0.1 * Math.sin(time * 3), bed.z);
+          bedStar.quaternion.copy(camera.quaternion);
+        }
+        showCan('player', b, state.game.kind === 'grow' && state.game.can);
+        for (const m of state.mallows) showCan(m.id, m, m.can === true);
+      }
       drawSweets(state);
       effects(state, events);
       river.update(time);
@@ -505,7 +572,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       clouds.rotation.y = time * 0.004;
 
       sky.position.copy(eye);
-      sunSprite.position.copy(eye).addScaledVector(sunDir, 500);
+      sunSprite.position.copy(eye).addScaledVector(sunDir, veggie ? 650 : 500);
       gl.render(scene, camera);
     },
     warm: () => gl.compileAsync(scene, camera).then(() => undefined),
@@ -529,6 +596,8 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       });
       for (const kind of ['drop', 'swirl', 'star', 'lily'] as const) for (const part of shapes[kind]) geometries.add(part.geometry);
       for (const mesh of propMeshes) geometries.add(mesh.geometry);
+      disposePlants();
+      canGeometry.dispose();
       river.dispose();
       sparkles.dispose();
       drops.dispose();

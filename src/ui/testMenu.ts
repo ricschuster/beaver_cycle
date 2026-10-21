@@ -3,6 +3,7 @@
 // memory (M2, issue #52). DOM only; it asks the game to act through callbacks.
 
 import { DAY_FRACTION, SEASONS, type Season } from '../sim/clock';
+import type { DreamTheme } from '../sim/dream';
 import { STAGES, type Stage } from '../sim/life';
 
 export interface MenuLocation {
@@ -41,7 +42,7 @@ export interface TestMenuOptions {
   /** Sleep through the night; only does something in the lodge at night. */
   onSleep(): void;
   /** Open a dream now, at any time and place (docs/design/29_dream_candy_land.md). */
-  onDream(): void;
+  onDream(theme?: DreamTheme): void;
   /** Jump to a part of the day, 0 dawn to 1. */
   onTimeOfDay(timeOfDay: number): void;
   onSeason(season: Season): void;
@@ -328,6 +329,11 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   dreamButton.dataset.action = 'dream';
   style(dreamButton);
   dreamButton.onclick = () => opts.onDream();
+  const veggieDreamButton = document.createElement('button');
+  veggieDreamButton.textContent = 'Veggie dream now';
+  veggieDreamButton.dataset.action = 'dream-veggie';
+  style(veggieDreamButton);
+  veggieDreamButton.onclick = () => opts.onDream('veggie');
   const removeButton = document.createElement('button');
   removeButton.textContent = 'Remove lodge';
   removeButton.dataset.action = 'lodge-remove';
@@ -342,7 +348,7 @@ export function createTestMenu(parent: HTMLElement, opts: TestMenuOptions): Test
   fillStoreButton.dataset.action = 'store-fill';
   style(fillStoreButton);
   fillStoreButton.onclick = () => opts.onFillStore();
-  lodgeRow.append(lodgeButton, sleepButton, dreamButton, removeButton, fillStoreButton);
+  lodgeRow.append(lodgeButton, sleepButton, dreamButton, veggieDreamButton, removeButton, fillStoreButton);
 
   const jumpRow = row('Jump to');
   for (const loc of opts.locations) {

@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CANDY_COLOURS, type DreamProp, type PropKind } from '../sim/dream';
 import { seeded, seedOf } from './propShapes';
+import { GARDEN_SHAPES, gardenSweetShapes } from './gardenProps';
 
 const WHITE = new THREE.Color(0xfffaf4);
 const CHERRY = new THREE.Color(0xe8405e);
@@ -61,7 +62,7 @@ export function paint(geometry: THREE.BufferGeometry, colourOf: Painter, flat = 
 }
 
 /** One colour for every face. */
-const plainPaint = (geometry: THREE.BufferGeometry, colour: THREE.Color, flat = false): THREE.BufferGeometry => paint(geometry, () => colour, flat);
+export const plainPaint = (geometry: THREE.BufferGeometry, colour: THREE.Color, flat = false): THREE.BufferGeometry => paint(geometry, () => colour, flat);
 
 /** Merge painted parts into one geometry, and free the parts. */
 export function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
@@ -72,13 +73,13 @@ export function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
 }
 
 /** Move, turn and scale a part. */
-function put(geometry: THREE.BufferGeometry, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx): THREE.BufferGeometry {
+export function put(geometry: THREE.BufferGeometry, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx): THREE.BufferGeometry {
   const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz));
   return geometry.applyMatrix4(m);
 }
 
 /** A lathe from (radius, height) pairs, around y. */
-const lathe = (profile: [number, number][], segments: number): THREE.LatheGeometry =>
+export const lathe = (profile: [number, number][], segments: number): THREE.LatheGeometry =>
   new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), segments);
 
 /**
@@ -327,7 +328,7 @@ function marshmallowRock(colour: number, random: () => number): THREE.BufferGeom
   return merge(parts);
 }
 
-const SHAPES: Record<PropKind, (colour: number, random: () => number) => THREE.BufferGeometry> = {
+const SHAPES: Partial<Record<PropKind, (colour: number, random: () => number) => THREE.BufferGeometry>> = {
   lollipop,
   gumdrop,
   candyCane,
@@ -339,7 +340,7 @@ const SHAPES: Record<PropKind, (colour: number, random: () => number) => THREE.B
 
 /** The shape of one prop at size 1, standing on the origin and facing +z, the same every time for the same prop. */
 export function propShape(prop: Pick<DreamProp, 'id' | 'kind' | 'colour'>): THREE.BufferGeometry {
-  return SHAPES[prop.kind](prop.colour, seeded(seedOf(prop.id)));
+  return (SHAPES[prop.kind] ?? GARDEN_SHAPES[prop.kind]!)(prop.colour, seeded(seedOf(prop.id)));
 }
 
 /** The props placed on the land, merged into one geometry: turned, sized, and stood on the ground `groundAt` gives. */
@@ -365,7 +366,8 @@ export function starShape(r: number, depth: number, colour: THREE.Color): THREE.
  * The sweets, each as parts: a part that `tinted` takes the sweet's own colour (an instance colour times its white
  * vertices), the other parts keep theirs. Sizes are about half a metre, big enough to see from a few metres away.
  */
-export function sweetShapes(): Record<'drop' | 'swirl' | 'star' | 'lily', { geometry: THREE.BufferGeometry; tinted: boolean }[]> {
+export function sweetShapes(theme: 'candy' | 'veggie' = 'candy'): Record<'drop' | 'swirl' | 'star' | 'lily', { geometry: THREE.BufferGeometry; tinted: boolean }[]> {
+  if (theme === 'veggie') return gardenSweetShapes();
   // A wrapped candy: a round body, and the wrapper twisted into a bow at each end.
   const body = plainPaint(new THREE.SphereGeometry(1, 12, 8).scale(0.2, 0.15, 0.15), new THREE.Color(0xffffff));
   const wrap = new THREE.Color(0xfff6fb);
@@ -421,14 +423,17 @@ function splitByColour(geometry: THREE.BufferGeometry, test: (c: THREE.Color) =>
 }
 
 /** Peppermint stepping stones along the path, about every 1.7 m, each a flat round candy with coloured wedges. */
-export function pathStones(points: readonly { x: number; z: number }[], groundAt: (x: number, z: number) => number, spacing = 1.7): THREE.BufferGeometry {
+export function pathStones(points: readonly { x: number; z: number }[], groundAt: (x: number, z: number) => number, spacing = 1.7, earthy = false): THREE.BufferGeometry {
   const spots = resample(points, spacing);
   const parts: THREE.BufferGeometry[] = [];
   spots.forEach((s, i) => {
     const random = seeded(i * 7919 + 13);
     const r = 0.5 + random() * 0.12;
     const colour = candy(i % 2 === 0 ? 0 : [1, 3, 4, 5][Math.floor(i / 2) % 4]!, 0.15);
+    // In the veggie garden the stones are plain river stones, grey brown, a little different each.
+    const earth = new THREE.Color(i % 2 === 0 ? 0xb7a07a : 0xa6a08e);
     const stone = paint(new THREE.CylinderGeometry(r, r * 1.04, 0.16, 16, 1), (c, n) => {
+      if (earthy) return n.y < 0.5 ? earth.clone().multiplyScalar(0.85) : earth;
       if (n.y < 0.5) return colour.clone().multiplyScalar(0.92);
       return Math.floor(((Math.atan2(c.z, c.x) / (Math.PI * 2)) * 8 + 8) % 2) === 0 ? colour : WHITE;
     });

@@ -53,6 +53,18 @@ export function dreamCues(events: readonly DreamEvent[]): Cue[] {
       case 'splash':
         cues.push({ effect: 'splash', gain: 0.5 });
         break;
+      case 'fill':
+        cues.push({ effect: 'splash', gain: e.who === 'player' ? 0.5 : 0.3 });
+        break;
+      case 'water':
+        cues.push({ effect: 'chime', gain: e.who === 'player' ? 0.6 : 0.35 });
+        break;
+      case 'growStart':
+        cues.push({ effect: 'chimeHigh', gain: 0.6 });
+        break;
+      case 'growEnd':
+        cues.push({ effect: 'cheer', gain: 0.8 });
+        break;
       case 'greet':
       case 'giggle':
       case 'caught':

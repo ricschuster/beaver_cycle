@@ -61,6 +61,7 @@ import { askSlot, type SlotChoice } from './ui/slotCard';
 import { AUTOSAVE_EVERY, ago, clearSave, loadSave, parseSlot, readSlots, renameSave, wantsSave, writeSave, cleanName, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createDreamScreen } from './ui/dreamScreen';
+import type { DreamTheme } from './sim/dream';
 import { createTestMenu, type TestMenu } from './ui/testMenu';
 import { NO_TEST_MENU, gameQuery } from './devTools';
 import { STREAM_HEARD } from './audio/mix';
@@ -640,8 +641,8 @@ async function start(): Promise<void> {
     onSleep() {
       world = sleep(world);
     },
-    onDream() {
-      startDream();
+    onDream(theme) {
+      startDream(undefined, theme);
     },
     onJump(id) {
       const a = anchors.find((l) => l.id === id);
@@ -695,7 +696,7 @@ async function start(): Promise<void> {
     onWake(goal) {
       world = goal === 'night' ? sleep(world) : sleepUntil(world, goal);
     },
-    onDream: () => startDream(),
+    onDream: (theme) => startDream(undefined, theme),
   });
   // The dream (docs/design/29_dream_candy_land.md): candy land over the game, made new each night from the day and the
   // generation. While it is open the frame loop gives it the input and neither steps nor draws the waking game. Waking goes
@@ -710,9 +711,9 @@ async function start(): Promise<void> {
       if (!silent) sound.cue(dreamCues(events), performance.now() / 1000);
     },
   });
-  const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation): void => {
+  const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation, theme: DreamTheme = 'candy'): void => {
     world = { ...world, dreamed: true };
-    dreamScreen.start(seed, world.dreamKept);
+    dreamScreen.start(seed, world.dreamKept, theme);
   };
   let fps = 60;
   let lastReadout = 0;
@@ -1337,10 +1338,10 @@ async function start(): Promise<void> {
   }
   saveNow();
   requestAnimationFrame(frame);
-  // ?dream=1 opens a dream at once, to look at it on a tablet and for the browser test; ?seed=N picks the night.
+  // ?dream=1 opens a dream at once, to look at it on a tablet and for the browser test; ?seed=N picks the night, ?kind=veggie the garden.
   if (query.get('dream') === '1') {
     const seed = Number(query.get('seed'));
-    startDream(query.has('seed') && Number.isFinite(seed) ? Math.floor(seed) : undefined);
+    startDream(query.has('seed') && Number.isFinite(seed) ? Math.floor(seed) : undefined, query.get('kind') === 'veggie' ? 'veggie' : 'candy');
   }
   // Read only view for tests and the coming test menu. Not in the release build.
   if (__DEV_TOOLS__) (window as unknown as { __game: unknown }).__game = {

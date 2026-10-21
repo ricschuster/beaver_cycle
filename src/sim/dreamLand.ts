@@ -3,10 +3,11 @@
 // measured from the chocolate's surface; dream.ts adds `CHOCOLATE_LEVEL`. The land itself stays plain data: what makes the
 // height quick (distance grids to the river and the path) is worked out once per land and kept in a WeakMap.
 // Pure, no DOM, no three.js.
-import type { DreamLand, DreamPoint, DreamPond, DreamProp, PropKind } from './dream';
+import type { DreamBed, DreamLand, DreamPoint, DreamPond, DreamProp, DreamTheme, PropKind } from './dream';
 
-/** The land is this many metres either side of the middle. */
+/** Candy land is this many metres either side of the middle, and the veggie garden half as much again (note 50). */
 export const DREAM_HALF = 80;
+export const VEGGIE_HALF = 120;
 /** Candy hills rise over this many metres to the edge, to this height over the chocolate. */
 export const HILL_WIDTH = 15;
 const HILL_TOP = 12;
@@ -21,9 +22,12 @@ const BANK = 5;
 const STEP = 2;
 /** Props, sweets and wander spots keep inside this far from the middle, out of the hills. */
 export const INNER = DREAM_HALF - HILL_WIDTH - 1;
+export const innerOf = (half: number): number => half - HILL_WIDTH - 1;
 /** A prop keeps this far from the path and from the chocolate's edge (metres, from its middle). */
 export const PATH_CLEAR = 2;
 export const BANK_CLEAR = 1.5;
+/** A garden bed of the veggie dream takes this much ground (metres, from its middle). */
+export const BED_RADIUS = 1.5;
 /** Ground taken by a prop of each kind at size 1 (metres): what the beaver bumps into, and what a hider stands behind. */
 export const PROP_RADIUS: Readonly<Record<PropKind, number>> = {
   lollipop: 0.2,
@@ -33,6 +37,13 @@ export const PROP_RADIUS: Readonly<Record<PropKind, number>> = {
   iceCream: 0.35,
   marshmallowRock: 0.8,
   cottonCandy: 0.2,
+  lettuceTree: 0.25,
+  broccoliTree: 0.3,
+  leek: 0.15,
+  cabbage: 0.8,
+  pumpkin: 0.9,
+  radish: 0.7,
+  beanPole: 0.12,
 };
 
 const TAU = Math.PI * 2;
@@ -121,18 +132,19 @@ function resample(dense: readonly DreamPoint[], step: number): DreamPoint[] {
 }
 
 /** The river's centre line, from one edge to the opposite one: a gentle sway with a smaller wiggle on it. */
-function makeRiver(rand: () => number): DreamPoint[] {
-  const centre = (rand() - 0.5) * 30;
-  const a1 = 10 + rand() * 5;
-  const l1 = 120 + rand() * 50;
+function makeRiver(rand: () => number, half: number): DreamPoint[] {
+  const k = half / DREAM_HALF;
+  const centre = (rand() - 0.5) * 30 * k;
+  const a1 = (10 + rand() * 5) * k;
+  const l1 = (120 + rand() * 50) * k;
   const p1 = rand() * TAU;
-  const a2 = 2 + rand() * 2;
-  const l2 = 45 + rand() * 20;
+  const a2 = (2 + rand() * 2) * k;
+  const l2 = (45 + rand() * 20) * k;
   const p2 = rand() * TAU;
   const alongX = rand() < 0.5;
   const flip = rand() < 0.5 ? -1 : 1;
   const dense: DreamPoint[] = [];
-  for (let u = -DREAM_HALF; u <= DREAM_HALF + 1e-9; u += 0.25) {
+  for (let u = -half; u <= half + 1e-9; u += 0.25) {
     const v = centre + a1 * Math.sin((TAU * u) / l1 + p1) + a2 * Math.sin((TAU * u) / l2 + p2);
     dense.push(alongX ? { x: u * flip, z: v } : { x: v, z: u * flip });
   }
@@ -140,9 +152,10 @@ function makeRiver(rand: () => number): DreamPoint[] {
 }
 
 /** The little path: from a start 45 to 60 m from the river, winding gently down to the bank at the nearest stretch. */
-function makePath(rand: () => number, river: readonly DreamPoint[], width: number): DreamPoint[] {
-  const inside = (p: DreamPoint): boolean => Math.abs(p.x) < DREAM_HALF - 22 && Math.abs(p.z) < DREAM_HALF - 22;
-  const middle = river.filter((p) => Math.abs(p.x) < 38 && Math.abs(p.z) < 38).map((p) => river.indexOf(p));
+function makePath(rand: () => number, river: readonly DreamPoint[], width: number, half: number): DreamPoint[] {
+  const k = half / DREAM_HALF;
+  const inside = (p: DreamPoint): boolean => Math.abs(p.x) < half - 22 * k && Math.abs(p.z) < half - 22 * k;
+  const middle = river.filter((p) => Math.abs(p.x) < 38 * k && Math.abs(p.z) < 38 * k).map((p) => river.indexOf(p));
   let start: DreamPoint | null = null;
   let fallback: { p: DreamPoint; miss: number } | null = null;
   for (let attempt = 0; attempt < 300 && !start; attempt++) {
@@ -156,13 +169,13 @@ function makePath(rand: () => number, river: readonly DreamPoint[], width: numbe
     const nz = ((b.x - a.x) / len) * side;
     const dx = nx * Math.cos(turn) - nz * Math.sin(turn);
     const dz = nx * Math.sin(turn) + nz * Math.cos(turn);
-    const far = 46 + rand() * 13;
+    const far = (46 + rand() * 13) * k;
     const p = { x: river[i]!.x + dx * far, z: river[i]!.z + dz * far };
     if (!inside(p)) continue;
     const d = lineDistance(river, p.x, p.z);
-    if (d >= 45 && d <= 60) start = p;
+    if (d >= 45 * k && d <= 60 * k) start = p;
     else {
-      const miss = d < 45 ? 45 - d : d - 60;
+      const miss = d < 45 * k ? 45 * k - d : d - 60 * k;
       if (!fallback || miss < fallback.miss) fallback = { p, miss };
     }
   }
@@ -195,30 +208,55 @@ const PROP_KINDS: readonly [PropKind, number][] = [
   ['cottonCandy', 0.15],
 ];
 
-function pickKind(rand: () => number): PropKind {
+/** The veggie garden's props: lettuce and broccoli trees, leeks, bean poles, and the cabbages, pumpkins and radishes that hide a beaver. */
+const VEGGIE_KINDS: readonly [PropKind, number][] = [
+  ['lettuceTree', 0.2],
+  ['broccoliTree', 0.14],
+  ['leek', 0.12],
+  ['beanPole', 0.12],
+  ['cabbage', 0.15],
+  ['pumpkin', 0.15],
+  ['radish', 0.12],
+];
+
+function pickKind(rand: () => number, kinds: readonly [PropKind, number][] = PROP_KINDS): PropKind {
   let r = rand();
-  for (const [kind, w] of PROP_KINDS) {
+  for (const [kind, w] of kinds) {
     r -= w;
     if (r < 0) return kind;
   }
-  return 'gumdrop';
+  return kinds[0]![0];
 }
 
 /** Big enough to hide a marshmallow beaver: the bulky kinds from size 1.1, a lollipop or a cotton candy tree from 1.2 (its sweet is big then). */
 const hides = (kind: PropKind, size: number): boolean =>
-  ((kind === 'cupcake' || kind === 'marshmallowRock' || kind === 'iceCream') && size >= 1.1) || ((kind === 'lollipop' || kind === 'cottonCandy') && size >= 1.2);
+  ((kind === 'cupcake' || kind === 'marshmallowRock' || kind === 'iceCream' || kind === 'cabbage' || kind === 'pumpkin' || kind === 'radish') && size >= 1.1) ||
+  ((kind === 'lollipop' || kind === 'cottonCandy' || kind === 'lettuceTree' || kind === 'broccoliTree') && size >= 1.2);
 
 /** Hiding props in the grove by the end of the path, and the most of all props that hide. */
 const GROVE = 10;
 const HIDE_SHARE = 0.42;
 
-/** About 60 to 90 props: groups along the path, so the walk goes through candy, and the rest over the land. */
-function makeProps(rand: () => number, river: readonly DreamPoint[], width: number, path: readonly DreamPoint[], ponds: readonly DreamPond[]): DreamProp[] {
+/** About 60 to 90 props (the veggie garden, a land of 2.25 times the ground, 2.25 times as many): groups along the path, so the walk goes through candy, and the rest over the land. */
+function makeProps(
+  rand: () => number,
+  river: readonly DreamPoint[],
+  width: number,
+  path: readonly DreamPoint[],
+  ponds: readonly DreamPond[],
+  half: number,
+  beds: readonly DreamBed[] = [],
+): DreamProp[] {
   const props: DreamProp[] = [];
-  const want = 60 + Math.floor(rand() * 31);
-  const tryPlace = (x: number, z: number, kind = pickKind(rand), size = 0.6 + rand() * 1.0): boolean => {
+  const inner = innerOf(half);
+  const veggie = half > DREAM_HALF;
+  const kinds = veggie ? VEGGIE_KINDS : PROP_KINDS;
+  const more = (half / DREAM_HALF) ** 2;
+  const want = Math.round((60 + Math.floor(rand() * 31)) * more);
+  const tryPlace = (x: number, z: number, kind = pickKind(rand, kinds), size = 0.6 + rand() * 1.0): boolean => {
     const r = PROP_RADIUS[kind] * size;
-    if (Math.abs(x) > INNER || Math.abs(z) > INNER) return false;
+    if (Math.abs(x) > inner || Math.abs(z) > inner) return false;
+    if (beds.some((b) => Math.hypot(b.x - x, b.z - z) < BED_RADIUS + BANK_CLEAR + r)) return false;
     if (lineDistance(path, x, z) < Math.max(PATH_CLEAR, r + 0.6)) return false;
     if (lineDistance(river, x, z) < width / 2 + BANK_CLEAR + r) return false;
     if (ponds.some((o) => Math.hypot(o.x - x, o.z - z) < o.r + BANK_CLEAR + r)) return false;
@@ -232,12 +270,13 @@ function makeProps(rand: () => number, river: readonly DreamPoint[], width: numb
   };
   // A grove of big props round where the path meets the river, where the marshmallow beavers play, to hide behind.
   const end = path[path.length - 1]!;
-  const hiders: PropKind[] = ['cupcake', 'marshmallowRock', 'iceCream', 'lollipop', 'cottonCandy'];
-  for (let attempt = 0, grove = 0; attempt < 400 && grove < GROVE; attempt++) {
+  const hiders: PropKind[] = veggie ? ['cabbage', 'pumpkin', 'radish', 'lettuceTree', 'broccoliTree'] : ['cupcake', 'marshmallowRock', 'iceCream', 'lollipop', 'cottonCandy'];
+  const grove = Math.round(GROVE * (veggie ? 1.6 : 1));
+  for (let attempt = 0, placed = 0; attempt < 400 && placed < grove; attempt++) {
     const a = rand() * TAU;
     const r = 14 + rand() * 24;
     const kind = hiders[Math.floor(rand() * hiders.length)]!;
-    if (tryPlace(end.x + Math.sin(a) * r, end.z + Math.cos(a) * r, kind, 1.2 + rand() * 0.4)) grove++;
+    if (tryPlace(end.x + Math.sin(a) * r, end.z + Math.cos(a) * r, kind, 1.2 + rand() * 0.4)) placed++;
   }
   for (let i = 1; i + 1 < path.length && props.length < want; i += 2) {
     const a = path[i - 1]!;
@@ -256,13 +295,13 @@ function makeProps(rand: () => number, river: readonly DreamPoint[], width: numb
       tryPlace(p.x + nx * off, p.z + nz * off);
     }
   }
-  for (let attempt = 0; attempt < 4000 && props.length < want; attempt++) tryPlace((rand() * 2 - 1) * INNER, (rand() * 2 - 1) * INNER);
+  for (let attempt = 0; attempt < 4000 * more && props.length < want; attempt++) tryPlace((rand() * 2 - 1) * inner, (rand() * 2 - 1) * inner);
   // About a third hide: past that, the smallest ones outside the grove are only for looking at.
   const extra = props.filter((p) => p.hide).length - Math.floor(props.length * HIDE_SHARE);
   if (extra <= 0) return props;
   const small = new Set(
     props
-      .slice(GROVE)
+      .slice(grove)
       .filter((p) => p.hide)
       .sort((a, b) => a.size - b.size)
       .slice(0, extra)
@@ -272,24 +311,59 @@ function makeProps(rand: () => number, river: readonly DreamPoint[], width: numb
 }
 
 /** The land for a seed: the river, the path, the start, and the props. Sweets and marshmallow beavers are laid out in dream.ts. */
-export function makeLand(seed: number): DreamLand {
+export function makeLand(seed: number, theme: DreamTheme = 'candy'): DreamLand {
+  const veggie = theme === 'veggie';
+  const half = veggie ? VEGGIE_HALF : DREAM_HALF;
   const rand = rngFrom(mixSeed(seed, 1)).next;
-  const riverWidth = 9 + rand() * 3;
-  const river = makeRiver(rand);
-  const path = makePath(rand, river, riverWidth);
+  // The carrot juice river is wider than the chocolate one (Q89).
+  const riverWidth = (9 + rand() * 3) * (veggie ? 1.4 : 1);
+  const river = makeRiver(rand, half);
+  const path = makePath(rand, river, riverWidth, half);
   const a = path[0]!;
   const b = path[1] ?? a;
   const start = { x: a.x, z: a.z, heading: Math.atan2(b.x - a.x, b.z - a.z) };
-  const ponds = makePonds(mixSeed(seed, 6), river, riverWidth, path, start);
-  const props = makeProps(rand, river, riverWidth, path, ponds);
-  const statue = makeStatue(mixSeed(seed, 5), river, riverWidth, path, props, ponds);
-  return { seed, half: DREAM_HALF, path, river, riverWidth, start, props, statue, ponds };
+  const ponds = makePonds(mixSeed(seed, 6), river, riverWidth, path, start, half, veggie ? 4 : 2);
+  const beds = veggie ? makeBeds(mixSeed(seed, 7), river, riverWidth, path, ponds, half) : undefined;
+  const props = makeProps(rand, river, riverWidth, path, ponds, half, beds);
+  const statue = makeStatue(mixSeed(seed, 5), river, riverWidth, path, props, ponds, half, beds);
+  const land: DreamLand = { seed, half, path, river, riverWidth, start, props, statue, ponds };
+  return veggie ? { ...land, theme, beds } : land;
+}
+
+/** Garden beds in a row on dry ground by the end of the path, a few steps from the river, one for each who grows a plant (Q88). */
+const BEDS = 4;
+const BED_GAP = 5;
+function makeBeds(state: number, river: readonly DreamPoint[], width: number, path: readonly DreamPoint[], ponds: readonly DreamPond[], half: number): DreamBed[] {
+  const rand = rngFrom(state).next;
+  const end = path[path.length - 1]!;
+  const inner = innerOf(half);
+  let best: DreamBed[] = [];
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const a = rand() * TAU;
+    const r = 10 + rand() * 6;
+    const heading = rand() * TAU;
+    const first = { x: end.x + Math.sin(a) * r, z: end.z + Math.cos(a) * r };
+    const row: DreamBed[] = [];
+    for (let i = 0; i < BEDS; i++) {
+      const x = first.x + Math.sin(heading) * BED_GAP * i;
+      const z = first.z + Math.cos(heading) * BED_GAP * i;
+      if (Math.abs(x) > inner || Math.abs(z) > inner) break;
+      if (lineDistance(river, x, z) < width / 2 + BED_RADIUS + BANK_CLEAR + 3) break;
+      if (lineDistance(path, x, z) < BED_RADIUS + 2) break;
+      if (ponds.some((o) => Math.hypot(o.x - x, o.z - z) < o.r + BED_RADIUS + BANK_CLEAR + 1)) break;
+      row.push({ x, z });
+    }
+    if (row.length > best.length) best = row;
+    if (row.length === BEDS) break;
+  }
+  return best;
 }
 
 /** Two or three chocolate ponds beside the river, each a strip of land away from it and from the path (wish 8). */
-function makePonds(state: number, river: readonly DreamPoint[], width: number, path: readonly DreamPoint[], start: DreamPoint): DreamPond[] {
+function makePonds(state: number, river: readonly DreamPoint[], width: number, path: readonly DreamPoint[], start: DreamPoint, half: number, base: number): DreamPond[] {
   const rand = rngFrom(state).next;
-  const want = 2 + (rand() < 0.5 ? 1 : 0);
+  const want = base + (rand() < 0.5 ? 1 : 0);
+  const inner = innerOf(half);
   const ponds: DreamPond[] = [];
   for (let attempt = 0; attempt < 600 && ponds.length < want; attempt++) {
     const i = 1 + Math.floor(rand() * (river.length - 2));
@@ -302,7 +376,7 @@ function makePonds(state: number, river: readonly DreamPoint[], width: number, p
     const off = width / 2 + r + 5 + rand() * 10;
     const x = p.x - ((b.z - a.z) / len) * off * side;
     const z = p.z + ((b.x - a.x) / len) * off * side;
-    if (Math.abs(x) > INNER - r - 1 || Math.abs(z) > INNER - r - 1) continue;
+    if (Math.abs(x) > inner - r - 1 || Math.abs(z) > inner - r - 1) continue;
     if (lineDistance(river, x, z) < width / 2 + r + 4) continue;
     if (lineDistance(path, x, z) < r + 5 || Math.hypot(x - start.x, z - start.z) < r + 10) continue;
     if (ponds.some((o) => Math.hypot(o.x - x, o.z - z) < o.r + r + 8)) continue;
@@ -325,14 +399,18 @@ function makeStatue(
   path: readonly DreamPoint[],
   props: readonly DreamProp[],
   ponds: readonly DreamPond[] = [],
+  half = DREAM_HALF,
+  beds: readonly DreamBed[] = [],
 ): DreamPoint {
   const rand = rngFrom(state).next;
+  const inner = innerOf(half);
   const first = Math.floor(path.length * 0.3);
   const clear = (x: number, z: number): boolean =>
-    Math.abs(x) <= INNER &&
-    Math.abs(z) <= INNER &&
+    Math.abs(x) <= inner &&
+    Math.abs(z) <= inner &&
     lineDistance(river, x, z) > width / 2 + BANK_CLEAR + STATUE_RADIUS &&
     ponds.every((o) => Math.hypot(o.x - x, o.z - z) > o.r + BANK_CLEAR + STATUE_RADIUS) &&
+    beds.every((b) => Math.hypot(b.x - x, b.z - z) > BED_RADIUS + STATUE_RADIUS + 0.8) &&
     props.every((p) => (p.x - x) ** 2 + (p.z - z) ** 2 > (PROP_RADIUS[p.kind] * p.size + STATUE_RADIUS + 0.8) ** 2);
   for (let attempt = 0; attempt < 400; attempt++) {
     const i = Math.max(1, Math.min(path.length - 2, first + Math.floor(rand() * (path.length - first))));
@@ -396,7 +474,7 @@ function field(land: DreamLand): Field {
   const ph: [number, number, number] = [rand() * TAU, rand() * TAU, rand() * TAU];
   const w2 = land.riverWidth / 2;
   const spots: DreamPoint[] = [];
-  const keep = (p: DreamPoint): boolean => Math.abs(p.x) < INNER - 2 && Math.abs(p.z) < INNER - 2;
+  const keep = (p: DreamPoint): boolean => Math.abs(p.x) < innerOf(half) - 2 && Math.abs(p.z) < innerOf(half) - 2;
   land.river.forEach((p, i) => {
     if (i % 2 !== 0 || !keep(p)) return;
     const a = land.river[Math.max(0, i - 1)]!;

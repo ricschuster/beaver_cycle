@@ -38,21 +38,28 @@ describe('the sleep prompt and the dream', () => {
   const make = () => {
     const dom = fakeDom();
     const woke: SleepGoal[] = [];
-    let dreams = 0;
+    const themes: string[] = [];
     const prompt = createSleepPrompt({ append: () => {} } as unknown as HTMLElement, {
       onWake: (g) => woke.push(g),
-      onDream: () => dreams++,
+      onDream: (theme) => themes.push(theme),
     });
     prompt.set({ night: true, rest: false, grow: null });
-    return { dom, woke, dreams: () => dreams, prompt };
+    return { dom, woke, dreams: () => themes.length, themes, prompt };
   };
 
   it('fades to black and opens the dream, and wakes at dawn only when the dream ends', () => {
-    const { dom, woke, dreams, prompt } = make();
+    const { dom, woke, dreams, themes, prompt } = make();
     dom.byAction('sleep-dream').onclick!();
+    // The Dream button asks which dream first.
+    expect(dom.dark().style.opacity).not.toBe('1');
+    expect(dom.byAction('sleep-dream').hidden).toBe(true);
+    expect(dom.byAction('sleep-dream-candy').hidden).toBe(false);
+    expect(dom.byAction('sleep-dream-veggie').hidden).toBe(false);
+    dom.byAction('sleep-dream-candy').onclick!();
     expect(dom.dark().style.opacity).toBe('1');
     vi.advanceTimersByTime(FADE_MS);
     expect(dreams()).toBe(1);
+    expect(themes).toEqual(['candy']);
     vi.advanceTimersByTime(60_000);
     expect(woke).toEqual([]);
     prompt.wakeFromDream();
@@ -63,6 +70,14 @@ describe('the sleep prompt and the dream', () => {
     prompt.wakeFromDream();
     vi.advanceTimersByTime(DARK_MS + FADE_MS);
     expect(woke).toEqual(['night']);
+  });
+
+  it('opens the veggie garden when it is chosen', () => {
+    const { dom, themes } = make();
+    dom.byAction('sleep-dream').onclick!();
+    dom.byAction('sleep-dream-veggie').onclick!();
+    vi.advanceTimersByTime(FADE_MS);
+    expect(themes).toEqual(['veggie']);
   });
 
   it('wakes a dream that started without the Dream button from a dark put up at once', () => {

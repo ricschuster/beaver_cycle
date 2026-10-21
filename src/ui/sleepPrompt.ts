@@ -1,9 +1,10 @@
 // Bedtime: when the beaver can sleep (in the lodge, at night) a panel offers
-// two ways (Q65): sleep until morning, or go into the dream. Both fade to black
+// two ways (Q65): sleep until morning, or go into the dream, and the dream asks which one: candy land or the veggie garden (Q85). Both fade to black
 // and wake at dawn. The dream itself is the dream screen (ui/dreamScreen.ts,
 // docs/design/29_dream_candy_land.md), which opens over the dark and hands back
 // to `wakeFromDream` when the player wakes. DOM only.
 import { t, text } from '../i18n';
+import type { DreamTheme } from '../sim/dream';
 
 /** Milliseconds of each fade to or from black. */
 export const FADE_MS = 700;
@@ -34,8 +35,8 @@ export interface SleepPrompt {
 export interface SleepPromptOptions {
   /** Called in the dark, once, when the beaver wakes: move the clock to dawn, the next season, or growing up. */
   onWake(goal: SleepGoal): void;
-  /** Called in the dark after the Dream button: open the dream, which calls `wakeFromDream` when it ends. */
-  onDream(): void;
+  /** Called in the dark after the dream was chosen (candy land or the veggie garden): open it; it calls `wakeFromDream` when it ends. */
+  onDream(theme: DreamTheme): void;
 }
 
 const BUTTON =
@@ -56,6 +57,15 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   dreamButton.textContent = t('sleep.dream');
   dreamButton.dataset.action = 'sleep-dream';
   dreamButton.style.cssText = BUTTON;
+  // The Dream button turns into the two dreams to choose from.
+  const candyButton = document.createElement('button');
+  candyButton.textContent = t('sleep.dreamCandy');
+  candyButton.dataset.action = 'sleep-dream-candy';
+  candyButton.style.cssText = BUTTON;
+  const veggieButton = document.createElement('button');
+  veggieButton.textContent = t('sleep.dreamVeggie');
+  veggieButton.dataset.action = 'sleep-dream-veggie';
+  veggieButton.style.cssText = BUTTON;
   const seasonButton = document.createElement('button');
   seasonButton.textContent = t('sleep.season');
   seasonButton.dataset.action = 'sleep-season';
@@ -63,7 +73,7 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   const growButton = document.createElement('button');
   growButton.dataset.action = 'sleep-grow';
   growButton.style.cssText = BUTTON;
-  panel.append(skipButton, dreamButton, seasonButton, growButton);
+  panel.append(skipButton, dreamButton, candyButton, veggieButton, seasonButton, growButton);
 
   const dark = document.createElement('div');
   dark.id = 'sleep-dark';
@@ -74,10 +84,14 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
 
   let busy = false;
   let dreaming = false;
+  let choosing = false;
   let choices: SleepChoices = { night: false, rest: false, grow: null };
   let goal: SleepGoal = 'night';
   const refresh = (): void => {
-    skipButton.hidden = dreamButton.hidden = !choices.night;
+    if (!choices.night) choosing = false;
+    skipButton.hidden = !choices.night;
+    dreamButton.hidden = !choices.night || choosing;
+    candyButton.hidden = veggieButton.hidden = !choices.night || !choosing;
     seasonButton.hidden = !choices.rest;
     growButton.hidden = choices.grow === null;
     if (choices.grow !== null) growButton.textContent = text(`sleep.until.${choices.grow}`);
@@ -115,15 +129,23 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   growButton.onclick = sleepTo('grow');
   dreamButton.onclick = () => {
     if (busy) return;
+    choosing = true;
+    refresh();
+  };
+  const dreamOf = (theme: DreamTheme) => () => {
+    if (busy) return;
     goal = 'night';
+    choosing = false;
     busy = true;
     refresh();
     fadeTo(1);
     setTimeout(() => {
       dreaming = true;
-      opts.onDream();
+      opts.onDream(theme);
     }, FADE_MS);
   };
+  candyButton.onclick = dreamOf('candy');
+  veggieButton.onclick = dreamOf('veggie');
 
   return {
     set(value) {

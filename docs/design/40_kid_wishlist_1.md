@@ -86,4 +86,4 @@ The dream is its own small world ([29_dream_candy_land.md](29_dream_candy_land.m
 
 ## Not done
 
-Items 6, 7, 8 and 10, chop and build, the lily pads, the ponds and the golden statue, are built (#649, #650 and #651, see note 29). Nothing else of the dream wishes is. The issues are #646 to #652. Later lists get their own note.
+Items 6, 7, 8 and 10, chop and build, the lily pads, the ponds and the golden statue, are built (#649, #650 and #651, see note 29). The veggie garden (9 and 11, #652) is built too, see [note 50](50_veggie_garden_dream.md), and question 5 is answered (round 5, Q85): both dreams are open from the start. The issues are #646 to #652. Later lists get their own note.

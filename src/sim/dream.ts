@@ -371,15 +371,54 @@ function settle<T extends DreamBeaver>(land: DreamLand, b: T, time: number): T {
   return { ...b, mode, y: baseY(land, b.x, b.z, mode) + hopLift(b, time) };
 }
 
-/** A new dream from a seed (any integer). The same seed makes the same dream. */
-export function newDream(seed: number): DreamState {
+/**
+ * Dams and lodges kept from earlier dreams (Q81, #708) set into this night's land. The land is new, so the river is somewhere
+ * else: a dam goes across the river at the point nearest where it stood, and a lodge stays where it stood, or on the nearest dry
+ * clear ground when the new land has a river or a prop there.
+ */
+export function keptInLand(land: DreamLand, kept: readonly DreamBuild[]): DreamBuild[] {
+  const placed: DreamBuild[] = [];
+  for (const k of kept) {
+    if (k.kind === 'dam') {
+      let at = 0;
+      land.river.forEach((p, i) => {
+        if (dist2(p, k) < dist2(land.river[at]!, k)) at = i;
+      });
+      const here = land.river[at]!;
+      const a = land.river[Math.max(0, at - 1)]!;
+      const b = land.river[Math.min(land.river.length - 1, at + 1)]!;
+      placed.push({ ...k, x: here.x, z: here.z, heading: Math.atan2(-(b.z - a.z), b.x - a.x) });
+      continue;
+    }
+    const fits = (x: number, z: number): boolean =>
+      Math.abs(x) < INNER &&
+      Math.abs(z) < INNER &&
+      riverDistance(land, x, z) - land.riverWidth / 2 > LODGE_CLEAR + BANK_GAP &&
+      dreamHeight(land, x, z) > CHOCOLATE_LEVEL + 0.3 &&
+      clearOfProps(land, x, z, LODGE_CLEAR);
+    let spot: DreamPoint | null = fits(k.x, k.z) ? { x: k.x, z: k.z } : null;
+    for (let r = 3; r <= 60 && !spot; r += 3) {
+      for (let i = 0; i < 12 && !spot; i++) {
+        const x = k.x + Math.sin((i / 12) * TAU) * r;
+        const z = k.z + Math.cos((i / 12) * TAU) * r;
+        if (fits(x, z)) spot = { x, z };
+      }
+    }
+    placed.push({ ...k, ...(spot ?? { x: k.x, z: k.z }) });
+  }
+  return placed;
+}
+
+/** A new dream from a seed (any integer). The same seed makes the same dream. `kept` are the dams and lodges the player kept. */
+export function newDream(seed: number, kept: readonly DreamBuild[] = []): DreamState {
   const land = makeLand(seed);
   const rand = rngFrom(mixSeed(seed, 3)).next;
   const sweets = makeSweets(land, rand);
   const mallows = makeMallows(land, rand);
   const { x, z, heading } = land.start;
   const beaver: DreamBeaver = { x, y: dreamHeight(land, x, z), z, heading, speed: 0, mode: 'walk', hopAt: null, slapAt: null };
-  return { land, time: 0, beaver, mallows, sweets, count: 0, rushUntil: 0, game: { kind: 'none' }, rng: mixSeed(seed, 4) };
+  const dream: DreamState = { land, time: 0, beaver, mallows, sweets, count: 0, rushUntil: 0, game: { kind: 'none' }, rng: mixSeed(seed, 4) };
+  return kept.length > 0 ? { ...dream, builds: keptInLand(land, kept) } : dream;
 }
 
 const clearOfProps = (land: DreamLand, x: number, z: number, gap: number): boolean =>

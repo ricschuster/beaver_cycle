@@ -365,7 +365,7 @@ export function starShape(r: number, depth: number, colour: THREE.Color): THREE.
  * The sweets, each as parts: a part that `tinted` takes the sweet's own colour (an instance colour times its white
  * vertices), the other parts keep theirs. Sizes are about half a metre, big enough to see from a few metres away.
  */
-export function sweetShapes(): Record<'drop' | 'swirl' | 'star', { geometry: THREE.BufferGeometry; tinted: boolean }[]> {
+export function sweetShapes(): Record<'drop' | 'swirl' | 'star' | 'lily', { geometry: THREE.BufferGeometry; tinted: boolean }[]> {
   // A wrapped candy: a round body, and the wrapper twisted into a bow at each end.
   const body = plainPaint(new THREE.SphereGeometry(1, 12, 8).scale(0.2, 0.15, 0.15), new THREE.Color(0xffffff));
   const wrap = new THREE.Color(0xfff6fb);
@@ -377,7 +377,20 @@ export function sweetShapes(): Record<'drop' | 'swirl' | 'star', { geometry: THR
     drop: [{ geometry: body, tinted: true }, { geometry: ends, tinted: false }],
     swirl: [{ geometry: arms, tinted: true }, { geometry: whites, tinted: false }],
     star: [{ geometry: starShape(0.3, 0.1, new THREE.Color(0xffd84d)), tinted: false }],
+    lily: [{ geometry: lilyPad(), tinted: false }],
   };
+}
+
+/** A white chocolate lily pad (wish 7): a flat round pad with a notch cut in, a thin dark rim, and a cream bud in the middle. */
+function lilyPad(): THREE.BufferGeometry {
+  const pad = new THREE.CylinderGeometry(0.5, 0.5, 0.05, 20, 1, false, 0.35, Math.PI * 2 - 0.7);
+  const rim = new THREE.CylinderGeometry(0.52, 0.52, 0.03, 20, 1, true, 0.35, Math.PI * 2 - 0.7);
+  const bud = new THREE.SphereGeometry(1, 8, 6).scale(0.1, 0.07, 0.1);
+  return merge([
+    plainPaint(pad, new THREE.Color(0xfff7ea)),
+    put(plainPaint(rim, new THREE.Color(0xe6c9a0)), 0, -0.01, 0),
+    put(plainPaint(bud, new THREE.Color(0xffe0ec)), 0, 0.05, 0),
+  ]);
 }
 
 /** Split a painted geometry into the faces whose colour passes `test` and the rest, and free it. */

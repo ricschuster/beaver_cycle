@@ -136,6 +136,8 @@ const ACROSS = 5;
 
 export interface ChocolateRiver {
   mesh: THREE.Mesh;
+  /** The ponds' surfaces (wish 8), one disc each, sharing the river's chocolate. */
+  ponds: THREE.Mesh[];
   /** Ripple the surface and let the swirl flow, at dream time `time`. */
   update(time: number): void;
   dispose(): void;
@@ -191,8 +193,19 @@ export function createChocolateRiver(land: DreamLand): ChocolateRiver {
   const material = new THREE.MeshPhongMaterial({ color: 0xffffff, map, shininess: 70, specular: 0x6a4a36 });
   const mesh = new THREE.Mesh(geo, material);
   const position = geo.getAttribute('position') as THREE.BufferAttribute;
+  const ponds = land.ponds.map((o) => {
+    const disc = new THREE.CircleGeometry(o.r + 1.2, 40).rotateX(-Math.PI / 2);
+    const p = disc.getAttribute('position');
+    const pondUv = new Float32Array(p.count * 2);
+    for (let i = 0; i < p.count; i++) pondUv.set([(p.getX(i) + o.x) / SWIRL_ALONG, (p.getZ(i) + o.z) / SWIRL_ALONG], i * 2);
+    disc.setAttribute('uv', new THREE.BufferAttribute(pondUv, 2));
+    const m = new THREE.Mesh(disc, material);
+    m.position.set(o.x, CHOCOLATE_LEVEL + 0.03, o.z);
+    return m;
+  });
   return {
     mesh,
+    ponds,
     update(time) {
       // A slow swell runs down the river, a little higher in the middle than at the banks.
       for (let i = 0; i < line.length; i++) {
@@ -208,6 +221,7 @@ export function createChocolateRiver(land: DreamLand): ChocolateRiver {
     },
     dispose() {
       geo.dispose();
+      for (const pond of ponds) pond.geometry.dispose();
       material.dispose();
       map.dispose();
     },

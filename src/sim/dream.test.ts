@@ -133,8 +133,10 @@ describe('newDream', () => {
   it('lays sweets along the path, in the river and over the land, with a few stars', () => {
     for (const seed of SEEDS) {
       const { land, sweets } = newDream(seed);
-      expect(sweets.length).toBeGreaterThanOrEqual(40);
-      expect(sweets.length).toBeLessThanOrEqual(60);
+      // About 40 to 60 candies, and the lily pads on top.
+      const candies = sweets.filter((s) => s.kind !== 'lily');
+      expect(candies.length).toBeGreaterThanOrEqual(40);
+      expect(candies.length).toBeLessThanOrEqual(60);
       const stars = sweets.filter((s) => s.kind === 'star').length;
       expect(stars).toBeGreaterThanOrEqual(3);
       expect(stars).toBeLessThanOrEqual(5);
@@ -351,6 +353,42 @@ describe('chop and build', () => {
     const m = s.mallows[0]!;
     const r = stepDream({ ...place(s, { x: m.x + 1, z: m.z }), carrying: true }, press, DT);
     expect(r.events.some((e) => e.what === 'build' || e.what === 'chop')).toBe(false);
+  });
+});
+
+describe('ponds and lily pads', () => {
+  it('lays two or three ponds beside the river, apart from it, the path and each other, with the chocolate in them', () => {
+    for (const seed of [...SEEDS, 5, 6, 8, 9, 10, 11, 12]) {
+      const { land } = newDream(seed);
+      expect(land.ponds.length).toBeGreaterThanOrEqual(2);
+      expect(land.ponds.length).toBeLessThanOrEqual(3);
+      for (const o of land.ponds) {
+        expect(chocolateDepth(land, o.x, o.z)).toBeGreaterThan(0.5);
+        expect(lineDistance(land.river, o.x, o.z)).toBeGreaterThan(land.riverWidth / 2 + o.r + 3);
+        expect(lineDistance(land.path, o.x, o.z)).toBeGreaterThan(o.r + 4);
+        expect(land.props.some((p) => Math.hypot(p.x - o.x, p.z - o.z) < o.r)).toBe(false);
+        // The dry ground just outside the bank.
+        expect(chocolateDepth(land, o.x + o.r + 3.5, o.z)).toBeLessThan(0.3);
+      }
+    }
+  });
+
+  it('each pond has lily pads and a marshmallow beaver swimming in it', () => {
+    const s = newDream(42);
+    for (const o of s.land.ponds) {
+      expect(s.sweets.filter((w) => w.kind === 'lily' && Math.hypot(w.x - o.x, w.z - o.z) < o.r).length).toBeGreaterThanOrEqual(3);
+      expect(s.mallows.some((m) => Math.hypot(m.x - o.x, m.z - o.z) < o.r && m.mode === 'swim')).toBe(true);
+    }
+    expect(s.sweets.some((w) => w.kind === 'lily' && lineDistance(s.land.river, w.x, w.z) < s.land.riverWidth / 2)).toBe(true);
+  });
+
+  it('swimming up to a lily pad eats it, once, for two', () => {
+    const s = { ...newDream(42), mallows: [] };
+    const lily = s.sweets.find((w) => w.kind === 'lily')!;
+    const r = stepDream(place(s, lily), still, DT);
+    expect(r.events).toContainEqual({ what: 'sweet', kind: 'lily', x: lily.x, z: lily.z });
+    expect(r.state.count).toBe(2);
+    expect(stepDream(r.state, still, DT).state.count).toBe(2);
   });
 });
 

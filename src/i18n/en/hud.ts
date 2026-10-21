@@ -201,6 +201,7 @@ export const hud = {
   'dream.keepAsk': 'Keep your candy dam and lodge for your next dreams?',
   'dream.keep': 'Keep',
   'dream.letGo': 'Let go',
+  'dream.lily': ['Yum, a white chocolate lily pad!', 'Nom! Sweet lily pad!', 'A creamy lily pad!'],
   'dream.chop': 'Chop the candy tree',
   'dream.startDam': 'Start a candy dam',
   'dream.addDam': 'Put the log on the dam',

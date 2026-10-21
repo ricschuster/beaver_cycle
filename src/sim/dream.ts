@@ -45,7 +45,8 @@ export interface DreamProp {
   hide: boolean;
 }
 
-export type SweetKind = 'drop' | 'swirl' | 'star';
+/** A lily pad of white chocolate floats on the chocolate and is eaten when the beaver swims up (wish 7). */
+export type SweetKind = 'drop' | 'swirl' | 'star' | 'lily';
 
 export interface Sweet {
   id: string;
@@ -57,6 +58,13 @@ export interface Sweet {
   /** In the chocolate (it floats) or on land. */
   floating: boolean;
   taken: boolean;
+}
+
+/** A round pond of chocolate beside the river (wish 8): its middle and its radius at the surface, metres. */
+export interface DreamPond {
+  x: number;
+  z: number;
+  r: number;
 }
 
 export interface DreamLand {
@@ -74,6 +82,8 @@ export interface DreamLand {
   props: DreamProp[];
   /** The golden beaver statue (wish 10): a long speed boost to whoever touches it. New place each night. */
   statue: DreamPoint;
+  /** Two or three more ponds to play in, each with lily pads and a marshmallow beaver. */
+  ponds: DreamPond[];
 }
 
 export type DreamMode = 'walk' | 'swim';
@@ -267,6 +277,9 @@ const BODY = 0.35;
 /** A sweet this close (metres, across the ground) is taken. A star counts this many. */
 const TAKE_REACH = 1.0;
 const STAR_COUNT = 5;
+/** A white chocolate lily pad counts this many, and a pond or the river carries them (wish 7). */
+const LILY_COUNT = 2;
+const LILIES_PER_POND = 4;
 /** The golden beaver statue gives a rush this long (seconds), and is touched from this close (metres). */
 export const STATUE_RUSH_TIME = 20;
 const STATUE_REACH = 1.4;
@@ -452,12 +465,12 @@ function makeSweets(land: DreamLand, rand: () => number): Sweet[] {
   for (let attempt = 0; attempt < 2000 && spots.length < want; attempt++) {
     const x = (rand() * 2 - 1) * (INNER - 2);
     const z = (rand() * 2 - 1) * (INNER - 2);
-    if (riverDistance(land, x, z) < w2 + 1 || !clearOfProps(land, x, z, 0.6)) continue;
+    if (riverDistance(land, x, z) < w2 + 1 || !clearOfProps(land, x, z, 0.6) || nearPond(land, x, z, 1)) continue;
     if (spots.some((q) => dist2(q, { x, z }) < 9)) continue;
     spots.push({ x, z });
   }
   const stars = new Set(shuffle(spots.map((_, i) => i), rand).slice(0, 3 + Math.floor(rand() * 3)));
-  return spots.map((p, i) => ({
+  const made: Sweet[] = spots.map((p, i) => ({
     id: `s${i}`,
     kind: stars.has(i) ? 'star' : rand() < 0.6 ? 'drop' : 'swirl',
     x: p.x,
@@ -466,6 +479,32 @@ function makeSweets(land: DreamLand, rand: () => number): Sweet[] {
     floating: chocolateDepth(land, p.x, p.z) > 0.05,
     taken: false,
   }));
+  return [...made, ...makeLilies(land, rand, made.length)];
+}
+
+/** Whether a point is in a pond or within `gap` metres of its edge. */
+export const nearPond = (land: DreamLand, x: number, z: number, gap: number): boolean => land.ponds.some((o) => Math.hypot(o.x - x, o.z - z) < o.r + gap);
+
+/** White chocolate lily pads: a few in each pond, and some on the river where the beaver swims. */
+function makeLilies(land: DreamLand, rand: () => number, from: number): Sweet[] {
+  const spots: DreamPoint[] = [];
+  for (const o of land.ponds) {
+    for (let i = 0; i < LILIES_PER_POND; i++) {
+      const a = ((i + rand() * 0.6) / LILIES_PER_POND) * TAU;
+      const r = o.r * (0.2 + rand() * 0.5);
+      spots.push({ x: o.x + Math.sin(a) * r, z: o.z + Math.cos(a) * r });
+    }
+  }
+  for (let i = 3; i < land.river.length; i += 5) {
+    const p = land.river[i]!;
+    if (Math.abs(p.x) > INNER - 2 || Math.abs(p.z) > INNER - 2) continue;
+    const { out } = riverFrame(land, p.x + 0.3, p.z + 0.3);
+    const off = (rand() * 2 - 1) * land.riverWidth * 0.3;
+    spots.push({ x: p.x + out.x * off, z: p.z + out.z * off });
+  }
+  return spots
+    .filter((p) => chocolateDepth(land, p.x, p.z) > 0.2)
+    .map((p, i) => ({ id: `s${from + i}`, kind: 'lily' as const, x: p.x, z: p.z, colour: 0, floating: true, taken: false }));
 }
 
 /** One marshmallow beaver in each coat, with its own name: three on land by the end of the path, the rest in the river. */
@@ -483,6 +522,11 @@ function makeMallows(land: DreamLand, rand: () => number): Mallow[] {
     const r = 3 + rand() * 7;
     const p = { x: end.x + Math.sin(a) * r, z: end.z + Math.cos(a) * r };
     if (riverDistance(land, p.x, p.z) < w2 + 1 || lineDistance(land.path, p.x, p.z) < 1.2) continue;
+    if (free(p, 3)) places.push(p);
+  }
+  for (const o of land.ponds) {
+    if (places.length >= count) break;
+    const p = { x: o.x + (rand() * 2 - 1) * o.r * 0.3, z: o.z + (rand() * 2 - 1) * o.r * 0.3 };
     if (free(p, 3)) places.push(p);
   }
   let near = 0;
@@ -702,7 +746,7 @@ function collect(s: DreamState, events: DreamEvent[]): DreamState {
   const sweets = s.sweets.map((w) => {
     if (w.taken || dist2(w, b) >= TAKE_REACH * TAKE_REACH) return w;
     events.push({ what: 'sweet', kind: w.kind, x: w.x, z: w.z });
-    count += w.kind === 'star' ? STAR_COUNT : 1;
+    count += w.kind === 'star' ? STAR_COUNT : w.kind === 'lily' ? LILY_COUNT : 1;
     if (w.kind === 'star') {
       rushUntil = s.time + RUSH_TIME;
       events.push({ what: 'rush' });

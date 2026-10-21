@@ -37,6 +37,11 @@ in the chocolate river.
   collects it. A star gives a sugar rush, a few seconds of extra speed. The count shows on screen while the beaver dreams. A golden beaver statue (the author's wish 10, #651) stands 4 to 9 m off the
   later part of the path, in a new place each night; touching it gives a rush of 20 s, once a dream (`makeStatue`, `touchStatue`).
   The wish list asked "rare find or always there" (Q4); it is always there until touched, to tune.
+- **Lily pads and ponds** (the author's wishes 7 and 8, #650). Two or three round chocolate ponds, 5 to 8 m across the surface,
+  lie beside the river a strip of dry land away from it and from the path (`makePonds`, bowls cut into `landRise`, about 0.9 m
+  deep). Each has four white chocolate lily pads and one marshmallow beaver, and the beavers amble between ponds too. More pads
+  float on the river. A pad is a sweet of its own kind (`lily`): swimming up to it eats it, for two. The wish list said the pads
+  float near the dream lodge; here they are in the water everywhere, as the issue reads.
 - **Chop and build** (the author's wish 6, #649). Do with no marshmallow beaver near does work. Next to a lollipop or cotton candy
   tree it chops: the tree is gone for the night and the beaver carries a candy log (one at a time). With a log, Do by the
   chocolate (within 2.5 m of its edge) lays it on a candy dam across the river, three logs make it whole. Do on dry land a step

@@ -32,6 +32,7 @@ import { CALL_SLOT, deedsFor, giftThanks, greetingFor, overheard, partnerRemark 
 import { BYE_SECONDS, TALK_END, LINE_SECONDS, choicesFor, factsFor, greeting, nearestSpeaker, noteTalk, replyLine, roleOf, speakersOf, type Reply, type Speaker, type TalkFacts } from './sim/talk';
 import { REPLY_LABEL } from './sim/talkLines';
 import { createTalkBubble } from './ui/talkBubble';
+import { createHideCount, hideLine } from './ui/hideCount';
 import { giftFamilies, giveFamily, greetedBy, takerNear, familyMood, familyTrust, reactFamilies, spreadWord, startleFamilies } from './sim/familyMoods';
 import { FEED_TRUST, banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
 import { lead, leaderAnimal } from './sim/guides';
@@ -721,6 +722,7 @@ async function start(): Promise<void> {
   let readBolt = false;
   const sniffed = new Set<string>();
   const talkBubble = createTalkBubble(hud);
+  const hideCount = createHideCount(hud);
   let doPressed: DoKind | null = null; // what a press of Do did this frame: a talk or a dig starts here, not in step
   let doShown: DoKind | null = null; // what the Do button says this frame
   let nearby: Around = { speaker: false, drift: false }; // someone to talk to and a drift to dig, from the last frame
@@ -1136,11 +1138,18 @@ async function start(): Promise<void> {
       if (game?.role && (game.key !== hideSeen?.key || game.phase !== hideSeen.phase)) {
         if (game.phase === 'count') toast.show(t(game.role === 'hide' ? 'toast.hideHide' : 'toast.hideSeek'));
         else if (game.phase === 'seek' && game.role === 'seek') toast.show(t('toast.hideGo'));
-        else if (game.phase === 'cheer') toast.show(t('toast.hideEnd'));
+        else if (game.phase === 'cheer') {
+          toast.show(t('toast.hideEnd'));
+          if (!silent) sound.cue([{ effect: 'cheer', gain: 0.8 }], performance.now() / 1000);
+          hideCount.heart();
+        }
       }
       if (game?.role && hideSeen?.key === game.key && game.found.length > hideSeen.found) {
+        if (!silent) sound.cue([{ effect: 'chimeStar', gain: 0.8 }], performance.now() / 1000);
+        hideCount.heart();
         for (const id of game.found.slice(hideSeen.found)) toast.show(id === me ? t('toast.hideFoundYou') : t('toast.hideFound', { name: nameOf(id) }));
       }
+      hideCount.set(hideLine(game));
       hideSeen = game ? { key: game.key, phase: game.phase, found: game.found.length } : null;
       partnerSeen = { askedBy: pairing.askedBy.length, asking: pairing.asking.length, partner: pairing.partner, name: pairing.partner ? nameOf(pairing.partner) : partnerSeen.name, stopBy: pairing.stopBy, stopping: pairing.stopping, born };
     }

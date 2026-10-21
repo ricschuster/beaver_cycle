@@ -1,4 +1,4 @@
-import { mergeActions, relativeToView } from './actions/actions';
+import { mergeActions, noActions, relativeToView } from './actions/actions';
 import { DO_LABEL, doHere, noIntent, takeHere, takeLabel, type Around, type DoKind } from './sim/buttons';
 import { createHeldKeys, createKeyboardInput } from './actions/keyboard';
 import { createCameraRig } from './render/cameraRig';
@@ -385,6 +385,9 @@ async function start(): Promise<void> {
   // The look card (#659) opens on a new game, and again when each kit is born. An automated browser skips it unless ?look=1.
   const asksLook = navigator.webdriver ? query.get('look') === '1' : !free;
   let lookOpen = false;
+  let sleepUp = false;
+  // A guest has no store of its own to count (the host's holds the food), so its line would read "store 0 of 0".
+  const guestFood = <F extends { store: unknown } | null>(food: F): F => (food && link ? { ...food, store: null } : food);
   const chooseNewLook = async (): Promise<void> => {
     lookOpen = true;
     const picked = await askLook(document.body, { coat: world.coat, look: world.look }, createLookPreview);
@@ -816,7 +819,8 @@ async function start(): Promise<void> {
     const dt = Math.max(0, Math.min((now - last) / 1000, 0.1));
     last = now;
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
-    if (lookOpen) return;
+    // The look card stops the game, but a host with guests keeps its clock and room going, so the guests do not freeze behind it.
+    if (lookOpen && !room) return;
     if (dreamScreen.active()) {
       dreamScreen.frame(dt, mergeActions(readKeyboard(), touch.read()));
       if (!silent) sound.music('dream', fps, now / 1000);
@@ -841,7 +845,7 @@ async function start(): Promise<void> {
         menu.setStatus('');
       }
     } else {
-      const actions = { ...mergeActions(readKeyboard(), touch.read()), stashTap, stashClose };
+      const actions = { ...(lookOpen ? noActions() : mergeActions(readKeyboard(), touch.read())), stashTap, stashClose };
       stashTap = undefined;
       stashClose = false;
       movingNow = actions.move.x !== 0 || actions.move.z !== 0;
@@ -934,7 +938,7 @@ async function start(): Promise<void> {
     renderer.setLodgePreview(site ? { x: site.x, y: siteGround.heightAt(site.x, site.z) + siteGround.waterDepth(site.x, site.z), z: site.z, ok: site.problem === null } : null);
     const l = world.inLodge ? world.lodge : null;
     const spot = l ? (atHole(l, world.beaver.x, world.beaver.z) ? 'hole' : atNest(l, world.beaver.x, world.beaver.z) ? 'nest' : 'room') : null;
-    carryHud.set(world.felled.length, world.drag !== null, world.chop ? world.chop.progress / CHOP_TIME : null, world.lodge ? lodgeProgress(world.lodge) : null, site?.problem ?? (site ? 'ok' : null), spot, foodInfoOf(world, withPonds(terrain, world.ponds), terrain), world.achievements.includes('wood'));
+    carryHud.set(world.felled.length, world.drag !== null, world.chop ? world.chop.progress / CHOP_TIME : null, world.lodge ? lodgeProgress(world.lodge) : null, site?.problem ?? (site ? 'ok' : null), spot, guestFood(foodInfoOf(world, withPonds(terrain, world.ponds), terrain)), world.achievements.includes('wood'));
     // A young beaver at the edge of its range hears its parents call it back.
     const home = world.lodge && !world.inLodge ? Math.hypot(world.beaver.x - world.lodge.x, world.beaver.z - world.lodge.z) : 0;
     const called = isCalledBack(home, STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].range);
@@ -1004,6 +1008,7 @@ async function start(): Promise<void> {
     stashPanel.set(world.stashOpen, world.store, world.carry, storeCapacity(storeCondition(world.storeWear, world.clock)));
     const rest = canRest(world);
     const stage = lifeAt(world.clock, world.bornAt).stage;
+    sleepUp = canSleep(world) || rest;
     sleepPrompt.set({ night: canSleep(world), rest, grow: rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null });
     const ponded = withPonds(terrain, world.ponds);
     if (now - animalsAt > 100) {
@@ -1068,7 +1073,11 @@ async function start(): Promise<void> {
       const nameOf = (id: string | null) => snap?.beavers.find((b) => b.id === id)?.look.name || t('together.friend');
       const born = room ? world.bornAt : snap?.beavers.find((v) => v.id === me)?.bornAt ?? null;
       if (pairing.partner && pairing.partner !== partnerSeen.partner) toast.show(t('toast.partnered', { name: nameOf(pairing.partner) }));
-      else if (!pairing.partner && partnerSeen.partner) toast.show(t(born !== partnerSeen.born ? 'toast.kitsBorn' : 'toast.partnerStopped', { name: partnerSeen.name }));
+      else if (!pairing.partner && partnerSeen.partner) {
+        toast.show(t(born !== partnerSeen.born ? 'toast.kitsBorn' : 'toast.partnerStopped', { name: partnerSeen.name }));
+        // A guest reborn as a kit picks its look too; the host keeps the choice and sends it back with the snapshot.
+        if (link && asksLook && born !== partnerSeen.born) void chooseNewLook().then(() => link?.send({ t: 'look', coat: world.coat, look: world.look }));
+      }
       else if (pairing.partner && pairing.stopBy && !partnerSeen.stopBy) toast.show(t('toast.partnerStopAsked', { name: nameOf(pairing.partner) }));
       else if (pairing.partner && pairing.stopping && !partnerSeen.stopping) toast.show(t('toast.partnerStopAsk', { name: nameOf(pairing.partner) }));
       else if (!pairing.partner && pairing.askedBy.length > partnerSeen.askedBy) toast.show(t('toast.partnerAsked', { name: nameOf(pairing.askedBy[0]!) }));
@@ -1124,7 +1133,8 @@ async function start(): Promise<void> {
         if (remark) toast.show(t('toast.said', { who: remark.who, text: remark.text }));
       }
     }
-    talkBubble.prompt(near && doShown === 'talk' ? near.name : null, touchOn ? DO_LABEL.talk : 'E');
+    // The sleep buttons take the bottom of the screen, so the talk prompt waits (the newborn kit of a pair sees both).
+    talkBubble.prompt(near && doShown === 'talk' && !sleepUp ? near.name : null, touchOn ? DO_LABEL.talk : 'E');
     talkBubble.tick(dt);
     // Winter: a beaver stuck in a drift calls for help, the player digs it out by gnawing beside it, and it becomes a guide (#346).
     const homeAt = world.formerHomes.at(-1) ?? world.lodge ?? world.beaver;

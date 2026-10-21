@@ -55,3 +55,25 @@ export function friendTaker(snap: Snapshot | null, me: string, at: { x: number; 
   }
   return best;
 }
+
+/** The nearest beaver of a snapshot but this one, within `GIVE_REACH` of (x, z), that could be asked to be partners, or say yes: grown and with no partner yet. Null when this beaver has a partner. */
+export function partnerCandidate(snap: Snapshot | null, me: string, at: { x: number; z: number }): BeaverView | null {
+  if (!snap || (snap.pairs ?? []).some((p) => p.includes(me))) return null;
+  let best: BeaverView | null = null;
+  let bestD = GIVE_REACH;
+  for (const v of snap.beavers) {
+    const d = Math.hypot(v.x - at.x, v.z - at.z);
+    if (v.id !== me && v.grown !== false && !(snap.pairs ?? []).some((p) => p.includes(v.id)) && d <= bestD) {
+      best = v;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** What the pairing in a snapshot says to the beaver `me`: who asked it, whom it asked, and its partner (ids). */
+export function pairingOf(snap: Snapshot | null, me: string): { askedBy: string[]; asking: string[]; partner: string | null } {
+  const asks = snap?.asks ?? [];
+  const pair = (snap?.pairs ?? []).find((p) => p.includes(me));
+  return { askedBy: asks.filter(([, to]) => to === me).map(([from]) => from), asking: asks.filter(([from]) => from === me).map(([, to]) => to), partner: pair ? (pair[0] === me ? pair[1] : pair[0]) : null };
+}

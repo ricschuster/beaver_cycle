@@ -17,7 +17,7 @@ import type { Terrain } from './terrain';
 import type { WorldState } from './state';
 
 /** What Do does: eat, build or mend with what is carried, hand food to a beaver with an empty mouth, pat a scent mound with mud by the lodge, open the store, dig out a stuck beaver, talk, fell a tree, or strip a branch off a log. */
-export type DoKind = 'eat' | 'build' | 'mend' | 'store' | 'dig' | 'give' | 'talk' | 'gnaw' | 'strip' | 'mark';
+export type DoKind = 'eat' | 'build' | 'mend' | 'store' | 'dig' | 'give' | 'talk' | 'gnaw' | 'strip' | 'mark' | 'partner';
 /** What Take does: let go of the log, put down what is in the mouth, or pick up something put down, a log, a lily pad, a rock, or mud. */
 export type TakeKind = 'let-go' | 'drop' | 'item' | 'log' | 'pad' | 'rock' | 'mud';
 
@@ -55,6 +55,8 @@ export interface Around {
   drift: boolean;
   /** A beaver of a family with an empty mouth is close enough to be handed food (`takerNear`). */
   taker?: boolean;
+  /** A friend, another player, is close enough to ask to be partners, or to say yes (#666). */
+  friend?: boolean;
 }
 
 /** A lodge that could start ahead of the beaver, in the lake or in a pond that a level 2 dam holds; one in a pond is tagged with it. */
@@ -124,7 +126,7 @@ function felledAsSet(felled: readonly string[]): ReadonlySet<string> {
 /**
  * What a press of Do does here, the first that fits (design note 30): in the lodge eat, else talk; with a log, mud, or a
  * rock, build or mend, or with mud on the bank by the lodge, mark a scent mound; at the store, open it; by a drift, dig; by a beaver, talk; on land by a tree, gnaw; by a log, strip
- * a branch. A baby only eats and talks.
+ * a branch; by a friend who is a player, ask to be partners. A baby only eats and talks.
  */
 export function doHere(world: WorldState, ground: Terrain, trees: TreeSource, around: Around): DoKind | null {
   const b = world.beaver;
@@ -136,6 +138,7 @@ export function doHere(world: WorldState, ground: Terrain, trees: TreeSource, ar
   if (grown && b.mode !== 'dive' && lodgeComplete(world.lodge) && atStore(world.lodge, b.x, b.z)) return 'store';
   if (grown && around.drift && b.mode === 'walk') return 'dig';
   if (world.carry && around.taker) return 'give';
+  if (grown && around.friend && b.mode !== 'dive') return 'partner';
   if (around.speaker && !around.following) return 'talk';
   const work = grown && !world.carry && b.mode !== 'dive';
   if (work && b.mode === 'walk' && (world.chop || trees.nearest(b.x, b.z, CHOP_REACH, felledAsSet(world.felled)))) return 'gnaw';

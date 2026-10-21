@@ -57,6 +57,9 @@ export interface Blocker {
   r: number;
 }
 
+/** What stands near the game, or a way to ask what stands between two players (a host asks its trees only for pairs close enough to find each other). */
+export type Blockers = readonly Blocker[] | ((a: Spot, b: Spot) => readonly Blocker[]);
+
 export type HideEvent = { t: 'found'; hider: string; seeker: string } | { t: 'start' } | { t: 'end' };
 
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }): number => Math.hypot(a.x - b.x, a.z - b.z);
@@ -99,10 +102,10 @@ const seekersOf = (g: HideGame): string[] => Object.keys(g.roles).filter((id) =>
 const cheer = (g: HideGame, now: number): HideGame => ({ ...g, phase: 'cheer', at: now });
 
 /**
- * One tick. `players` are everyone in the room now, `blockers` what stands near the game. Returns the game after the tick (null when
+ * One tick. `players` are everyone in the room now, `blockers` what players can hide behind. Returns the game after the tick (null when
  * it is over) and what happened.
  */
-export function step(g: HideGame, players: readonly Spot[], blockers: readonly Blocker[], now: number): { game: HideGame | null; events: HideEvent[] } {
+export function step(g: HideGame, players: readonly Spot[], blockers: Blockers, now: number): { game: HideGame | null; events: HideEvent[] } {
   const events: HideEvent[] = [];
   const at = (id: string): Spot | undefined => players.find((p) => p.id === id);
   if (g.phase === 'invite') {
@@ -146,7 +149,7 @@ export function step(g: HideGame, players: readonly Spot[], blockers: readonly B
     for (const s of seekers) {
       const sp = at(s) as Spot;
       const d = dist(sp, hp);
-      if (d <= FIND_CLOSE || (d <= FIND_REACH && clearLine(sp, hp, blockers))) {
+      if (d <= FIND_CLOSE || (d <= FIND_REACH && clearLine(sp, hp, typeof blockers === 'function' ? blockers(sp, hp) : blockers))) {
         found.push(h);
         events.push({ t: 'found', hider: h, seeker: s });
         break;

@@ -98,7 +98,7 @@ These are their own pieces of work, and each can be built and played alone befor
 - **Dream together.** The dream room is run by the host for the players who are asleep. A popup tells the others when a beaver
   goes to sleep.
 - **Hide and seek.** The dream mechanics, behind trees, in the waking game. A beaver can send a note to friends who are near, they
-  walk over, and the game starts. A proposal with questions for the author is in [49](49_hide_and_seek_friends.md) (#664).
+  walk over, and the game starts. Rules and room are built (#664), see [49](49_hide_and_seek_friends.md).
 - **Partners between players (#666).** Built as a first step: the ask and the yes. Two adult players with no partner stand within 4 m
   (`GIVE_REACH`), one presses Do, which reads Partners, and the other sees a toast and presses it too (Q112). An ask waits 30 real
   seconds (`ASK_TIME`), a guest or host that leaves ends its asks and pair. `src/net/pairs.ts` holds the rules, `Room` the state

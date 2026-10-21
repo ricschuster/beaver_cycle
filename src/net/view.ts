@@ -6,6 +6,7 @@ import { STAGE_RULES } from '../sim/life';
 import type { WorldState } from '../sim/state';
 import { pairLodgeOf } from '../sim/pairLodge';
 import type { BeaverView, Snapshot } from './protocol';
+import type { HideGame, Role } from './hideGame';
 import type { Say } from './says';
 
 /** The world a guest shows: the host's clock, felled trees, and logs, and this guest's beaver where the host put it. */
@@ -112,4 +113,11 @@ export function friendNearby(snap: Snapshot | null, me: string, at: { x: number;
 export function saysOf(snap: Snapshot | null, me: string): { asked: Say[]; answers: Say[] } {
   const says = snap?.says ?? [];
   return { asked: says.filter((k) => k.to === me && k.a === undefined), answers: says.filter((k) => k.from === me && k.a !== undefined) };
+}
+
+/** What the game of hide and seek in a snapshot says to the beaver `me` (#664). */
+export function hideOf(snap: Snapshot | null, me: string): { key: string; phase: HideGame['phase']; asker: string; role: Role | null; invitedMe: boolean; found: readonly string[]; left: number } | null {
+  const g = snap?.hide;
+  if (!g) return null;
+  return { key: `${g.asker}:${g.at}`, phase: g.phase, asker: g.asker, role: g.roles[me] ?? null, invitedMe: g.phase === 'invite' && g.invited.includes(me) && !g.yes.includes(me), found: g.found, left: g.left };
 }

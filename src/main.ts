@@ -18,7 +18,8 @@ import { AnimalField, capFor, type Animal } from './sim/animals';
 import { cleanAddress, guestKey, pendingJoin, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
 import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
-import { applySnapshot, friendBeaver, friendNearby, friendTaker, othersOf, pairingOf, partnerCandidate, saysOf } from './net/view';
+import { applySnapshot, friendBeaver, friendNearby, friendTaker, hideOf, othersOf, pairingOf, partnerCandidate, saysOf } from './net/view';
+import type { Role } from './net/hideGame';
 import { friendChoices } from './net/friendCard';
 import { ANSWERS, SAY_TIME, isQuestion, type AnswerId } from './net/says';
 import { SEND_HZ, viewOfGuest, type GuestTake } from './net/protocol';
@@ -449,6 +450,10 @@ async function start(): Promise<void> {
   // The last question put to this player and the last answer to its own that were shown, by the host's counter (#667).
   let sayShown = 0;
   let answerShown = 0;
+  // The game of hide and seek this tablet has shown: its key, the phase, and how many hiders were found (#664).
+  const hideRoles = () => [{ id: 'hide', label: t('hide.iHide') }, { id: 'seek', label: t('hide.iSeek') }];
+  let hideInviteShown = '';
+  let hideSeen: { key: string; phase: string; found: number } | null = null;
   let netSentAt = 0;
   let gnawPending = false;
   let pendingDo: 'build' | 'mend' | 'give' | 'strip' | 'partner' | 'eat' | 'store' | null = null;
@@ -921,12 +926,12 @@ async function start(): Promise<void> {
           }
           menu.setStatus(link.id ? `Joined ${netJoin} as ${link.id}` : `Joining ${netJoin}: ${link.status()}`);
         } else {
-          world = step(world, { move, dive: actions.dive, diveTap: actions.diveTap, slap: actions.slap, do: doPressed, take: actions.take ? takeNow : null, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
+          world = step(world, { move: room?.hostFrozen() ? { x: 0, z: 0 } : move, dive: actions.dive, diveTap: actions.diveTap, slap: actions.slap, do: doPressed, take: actions.take ? takeNow : null, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
           if (room) {
             world = room.step(world, dt, now / 1000, terrain, trees);
             if (now - netSentAt > 1000 / SEND_HZ) {
               netSentAt = now;
-              room.broadcast(world);
+              room.broadcast(world, now / 1000);
             }
           }
         }
@@ -1073,7 +1078,7 @@ async function start(): Promise<void> {
         const to = room.partnerNear('host', world.beaver, world.beaver, lifeAt(world.clock, world.bornAt).stage === 'adult', world.inLodge, world.inLodge);
         if (to) room.ask('host', to, now / 1000);
       }
-      const snap = room ? room.snapshot(world) : lastSnap;
+      const snap = room ? room.snapshot(world, undefined, now / 1000) : lastSnap;
       const pairing = pairingOf(snap, me);
       const nameOf = (id: string | null) => snap?.beavers.find((b) => b.id === id)?.look.name || t('together.friend');
       const born = room ? world.bornAt : snap?.beavers.find((v) => v.id === me)?.bornAt ?? null;
@@ -1104,7 +1109,39 @@ async function start(): Promise<void> {
         if (a.n <= answerShown) continue;
         answerShown = a.n;
         toast.show(t(a.a === 'yes' ? 'toast.friendYes' : 'toast.friendLater', { name: nameOf(a.to) }));
+        // A Yes to "Want to play?" starts a game of hide and seek for the two (#664): the asker chooses.
+        if (a.q === 'play' && a.a === 'yes') talkBubble.say(nameOf(a.to), t('hide.pick'), LINE_SECONDS * 3, hideRoles(), (pick) => {
+          talkBubble.hush();
+          sendHide(pick as Role, a.to);
+        }, undefined);
       }
+      // Hide and seek (#664): an invitation opens a card, and each change of the game is a toast.
+      const game = hideOf(snap, me);
+      const sendHide = (r: Role, to?: string) => {
+        if (room) room.startHide('host', r, now / 1000, world.beaver, to);
+        else link?.send({ t: 'hide', r, ...(to ? { to } : {}) });
+      };
+      if (game?.invitedMe && game.key !== hideInviteShown && !talkBubble.talking()) {
+        hideInviteShown = game.key;
+        const asker = nameOf(game.asker);
+        const askerRole = snap?.hide?.role;
+        talkBubble.say(asker, t(askerRole === 'hide' ? 'hide.askHide' : 'hide.askSeek', { name: asker }), SAY_TIME * 0.8, ANSWERS.map((a) => ({ id: a, label: t(`friend.a.${a}`) })), (pick) => {
+          talkBubble.hush();
+          const a = pick as AnswerId;
+          if (room) room.answerHide('host', a);
+          else link?.send({ t: 'hide', a });
+        }, asker === t('together.friend') ? undefined : t('friend.role'));
+      }
+      if (game && game.key !== hideSeen?.key && game.phase === 'invite' && game.asker === me) toast.show(t('toast.hideNote'));
+      if (game?.role && (game.key !== hideSeen?.key || game.phase !== hideSeen.phase)) {
+        if (game.phase === 'count') toast.show(t(game.role === 'hide' ? 'toast.hideHide' : 'toast.hideSeek'));
+        else if (game.phase === 'seek' && game.role === 'seek') toast.show(t('toast.hideGo'));
+        else if (game.phase === 'cheer') toast.show(t('toast.hideEnd'));
+      }
+      if (game?.role && hideSeen?.key === game.key && game.found.length > hideSeen.found) {
+        for (const id of game.found.slice(hideSeen.found)) toast.show(id === me ? t('toast.hideFoundYou') : t('toast.hideFound', { name: nameOf(id) }));
+      }
+      hideSeen = game ? { key: game.key, phase: game.phase, found: game.found.length } : null;
       partnerSeen = { askedBy: pairing.askedBy.length, asking: pairing.asking.length, partner: pairing.partner, name: pairing.partner ? nameOf(pairing.partner) : partnerSeen.name, stopBy: pairing.stopBy, stopping: pairing.stopping, born };
     }
     // Each gift is thanked for what it is, and word of it gets around (chatter.ts, familyMoods.ts).
@@ -1138,7 +1175,7 @@ async function start(): Promise<void> {
     const friendTalk = nearby.mate === true && doPressed === 'talk' && (room || link?.id);
     if (friendTalk) {
       const me = room ? 'host' : link!.id!;
-      const snap = room ? room.snapshot(world) : lastSnap;
+      const snap = room ? room.snapshot(world, undefined, now / 1000) : lastSnap;
       const id = room ? room.friendNear('host', world.beaver, world.beaver, world.inLodge, world.inLodge) : friendNearby(snap, me, world.beaver)?.id ?? null;
       if (id) {
         const name = snap?.beavers.find((b) => b.id === id)?.look.name || t('together.friend');
@@ -1150,6 +1187,13 @@ async function start(): Promise<void> {
               const to = room.partnerNear('host', world.beaver, world.beaver, lifeAt(world.clock, world.bornAt).stage === 'adult', world.inLodge, world.inLodge);
               if (to) room.ask('host', to, performance.now() / 1000);
             } else pendingDo = 'partner';
+          } else if (pick === 'hide') {
+            // The note goes to every friend close by, not only the one in front (#664).
+            talkBubble.say(name, t('hide.pick'), LINE_SECONDS * 3, hideRoles(), (r) => {
+              talkBubble.hush();
+              if (room) room.startHide('host', r as Role, performance.now() / 1000, world.beaver);
+              else link?.send({ t: 'hide', r: r as Role });
+            }, undefined);
           } else if (isQuestion(pick)) {
             if (room) room.say('host', id, pick, performance.now() / 1000);
             else link?.send({ t: 'say', q: pick });
@@ -1238,7 +1282,7 @@ async function start(): Promise<void> {
     const engaged = new Set(world.predators.map((p) => p.id));
     if (world.leader) engaged.add(world.leader.id);
     const animals = [...ambient.filter((a) => !engaged.has(a.id)), ...predatorAnimals(world.predators, ponded), ...(world.leader ? [leaderAnimal(world.leader, ponded, world)] : [])];
-    const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : []), ...visitors, ...(room ? room.guests().map((g) => friendBeaver(viewOfGuest(g))) : guestSnap)];
+    const drawnFamily = [...familyBeavers, ...stuckList.flatMap((st) => stuckBeaver(world, st, ponded) ?? []), ...(world.escort ? [escortBeaver(world, world.escort, ponded) ?? []].flat() : []), ...visitors, ...(room ? ((hidden) => room.guests().filter((g) => !hidden.includes(g.id)))(room.hiddenFromHost()).map((g) => friendBeaver(viewOfGuest(g))) : guestSnap)];
     // The sparkles toward a lone beaver, until time is up or the player is close.
     const wayTo = pointerTarget(wayPointer, world);
     if (!wayTo) wayPointer = null;

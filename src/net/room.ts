@@ -11,6 +11,8 @@ import { withPonds } from '../sim/pond';
 import type { Terrain } from '../sim/terrain';
 import type { TreeSource } from '../sim/trees';
 import type { WorldState } from '../sim/state';
+import { asked, askersOf, drop, expire, noPairing, partnerOf, press, type Pairing } from './pairs';
+import { stageAt } from '../sim/life';
 import { intentOf, readToHost, viewOfGuest, type BeaverView, type Snapshot, type ToGuest } from './protocol';
 
 /** The most friends in one valley besides the host (note 42: up to four players at once). */
@@ -36,6 +38,8 @@ export class Room {
   private seats = new Map<string, Seat>();
   /** Connections that have not yet said hello. */
   private strangers = new Set<string>();
+  /** Who asked whom to be partners, and who said yes (#666). */
+  private pairing: Pairing = noPairing();
   constructor(private readonly send: (to: string, text: string) => void) {}
 
   /** A connection opened: it waits for its hello. */
@@ -46,6 +50,7 @@ export class Room {
   leave(id: string): void {
     this.strangers.delete(id);
     this.seats.delete(id);
+    this.pairing = drop(this.pairing, id);
   }
 
   /** The families whose baby a guest plays. */
@@ -88,6 +93,8 @@ export class Room {
     const terrain = withPonds(ground, world.ponds);
     const solids = [world.lodge, ...world.formerHomes, ...world.neighbours.map((n) => n.lodge)].flatMap((l) => (l ? [{ x: l.x, z: l.z, radius: 4 }] : []));
     let hostCarry = world.carry;
+    this.pairing = expire(this.pairing, now);
+    const hostAdult = stageAt(world.clock, world.bornAt) === 'adult';
     for (const seat of this.seats.values()) {
       const intent = now - seat.heard > SILENT_AFTER ? { move: { x: 0, z: 0 } } : seat.intent;
       if (intent.do === 'give' && seat.guest.carry) {
@@ -96,6 +103,10 @@ export class Room {
         if (to === 'host') hostCarry = seat.guest.carry;
         else if (to) to.carry = seat.guest.carry;
         if (to) seat.guest = { ...seat.guest, carry: null };
+      }
+      if (intent.do === 'partner') {
+        const to = this.partnerNear(seat.guest.id, seat.guest.beaver, world.beaver, hostAdult);
+        if (to) this.ask(seat.guest.id, to, now);
       }
       const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock, dams, spots: world.spots, rocksTaken, dropped, ground, picked, stripped }, terrain, trees, solids);
       seat.guest = r.guest;
@@ -126,6 +137,45 @@ export class Room {
     return best;
   }
 
+  /**
+   * The player `from` can ask to be partners, or say yes to: the nearest friend within `GIVE_REACH`, when both are adults with no
+   * partner yet (guests are all grown, the host only when `hostAdult`). `at` is where `from` stands.
+   */
+  partnerNear(from: string, at: { x: number; z: number }, host: { x: number; z: number }, hostAdult: boolean): string | null {
+    if ((from === 'host' && !hostAdult) || partnerOf(this.pairing, from)) return null;
+    const dist = (p: { x: number; z: number }) => Math.hypot(p.x - at.x, p.z - at.z);
+    let best: string | null = from !== 'host' && hostAdult && dist(host) <= GIVE_REACH && !partnerOf(this.pairing, 'host') ? 'host' : null;
+    let bestD = best ? dist(host) : GIVE_REACH;
+    for (const s of this.seats.values()) {
+      const d = dist(s.guest.beaver);
+      if (s.guest.id !== from && !partnerOf(this.pairing, s.guest.id) && d <= bestD) {
+        best = s.guest.id;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  /** `from` asks `to` to be partners, or says yes when `to` asked first. */
+  ask(from: string, to: string, now: number): void {
+    this.pairing = press(this.pairing, from, to, now);
+  }
+
+  /** The partner of a player, or null. */
+  partner(id: string): string | null {
+    return partnerOf(this.pairing, id);
+  }
+
+  /** Whether `to` waits for a yes from `from`. */
+  asking(from: string, to: string): boolean {
+    return asked(this.pairing, from, to);
+  }
+
+  /** The players who asked `id` and wait for a yes. */
+  askers(id: string): string[] {
+    return askersOf(this.pairing, id);
+  }
+
   /** The guest the host's food can go to, or null: the nearest friend within `GIVE_REACH` with an empty mouth. */
   guestTaker(at: { x: number; z: number }): Guest | null {
     const to = this.taker('host', at, at, false);
@@ -141,8 +191,8 @@ export class Room {
   /** What every guest is sent: the shared world and every beaver in it, the host's first. */
   snapshot(world: WorldState): Snapshot {
     const b = world.beaver;
-    const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null };
-    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped };
+    const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null, grown: stageAt(world.clock, world.bornAt) === 'adult' };
+    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, asks: this.pairing.asks.map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]) };
   }
 
   /** Sends the state to every guest that has said hello. */

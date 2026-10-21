@@ -18,7 +18,7 @@ import { AnimalField, capFor, type Animal } from './sim/animals';
 import { cleanAddress, pendingJoin, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
 import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
-import { applySnapshot, friendBeaver, friendTaker, othersOf } from './net/view';
+import { applySnapshot, friendBeaver, friendTaker, othersOf, pairingOf, partnerCandidate } from './net/view';
 import { SEND_HZ, viewOfGuest, type GuestTake } from './net/protocol';
 import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
@@ -442,7 +442,8 @@ async function start(): Promise<void> {
   let lastSnap: Parameters<typeof othersOf>[0] = null;
   let netSentAt = 0;
   let gnawPending = false;
-  let pendingDo: 'build' | 'mend' | 'give' | 'strip' | null = null;
+  let pendingDo: 'build' | 'mend' | 'give' | 'strip' | 'partner' | null = null;
+  let partnerSeen: { askedBy: number; asking: number; partner: string | null } = { askedBy: 0, asking: 0, partner: null };
   let pendingTake: GuestTake | null = null;
   if (netHost || hostFromStart) beginHosting();
   if (netJoin) link = joinHost(netJoin, { t: 'hello', coat: world.coat, look: world.look });
@@ -876,7 +877,7 @@ async function start(): Promise<void> {
         if (link) {
           // A guest: the host steps its beaver. Here the wish goes out SEND_HZ times a second and the state comes back.
           if (doPressed === 'gnaw') gnawPending = true;
-          if (doPressed === 'build' || doPressed === 'mend' || doPressed === 'give' || doPressed === 'strip') pendingDo = doPressed;
+          if (doPressed === 'build' || doPressed === 'mend' || doPressed === 'give' || doPressed === 'strip' || doPressed === 'partner') pendingDo = doPressed;
           if (actions.take && takeNow) pendingTake = takeNow;
           if (now - netSentAt > 1000 / SEND_HZ && link.id) {
             netSentAt = now;
@@ -1049,6 +1050,21 @@ async function start(): Promise<void> {
         if (friend) world = room.hand(world, friend);
       }
     }
+    // Partners between players (#666): a press of Do asks the friend close by, or says yes; each tablet hears of it once.
+    if (room || link?.id) {
+      const me = room ? 'host' : link!.id!;
+      if (room && doPressed === 'partner') {
+        const to = room.partnerNear('host', world.beaver, world.beaver, lifeAt(world.clock, world.bornAt).stage === 'adult');
+        if (to) room.ask('host', to, now / 1000);
+      }
+      const snap = room ? room.snapshot(world) : lastSnap;
+      const pairing = pairingOf(snap, me);
+      const nameOf = (id: string | null) => snap?.beavers.find((b) => b.id === id)?.look.name || t('together.friend');
+      if (pairing.partner && pairing.partner !== partnerSeen.partner) toast.show(t('toast.partnered', { name: nameOf(pairing.partner) }));
+      else if (!pairing.partner && pairing.askedBy.length > partnerSeen.askedBy) toast.show(t('toast.partnerAsked', { name: nameOf(pairing.askedBy[0]!) }));
+      else if (!pairing.partner && pairing.asking.length > partnerSeen.asking) toast.show(t('toast.partnerAsk', { name: nameOf(pairing.asking[0]!) }));
+      partnerSeen = { askedBy: pairing.askedBy.length, asking: pairing.asking.length, partner: pairing.partner };
+    }
     // Each gift is thanked for what it is, and word of it gets around (chatter.ts, familyMoods.ts).
     for (const g of gifts.gifts) {
       gave.add(g.family);
@@ -1110,7 +1126,7 @@ async function start(): Promise<void> {
     }
     const drift = nearestStuck(stuckList, world.beaver, DIG_REACH);
     dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, doPressed === 'dig', movingNow, dt) : 0;
-    nearby = { taker: takerNear(familyBeavers, world.beaver) !== null || (room ? room.guestTaker(world.beaver) !== null : link?.id ? friendTaker(lastSnap, link.id, world.beaver) !== null : false), speaker: near !== null, following: near?.kind === 'partner' && near.id === follower(world.partners)?.id, drift: drift !== null };
+    nearby = { taker: takerNear(familyBeavers, world.beaver) !== null || (room ? room.guestTaker(world.beaver) !== null : link?.id ? friendTaker(lastSnap, link.id, world.beaver) !== null : false), friend: (room ? room.partnerNear('host', world.beaver, world.beaver, lifeAt(world.clock, world.bornAt).stage === 'adult') !== null : link?.id ? partnerCandidate(lastSnap, link.id, world.beaver) !== null : false), speaker: near !== null, following: near?.kind === 'partner' && near.id === follower(world.partners)?.id, drift: drift !== null };
     doPressed = null;
     if (drift && dug >= DIG_TIME) {
       world = rescue(world, drift);

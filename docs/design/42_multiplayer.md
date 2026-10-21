@@ -99,6 +99,12 @@ These are their own pieces of work, and each can be built and played alone befor
   goes to sleep.
 - **Hide and seek.** The dream mechanics, behind trees, in the waking game. A beaver can send a note to friends who are near, they
   walk over, and the game starts.
+- **Partners between players (#666).** Built as a first step: the ask and the yes. Two adult players with no partner stand within 4 m
+  (`GIVE_REACH`), one presses Do, which reads Partners, and the other sees a toast and presses it too (Q112). An ask waits 30 real
+  seconds (`ASK_TIME`), a guest or host that leaves ends its asks and pair. `src/net/pairs.ts` holds the rules, `Room` the state
+  (`partnerNear`, `ask`), and the snapshot carries `asks` and `pairs` so every tablet shows the same. The host beaver is a candidate
+  only when it is an adult (`BeaverView.grown`); guests are all grown. The pair lives for the session and is not saved. Still to
+  build: the new lodge they raise together (Q110), which needs a guest to have a lodge of its own, and a kit for each of them (Q111).
 - **Gifts.** A beaver can put food on the ground for a friend, or hand it over to a friend whose mouth is empty.
   Built (#663) for the families first: with food in the mouth and a family beaver with an empty mouth within 4 m, Do reads Give
   (`takerNear`, `giveFamily` in `src/sim/familyMoods.ts`), and the family trusts more, as for a gift put down. A wary family keeps

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Room, MAX_GUESTS } from './room';
-import { applySnapshot, friendTaker, othersOf } from './view';
+import { applySnapshot, friendTaker, othersOf, pairingOf, partnerCandidate } from './view';
 import { createWorld } from '../sim/state';
 import { flatTerrain } from '../sim/terrain';
 import { CHOP_TIME, type TreeSource } from '../sim/trees';
@@ -185,6 +185,69 @@ describe('the room', () => {
       const snap = room.snapshot({ ...world, picked: { 'lily:1:1': 3 }, stripped: { log1: 2 } });
       expect(snap.picked).toEqual({ 'lily:1:1': 3 });
       expect(applySnapshot(world, snap, 'a').stripped).toEqual({ log1: 2 });
+    });
+  });
+
+  describe('partners between players (#666)', () => {
+    const near = () => {
+      const { room } = joined();
+      room.guests()[0]!.beaver.x = 1;
+      room.guests()[0]!.beaver.z = 0;
+      return room;
+    };
+    const baby = { ...world, bornAt: world.clock };
+
+    it('asks the friend close by and pairs when the friend presses back', () => {
+      const room = near();
+      const to = room.partnerNear('host', host, host, true);
+      expect(to).toBe('g1');
+      room.ask('host', to!, 0);
+      expect(room.askers('g1')).toEqual(['host']);
+      expect(pairingOf(room.snapshot(world), 'g1').askedBy).toEqual(['host']);
+      room.receive('g1', intent({ do: 'partner' }), 1, host, ground);
+      room.step(world, 0.05, 1, ground, oneTree);
+      expect(room.partner('g1')).toBe('host');
+      expect(pairingOf(room.snapshot(world), 'host').partner).toBe('g1');
+    });
+
+    it('a guest asks the host, and the host presses back', () => {
+      const room = near();
+      room.receive('g1', intent({ do: 'partner' }), 1, host, ground);
+      room.step(world, 0.05, 1, ground, oneTree);
+      expect(room.asking('g1', 'host')).toBe(true);
+      room.ask('host', 'g1', 2);
+      expect(room.partner('host')).toBe('g1');
+    });
+
+    it('does not offer a friend out of reach, a host that is not grown, or a taken one', () => {
+      const { room } = joined();
+      expect(room.partnerNear('host', host, host, true)).toBeNull();
+      const close = near();
+      expect(close.partnerNear('host', host, host, false)).toBeNull();
+      close.ask('host', 'g1', 0);
+      close.ask('g1', 'host', 0);
+      expect(close.partnerNear('host', host, host, true)).toBeNull();
+    });
+
+    it('does not let a guest ask a host that is still a baby, and ends the pair when a guest leaves', () => {
+      const room = near();
+      room.receive('g1', intent({ do: 'partner' }), 1, host, ground);
+      room.step(baby, 0.05, 1, ground, oneTree);
+      expect(room.asking('g1', 'host')).toBe(false);
+      room.ask('host', 'g1', 2);
+      room.ask('g1', 'host', 2);
+      room.leave('g1');
+      expect(room.partner('host')).toBeNull();
+    });
+
+    it('a guest finds the friend to ask from the snapshot', () => {
+      const room = near();
+      const snap = room.snapshot(world);
+      expect(partnerCandidate(snap, 'g1', { x: 1, z: 0 })?.id).toBe('host');
+      expect(partnerCandidate(room.snapshot(baby), 'g1', { x: 1, z: 0 })).toBeNull();
+      room.ask('host', 'g1', 0);
+      room.ask('g1', 'host', 0);
+      expect(partnerCandidate(room.snapshot(world), 'g1', { x: 1, z: 0 })).toBeNull();
     });
   });
 });

@@ -31,6 +31,7 @@ export const ui = {
   'together.address': 'Host address',
   'together.addressBad': 'Type the address the host shows, like 192.168.0.7.',
   'together.joining': 'Joining {ip}...',
+  'together.friend': 'a friend',
   'together.joined': 'Playing in the valley of {ip}',
   'together.failed': 'Could not reach {ip}. Same Wi-Fi? Is the host hosting?',
   'together.lost': 'The host went away. Trying again...',

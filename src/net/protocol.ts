@@ -11,10 +11,10 @@ import type { Lodge } from '../sim/lodge';
 import { cleanLook, type Look } from '../sim/look';
 import type { Intent } from '../sim/buttons';
 
-/** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam, hand food to a friend, strip a branch off a log; let go, put down, take a log, a pad, a rock, mud, or a piece put down. */
-export type GuestDo = 'gnaw' | 'build' | 'mend' | 'give' | 'strip';
+/** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam, hand food to a friend, strip a branch off a log, ask a friend to be partners or say yes; let go, put down, take a log, a pad, a rock, mud, or a piece put down. */
+export type GuestDo = 'gnaw' | 'build' | 'mend' | 'give' | 'strip' | 'partner';
 export type GuestTake = 'let-go' | 'drop' | 'item' | 'log' | 'pad' | 'rock' | 'mud';
-const DOS: readonly string[] = ['gnaw', 'build', 'mend', 'give', 'strip'];
+const DOS: readonly string[] = ['gnaw', 'build', 'mend', 'give', 'strip', 'partner'];
 const TAKES: readonly string[] = ['let-go', 'drop', 'item', 'log', 'pad', 'rock', 'mud'];
 
 /** The port the host listens on. */
@@ -42,6 +42,9 @@ export interface Snapshot {
   /** The dams of the host's world and the host's lodge: a guest draws them and works out the ponds from the dams. */
   dams?: Dam[];
   lodge?: Lodge | null;
+  /** Players who asked another to be partners and wait for a yes, as [from, to], and the pairs who said yes (#666). */
+  asks?: [string, string][];
+  pairs?: [string, string][];
 }
 
 /** One beaver as the others see it. */
@@ -61,6 +64,8 @@ export interface BeaverView {
   drag?: string | null;
   /** Food in the mouth. */
   carry?: Food | null;
+  /** False for a host beaver that is not yet an adult, and so cannot be a partner (absent means grown). */
+  grown?: boolean;
 }
 
 export type ToGuest = { t: 'welcome'; id: string } | { t: 'state'; snapshot: Snapshot } | { t: 'pong'; ts: number };

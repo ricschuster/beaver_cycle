@@ -26,6 +26,7 @@ export const hud = {
   'btn.gnaw': 'Gnaw',
   'btn.strip': 'Gnaw',
   'btn.mark': 'Mark',
+  'btn.partner': 'Partners',
   'btn.drop': 'Drop',
   'btn.take': 'Take',
   'btn.dive': 'Dive',
@@ -101,6 +102,9 @@ export const hud = {
 
   'toast.unreadable': 'A saved game could not be read, so it was put aside.',
   'toast.hostLost': 'Lost the host. Trying to join again...',
+  'toast.partnerAsked': '{name} asks: partners? Press Partners to say yes',
+  'toast.partnerAsk': 'You asked {name} to be partners',
+  'toast.partnered': 'You and {name} are partners now',
   'toast.hostBack': 'Back in the valley of the host',
   'toast.escortAlready': '{name} is already showing you the way',
   'toast.escortNowhere': '{name}: I do not know where to take you yet. Build a lodge first',

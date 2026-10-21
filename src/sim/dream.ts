@@ -71,6 +71,8 @@ export interface DreamLand {
   /** Where the beaver wakes up in the dream, at the start of the path, facing along it. */
   start: DreamPoint & { heading: number };
   props: DreamProp[];
+  /** The golden beaver statue (wish 10): a long speed boost to whoever touches it. New place each night. */
+  statue: DreamPoint;
 }
 
 export type DreamMode = 'walk' | 'swim';
@@ -160,6 +162,8 @@ export interface DreamState {
   count: number;
   /** Dream time the sugar rush from a star ends. */
   rushUntil: number;
+  /** The statue has been touched this dream. */
+  statueTouched?: boolean;
   game: DreamGame;
   /** The seeded random source's state, carried from step to step so the same inputs give the same dream. */
   rng?: number;
@@ -181,6 +185,8 @@ export interface DreamInput {
 export type DreamEvent =
   | { what: 'sweet'; kind: SweetKind; x: number; z: number }
   | { what: 'rush' }
+  /** The golden beaver statue was touched: a long rush. */
+  | { what: 'statue'; x: number; z: number }
   | { what: 'greet'; who: string }
   | { what: 'splash'; x: number; z: number }
   | { what: 'tagStart'; it: string }
@@ -242,6 +248,9 @@ const BODY = 0.35;
 /** A sweet this close (metres, across the ground) is taken. A star counts this many. */
 const TAKE_REACH = 1.0;
 const STAR_COUNT = 5;
+/** The golden beaver statue gives a rush this long (seconds), and is touched from this close (metres). */
+export const STATUE_RUSH_TIME = 20;
+const STATUE_REACH = 1.4;
 /** Marshmallow beavers amble at these speeds (m/s), and say hello the first time the player is this close (metres). */
 const MALLOW_WALK = 1.6;
 const MALLOW_SWIM = 2;
@@ -471,6 +480,7 @@ export function stepDream(state: DreamState, input: DreamInput, dt: number): { s
   const time = state.time + dt;
   let s: DreamState = { ...state, time, beaver: moveBeaver(state, input, time, dt, events) };
   s = collect(s, events);
+  s = touchStatue(s, events);
   if (input.play && s.game.kind === 'none') s = startGame(s, rand, events);
   if (s.game.kind === 'choose') s = chooseRules(s, s.game, input.pick, rand, events);
   s = { ...s, mallows: stepMallows(s, rand, dt, events) };
@@ -537,6 +547,13 @@ function moveBeaver(s: DreamState, input: DreamInput, time: number, dt: number, 
   }
   const after = { ...b, x: p.x, z: p.z, heading, speed: Math.hypot(vx, vz), mode, hopAt, slapAt, leap };
   return { ...after, y: baseY(land, p.x, p.z, mode) + hopLift(after, time) };
+}
+
+/** Touching the golden beaver statue starts a long sugar rush, once a dream. */
+function touchStatue(s: DreamState, events: DreamEvent[]): DreamState {
+  if (s.statueTouched || dist2(s.land.statue, s.beaver) >= STATUE_REACH * STATUE_REACH) return s;
+  events.push({ what: 'statue', x: s.land.statue.x, z: s.land.statue.z });
+  return { ...s, statueTouched: true, rushUntil: s.time + STATUE_RUSH_TIME };
 }
 
 /** Sweets the beaver touches are taken; a star starts a sugar rush. */

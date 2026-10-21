@@ -6,6 +6,7 @@ import {
   MALLOW_COLOURS,
   PROP_RADIUS,
   RUSH,
+  STATUE_RUSH_TIME,
   SEEK_SPEED,
   SHOWER,
   SWIM_SPEED,
@@ -267,6 +268,28 @@ describe('sweets', () => {
     const h = s.land.start.heading;
     const fast = run(land, 1.5, input({ move: { x: Math.sin(h), z: Math.cos(h) } })).state;
     expect(fast.beaver.speed).toBeCloseTo(WALK_SPEED * RUSH, 0);
+  });
+
+  it('puts the golden beaver statue a few steps off the path, on dry land, in a new place each night', () => {
+    for (const seed of SEEDS) {
+      const { land } = newDream(seed);
+      const off = Math.min(...land.path.map((p) => Math.hypot(p.x - land.statue.x, p.z - land.statue.z)));
+      expect(off).toBeGreaterThan(2);
+      expect(off).toBeLessThan(10);
+      expect(dreamHeight(land, land.statue.x, land.statue.z)).toBeGreaterThan(CHOCOLATE_LEVEL);
+    }
+    expect(newDream(7).land.statue).toEqual(newDream(7).land.statue);
+    expect(newDream(7).land.statue).not.toEqual(newDream(8).land.statue);
+  });
+
+  it('the statue gives a long rush, once', () => {
+    const s = newDream(7);
+    const r = stepDream(place(s, s.land.statue), still, DT);
+    expect(r.events).toContainEqual({ what: 'statue', x: s.land.statue.x, z: s.land.statue.z });
+    expect(r.state.rushUntil).toBeCloseTo(DT + STATUE_RUSH_TIME, 5);
+    const again = stepDream(place({ ...r.state, rushUntil: 0 }, s.land.statue), still, DT);
+    expect(again.state.rushUntil).toBe(0);
+    expect(again.events.some((e) => e.what === 'statue')).toBe(false);
   });
 });
 

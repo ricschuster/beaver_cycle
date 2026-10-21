@@ -23,7 +23,7 @@ export const PORT = 8765;
 /** The host sends state this many times a second, and a guest sends its intent as often. */
 export const SEND_HZ = 20;
 
-export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'ping'; ts: number };
+export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'look'; coat: Coat; look: Look } | { t: 'ping'; ts: number };
 
 /** What every guest needs of the world to draw it: the clock, the trees down, the logs, and every beaver but its own host-side state. */
 export interface Snapshot {
@@ -100,6 +100,7 @@ export function readToHost(text: string): ToHost | null {
   }
   if (!m || typeof m !== 'object') return null;
   if (m.t === 'hello') return { t: 'hello', coat: coatOf(m.coat), look: cleanLook(m.look as Partial<Look>), ...(typeof m.key === 'string' && KEY.test(m.key) ? { key: m.key } : {}) };
+  if (m.t === 'look') return { t: 'look', coat: coatOf(m.coat), look: cleanLook(m.look as Partial<Look>) };
   if (m.t === 'intent') {
     let x = num(m.x, -1, 1);
     let z = num(m.z, -1, 1);

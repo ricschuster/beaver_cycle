@@ -30,6 +30,7 @@ start screen instead, so tick "Let friends join this game" and Continue there (a
   beside it with Do, the guest hands it back (#663). Keys: E is Do, G is Take.
 - `partner.mjs 9301 9302` - the host and a guest within 4 m, both adults with empty mouths: the host asks with Do, the guest says yes with Do, and the script prints the Do label and the toast of each tablet (#666).
 - `pair-lodge.mjs 9301 9302` - after `partner.mjs`, with a lodge site ahead of the host (`__game.siteAhead()`): puts a log at the feet of host and guest in turn (a dev build can edit the world), each takes it with Take and builds with Do, until the lodge of the pair is whole (#666). A guest that stands more than 5 m from the lodge, or is blocked by its dome, does not place. Wear it with `__game.world().pairLodges[0].wear = {level: 0.4, since: clock, mend: 0}` and a log from the guest mends it. The pair and its lodge are in the host's save, and a restarted host and a guest with the same key are paired again.
+- `guest-door.mjs 9302 LODGEX LODGEZ DOOR` - a guest swims to 5 m out along the door of a whole pair lodge, then dives in toward the centre (W and Space held) until `inLodge` is true. The host's tablet goes in the same way with port 9301. `space-tap.mjs PORT` taps Space (Dive).
 
 A guest is a thin client, so `__game.goToSpot` does nothing on it (the host steps its beaver); walk it with `walk.mjs`.
 Food put down in the water cannot be picked up again by a swimming beaver (Take reads item only on land).

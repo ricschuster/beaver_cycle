@@ -21,6 +21,11 @@ describe('messages from a guest', () => {
     expect(m).toMatchObject({ t: 'hello', coat: { coat: 4, shade: 1 }, look: { hat: 0, name: 'Pip' } });
   });
 
+  it('clean a look message the same way', () => {
+    const m = readToHost('{"t":"look","coat":{"coat":99,"shade":7},"look":{"hat":50,"name":"Kit"}}');
+    expect(m).toMatchObject({ t: 'look', coat: { coat: 4, shade: 1 }, look: { hat: 0, name: 'Kit' } });
+  });
+
   it('refuse text that is not a message', () => {
     expect(readToHost('nope')).toBeNull();
     expect(readToHost('{"t":"explode"}')).toBeNull();

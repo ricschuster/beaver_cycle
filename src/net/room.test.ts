@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Room, MAX_GUESTS } from './room';
 import { applySnapshot, friendTaker, othersOf, pairingOf, partnerCandidate } from './view';
 import { createWorld, leaveHome } from '../sim/state';
-import { LODGE_WOOD, SOLID_RADIUS } from '../sim/lodge';
+import { DOOR_DISTANCE, LODGE_WOOD, SOLID_RADIUS, doorPoint } from '../sim/lodge';
 import { newWear } from '../sim/wear';
 import { DAY_SECONDS, nextSpringStart } from '../sim/clock';
 import { guestStage } from '../sim/guests';
@@ -26,6 +26,14 @@ function joined() {
 }
 
 describe('the room', () => {
+  it('takes the coat and look a guest picks on its look card', () => {
+    const { room } = joined();
+    room.receive('g1', JSON.stringify({ t: 'look', coat: { coat: 3, shade: 1 }, look: { hat: 2, name: 'Kit' } }), 1, host, ground);
+    const mine = room.snapshot(world).beavers.find((b) => b.id !== 'host')!;
+    expect(mine.coat).toEqual({ coat: 3, shade: 1 });
+    expect(mine.look.name).toBe('Kit');
+  });
+
   it('welcomes a guest after its hello and puts it near the host', () => {
     const { room, sent } = joined();
     expect(JSON.parse(sent[0]![1])).toEqual({ t: 'welcome', id: 'g1' });
@@ -331,6 +339,22 @@ describe('the room', () => {
         expect(after.pairLodges).toEqual([]);
         expect(after.formerHomes.map((h) => h.x)).toEqual([40]);
         expect(after.lodge).toBeNull();
+      });
+
+      it('lets a guest reach the door when the host lives in the pair lodge', () => {
+        const room = paired();
+        const g = room.guests()[0]!;
+        const d = doorPoint(lodge, DOOR_DISTANCE + 2.5);
+        g.beaver.x = d.x;
+        g.beaver.z = d.z;
+        g.beaver.mode = 'dive';
+        // The host's own lodge is the pair lodge: its old round solid must not keep the guest from the door.
+        const w = { ...world, pairLodges: [lodge], lodge, pairWith: 'g1' };
+        for (let i = 0; i < 40; i++) {
+          room.receive('g1', intent({ x: -1, z: 0, dive: true }), i, { x: 0, z: 0 }, ground);
+          room.step(w, 0.05, i, ground, oneTree);
+        }
+        expect(room.guests()[0]!.inside).toBe(true);
       });
 
       it('puts a guest that is in the room out at the entrance when the pair stops', () => {

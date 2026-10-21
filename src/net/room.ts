@@ -93,7 +93,11 @@ export class Room {
       return this.reply(id, { t: 'welcome', id: pid });
     }
     const seat = this.seats.get(id);
-    if (seat) {
+    // A guest's look card, after it is reborn as a kit (#666): the new coat and look.
+    if (seat && m.t === 'look') {
+      seat.guest = { ...seat.guest, coat: m.coat, look: m.look };
+      seat.heard = now;
+    } else if (seat && m.t === 'intent') {
       seat.intent = intentOf(m);
       seat.heard = now;
     }
@@ -104,7 +108,8 @@ export class Room {
     let { felled, logs, dams, rocksTaken, dropped, picked, stripped }: { felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[]; picked: Picked; stripped: Readonly<Record<string, number>> } = world;
     const terrain = withPonds(ground, world.ponds);
     const solids = [
-      ...[world.lodge, ...world.formerHomes, ...world.neighbours.map((n) => n.lodge)].flatMap((l) => (l ? [{ x: l.x, z: l.z, radius: 4 }] : [])),
+      // The host's lodge is the lodge of its pair once it has one, and that one is solid only as far as its dome (below), so a guest reaches the door.
+      ...[world.lodge, ...world.formerHomes, ...world.neighbours.map((n) => n.lodge)].flatMap((l) => (l && !world.pairLodges.some((p) => p.x === l.x && p.z === l.z) ? [{ x: l.x, z: l.z, radius: 4 }] : [])),
       // A pair's lodge is solid to the dome, so the entrance is outside it (`lodgeSolid`).
       ...world.pairLodges.map(lodgeSolid),
     ];

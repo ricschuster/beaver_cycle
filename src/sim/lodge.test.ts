@@ -207,6 +207,22 @@ describe('solid lodge', () => {
     expect(out.beaver.mode).toBe('walk');
   });
 
+  it('lets a beaver in at any pond level: dry ground, shallow water and deep water (Q79)', () => {
+    const w = wholeLodge();
+    const door = w.lodge!.door;
+    const toward = { ...noIntent(), move: { x: -Math.sin(door), z: -Math.cos(door) } };
+    const walker = { ...w, beaver: { ...w.beaver, y: 0, mode: 'walk' as const } };
+    for (const depth of [0, 0.3, 0.9]) {
+      const pond: Terrain = { ...shore, waterDepth: () => depth };
+      expect(step(walker, toward, 0.1, pond).inLodge).toBe(true);
+      expect(step({ ...walker, beaver: { ...walker.beaver, mode: 'swim' as const } }, toward, 0.1, pond).inLodge).toBe(true);
+    }
+    // Deep water takes a dive, as before.
+    const deep: Terrain = { ...shore, waterDepth: () => 3 };
+    expect(step({ ...walker, beaver: { ...walker.beaver, mode: 'swim' as const } }, toward, 0.1, deep).inLodge).toBe(false);
+    expect(step(w, { ...toward, dive: true }, 0.1, deep).inLodge).toBe(true);
+  });
+
   it('stays in the room and walks round the water hole', () => {
     const w = wholeLodge();
     const door = w.lodge!.door;

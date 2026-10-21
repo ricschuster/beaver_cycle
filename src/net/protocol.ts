@@ -13,9 +13,9 @@ import { cleanLook, type Look } from '../sim/look';
 import type { Intent } from '../sim/buttons';
 
 /** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam, hand food to a friend, strip a branch off a log, ask a friend to be partners or say yes; let go, put down, take a log, a pad, a rock, mud, or a piece put down. */
-export type GuestDo = 'gnaw' | 'build' | 'mend' | 'give' | 'strip' | 'partner';
+export type GuestDo = 'gnaw' | 'build' | 'mend' | 'give' | 'strip' | 'partner' | 'eat' | 'store';
 export type GuestTake = 'let-go' | 'drop' | 'item' | 'log' | 'pad' | 'rock' | 'mud';
-const DOS: readonly string[] = ['gnaw', 'build', 'mend', 'give', 'strip', 'partner'];
+const DOS: readonly string[] = ['gnaw', 'build', 'mend', 'give', 'strip', 'partner', 'eat', 'store'];
 const TAKES: readonly string[] = ['let-go', 'drop', 'item', 'log', 'pad', 'rock', 'mud'];
 
 /** The port the host listens on. */

@@ -28,7 +28,7 @@ Items 2 and 3 are crossed out on the page. They are not built and not tracked.
 
 A worn or broken dam is mended with wood, mud, and rock and keeps its level. A broken dam (condition below 0.15) used to be built
 again from nothing at level 1, which is the vanishing the author saw. Done (#646): `settled` is gone, so a broken dam is mended
-like a worn one, for the units that bring it back to new (about 10 wood units at most), and the HUD line says "dam broken, mend it".
+like a worn one, for the units that bring it back to new (about 5 wood units at most since Q78, #706), and the HUD line says "dam broken, mend it".
 
 ### 5. Going into the lodge at low water
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { noIntent, type Intent } from './buttons';
 import { MEND_PER_WOOD } from './wear';
-import { LEVEL_COST, LEVEL1_COST, costOf, damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, levelOf, needs, placed, raised, spotAt } from './dam';
+import { DAM_MEND_FACTOR, LEVEL_COST, LEVEL1_COST, costOf, damAt, damCondition, damMendUnits, damNeedsRepair, damProgress, damWhole, levelOf, needs, placed, raised, spotAt } from './dam';
 import { widthFactor } from './damSpots';
 import { DAY_SECONDS } from './clock';
 import { newWear } from './wear';
@@ -87,13 +87,13 @@ describe('dam wear', () => {
   it('is mended by wood, mud, and rocks, a rock being worth two', () => {
     const dams = wholeAt(0);
     const clock = 12 * day; // condition 0.4
-    expect(damMendUnits(damAt(dams, spot), clock)).toBe(6);
-    const wood = placed(dams, spot, { wood: 2 }, undefined, clock);
+    expect(damMendUnits(damAt(dams, spot), clock)).toBe(3); // half of the 6 a lodge would take (Q78)
+    const wood = placed(dams, spot, { wood: 1 }, undefined, clock);
     expect(damCondition(damAt(wood, spot), clock)).toBeCloseTo(0.6);
     const rock = placed(dams, spot, { rock: 1 }, undefined, clock);
-    expect(damCondition(damAt(rock, spot), clock)).toBeCloseTo(0.6);
+    expect(damCondition(damAt(rock, spot), clock)).toBeCloseTo(0.8);
     const mud = placed(dams, spot, { mud: 1 }, undefined, clock);
-    expect(damCondition(damAt(mud, spot), clock)).toBeCloseTo(0.5);
+    expect(damCondition(damAt(mud, spot), clock)).toBeCloseTo(0.6);
     expect(damCondition(damAt(placed(dams, spot, { wood: 20 }, undefined, clock), spot), clock)).toBe(1);
   });
 
@@ -102,12 +102,12 @@ describe('dam wear', () => {
     expect(damNeedsRepair(damAt(dams, spot), 9 * day)).toBe(false); // good
     const clock = 12 * day; // worn, 0.4
     expect(damNeedsRepair(damAt(dams, spot), clock)).toBe(true);
-    const rock = placed(dams, spot, { rock: 1 }, undefined, clock); // 0.6: good again, but not new
+    const rock = placed(dams, spot, { rock: 1 }, undefined, clock); // 0.8: good again, but not new
     expect(damNeedsRepair(damAt(rock, spot), clock)).toBe(true);
-    expect(damMendUnits(damAt(rock, spot), clock)).toBe(4);
-    const more = placed(rock, spot, { wood: 2 }, undefined, clock); // 0.8
-    expect(damNeedsRepair(damAt(more, spot), clock)).toBe(true);
-    const done = placed(more, spot, { wood: 2 }, undefined, clock); // 1
+    expect(damMendUnits(damAt(rock, spot), clock)).toBe(1);
+    const more = placed(rock, spot, { mud: 1 }, undefined, clock); // 1 in one more piece would be 1.0; stay under it
+    expect(damCondition(damAt(more, spot), clock)).toBeCloseTo(1);
+    const done = more; // 1
     expect(damCondition(damAt(done, spot), clock)).toBe(1);
     expect(damNeedsRepair(damAt(done, spot), clock)).toBe(false);
     expect(damAt(done, spot)!.repairing).toBeUndefined();
@@ -130,7 +130,7 @@ describe('dam wear', () => {
     const dam = damAt(mended, spot)!;
     expect(dam.wood).toBe(8);
     expect(damWhole(dam)).toBe(true);
-    expect(damCondition(dam, clock)).toBeCloseTo(0.1 + 2 * MEND_PER_WOOD / (dam.scale ?? 1));
+    expect(damCondition(dam, clock)).toBeCloseTo(0.1 + 2 * DAM_MEND_FACTOR * MEND_PER_WOOD / (dam.scale ?? 1));
     expect(damNeedsRepair(dam, clock)).toBe(true);
   });
 
@@ -243,12 +243,12 @@ describe('dam cost follows the length of the wall', () => {
 
   it('mends a long wall with more and a short one with less', () => {
     const mendUnits = (s: DamSpot) => damMendUnits(damAt(placed([], s, LEVEL_COST[2]!, undefined, 0), s), 5 * day);
-    expect(mendUnits(typical)).toBe(3); // 0.75 to 1 at 0.1 a unit, rounded up
-    expect(mendUnits(wide)).toBe(5);
-    expect(mendUnits(narrow)).toBe(2);
+    expect(mendUnits(typical)).toBe(2); // 0.75 to 1 at 0.2 a unit, rounded up
+    expect(mendUnits(wide)).toBe(3);
+    expect(mendUnits(narrow)).toBe(1);
     const worn = placed([], wide, LEVEL_COST[2]!, undefined, 0);
-    const next = placed(worn, wide, { wood: 2 }, undefined, 15 * day); // condition 0.25 + 2 * 0.1 / 2
-    expect(damCondition(damAt(next, wide), 15 * day)).toBeCloseTo(0.35);
+    const next = placed(worn, wide, { wood: 2 }, undefined, 15 * day); // condition 0.25 + 2 * 0.2 / 2
+    expect(damCondition(damAt(next, wide), 15 * day)).toBeCloseTo(0.45);
   });
 
 });

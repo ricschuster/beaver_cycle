@@ -13,6 +13,7 @@ import type { TreeSource } from '../sim/trees';
 import type { WorldState } from '../sim/state';
 import { asked, askersOf, dropAsks, expire, noPairing, partnerOf, press, restore, unpair, type Pairing } from './pairs';
 import { stageAt } from '../sim/life';
+import { atStore, storeCapacity, storeCondition, tapped } from '../sim/food';
 import { leaveHome, pairBirth } from '../sim/state';
 import { INTERIOR_RADIUS, lodgeComplete, lodgeSolid } from '../sim/lodge';
 import { nextSpringStart } from '../sim/clock';
@@ -132,6 +133,21 @@ export class Room {
         if (to === 'host') hostCarry = seat.guest.carry;
         else if (to) to.carry = seat.guest.carry;
         if (to) seat.guest = { ...seat.guest, carry: null };
+      }
+      if (intent.do === 'eat' && seat.guest.inside && seat.guest.carry) {
+        // The piece in the mouth is eaten in the room, as the host's is (`step.ts`).
+        seat.guest = { ...seat.guest, carry: null };
+        world = { ...world, eaten: world.eaten + 1 };
+      }
+      if (intent.do === 'store' && !seat.guest.inside && !seat.guest.haul && !seat.guest.drag && atStore(world.lodge, seat.guest.beaver.x, seat.guest.beaver.z)) {
+        // No stash screen on a guest's tablet: a piece in the mouth goes into the first free place, an empty mouth takes the first piece.
+        const capacity = storeCapacity(storeCondition(world.storeWear, world.clock));
+        const slot = seat.guest.carry ? world.store.findIndex((f, i) => i < capacity && f === null) : world.store.findIndex((f, i) => i < capacity && f !== null);
+        if (slot >= 0) {
+          const r = tapped(world.store, seat.guest.carry, slot, capacity);
+          world = { ...world, store: r.stock };
+          seat.guest = { ...seat.guest, carry: r.carry };
+        }
       }
       if (intent.do === 'partner') {
         const to = this.partnerNear(seat.guest.id, seat.guest.beaver, world.beaver, hostAdult, seat.guest.inside, hostInside, world.clock);

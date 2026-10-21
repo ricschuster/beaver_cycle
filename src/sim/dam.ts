@@ -42,15 +42,18 @@ const scaled = (c: Cost, scale: number): Cost => ({ wood: Math.max(1, Math.round
 export const costOf = (dam: Dam | undefined): Cost => scaled(LEVEL_COST[levelOf(dam) - 1]!, dam?.scale ?? 1);
 const costBelow = (dam: Dam | undefined): Cost => (levelOf(dam) > 1 ? scaled(LEVEL_COST[levelOf(dam) - 2]!, dam?.scale ?? 1) : { wood: 0, mud: 0, rock: 0 });
 
+/** A dam is mended for half of what a lodge or store takes: a unit mends this many times as much (Q78, #706). */
+export const DAM_MEND_FACTOR = 2;
+
 /** Condition one wood unit mends on this dam: a long wall takes more to mend, a short one less. */
-export const mendPerWood = (dam: Dam | undefined): number => MEND_PER_WOOD / (dam?.scale ?? 1);
+export const mendPerWood = (dam: Dam | undefined): number => (DAM_MEND_FACTOR * MEND_PER_WOOD) / (dam?.scale ?? 1);
 
 /** The beaver can place at a spot within this many metres of its bed point: the radius of the ring. */
 export const SPOT_REACH = 5;
 
 /** Condition a mud or a rock mends on a whole dam: mud counts as a unit of wood, a rock as two (wood is the cheap one). */
-export const MEND_PER_MUD = MEND_PER_WOOD;
-export const MEND_PER_ROCK = 2 * MEND_PER_WOOD;
+export const MEND_PER_MUD = DAM_MEND_FACTOR * MEND_PER_WOOD;
+export const MEND_PER_ROCK = 2 * MEND_PER_MUD;
 
 export const newDam = (spot: string, scale = 1): Dam => ({ spot, wood: 0, mud: 0, rock: 0, ...(scale !== 1 ? { scale } : {}) });
 
@@ -136,7 +139,7 @@ export function placed(dams: readonly Dam[], spot: DamSpot, add: Partial<Cost>, 
   const rest = dams.filter((d) => d.spot !== spot.id);
   if (damWhole(dam, cost)) {
     const level = clock === undefined ? 1 : damCondition(dam, clock);
-    const gain = ((add.wood ?? 0) * MEND_PER_WOOD + (add.mud ?? 0) * MEND_PER_MUD + (add.rock ?? 0) * MEND_PER_ROCK) / (dam.scale ?? 1);
+    const gain = ((add.wood ?? 0) * DAM_MEND_FACTOR * MEND_PER_WOOD + (add.mud ?? 0) * MEND_PER_MUD + (add.rock ?? 0) * MEND_PER_ROCK) / (dam.scale ?? 1);
     if (clock === undefined || !dam.wear || level >= 1 || gain === 0) return dams as Dam[];
     const next = Math.min(1, level + gain);
     const { repairing: _was, ...plain } = dam;

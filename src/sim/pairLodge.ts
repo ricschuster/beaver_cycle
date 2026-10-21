@@ -2,6 +2,7 @@
 // two players: either can put the first log, and either can finish or mend it. Plain data and pure functions (ADR 0007).
 import { newLodge } from './buttons';
 import { addWood, lodgeComplete, lodgeCondition, nearLodge, LODGE_WOOD, type Lodge } from './lodge';
+import type { Coat } from './family';
 import { LODGE_WORN_DAYS, mended, newWear } from './wear';
 import type { Log } from './logs';
 import { logWood } from './lodge';
@@ -11,7 +12,16 @@ import type { Terrain } from './terrain';
 /** A lodge and the two players it belongs to: 'host' or the id the host gave a guest. */
 export interface PairLodge extends Lodge {
   players: [string, string];
+  /** The clock the lodge was made whole at: the first spring after it is the day the kits are born (note 48, Q5). */
+  wholeAt?: number;
+  /** The clock the kits were born at, once they are. The pair has come apart then, and the lodge is the home of the two kits. */
+  kitsAt?: number;
+  /** The coats of the two old beavers, Mama and Papa of the kits, once they are born. */
+  parents?: [Coat, Coat];
 }
+
+/** Which nest each kit is born on: the old beavers take the two beside the first, so the guest's kit has the fourth (`familyAt`). */
+export const KIT_NEST = { host: 0, guest: 3 } as const;
 
 /** The lodge of the pair `id` belongs to, or null. */
 export const pairLodgeOf = (lodges: readonly PairLodge[], id: string): PairLodge | null => lodges.find((l) => l.players.includes(id)) ?? null;
@@ -38,7 +48,7 @@ export function placeLog(
   let next: PairLodge;
   if (!lodgeComplete(target)) {
     next = addWood(target, log) as PairLodge;
-    if (lodgeComplete(next)) next = { ...next, wear: newWear(clock) };
+    if (lodgeComplete(next)) next = { ...next, wear: newWear(clock), wholeAt: clock };
   } else if (lodgeCondition(target, clock) < 1) {
     next = { ...target, wear: mended(target.wear, clock, LODGE_WORN_DAYS, logWood(log), LODGE_WOOD) };
   } else return { lodges, used: false };

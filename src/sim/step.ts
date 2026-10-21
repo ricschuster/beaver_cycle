@@ -4,9 +4,9 @@ import { newLodge, noIntent, type Intent } from './buttons';
 import type { Terrain } from './terrain';
 import { atStore, branchFactor, padFactor, storeCapacity, storeCondition, strippable, tapped, trimmed } from './food';
 import { pickedPad, reachablePad } from './lily';
-import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, followPond, lodgeSolid, nearLodge, towardDoor } from './lodge';
+import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, followPond, lodgeSolid, nearLodge, towardDoor, type Lodge } from './lodge';
 import { damAt, placed, spotAt } from './dam';
-import { placeLog, type PairLodge } from './pairLodge';
+import { pairLodgeOf, placeLog, type PairLodge } from './pairLodge';
 import { refineNear, withNewSpots } from './newSpots';
 import { pondsAt, withPonds } from './pond';
 import { STAGE_RULES, softEdge, stageAt } from './life';
@@ -118,6 +118,8 @@ function advance(world: WorldState, actions: Intent, dt: number, ground: Terrain
   const welcomed = welcomeNear(world.welcomed, scents, beaver, world.clock, terrain);
   // A welcomed visitor trusts the player from the start, and so does the family it founds.
   const trust = welcomed === world.welcomed ? world.trust : { ...world.trust, ...Object.fromEntries(welcomed.slice(world.welcomed.length).flatMap((id) => [[`visitor:${id}`, WELCOME_TRUST], [settledId({ id }), WELCOME_TRUST]])) };
+  // A pair's lodge follows its pond like the player's.
+  const pairLodges = built.pairLodges.map((l) => followPond(l, pondSet.ponds, ground) as PairLodge);
   const next: WorldState = {
     ...world,
     ...food,
@@ -133,9 +135,8 @@ function advance(world: WorldState, actions: Intent, dt: number, ground: Terrain
     felled,
     logs,
     drag,
-    lodge: built.lodge ? followPond(built.lodge, pondSet.ponds, ground) : null,
-    // A pair's lodge follows its pond like the player's.
-    pairLodges: built.pairLodges.map((l) => followPond(l, pondSet.ponds, ground) as PairLodge),
+    lodge: homeOf(built.lodge ? followPond(built.lodge, pondSet.ponds, ground) : null, pairLodges),
+    pairLodges,
     dams: built.dams,
     hauled: built.hauled,
     spots,
@@ -166,6 +167,12 @@ function advance(world: WorldState, actions: Intent, dt: number, ground: Terrain
   const kept = partnerKeepsUp(world, counted);
   const justWon = counted.achievements.length > world.achievements.length;
   return kitDue(kept) && !justWon ? birth(kept) : kept;
+}
+
+/** The player's home: the pair lodge when the beaver belongs to a whole one (it is shared, so the pair's list is the truth), else its own lodge. */
+function homeOf(own: Lodge | null, pairLodges: readonly PairLodge[]): Lodge | null {
+  const pair = pairLodgeOf(pairLodges, 'host');
+  return pair && lodgeComplete(pair) ? pair : own;
 }
 
 /**
@@ -211,10 +218,15 @@ function build(world: WorldState, b: BeaverState, actions: Intent, move: { x: nu
       }
       if (haul) return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul }, beaver };
     }
-    if (log && world.pairWith) {
-      // Paired with another player: a log goes on the lodge the two of them build together (#666).
-      const r = placeLog(world.pairLodges, ['host', world.pairWith], { x: b.x, z: b.z, heading: b.heading }, log, ground, world.ponds, world.clock);
-      if (r.used) return { world: { ...world, pairLodges: [...r.lodges], logs: logs.filter((l) => l.id !== log.id), drag: null, lodge, inLodge, storeWear, dams, haul }, beaver };
+    const pairHome = pairLodgeOf(world.pairLodges, 'host');
+    if (log && (world.pairWith || pairHome)) {
+      // Paired with another player, or a kit of the pair's lodge: a log goes on the lodge the two of them built together (#666).
+      const r = placeLog(world.pairLodges, pairHome?.players ?? ['host', world.pairWith!], { x: b.x, z: b.z, heading: b.heading }, log, ground, world.ponds, world.clock);
+      if (r.used) {
+        // The lodge and its store are new from the moment it is whole.
+        const whole = !lodgeComplete(pairHome) && lodgeComplete(pairLodgeOf(r.lodges, 'host'));
+        return { world: { ...world, pairLodges: [...r.lodges], logs: logs.filter((l) => l.id !== log.id), drag: null, lodge, inLodge, storeWear: whole ? newWear(world.clock) : storeWear, dams, haul }, beaver };
+      }
     }
     const target = log ? lodge ?? newLodge(ground, world.ponds, b.x, b.z, b.heading) : null;
     if (log && target && !lodgeComplete(target) && nearLodge(target, b.x, b.z)) {

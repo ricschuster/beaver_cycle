@@ -17,7 +17,7 @@ import type { Terrain } from './terrain';
 import type { WorldState } from './state';
 
 /** What Do does: eat, build or mend with what is carried, hand food to a beaver with an empty mouth, pat a scent mound with mud by the lodge, open the store, dig out a stuck beaver, talk, fell a tree, or strip a branch off a log. */
-export type DoKind = 'eat' | 'build' | 'mend' | 'store' | 'dig' | 'give' | 'talk' | 'gnaw' | 'strip' | 'mark' | 'partner';
+export type DoKind = 'eat' | 'build' | 'mend' | 'store' | 'dig' | 'give' | 'talk' | 'gnaw' | 'strip' | 'mark' | 'partner' | 'part';
 /** What Take does: let go of the log, put down what is in the mouth, or pick up something put down, a log, a lily pad, a rock, or mud. */
 export type TakeKind = 'let-go' | 'drop' | 'item' | 'log' | 'pad' | 'rock' | 'mud';
 
@@ -57,6 +57,8 @@ export interface Around {
   taker?: boolean;
   /** A friend, another player, is close enough to ask to be partners, or to say yes (#666). */
   friend?: boolean;
+  /** The friend close by is the partner: Do asks to stop being partners (note 48, Q4). */
+  parting?: boolean;
 }
 
 /** A lodge that could start ahead of the beaver, in the lake or in a pond that a level 2 dam holds; one in a pond is tagged with it. */
@@ -138,7 +140,7 @@ export function doHere(world: WorldState, ground: Terrain, trees: TreeSource, ar
   if (grown && b.mode !== 'dive' && lodgeComplete(world.lodge) && atStore(world.lodge, b.x, b.z)) return 'store';
   if (grown && around.drift && b.mode === 'walk') return 'dig';
   if (world.carry && around.taker) return 'give';
-  if (grown && around.friend && b.mode !== 'dive') return 'partner';
+  if (grown && around.friend && b.mode !== 'dive') return around.parting ? 'part' : 'partner';
   if (around.speaker && !around.following) return 'talk';
   const work = grown && !world.carry && b.mode !== 'dive';
   if (work && b.mode === 'walk' && (world.chop || trees.nearest(b.x, b.z, CHOP_REACH, felledAsSet(world.felled)))) return 'gnaw';

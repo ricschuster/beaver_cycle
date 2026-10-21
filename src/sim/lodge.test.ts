@@ -36,6 +36,23 @@ describe('the lodge of a pair (#666)', () => {
     expect(w.logs).toHaveLength(0);
   });
 
+  it('the last log makes it the host\'s home, with a new store', () => {
+    const site = { x: 0, z: 2, base: 1, door: 0, wood: 8, players: ['host', 'g1'] as [string, string] };
+    const w = step({ ...dragging(6), pairWith: 'g1', pairLodges: [site] }, build, 0.1, shore);
+    expect(lodgeComplete(w.pairLodges[0]!)).toBe(true);
+    expect(w.pairLodges[0]!.wholeAt).toBe(w.clock - 0.1);
+    expect(w.lodge).toEqual(w.pairLodges[0]);
+    expect(w.storeWear).toBeDefined();
+  });
+
+  it('a kit of the lodge mends it with a log, with no partner any more', () => {
+    const old = { x: 0, z: 2, base: 1, door: 0, wood: LODGE_WOOD, wear: { level: 0.3, since: 0, mend: 0 }, players: ['host', 'g1'] as [string, string], kitsAt: 0 };
+    const w = step({ ...dragging(6), pairLodges: [old], lodge: old }, build, 0.1, shore);
+    expect(w.pairLodges[0]!.wear!.level).toBeGreaterThan(0.3);
+    expect(w.lodge).toEqual(w.pairLodges[0]);
+    expect(w.drag).toBeNull();
+  });
+
   it('an unpaired host still builds its own', () => {
     const w = step(dragging(6), build, 0.1, shore);
     expect(w.lodge).not.toBeNull();

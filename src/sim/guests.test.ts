@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { newGuest, stepGuest, type Shared } from './guests';
+import { guestStage, newGuest, reborn, stepGuest, type Guest, type Shared } from './guests';
+import { DOOR_DISTANCE, HOLE, INTERIOR_RADIUS, LODGE_WOOD, SOLID_RADIUS, doorPoint } from './lodge';
+import { newWear } from './wear';
+import type { PairLodge } from './pairLodge';
 import { noIntent } from './buttons';
 import { CHOP_TIME, noTrees, type TreeSource } from './trees';
 import { WALK_SPEED } from './state';
@@ -153,6 +156,67 @@ describe('guest beavers', () => {
     it('does not gnaw with food in the mouth', () => {
       const g = { ...newGuest('g1', at, ground, coat, undefined), carry: 'lily' as const };
       expect(stepGuest(g, { ...noIntent(), do: 'gnaw' }, 0.1, shared, ground, oneTree).guest.chop).toBeNull();
+    });
+  });
+
+  describe('in the pair lodge (#666, note 48)', () => {
+    const deep: Terrain = { heightAt: () => -3, isWater: () => true, waterDepth: () => 3 };
+    const home: PairLodge = { x: 20, z: 0, base: 0, door: Math.PI / 2, wood: LODGE_WOOD, wear: newWear(0), players: ['g1', 'host'], wholeAt: 0 };
+    const withHome: Shared = { ...shared, ground: deep, pairLodges: [home] };
+    const diver = (g: ReturnType<typeof newGuest>) => ({ ...g, beaver: { ...g.beaver, ...doorPoint(home, DOOR_DISTANCE), y: -2.8, mode: 'dive' as const } });
+
+    it('swims in at the door of a whole lodge and stands in the round room', () => {
+      const g = diver(newGuest('g1', at, deep, coat, undefined));
+      const r = stepGuest(g, { ...noIntent(), move: { x: -1, z: 0 }, dive: true }, 0.05, withHome, deep, noTrees);
+      expect(r.guest.inside).toBe(true);
+      expect(r.guest.beaver.mode).toBe('walk');
+      expect(r.guest.beaver.y).toBe(home.base);
+      expect(Math.hypot(r.guest.beaver.x - home.x, r.guest.beaver.z - home.z)).toBeLessThan(INTERIOR_RADIUS);
+    });
+
+    it('does not go in at a lodge that is not whole, is broken, or is another pair\'s', () => {
+      const g = diver(newGuest('g1', at, deep, coat, undefined));
+      const go = { ...noIntent(), move: { x: -1, z: 0 }, dive: true };
+      expect(stepGuest(g, go, 0.05, { ...withHome, pairLodges: [{ ...home, wood: 4 }] }, deep, noTrees).guest.inside).toBe(false);
+      expect(stepGuest(g, go, 0.05, { ...withHome, clock: 100 * DAY_SECONDS }, deep, noTrees).guest.inside).toBe(false);
+      expect(stepGuest(g, go, 0.05, { ...withHome, pairLodges: [{ ...home, players: ['x', 'y'] }] }, deep, noTrees).guest.inside).toBe(false);
+    });
+
+    it('walks round the room, stays in it, and walks round the water hole', () => {
+      let g: Guest = { ...newGuest('g1', at, deep, coat, undefined), inside: true, beaver: { x: home.x + 4, y: 0, z: home.z, mode: 'walk', heading: 0, breath: 1 } };
+      for (let i = 0; i < 100; i++) g = stepGuest(g, { ...noIntent(), move: { x: 1, z: 0 } }, 0.1, withHome, deep, noTrees).guest;
+      expect(Math.hypot(g.beaver.x - home.x, g.beaver.z - home.z)).toBeLessThanOrEqual(INTERIOR_RADIUS + 1e-6);
+      let h: Guest = { ...g, beaver: { ...g.beaver, x: home.x + 3, z: home.z } };
+      for (let i = 0; i < 100; i++) h = stepGuest(h, { ...noIntent(), move: { x: -1, z: 0 } }, 0.1, withHome, deep, noTrees).guest;
+      expect(Math.hypot(h.beaver.x - home.x, h.beaver.z - home.z)).toBeGreaterThanOrEqual(HOLE.radius - 1e-6);
+    });
+
+    it('a press of Dive at the water hole goes out through the entrance, a held Dive or a press away from it does not', () => {
+      const room: Guest = { ...newGuest('g1', at, deep, coat, undefined), inside: true, beaver: { x: home.x + 2, y: 0, z: home.z, mode: 'walk', heading: 0, breath: 1 } };
+      const out = stepGuest(room, { ...noIntent(), diveTap: true }, 0.05, withHome, deep, noTrees).guest;
+      expect(out.inside).toBe(false);
+      expect(out.beaver.mode).toBe('dive');
+      expect(Math.hypot(out.beaver.x - home.x, out.beaver.z - home.z)).toBeGreaterThan(SOLID_RADIUS);
+      expect(stepGuest(room, { ...noIntent(), dive: true }, 0.05, withHome, deep, noTrees).guest.inside).toBe(true);
+      const far = { ...room, beaver: { ...room.beaver, x: home.x + 5.5 } };
+      expect(stepGuest(far, { ...noIntent(), diveTap: true }, 0.05, withHome, deep, noTrees).guest.inside).toBe(true);
+    });
+
+    it('does nothing with trees or logs inside the room', () => {
+      const room = { ...newGuest('g1', at, deep, coat, undefined), inside: true, beaver: { x: home.x + 4, y: 0, z: home.z, mode: 'walk' as const, heading: 0, breath: 1 } };
+      expect(stepGuest(room, { ...noIntent(), do: 'gnaw' }, 0.1, withHome, deep, oneTree).guest.chop).toBeNull();
+    });
+
+    it('is born a kit on its nest, small, and cannot gnaw or build until it is grown', () => {
+      const kit = reborn(newGuest('g1', at, ground, coat, undefined), home, { coat: 3, shade: 0 }, 0);
+      expect(kit).toMatchObject({ inside: true, bornAt: 0 });
+      expect(kit.parents).toEqual([coat, { coat: 3, shade: 0 }]);
+      expect(guestStage(kit, 0)).toBe('baby');
+      expect(guestStage(kit, 61 * DAY_SECONDS)).toBe('adult');
+      const out = { ...kit, inside: false, beaver: { ...kit.beaver, x: 0, y: 0, z: 0 } };
+      expect(stepGuest(out, { ...noIntent(), do: 'gnaw' }, 0.1, shared, ground, oneTree).guest.chop).toBeNull();
+      const slow = stepGuest(out, { ...noIntent(), move: { x: 1, z: 0 } }, 1, shared, ground, noTrees).guest;
+      expect(slow.beaver.x).toBeLessThan(WALK_SPEED * 0.6);
     });
   });
 });

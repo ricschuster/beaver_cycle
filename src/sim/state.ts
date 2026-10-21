@@ -324,7 +324,7 @@ export function leaveHome(world: WorldState): WorldState {
   const b = world.beaver;
   // Out of the room, at the entrance, if the leaving came while the beaver was asleep inside.
   const out = world.inLodge ? { ...b, ...doorPoint(world.lodge, DOOR_DISTANCE), y: world.lodge.base, mode: 'walk' as const } : b;
-  return { ...world, formerHomes: [...world.formerHomes, { ...world.lodge, wear: undefined, parents: world.parentCoats }], lodge: null, scents: [], store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out, journey: { ...world.journey, inherited: world.journey.inherited.filter((i) => i !== 'lodge' && i !== 'store') } };
+  return { ...world, formerHomes: [...world.formerHomes, { ...world.lodge, wear: undefined, parents: world.parentCoats }], lodge: null, pairLodges: world.pairLodges.filter((l) => l.x !== world.lodge!.x || l.z !== world.lodge!.z), scents: [], store: emptyStock(), storeWear: undefined, stashOpen: false, inLodge: false, beaver: out, journey: { ...world.journey, inherited: world.journey.inherited.filter((i) => i !== 'lodge' && i !== 'store') } };
 }
 
 /** The lone beavers of the valley, put at the dam spots when the player beaver has left home. */
@@ -354,6 +354,14 @@ export function birth(world: WorldState): WorldState {
   if (!mate) return world;
   const parents = [world.coat, { coat: mate.coat, shade: mate.shade }] as [Coat, Coat];
   return setStage(intoLodge(newLife({ ...world, parentCoats: parents, partners: [] })), 'baby');
+}
+
+/**
+ * The kit of a pair lodge (#666, note 48): the host's old beaver and its partner are Mama and Papa, in their own coats, and the host
+ * plays a kit born on its nest in the lodge the two built. The host's home is that lodge from now on, as in `birth`.
+ */
+export function pairBirth(world: WorldState, lodge: Lodge, partner: Coat): WorldState {
+  return setStage(intoLodge(newLife({ ...world, lodge, parentCoats: [world.coat, partner], partners: [] })), 'baby');
 }
 
 /** Make the beaver just reach this life stage now. A test tool, and the ?stage= start. */

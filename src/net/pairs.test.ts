@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ASK_TIME, asked, askersOf, drop, expire, noPairing, partnerOf, press } from './pairs';
+import { ASK_TIME, asked, askersOf, drop, expire, noPairing, partnerOf, press, restore } from './pairs';
 
 describe('partners between players', () => {
   it('one press asks and the other press says yes', () => {
@@ -33,5 +33,23 @@ describe('partners between players', () => {
     expect(expire(p, ASK_TIME + 1).asks).toHaveLength(0);
     const paired = press(p, 'g1', 'host', 1);
     expect(partnerOf(drop(paired, 'g1'), 'host')).toBeNull();
+  });
+
+  it('partners stop by pressing at each other: the first asks, the second ends the pair', () => {
+    const paired = press(press(noPairing(), 'host', 'g1', 0), 'g1', 'host', 1);
+    const asking = press(paired, 'g1', 'host', 5);
+    expect(partnerOf(asking, 'host')).toBe('g1');
+    expect(asking.asks).toEqual([{ from: 'g1', to: 'host', at: 5, stop: true }]);
+    // A stop is not an ask to be partners.
+    expect(asked(asking, 'g1', 'host')).toBe(false);
+    expect(askersOf(asking, 'host')).toEqual([]);
+    const ended = press(asking, 'host', 'g1', 6);
+    expect(partnerOf(ended, 'host')).toBeNull();
+    expect(partnerOf(ended, 'g1')).toBeNull();
+    expect(ended.asks).toEqual([]);
+  });
+
+  it('a pair with kits is not a pair again after a restart', () => {
+    expect(restore([{ players: ['host', 'g1'] }, { players: ['a', 'b'], kitsAt: 10 }]).pairs).toEqual([['host', 'g1']]);
   });
 });

@@ -3,7 +3,7 @@
 // shared world. Everything that comes off the wire is checked here, since a friend's tablet is not trusted to be well made.
 import type { Dam } from '../sim/dam';
 import type { Coat } from '../sim/family';
-import type { Guest } from '../sim/guests';
+import { guestStage, type Guest } from '../sim/guests';
 import type { Food } from '../sim/food';
 import type { Dropped } from '../sim/haul';
 import type { Log } from '../sim/logs';
@@ -23,7 +23,7 @@ export const PORT = 8765;
 /** The host sends state this many times a second, and a guest sends its intent as often. */
 export const SEND_HZ = 20;
 
-export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'ping'; ts: number };
+export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'ping'; ts: number };
 
 /** What every guest needs of the world to draw it: the clock, the trees down, the logs, and every beaver but its own host-side state. */
 export interface Snapshot {
@@ -48,6 +48,8 @@ export interface Snapshot {
   /** Players who asked another to be partners and wait for a yes, as [from, to], and the pairs who said yes (#666). */
   asks?: [string, string][];
   pairs?: [string, string][];
+  /** Partners who asked to stop being partners and wait for the other's press, as [from, to] (note 48, Q4). */
+  stops?: [string, string][];
 }
 
 /** One beaver as the others see it. */
@@ -69,6 +71,11 @@ export interface BeaverView {
   carry?: Food | null;
   /** False for a host beaver that is not yet an adult, and so cannot be a partner (absent means grown). */
   grown?: boolean;
+  /** True while the beaver is in the round room of its pair lodge, so only a tablet in that room draws it (#666). */
+  inside?: boolean;
+  /** The clock a kit of a pair lodge was born at, and the coats of its two parents (note 48); absent for a beaver that has always been grown. */
+  bornAt?: number;
+  parents?: [Coat, Coat];
 }
 
 export type ToGuest = { t: 'welcome'; id: string } | { t: 'state'; snapshot: Snapshot } | { t: 'pong'; ts: number };
@@ -103,7 +110,7 @@ export function readToHost(text: string): ToHost | null {
     }
     const act = typeof m.do === 'string' && DOS.includes(m.do) ? (m.do as GuestDo) : undefined;
     const take = typeof m.take === 'string' && TAKES.includes(m.take) ? (m.take as GuestTake) : undefined;
-    return { t: 'intent', x, z, dive: m.dive === true, gnaw: m.gnaw === true, ...(act ? { do: act } : {}), ...(take ? { take } : {}) };
+    return { t: 'intent', x, z, dive: m.dive === true, ...(m.diveTap === true ? { diveTap: true } : {}), gnaw: m.gnaw === true, ...(act ? { do: act } : {}), ...(take ? { take } : {}) };
   }
   if (m.t === 'ping') return { t: 'ping', ts: num(m.ts, 0, 1e15) };
   return null;
@@ -121,11 +128,11 @@ export function readToGuest(text: string): ToGuest | null {
 
 /** The intent a guest's message stands for, in the sim's own terms. */
 export function intentOf(m: Extract<ToHost, { t: 'intent' }>): Intent {
-  return { move: { x: m.x, z: m.z }, dive: m.dive, do: m.do ?? (m.gnaw ? 'gnaw' : null), take: m.take ?? null };
+  return { move: { x: m.x, z: m.z }, dive: m.dive, diveTap: m.diveTap === true, do: m.do ?? (m.gnaw ? 'gnaw' : null), take: m.take ?? null };
 }
 
 /** A guest as the others see it. */
-export function viewOfGuest(g: Guest): BeaverView {
+export function viewOfGuest(g: Guest, clock = 0): BeaverView {
   const b = g.beaver;
-  return { id: g.id, coat: g.coat, look: g.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: g.pace, chopping: g.chop !== null, haul: g.haul?.kind ?? null, carry: g.carry, drag: g.drag };
+  return { id: g.id, coat: g.coat, look: g.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: g.pace, chopping: g.chop !== null, haul: g.haul?.kind ?? null, carry: g.carry, drag: g.drag, grown: guestStage(g, clock) === 'adult', ...(g.inside ? { inside: true } : {}), ...(g.bornAt !== null ? { bornAt: g.bornAt, ...(g.parents ? { parents: g.parents } : {}) } : {}) };
 }

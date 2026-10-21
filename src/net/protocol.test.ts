@@ -28,6 +28,14 @@ describe('messages from a guest', () => {
   });
 });
 
+describe('a press of Dive', () => {
+  it('comes through as a tap only when the guest says so', () => {
+    const tap = readToHost('{"t":"intent","x":0,"z":0,"dive":false,"diveTap":true,"gnaw":false}');
+    expect(intentOf(tap as never).diveTap).toBe(true);
+    expect(intentOf(readToHost('{"t":"intent","x":0,"z":0,"dive":true,"gnaw":false}') as never).diveTap).toBe(false);
+  });
+});
+
 describe('messages from the host', () => {
   it('read the three kinds and refuse the rest', () => {
     expect(readToGuest('{"t":"welcome","id":"g1"}')).toEqual({ t: 'welcome', id: 'g1' });

@@ -6,6 +6,7 @@ import { STAGE_RULES } from '../sim/life';
 import type { WorldState } from '../sim/state';
 import { pairLodgeOf } from '../sim/pairLodge';
 import type { BeaverView, Snapshot } from './protocol';
+import type { Say } from './says';
 
 /** The world a guest shows: the host's clock, felled trees, and logs, and this guest's beaver where the host put it. */
 export function applySnapshot(world: WorldState, snap: Snapshot, me: string): WorldState {
@@ -90,4 +91,25 @@ export function pairingOf(snap: Snapshot | null, me: string): { askedBy: string[
   const pair = (snap?.pairs ?? []).find((p) => p.includes(me));
   const stops = snap?.stops ?? [];
   return { askedBy: asks.filter(([, to]) => to === me).map(([from]) => from), asking: asks.filter(([from]) => from === me).map(([, to]) => to), partner: pair ? (pair[0] === me ? pair[1] : pair[0]) : null, stopBy: stops.some(([, to]) => to === me), stopping: stops.some(([from]) => from === me) };
+}
+
+/** The nearest other beaver of a snapshot within `GIVE_REACH` of (x, z) in the same place (the lodge room or outside): someone to talk to (#667). */
+export function friendNearby(snap: Snapshot | null, me: string, at: { x: number; z: number }): BeaverView | null {
+  const mine = snap?.beavers.find((v) => v.id === me);
+  let best: BeaverView | null = null;
+  let bestD = GIVE_REACH;
+  for (const v of snap?.beavers ?? []) {
+    const d = Math.hypot(v.x - at.x, v.z - at.z);
+    if (v.id !== me && !v.inside === !mine?.inside && d <= bestD) {
+      best = v;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** The questions put to `me` that wait for an answer, and the answers to the questions `me` put (#667). */
+export function saysOf(snap: Snapshot | null, me: string): { asked: Say[]; answers: Say[] } {
+  const says = snap?.says ?? [];
+  return { asked: says.filter((k) => k.to === me && k.a === undefined), answers: says.filter((k) => k.from === me && k.a !== undefined) };
 }

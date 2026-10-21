@@ -27,7 +27,15 @@ describe('Do', () => {
   it('gives food to a beaver with an empty mouth close by, before it talks', () => {
     expect(doHere({ ...world(), carry: 'branch' }, flat, trees, { speaker: true, drift: false, taker: true })).toBe('give');
     expect(doHere(world(), flat, trees, { speaker: true, drift: false, taker: true })).toBe('talk');
-    expect(doHere(world(), flat, trees, { speaker: true, drift: false, friend: true })).toBe('partner');
+  });
+
+  it('talks to a friend who is a player, as a baby too, but gnaws first when a tree is in reach', () => {
+    const mate = { speaker: false, drift: false, mate: true };
+    expect(doHere(world(), flat, noTrees, mate)).toBe('talk');
+    expect(doHere({ ...world(), bornAt: world().clock }, flat, noTrees, mate)).toBe('talk');
+    expect(doHere({ ...world(), inLodge: true }, flat, noTrees, mate)).toBe('talk');
+    expect(doHere(world(), flat, trees, mate)).toBe('gnaw');
+    expect(doHere({ ...world(), logs: [log] }, flat, noTrees, mate)).toBe('strip');
   });
 
   it('talks before it gnaws, and digs before it talks', () => {

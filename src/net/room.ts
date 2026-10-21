@@ -18,6 +18,7 @@ import { leaveHome, pairBirth } from '../sim/state';
 import { INTERIOR_RADIUS, lodgeComplete, lodgeSolid } from '../sim/lodge';
 import { nextSpringStart } from '../sim/clock';
 import { pairLodgeOf, type PairLodge } from '../sim/pairLodge';
+import { answer, ask as askSay, drop as dropSays, expire as expireSays, noSays, type AnswerId, type QuestionId, type Says } from './says';
 import { intentOf, readToHost, viewOfGuest, type BeaverView, type Snapshot, type ToGuest } from './protocol';
 
 /** The most friends in one valley besides the host (note 42: up to four players at once). */
@@ -37,6 +38,8 @@ interface Seat {
   home: number | null;
   /** The family of that lodge, whose baby this guest plays. */
   family: string | null;
+  /** A question this guest wants to put to the friend close by, until the next step finds who that is (#667). */
+  say?: QuestionId;
 }
 
 export class Room {
@@ -45,6 +48,8 @@ export class Room {
   private strangers = new Set<string>();
   /** Who asked whom to be partners, and who said yes (#666). */
   private pairing: Pairing = noPairing();
+  /** The questions put to friends and their answers (#667). */
+  private says: Says = noSays();
   constructor(private readonly send: (to: string, text: string) => void) {}
 
   /** A connection opened: it waits for its hello. */
@@ -56,7 +61,10 @@ export class Room {
     this.strangers.delete(id);
     const seat = this.seats.get(id);
     this.seats.delete(id);
-    if (seat) this.pairing = dropAsks(this.pairing, seat.guest.id);
+    if (seat) {
+      this.pairing = dropAsks(this.pairing, seat.guest.id);
+      this.says = dropSays(this.says, seat.guest.id);
+    }
   }
 
   /** A host that starts again takes its pairs from the lodges already built (#666). */
@@ -98,6 +106,10 @@ export class Room {
     if (seat && m.t === 'look') {
       seat.guest = { ...seat.guest, coat: m.coat, look: m.look };
       seat.heard = now;
+    } else if (seat && m.t === 'say') {
+      if (m.q) seat.say = m.q;
+      else if (m.a) this.says = answer(this.says, seat.guest.id, m.a, now);
+      seat.heard = now;
     } else if (seat && m.t === 'intent') {
       seat.intent = intentOf(m);
       seat.heard = now;
@@ -116,6 +128,7 @@ export class Room {
     ];
     let hostCarry = world.carry;
     this.pairing = expire(this.pairing, now);
+    this.says = expireSays(this.says, now);
     // The host paired: its own lodge becomes a former home (Q110, note 48), and its logs now go to the lodge of the pair.
     const hostPartner = partnerOf(this.pairing, 'host');
     if (hostPartner && !world.pairWith) world = leaveHome(world);
@@ -126,6 +139,11 @@ export class Room {
     const hostAdult = stageAt(world.clock, world.bornAt) === 'adult';
     const hostInside = world.inLodge;
     for (const seat of this.seats.values()) {
+      if (seat.say) {
+        const to = this.friendNear(seat.guest.id, seat.guest.beaver, world.beaver, seat.guest.inside, hostInside);
+        if (to) this.says = askSay(this.says, seat.guest.id, to, seat.say, now);
+        seat.say = undefined;
+      }
       const intent = now - seat.heard > SILENT_AFTER ? { move: { x: 0, z: 0 } } : seat.intent;
       if (intent.do === 'give' && seat.guest.carry) {
         // Food handed to the host or another guest whose mouth is empty (#663).
@@ -209,6 +227,31 @@ export class Room {
       }
     }
     return best;
+  }
+
+  /** The player `from` can put a question to: the nearest other player within `GIVE_REACH` in the same place (the lodge room or outside). */
+  friendNear(from: string, at: { x: number; z: number }, host: { x: number; z: number }, fromInside = false, hostInside = false): string | null {
+    const dist = (p: { x: number; z: number }) => Math.hypot(p.x - at.x, p.z - at.z);
+    let best: string | null = from !== 'host' && hostInside === fromInside && dist(host) <= GIVE_REACH ? 'host' : null;
+    let bestD = best ? dist(host) : GIVE_REACH;
+    for (const s of this.seats.values()) {
+      const d = dist(s.guest.beaver);
+      if (s.guest.id !== from && s.guest.inside === fromInside && d <= bestD) {
+        best = s.guest.id;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  /** `from` puts a question to `to`. */
+  say(from: string, to: string, q: QuestionId, now: number): void {
+    this.says = askSay(this.says, from, to, q, now);
+  }
+
+  /** `to` answers the latest question put to it. */
+  answer(to: string, a: AnswerId, now: number): void {
+    this.says = answer(this.says, to, a, now);
   }
 
   /**
@@ -301,7 +344,7 @@ export class Room {
   snapshot(world: WorldState): Snapshot {
     const b = world.beaver;
     const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null, grown: stageAt(world.clock, world.bornAt) === 'adult', ...(world.inLodge ? { inside: true } : {}), ...(world.generation > 0 && world.lodge && pairLodgeOf(world.pairLodges, 'host') ? { bornAt: world.bornAt, parents: world.parentCoats } : {}) };
-    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map((g) => viewOfGuest(g, world.clock))], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.filter((a) => !a.stop).map((a) => [a.from, a.to]), stops: this.pairing.asks.filter((a) => a.stop).map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]) };
+    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map((g) => viewOfGuest(g, world.clock))], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.filter((a) => !a.stop).map((a) => [a.from, a.to]), stops: this.pairing.asks.filter((a) => a.stop).map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]), says: [...this.says.list] };
   }
 
   /** Sends the state to every guest that has said hello. */

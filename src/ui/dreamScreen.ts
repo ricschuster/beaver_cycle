@@ -6,13 +6,13 @@ import { t, tList } from '../i18n';
 import { mergeActions, noActions, relativeToView, type Actions } from '../actions/actions';
 import { createCameraRig, type CameraRig } from '../render/cameraRig';
 import { createDreamView, type DreamView } from '../render/dreamView';
-import { hideOrSeek, newDream, type DreamBuild, playPrompt, stepDream, type DreamEvent, type DreamInput, type DreamState } from '../sim/dream';
+import { GROW_STAGES, hideOrSeek, newDream, type DreamBuild, type DreamTheme, playPrompt, stepDream, type DreamEvent, type DreamInput, type DreamState } from '../sim/dream';
 import { DARK_MS, FADE_MS } from './sleepPrompt';
 import { createTouchControls, type TouchControls } from './touchControls';
 
 export interface DreamScreen {
-  /** Open a new dream from a seed. Does nothing while a dream is open. */
-  start(seed: number, kept?: readonly DreamBuild[]): void;
+  /** Open a new dream from a seed, candy land or the veggie garden. Does nothing while a dream is open. */
+  start(seed: number, kept?: readonly DreamBuild[], theme?: DreamTheme): void;
   /** One frame of the dream: step it with the actions, draw it, and update the screen. */
   frame(dt: number, actions: Actions): void;
   /** True from `start` until the screen has faded out after Wake up. */
@@ -55,9 +55,10 @@ const pick = (lines: readonly string[], n: number): string => lines[Math.abs(Mat
 /** The line for an event, picked from a few by the counter `n`, or null for events that need none (a sweet, a splash, a giggle). */
 export function dreamLine(event: DreamEvent, state: DreamState, n: number): string | null {
   const one = (key: string, params?: Record<string, string | number>): string => pick(tList(key, params), n);
+  const veg = state.land.theme === 'veggie';
   switch (event.what) {
     case 'sweet':
-      return event.kind === 'star' ? one('dream.star') : event.kind === 'lily' ? one('dream.lily') : null;
+      return event.kind === 'star' ? one(veg ? 'dream.starVeg' : 'dream.star') : event.kind === 'lily' ? one(veg ? 'dream.lilyVeg' : 'dream.lily') : null;
     case 'chop':
       return one('dream.chopped');
     case 'build':
@@ -65,7 +66,7 @@ export function dreamLine(event: DreamEvent, state: DreamState, n: number): stri
     case 'statue':
       return one('dream.statue');
     case 'rush':
-      return one('dream.rush');
+      return one(veg ? 'dream.rushVeg' : 'dream.rush');
     case 'greet':
       return one('dream.greet', { name: mallowName(state, event.who) });
     case 'tagStart':
@@ -104,7 +105,11 @@ export function dreamLine(event: DreamEvent, state: DreamState, n: number): stri
       if (event.found === 0) return one('dream.hideEndNone');
       return one('dream.hideEnd', { found: event.found, seekers: event.seekers });
     case 'shower':
-      return one('dream.shower');
+      return one(veg ? 'dream.showerVeg' : 'dream.shower');
+    case 'growStart':
+      return one('dream.growStart');
+    case 'growEnd':
+      return event.winner === 'player' ? one('dream.growYou') : one('dream.growOther', { name: mallowName(state, event.winner) });
     default:
       return null;
   }
@@ -127,6 +132,10 @@ export function dreamStatus(state: DreamState): { top: string | null; big: strin
     const left = t('dream.sLeft', { n: Math.max(0, Math.ceil(g.until - state.time)) });
     return { top: g.found.length === 0 ? t('dream.shh', { left }) : t('dream.foundYou', { found: g.found.length, seekers: g.seekers.length, left }), big: null };
   }
+  if (g.kind === 'grow') {
+    const mine = state.plants?.find((p) => p.owner === 'player');
+    return { top: t('dream.growStatus', { stage: mine?.stage ?? 0, all: GROW_STAGES, n: Math.max(0, Math.ceil(g.ends - state.time)) }), big: null };
+  }
   return { top: null, big: null };
 }
 
@@ -137,6 +146,11 @@ const CANDY =
   '<svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true" style="flex:none">' +
   '<path d="M10 16 2 9.5 3.5 22.5Z" fill="#ffb3d6"/><path d="M22 16 30 9.5 28.5 22.5Z" fill="#ffb3d6"/>' +
   '<circle cx="16" cy="16" r="8" fill="#ff6fa8"/><path d="M11 11.5q5 3 10 9" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>';
+
+const CARROT =
+  '<svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true" style="flex:none">' +
+  '<path d="M16 29 10 12q6-4 12 0Z" fill="#f2831c"/><path d="M13 17h5M12 22h5" stroke="#d96a0a" stroke-width="1.6" stroke-linecap="round"/>' +
+  '<path d="M16 12C11 8 11 4 13 3c2 1 3 4 3 9ZM16 12c0-6 1-8 3-9 2 1 2 5-3 9ZM16 12c3-3 9-4 11-2-1 3-6 4-11 2Z" fill="#6fbf45"/></svg>';
 
 const el = (tag: string, css: string, id?: string): HTMLElement => {
   const e = document.createElement(tag);
@@ -220,8 +234,8 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     }, DARK_MS);
   };
 
-  const build = (seed: number, kept: readonly DreamBuild[]): Open => {
-    const state = newDream(seed, kept);
+  const build = (seed: number, kept: readonly DreamBuild[], theme: DreamTheme): Open => {
+    const state = newDream(seed, kept, theme);
     const root = el(
       'div',
       `position:fixed;inset:0;z-index:21;overflow:hidden;background:#05060d;opacity:0;transition:opacity ${FADE_MS}ms;` +
@@ -236,7 +250,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       const countBox = el('div', `${PILL};position:absolute;left:max(16px,env(safe-area-inset-left));top:16px;z-index:2;display:flex;align-items:center;gap:8px;padding:6px 18px 6px 10px;font-size:26px;pointer-events:none`, 'dream-count');
       const count = el('span', 'display:inline-block;min-width:1.2em');
       count.textContent = '0';
-      countBox.innerHTML = CANDY;
+      countBox.innerHTML = theme === 'veggie' ? CARROT : CANDY;
       countBox.append(count);
       const status = el('div', `${PILL};position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:2;padding:8px 20px;font-size:20px;white-space:nowrap;display:none;pointer-events:none`, 'dream-status');
       const big = el('div', `position:absolute;left:0;right:0;top:38%;z-index:2;text-align:center;font-size:clamp(40px,9vw,84px);color:#fff6ec;text-shadow:0 4px 0 #e79ab8,0 0 24px rgba(201,182,255,.9);display:none;pointer-events:none;${FONT}`, 'dream-big');
@@ -385,10 +399,10 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
   };
 
   return {
-    start(seed, kept = []) {
+    start(seed, kept = [], theme = 'candy') {
       if (open) return;
       try {
-        open = build(seed, kept);
+        open = build(seed, kept, theme);
       } catch (e) {
         // A dream that cannot open must not leave the player in the dark.
         console.error('dream: could not start', e);

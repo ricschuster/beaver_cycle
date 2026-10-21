@@ -3,14 +3,16 @@
 // changes the waking game's state. Pure, no DOM, no three.js. The ground and the props are laid out in dreamLand.ts.
 import { t } from '../i18n';
 import {
+  BED_RADIUS,
   HILL_WIDTH,
-  INNER,
   PROP_RADIUS,
   clamp,
+  innerOf,
   landRise,
   lineDistance,
   makeLand,
   mixSeed,
+  nearestOnLine,
   riverDistance,
   riverFrame,
   rngFrom,
@@ -28,7 +30,24 @@ export interface DreamPoint {
 /** The chocolate's surface height. Land is above it, the river bed below. */
 export const CHOCOLATE_LEVEL = 0;
 
-export type PropKind = 'lollipop' | 'gumdrop' | 'candyCane' | 'cupcake' | 'iceCream' | 'marshmallowRock' | 'cottonCandy';
+/** Which dream: candy land, or the veggie garden (docs/design/50_veggie_garden_dream.md). The player picks at bedtime (Q85). */
+export type DreamTheme = 'candy' | 'veggie';
+
+export type PropKind =
+  | 'lollipop'
+  | 'gumdrop'
+  | 'candyCane'
+  | 'cupcake'
+  | 'iceCream'
+  | 'marshmallowRock'
+  | 'cottonCandy'
+  | 'lettuceTree'
+  | 'broccoliTree'
+  | 'leek'
+  | 'cabbage'
+  | 'pumpkin'
+  | 'radish'
+  | 'beanPole';
 
 export interface DreamProp {
   id: string;
@@ -67,9 +86,19 @@ export interface DreamPond {
   r: number;
 }
 
+/** A garden bed of the veggie dream (Q88): its middle, `BED_RADIUS` across. */
+export interface DreamBed {
+  x: number;
+  z: number;
+}
+
 export interface DreamLand {
   seed: number;
-  /** The land is the square -half..half on x and z. Candy hills rise at its edges. */
+  /** Candy land when missing. */
+  theme?: DreamTheme;
+  /** The garden beds of the veggie dream, where plants are grown with watering cans. */
+  beds?: DreamBed[];
+  /** The land is the square -half..half on x and z. Candy hills rise at its edges. 80 for candy land, 120 for the veggie garden. */
   half: number;
   /** The little path, from the start to the river bank, as points about 2 m apart. */
   path: DreamPoint[];
@@ -107,11 +136,22 @@ export interface DreamBeaver {
 }
 
 /** `count`, `seek` and `home` are for hide and seek with the player hiding: counting at the base, looking, and back at the base. */
-export type MallowState = 'wander' | 'greet' | 'follow' | 'chase' | 'flee' | 'hide' | 'hidden' | 'found' | 'count' | 'seek' | 'home';
+export type MallowState = 'wander' | 'greet' | 'follow' | 'chase' | 'flee' | 'hide' | 'hidden' | 'found' | 'count' | 'seek' | 'home' | 'water';
+
+/** The vegetables a veggie beaver can be, given out in this order (Q86). */
+export type VegKind = 'pea' | 'carrot' | 'tomato' | 'radish' | 'pumpkin';
+export const VEGS: readonly VegKind[] = ['pea', 'carrot', 'tomato', 'radish', 'pumpkin'];
+/** Their names, given out in this order from the first until the garden is full (Q86). */
+export const VEG_NAMES: readonly string[] = ['Veggie', 'Spice', 'Planty', 'Cabbagey', 'Kale', 'Lettuce'];
 
 export interface Mallow extends DreamBeaver {
   id: string;
   name: string;
+  /** In the veggie garden: the vegetable this beaver is. */
+  veg?: VegKind;
+  /** Growing a plant: it carries a full watering can, and has watered its plant this many times. */
+  can?: boolean;
+  watered?: number;
   /** An index into `MALLOW_COLOURS`. */
   colour: number;
   state: MallowState;
@@ -160,7 +200,16 @@ export type DreamGame =
    * The player hides. Counting: the seekers count to ten at `base` while the player runs off. Seeking: they look until all
    * have found the player or `until`, a minute on. `found` is the seekers that have found the player.
    */
-  | { kind: 'hide'; phase: 'counting' | 'seeking'; until: number; base: DreamPoint; seekers: string[]; found: string[] };
+  | { kind: 'hide'; phase: 'counting' | 'seeking'; until: number; base: DreamPoint; seekers: string[]; found: string[] }
+  /** Growing plants in the garden beds: the player and some veggie beavers water one each; the first to full size, else the biggest at `ends`, wins. `can` is the player's can being full. */
+  | { kind: 'grow'; ends: number; can: boolean };
+
+/** A plant in a garden bed: its stage from 0 (a seed) to `GROW_STAGES`. `owner` is 'player' or a veggie beaver's id. */
+export interface Plant {
+  bed: number;
+  owner: string;
+  stage: number;
+}
 
 /** A candy dam across the chocolate or a candy lodge on land, raised log by log (wish 6). `heading` is the way across the dam. */
 export interface DreamBuild {
@@ -189,6 +238,8 @@ export interface DreamState {
   carrying?: boolean;
   /** The candy dam and lodge begun or finished this dream, one of each at most. They do not stay for other dreams (Q81). */
   builds?: DreamBuild[];
+  /** The plants of the last garden game this dream, grown or not (the veggie garden). */
+  plants?: Plant[];
   game: DreamGame;
   /** The seeded random source's state, carried from step to step so the same inputs give the same dream. */
   rng?: number;
@@ -233,7 +284,12 @@ export type DreamEvent =
   | { what: 'spotted'; who: string; left: number }
   /** The player's hiding is over: `found` of the `seekers` found them. */
   | { what: 'hideEnd'; found: number; seekers: number }
-  | { what: 'shower'; count: number };
+  | { what: 'shower'; count: number }
+  /** The veggie garden: a game of growing plants began with `friends` beavers; someone filled a can; someone watered a plant to `stage`; it ended with `winner` ('player' or a name). */
+  | { what: 'growStart'; friends: number }
+  | { what: 'fill'; who: string; x: number; z: number }
+  | { what: 'water'; who: string; stage: number; x: number; z: number }
+  | { what: 'growEnd'; winner: string };
 
 /** Pastel coats for the marshmallow beavers: fur, darker fur for legs and ears, and belly, as in `COATS` of the beaver model. */
 export const MALLOW_COLOURS: readonly { fur: number; dark: number; belly: number }[] = [
@@ -282,6 +338,12 @@ const LILY_COUNT = 2;
 const LILIES_PER_POND = 4;
 /** The golden beaver statue gives a rush this long (seconds), and is touched from this close (metres). */
 export const STATUE_RUSH_TIME = 20;
+/** Growing plants: stages to full size, how long a game lasts, how close a bed or the river's edge must be, and how many beavers join (Q88). */
+export const GROW_STAGES = 6;
+export const GROW_TIME = 150;
+const BED_REACH = 2.4;
+const GROW_FRIENDS = 3;
+const WATER_PAUSE = 1.2;
 const STATUE_REACH = 1.4;
 /** Marshmallow beavers amble at these speeds (m/s), and say hello the first time the player is this close (metres). */
 const MALLOW_WALK = 1.6;
@@ -404,8 +466,8 @@ export function keptInLand(land: DreamLand, kept: readonly DreamBuild[]): DreamB
       continue;
     }
     const fits = (x: number, z: number): boolean =>
-      Math.abs(x) < INNER &&
-      Math.abs(z) < INNER &&
+      Math.abs(x) < innerOf(land.half) &&
+      Math.abs(z) < innerOf(land.half) &&
       riverDistance(land, x, z) - land.riverWidth / 2 > LODGE_CLEAR + BANK_GAP &&
       dreamHeight(land, x, z) > CHOCOLATE_LEVEL + 0.3 &&
       clearOfProps(land, x, z, LODGE_CLEAR);
@@ -423,15 +485,16 @@ export function keptInLand(land: DreamLand, kept: readonly DreamBuild[]): DreamB
 }
 
 /** A new dream from a seed (any integer). The same seed makes the same dream. `kept` are the dams and lodges the player kept. */
-export function newDream(seed: number, kept: readonly DreamBuild[] = []): DreamState {
-  const land = makeLand(seed);
+export function newDream(seed: number, kept: readonly DreamBuild[] = [], theme: DreamTheme = 'candy'): DreamState {
+  const land = makeLand(seed, theme);
   const rand = rngFrom(mixSeed(seed, 3)).next;
   const sweets = makeSweets(land, rand);
   const mallows = makeMallows(land, rand);
   const { x, z, heading } = land.start;
   const beaver: DreamBeaver = { x, y: dreamHeight(land, x, z), z, heading, speed: 0, mode: 'walk', hopAt: null, slapAt: null };
   const dream: DreamState = { land, time: 0, beaver, mallows, sweets, count: 0, rushUntil: 0, game: { kind: 'none' }, rng: mixSeed(seed, 4) };
-  return kept.length > 0 ? { ...dream, builds: keptInLand(land, kept) } : dream;
+  // The veggie garden has no chopping or building, so nothing is kept for it.
+  return kept.length > 0 && theme === 'candy' ? { ...dream, builds: keptInLand(land, kept) } : dream;
 }
 
 const clearOfProps = (land: DreamLand, x: number, z: number, gap: number): boolean =>
@@ -440,6 +503,8 @@ const clearOfProps = (land: DreamLand, x: number, z: number, gap: number): boole
 /** About 40 to 60 sweets: along the path a little off it, floating down the river, and over the land; a few are stars. */
 function makeSweets(land: DreamLand, rand: () => number): Sweet[] {
   const w2 = land.riverWidth / 2;
+  const inner = innerOf(land.half);
+  const more = (land.half / 80) ** 2;
   const spots: DreamPoint[] = [];
   const across = (line: readonly DreamPoint[], i: number): DreamPoint => {
     const a = line[Math.max(0, i - 1)]!;
@@ -456,15 +521,15 @@ function makeSweets(land: DreamLand, rand: () => number): Sweet[] {
   }
   for (let i = 0; i < land.river.length; i += 4) {
     const p = land.river[i]!;
-    if (Math.abs(p.x) > INNER - 2 || Math.abs(p.z) > INNER - 2) continue;
+    if (Math.abs(p.x) > inner - 2 || Math.abs(p.z) > inner - 2) continue;
     const n = across(land.river, i);
     const off = (rand() * 2 - 1) * w2 * 0.5;
     spots.push({ x: p.x + n.x * off, z: p.z + n.z * off });
   }
-  const want = 40 + Math.floor(rand() * 21);
-  for (let attempt = 0; attempt < 2000 && spots.length < want; attempt++) {
-    const x = (rand() * 2 - 1) * (INNER - 2);
-    const z = (rand() * 2 - 1) * (INNER - 2);
+  const want = Math.round((40 + Math.floor(rand() * 21)) * more);
+  for (let attempt = 0; attempt < 2000 * more && spots.length < want; attempt++) {
+    const x = (rand() * 2 - 1) * (inner - 2);
+    const z = (rand() * 2 - 1) * (inner - 2);
     if (riverDistance(land, x, z) < w2 + 1 || !clearOfProps(land, x, z, 0.6) || nearPond(land, x, z, 1)) continue;
     if (spots.some((q) => dist2(q, { x, z }) < 9)) continue;
     spots.push({ x, z });
@@ -488,6 +553,7 @@ export const nearPond = (land: DreamLand, x: number, z: number, gap: number): bo
 /** White chocolate lily pads: a few in each pond, and some on the river where the beaver swims. */
 function makeLilies(land: DreamLand, rand: () => number, from: number): Sweet[] {
   const spots: DreamPoint[] = [];
+  const inner = innerOf(land.half);
   for (const o of land.ponds) {
     for (let i = 0; i < LILIES_PER_POND; i++) {
       const a = ((i + rand() * 0.6) / LILIES_PER_POND) * TAU;
@@ -497,7 +563,7 @@ function makeLilies(land: DreamLand, rand: () => number, from: number): Sweet[] 
   }
   for (let i = 3; i < land.river.length; i += 5) {
     const p = land.river[i]!;
-    if (Math.abs(p.x) > INNER - 2 || Math.abs(p.z) > INNER - 2) continue;
+    if (Math.abs(p.x) > inner - 2 || Math.abs(p.z) > inner - 2) continue;
     const { out } = riverFrame(land, p.x + 0.3, p.z + 0.3);
     const off = (rand() * 2 - 1) * land.riverWidth * 0.3;
     spots.push({ x: p.x + out.x * off, z: p.z + out.z * off });
@@ -510,13 +576,15 @@ function makeLilies(land: DreamLand, rand: () => number, from: number): Sweet[] 
 /** One marshmallow beaver in each coat, with its own name: three on land by the end of the path, the rest in the river. */
 function makeMallows(land: DreamLand, rand: () => number): Mallow[] {
   const w2 = land.riverWidth / 2;
-  const names = shuffle([...NAMES], rand);
-  const colours = shuffle(MALLOW_COLOURS.map((_, i) => i), rand);
-  const count = MALLOW_COLOURS.length;
+  const veggie = land.theme === 'veggie';
+  // Veggie beavers are given out in order from the first: five vegetables and six names, round again (Q86).
+  const names = veggie ? [...VEG_NAMES] : shuffle([...NAMES], rand);
+  const colours = veggie ? VEG_NAMES.map((_, i) => i) : shuffle(MALLOW_COLOURS.map((_, i) => i), rand);
+  const count = veggie ? VEG_NAMES.length : MALLOW_COLOURS.length;
   const end = land.path[land.path.length - 1]!;
   const places: DreamPoint[] = [];
   const free = (p: DreamPoint, gap: number): boolean =>
-    Math.abs(p.x) < INNER - 2 && Math.abs(p.z) < INNER - 2 && places.every((q) => dist2(p, q) > gap * gap) && clearOfProps(land, p.x, p.z, 0.8);
+    Math.abs(p.x) < innerOf(land.half) - 2 && Math.abs(p.z) < innerOf(land.half) - 2 && places.every((q) => dist2(p, q) > gap * gap) && clearOfProps(land, p.x, p.z, 0.8);
   for (let attempt = 0; attempt < 300 && places.length < 3; attempt++) {
     const a = rand() * TAU;
     const r = 3 + rand() * 7;
@@ -549,6 +617,7 @@ function makeMallows(land: DreamLand, rand: () => number): Mallow[] {
       id: `m${k}`,
       name: names[k]!,
       colour: colours[k]!,
+      ...(veggie ? { veg: VEGS[k % VEGS.length]! } : {}),
       x: p.x,
       y: baseY(land, p.x, p.z, mode),
       z: p.z,
@@ -583,12 +652,14 @@ export function stepDream(state: DreamState, input: DreamInput, dt: number): { s
   let s: DreamState = { ...state, time, beaver: moveBeaver(state, input, time, dt, events) };
   s = collect(s, events);
   s = touchStatue(s, events);
-  if (input.play && s.game.kind === 'none') s = playmate(s) ? startGame(s, rand, events) : work(s, events);
+  if (input.play && s.game.kind === 'none') s = bedAt(s) !== null ? startGrow(s, events) : playmate(s) ? startGame(s, rand, events) : work(s, events);
+  else if (input.play && s.game.kind === 'grow') s = tend(s, s.game, events);
   if (s.game.kind === 'choose') s = chooseRules(s, s.game, input.pick, rand, events);
   s = { ...s, mallows: stepMallows(s, rand, dt, events) };
   if (s.game.kind === 'tag') s = tagRules(s, s.game, rand, events);
   else if (s.game.kind === 'seek') s = seekRules(s, s.game, rand, events);
   else if (s.game.kind === 'hide') s = hideRules(s, s.game, rand, events);
+  else if (s.game.kind === 'grow') s = growRules(s, s.game, events);
   return { state: { ...s, rng: rng.state() }, events };
 }
 
@@ -655,6 +726,8 @@ function moveBeaver(s: DreamState, input: DreamInput, time: number, dt: number, 
 export const DAM_LOGS = 3;
 export const LODGE_LOGS = 4;
 const CHOPPABLE: readonly PropKind[] = ['lollipop', 'cottonCandy'];
+/** The veggie garden has plants to grow instead of trees to chop. */
+const choppable = (land: DreamLand): readonly PropKind[] => (land.theme === 'veggie' ? [] : CHOPPABLE);
 /** A tree is chopped from this close to its trunk's edge, and a dam is raised from this close to the chocolate's edge (metres). */
 const CHOP_REACH = 1.6;
 const DAM_REACH = 2.5;
@@ -670,7 +743,7 @@ function treeAt(s: DreamState): DreamProp | null {
   let best: DreamProp | null = null;
   let bestD = Infinity;
   for (const p of s.land.props) {
-    if (!CHOPPABLE.includes(p.kind)) continue;
+    if (!choppable(s.land).includes(p.kind)) continue;
     const reach = PROP_RADIUS[p.kind] * p.size + BODY + CHOP_REACH;
     const d = dist2(p, s.beaver);
     if (d < reach * reach && d < bestD) {
@@ -774,7 +847,9 @@ const inChocolate = (s: DreamState): boolean => chocolateDepth(s.land, s.beaver.
 
 /** What the Build control would start now, for the prompt, such as "Play tag with Puff", or null when nothing. */
 export function playPrompt(state: DreamState): string | null {
+  if (state.game.kind === 'grow') return tendPrompt(state, state.game);
   if (state.game.kind !== 'none') return null;
+  if (bedAt(state) !== null) return t('dream.startGrow');
   const m = playmate(state);
   if (!m) return workPrompt(state);
   return inChocolate(state) ? t('dream.playTag', { name: m.name }) : t('dream.playSeek', { name: m.name });
@@ -815,6 +890,8 @@ const backToWander = (m: Mallow): Mallow => ({
   hideAt: undefined,
   peek: undefined,
   looked: undefined,
+  can: undefined,
+  watered: undefined,
 });
 
 function startTag(s: DreamState, chosen: Mallow, rand: () => number, events: DreamEvent[]): DreamState {
@@ -852,7 +929,7 @@ function hidingPlaces(land: DreamLand, hiders: readonly Mallow[], from: DreamPoi
     const r = Math.max(0.5, PROP_RADIUS[p.kind] * p.size) + 0.6;
     for (const turn of [0, 0.6, -0.6, 1.2, -1.2]) {
       const q = { x: p.x + (dx * Math.cos(turn) - dz * Math.sin(turn)) * r, z: p.z + (dx * Math.sin(turn) + dz * Math.cos(turn)) * r };
-      if (Math.abs(q.x) < INNER && Math.abs(q.z) < INNER && riverDistance(land, q.x, q.z) > w2 + 0.5) return q;
+      if (Math.abs(q.x) < innerOf(land.half) && Math.abs(q.z) < innerOf(land.half) && riverDistance(land, q.x, q.z) > w2 + 0.5) return q;
     }
     return null;
   };
@@ -901,7 +978,8 @@ function go(s: DreamState, m: Mallow, dx: number, dz: number, want: number, dt: 
   const uz = moving ? dz / len : Math.cos(heading);
   let p = { x: m.x + ux * speed * dt, z: m.z + uz * speed * dt };
   if (wet) p = keepWet(land, m.x, m.z, p.x, p.z);
-  return settle(land, { ...m, x: clamp(p.x, -INNER, INNER), z: clamp(p.z, -INNER, INNER), heading, speed }, s.time);
+  const inner = innerOf(land.half);
+  return settle(land, { ...m, x: clamp(p.x, -inner, inner), z: clamp(p.z, -inner, inner), heading, speed }, s.time);
 }
 
 const stand = (s: DreamState, m: Mallow, dt: number, wet = false): Mallow => go(s, m, 0, 0, 0, dt, wet);
@@ -926,11 +1004,11 @@ function stepMallows(s: DreamState, rand: () => number, dt: number, events: Drea
   const slots = new Map<string, number>();
   for (const m of s.mallows) if (m.state === 'follow' || m.state === 'found') slots.set(m.id, slots.size);
   const moved = s.mallows.map((m) => stepMallow(s, m, rand, dt, events, slots.get(m.id) ?? 0));
-  return apart(moved);
+  return apart(moved, innerOf(s.land.half));
 }
 
 /** Marshmallow beavers on the move nudge each other apart a little (not one that is it, so it can catch). */
-function apart(mallows: Mallow[]): Mallow[] {
+function apart(mallows: Mallow[], inner: number): Mallow[] {
   const GAP = 1.2;
   const push = mallows.map(() => ({ x: 0, z: 0 }));
   const free = (m: Mallow): boolean => m.state !== 'hidden' && m.state !== 'hide' && m.state !== 'chase';
@@ -956,7 +1034,7 @@ function apart(mallows: Mallow[]): Mallow[] {
   if (!any) return mallows;
   return mallows.map((m, i) => {
     const p = push[i]!;
-    return p.x === 0 && p.z === 0 ? m : { ...m, x: clamp(m.x + p.x, -INNER, INNER), z: clamp(m.z + p.z, -INNER, INNER) };
+    return p.x === 0 && p.z === 0 ? m : { ...m, x: clamp(m.x + p.x, -inner, inner), z: clamp(m.z + p.z, -inner, inner) };
   });
 }
 
@@ -1007,6 +1085,8 @@ function stepMallow(s: DreamState, m: Mallow, rand: () => number, dt: number, ev
     }
     case 'seek':
       return seek(s, m, rand, dt, events);
+    case 'water':
+      return water(s, m, rand, dt, events);
     case 'found': {
       const faced = face(s, m, b, dt);
       return m.until === undefined || t >= m.until ? { ...faced, state: 'follow', until: undefined } : faced;
@@ -1060,6 +1140,117 @@ function wander(s: DreamState, m: Mallow, rand: () => number, dt: number, events
   const d = Math.sqrt(dist2(next, goal));
   if (d < 0.6) return stand(s, { ...next, goal: undefined, until: t + 1.5 + rand() * 3 }, dt);
   return go(s, next, goal.x - next.x, goal.z - next.z, Math.min(amble(next), 0.3 + d * 1.5), dt);
+}
+
+/** The bed the beaver stands at, for starting a game of growing, or null. A game needs a veggie beaver to play with. */
+function bedAt(s: DreamState): number | null {
+  const beds = s.land.beds;
+  if (!beds || s.mallows.length === 0) return null;
+  let best: number | null = null;
+  let bestD = BED_REACH * BED_REACH;
+  beds.forEach((bed, i) => {
+    const d = dist2(bed, s.beaver);
+    if (d < bestD) {
+      best = i;
+      bestD = d;
+    }
+  });
+  return best;
+}
+
+/** The nearest dry spot on the river bank to a bed, where a can is filled. */
+export function bankSpot(land: DreamLand, bed: DreamPoint): DreamPoint {
+  const near = nearestOnLine(land.river, bed.x, bed.z);
+  const away = Math.hypot(bed.x - near.x, bed.z - near.z) || 1;
+  const d = land.riverWidth / 2 + 0.9;
+  return { x: near.x + ((bed.x - near.x) / away) * d, z: near.z + ((bed.z - near.z) / away) * d };
+}
+
+const onBank = (s: DreamState): boolean => riverDistance(s.land, s.beaver.x, s.beaver.z) - s.land.riverWidth / 2 < DAM_REACH;
+
+/** The bed of the player's plant. */
+const ownBed = (s: DreamState): DreamPoint | null => {
+  const mine = s.plants?.find((p) => p.owner === 'player');
+  return mine ? s.land.beds?.[mine.bed] ?? null : null;
+};
+
+/** What the Do control does in a game of growing now, for the prompt: fill the can at the river, or water the plant at its bed. */
+function tendPrompt(s: DreamState, g: Extract<DreamGame, { kind: 'grow' }>): string | null {
+  const bed = ownBed(s);
+  if (g.can) return bed && dist2(bed, s.beaver) < BED_REACH * BED_REACH ? t('dream.waterPlant') : null;
+  return onBank(s) ? t('dream.fillCan') : null;
+}
+
+function tend(s: DreamState, g: Extract<DreamGame, { kind: 'grow' }>, events: DreamEvent[]): DreamState {
+  const bed = ownBed(s);
+  const b = s.beaver;
+  if (g.can) {
+    if (!bed || dist2(bed, b) >= BED_REACH * BED_REACH) return s;
+    const plants = (s.plants ?? []).map((p) => (p.owner === 'player' ? { ...p, stage: Math.min(GROW_STAGES, p.stage + 1) } : p));
+    events.push({ what: 'water', who: 'player', stage: plants.find((p) => p.owner === 'player')!.stage, x: bed.x, z: bed.z });
+    return { ...s, plants, game: { ...g, can: false } };
+  }
+  if (!onBank(s)) return s;
+  events.push({ what: 'fill', who: 'player', x: b.x, z: b.z });
+  return { ...s, game: { ...g, can: true } };
+}
+
+/** Do at a bed: the player and the nearest veggie beavers (up to three) each get a bed and a seed, and the beavers go for their cans. */
+function startGrow(s: DreamState, events: DreamEvent[]): DreamState {
+  const beds = s.land.beds ?? [];
+  const mine = bedAt(s);
+  if (mine === null) return s;
+  const friends = [...s.mallows].sort((p, q) => dist2(p, s.beaver) - dist2(q, s.beaver)).slice(0, Math.min(GROW_FRIENDS, beds.length - 1));
+  const free = beds.map((_, i) => i).filter((i) => i !== mine);
+  const plants: Plant[] = [{ bed: mine, owner: 'player', stage: 0 }, ...friends.map((m, k) => ({ bed: free[k]!, owner: m.id, stage: 0 }))];
+  const mallows = s.mallows.map((m): Mallow => (friends.includes(m) ? { ...backToWander(m), state: 'water', met: true, watered: 0, can: false } : m));
+  events.push({ what: 'growStart', friends: friends.length });
+  return { ...s, plants, mallows, game: { kind: 'grow', ends: s.time + GROW_TIME, can: false } };
+}
+
+/** How fast a veggie beaver carries its can (m/s): a little different for each, a little under the player. */
+const paceOf = (m: Mallow): number => 1.8 + (Number(m.id.slice(1)) % 3) * 0.3;
+
+/** A veggie beaver in the game: to the river for a can, back to its bed to water the plant, a pause, and again. */
+function water(s: DreamState, m: Mallow, rand: () => number, dt: number, events: DreamEvent[]): Mallow {
+  const t = s.time;
+  const plant = s.plants?.find((p) => p.owner === m.id);
+  const bed = plant ? s.land.beds?.[plant.bed] : undefined;
+  if (!bed || s.game.kind !== 'grow') return stand(s, m, dt);
+  if (m.until !== undefined && t < m.until) return stand(s, m, dt);
+  const goal = m.can ? bed : bankSpot(s.land, bed);
+  const d = Math.hypot(goal.x - m.x, goal.z - m.z);
+  if (d > (m.can ? 1.3 : 0.6)) return go(s, { ...m, until: undefined }, goal.x - m.x, goal.z - m.z, Math.min(paceOf(m), 0.4 + d * 2), dt);
+  if (!m.can) {
+    events.push({ what: 'fill', who: m.name, x: m.x, z: m.z });
+    return stand(s, { ...m, can: true, until: t + WATER_PAUSE }, dt);
+  }
+  const watered = (m.watered ?? 0) + 1;
+  events.push({ what: 'water', who: m.name, stage: watered, x: bed.x, z: bed.z });
+  return stand(s, { ...m, can: false, watered, hopAt: t, leap: false, until: t + WATER_PAUSE + rand() * 1.5 }, dt);
+}
+
+/** Who has the biggest plant: the player, or the veggie beaver's id. The player wins a tie. */
+function biggest(plants: readonly Plant[]): Plant | undefined {
+  return plants.reduce<Plant | undefined>((best, p) => (!best || p.stage > best.stage ? p : best), undefined);
+}
+
+/** The beavers' plants grow as they water; the game ends when one is full, or when the time is up. */
+function growRules(s: DreamState, g: Extract<DreamGame, { kind: 'grow' }>, events: DreamEvent[]): DreamState {
+  const plants = (s.plants ?? []).map((p) => (p.owner === 'player' ? p : { ...p, stage: Math.min(GROW_STAGES, s.mallows.find((m) => m.id === p.owner)?.watered ?? p.stage) }));
+  const top = biggest(plants);
+  const full = plants.find((p) => p.stage >= GROW_STAGES);
+  if (!full && s.time < g.ends) return { ...s, plants };
+  const winner = full ?? top;
+  const name = !winner || winner.owner === 'player' ? 'player' : s.mallows.find((m) => m.id === winner.owner)?.name ?? winner.owner;
+  events.push({ what: 'growEnd', winner: name });
+  const t = s.time;
+  const mallows = s.mallows.map((m): Mallow => {
+    if (m.state !== 'water') return m;
+    const won = winner?.owner === m.id;
+    return { ...backToWander(m), ...(won ? { hopAt: t, leap: false } : {}) };
+  });
+  return { ...s, plants, mallows, game: { kind: 'none' } };
 }
 
 /** Where the one a marshmallow beaver that is it chases is now. */
@@ -1195,16 +1386,16 @@ function startHide(s: DreamState, chosen: Mallow, events: DreamEvent[]): DreamSt
   const base = { x: b.x, z: b.z };
   const mallows = s.mallows.map((m): Mallow => {
     const k = seekers.indexOf(m.id);
-    return k < 0 ? m : { ...backToWander(m), state: 'count', met: true, goal: ring(base, k, seekers.length) };
+    return k < 0 ? m : { ...backToWander(m), state: 'count', met: true, goal: ring(base, k, seekers.length, innerOf(s.land.half)) };
   });
   events.push({ what: 'hideStart', seekers: seekers.length });
   return { ...s, mallows, game: { kind: 'hide', phase: 'counting', until: s.time + COUNT_TIME, base, seekers, found: [] } };
 }
 
 /** A seeker's place at the base, on a small ring round it. */
-function ring(base: DreamPoint, k: number, n: number): DreamPoint {
+function ring(base: DreamPoint, k: number, n: number, inner: number): DreamPoint {
   const a = (k / Math.max(1, n)) * TAU;
-  return { x: clamp(base.x + Math.sin(a) * 1.6, -INNER, INNER), z: clamp(base.z + Math.cos(a) * 1.6, -INNER, INNER) };
+  return { x: clamp(base.x + Math.sin(a) * 1.6, -inner, inner), z: clamp(base.z + Math.cos(a) * 1.6, -inner, inner) };
 }
 
 /** A seeker sees the player: right next to them, or near with no hiding prop in between. */
@@ -1276,7 +1467,8 @@ function lookNext(s: DreamState, g: Extract<DreamGame, { kind: 'hide' }>, m: Mal
   }
   const r = Math.max(0.5, PROP_RADIUS[pick.kind] * pick.size) + 1.2;
   const a = Math.atan2(m.x - pick.x, m.z - pick.z) + ((rand() < 0.5 ? 1 : -1) * Math.PI) / 2;
-  const spot = { x: clamp(pick.x + Math.sin(a) * r, -INNER, INNER), z: clamp(pick.z + Math.cos(a) * r, -INNER, INNER) };
+  const inner = innerOf(s.land.half);
+  const spot = { x: clamp(pick.x + Math.sin(a) * r, -inner, inner), z: clamp(pick.z + Math.cos(a) * r, -inner, inner) };
   return { prop: pick.id, spot, again };
 }
 
@@ -1294,7 +1486,7 @@ function hideRules(s: DreamState, g: Extract<DreamGame, { kind: 'hide' }>, rand:
     if (m.state !== 'seek' || !g.seekers.includes(m.id) || !sees(s.land, m, s.beaver)) return m;
     found = [...found, m.id];
     events.push({ what: 'spotted', who: m.name, left: g.seekers.length - found.length });
-    const home = ring(g.base, g.seekers.indexOf(m.id), g.seekers.length);
+    const home = ring(g.base, g.seekers.indexOf(m.id), g.seekers.length, innerOf(s.land.half));
     return { ...backToWander(m), state: 'home', hopAt: t, leap: false, giggleAt: t, goal: home };
   });
   if (found.length < g.seekers.length && t < g.until) return found === g.found ? s : { ...s, mallows, game: { ...g, found } };
@@ -1308,6 +1500,7 @@ function hideRules(s: DreamState, g: Extract<DreamGame, { kind: 'hide' }>, rand:
 function shower(s: DreamState, rand: () => number, events: DreamEvent[], wet: boolean): DreamState {
   const b = s.beaver;
   const land = s.land;
+  const inner = innerOf(land.half);
   const added: Sweet[] = [];
   for (let i = 0; i < SHOWER; i++) {
     let x = b.x;
@@ -1315,8 +1508,8 @@ function shower(s: DreamState, rand: () => number, events: DreamEvent[], wet: bo
     for (let k = 0; k < 6; k++) {
       const a = ((i + rand()) / SHOWER) * TAU;
       const r = 2 + rand() * 4.5;
-      x = clamp(b.x + Math.sin(a) * r, -INNER, INNER);
-      z = clamp(b.z + Math.cos(a) * r, -INNER, INNER);
+      x = clamp(b.x + Math.sin(a) * r, -inner, inner);
+      z = clamp(b.z + Math.cos(a) * r, -inner, inner);
       if (chocolateDepth(land, x, z) > 0.05 === wet) break;
     }
     added.push({

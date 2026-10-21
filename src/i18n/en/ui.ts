@@ -54,6 +54,8 @@ export const ui = {
 
   'sleep.morning': 'Sleep until morning',
   'sleep.dream': 'Dream',
+  'sleep.dreamCandy': 'Candy land',
+  'sleep.dreamVeggie': 'Veggie garden',
   'sleep.season': 'Sleep until next season',
   'sleep.until.teenager': 'Sleep until teenager',
   'sleep.until.adult': 'Sleep until adult',

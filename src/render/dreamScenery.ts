@@ -2,15 +2,14 @@
 // cream hills, the chocolate river with its slow swirl, the pastel sky with cotton candy clouds and a soft sun, and a
 // ring of far ice cream mountains past the edge. Each is one mesh, made once per dream from the land.
 import * as THREE from 'three';
-import { CHOCOLATE, CHOCOLATE_LEVEL, dreamHeight, type DreamLand, type DreamProp } from '../sim/dream';
+import { CHOCOLATE_LEVEL, dreamHeight, type DreamLand, type DreamProp } from '../sim/dream';
+import { lookOf, LOOKS } from './dreamLook';
 import { hash, smoothstep } from './modelKit';
 import { merge, paint, scoop } from './dreamProps';
 import { seeded } from './propShapes';
 
 /** The haze and the bottom of the sky: a soft pink, so far hills melt into the sky. */
-export const DREAM_FOG = 0xfbd9e8;
-const SKY_TOP = 0x9fd0f6;
-const SKY_MID = 0xd8c8f4;
+export const DREAM_FOG = LOOKS.candy.fog;
 
 const MINT = new THREE.Color(0xc4efd2);
 const PINK = new THREE.Color(0xfcd9e6);
@@ -22,13 +21,58 @@ const CREAM = new THREE.Color(0xfff6e6);
 const FLAVOURS = [0xf9bcd0, 0xfff0cf, 0xc7f1de, 0xc9ddf8, 0xe0d0f6].map((c) => new THREE.Color(c));
 
 /** How far a prop darkens the ground around it, by kind at size 1 (a soft round shadow baked in the colours). */
-const SHADE_RADIUS: Record<DreamProp['kind'], number> = { lollipop: 1.1, gumdrop: 1.4, candyCane: 0.5, cupcake: 1.9, iceCream: 0.8, marshmallowRock: 1.3, cottonCandy: 1.3 };
+const SHADE_RADIUS: Record<DreamProp['kind'], number> = {
+  lollipop: 1.1,
+  gumdrop: 1.4,
+  candyCane: 0.5,
+  cupcake: 1.9,
+  iceCream: 0.8,
+  marshmallowRock: 1.3,
+  cottonCandy: 1.3,
+  lettuceTree: 1.3,
+  broccoliTree: 1.5,
+  leek: 0.5,
+  cabbage: 1.6,
+  pumpkin: 1.7,
+  radish: 1.2,
+  beanPole: 0.6,
+};
+
+/** The veggie garden's ground: patches of meadow greens, soil on the banks, wheat gold hills, and dark soil where the beds are. */
+const MEADOW = [0x9bd163, 0xb4de78, 0x86c458].map((c) => new THREE.Color(c));
+const SOIL = new THREE.Color(0x8a5a34);
+const FURROW = new THREE.Color(0x5e3a20);
+function gardenColour(land: DreamLand, x: number, z: number, h: number, out: THREE.Color): THREE.Color {
+  const rise = h - CHOCOLATE_LEVEL;
+  const n = Math.sin(x * 0.085 + Math.sin(z * 0.06) * 1.8) * Math.cos(z * 0.075 - x * 0.03) + 0.35 * Math.sin((x + z) * 0.19);
+  out.copy(MEADOW[0]!).lerp(MEADOW[1]!, smoothstep(0.3, 0.8, n)).lerp(MEADOW[2]!, smoothstep(-0.3, -0.75, n));
+  const edge = land.half - Math.max(Math.abs(x), Math.abs(z));
+  const angle = Math.atan2(z, x);
+  const wave = 1.2 * Math.sin(angle * 23) + 0.6 * Math.sin(angle * 57 + 1);
+  const hill = smoothstep(16 + wave, 12 + wave, edge) * smoothstep(2.6, 4.5, rise);
+  if (hill > 0) {
+    const flavours = LOOKS.veggie.flavours;
+    const band = ((angle / (Math.PI * 2)) * 9 + 9) % flavours.length;
+    const a = new THREE.Color(flavours[Math.floor(band)]!);
+    const b = new THREE.Color(flavours[Math.ceil(band) % flavours.length]!);
+    out.lerp(a.lerp(b, smoothstep(0.75, 1, band % 1)), smoothstep(0.1, 0.6, hill));
+  }
+  // Rows of beds: dark soil, with a furrow pattern.
+  for (const bed of land.beds ?? []) {
+    const d = Math.hypot(x - bed.x, z - bed.z);
+    if (d < 2.4) out.lerp((Math.floor((x + z) * 1.6) & 1) === 0 ? SOIL : FURROW, smoothstep(2.4, 1.7, d));
+  }
+  out.lerp(SOIL, smoothstep(0.9, 0.25, rise));
+  out.lerp(FURROW, smoothstep(-0.1, -0.7, rise));
+  return out.multiplyScalar(0.97 + 0.05 * hash(Math.round(x * 3), Math.round(z * 3)));
+}
 
 /**
  * The colour of the ground at a point: a meadow of soft mint, pink and lemon patches, caramel where it dips to the
  * chocolate, and the edge hills in bands of ice cream flavours with a frosting lip at their foot. Pure, for tests.
  */
 export function groundColour(land: DreamLand, x: number, z: number, h: number, out = new THREE.Color()): THREE.Color {
+  if (land.theme === 'veggie') return gardenColour(land, x, z, h, out);
   const rise = h - CHOCOLATE_LEVEL;
   const n = Math.sin(x * 0.085 + Math.sin(z * 0.06) * 1.8) * Math.cos(z * 0.075 - x * 0.03) + 0.35 * Math.sin((x + z) * 0.19);
   out.copy(MINT).lerp(PINK, smoothstep(0.4, 0.8, n)).lerp(LEMON, smoothstep(-0.35, -0.75, n));
@@ -89,19 +133,20 @@ export function groundGeometry(land: DreamLand, step = 1.25): THREE.BufferGeomet
 }
 
 /** A milk chocolate swirl texture: curls of lighter and darker chocolate, repeating both ways. */
-function swirlTexture(): THREE.CanvasTexture {
+function swirlTexture(land: DreamLand): THREE.CanvasTexture {
+  const look = lookOf(land);
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const c = canvas.getContext('2d');
   if (c) {
-    c.fillStyle = `#${new THREE.Color(CHOCOLATE).getHexString()}`;
+    c.fillStyle = `#${new THREE.Color(look.liquid).getHexString()}`;
     c.fillRect(0, 0, size, size);
     const random = seeded(77);
     c.lineCap = 'round';
     for (let i = 0; i < 18; i++) {
       const light = i % 3 !== 0;
-      c.strokeStyle = light ? 'rgba(150, 92, 54, 0.4)' : 'rgba(70, 36, 16, 0.3)';
+      c.strokeStyle = light ? look.curlLight : look.curlDark;
       c.lineWidth = 4 + random() * 8;
       const x = random() * size;
       const y = random() * size;
@@ -189,8 +234,8 @@ export function createChocolateRiver(land: DreamLand): ChocolateRiver {
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geo.setIndex(index);
   geo.computeVertexNormals();
-  const map = swirlTexture();
-  const material = new THREE.MeshPhongMaterial({ color: 0xffffff, map, shininess: 70, specular: 0x6a4a36 });
+  const map = swirlTexture(land);
+  const material = new THREE.MeshPhongMaterial({ color: 0xffffff, map, shininess: 70, specular: lookOf(land).shine });
   const mesh = new THREE.Mesh(geo, material);
   const position = geo.getAttribute('position') as THREE.BufferAttribute;
   const ponds = land.ponds.map((o) => {
@@ -229,13 +274,13 @@ export function createChocolateRiver(land: DreamLand): ChocolateRiver {
 }
 
 /** The sky dome: soft blue overhead, lavender, then pink at the horizon and below it, the colour of the haze. */
-export function skyDome(radius: number): THREE.Mesh {
+export function skyDome(radius: number, look = LOOKS.candy): THREE.Mesh {
   const geo = new THREE.SphereGeometry(radius, 32, 16);
   const p = geo.getAttribute('position');
   const colours = new Float32Array(p.count * 3);
-  const top = new THREE.Color(SKY_TOP);
-  const mid = new THREE.Color(SKY_MID);
-  const low = new THREE.Color(DREAM_FOG);
+  const top = new THREE.Color(look.skyTop);
+  const mid = new THREE.Color(look.skyMid);
+  const low = new THREE.Color(look.fog);
   const c = new THREE.Color();
   for (let i = 0; i < p.count; i++) {
     const up = p.getY(i) / radius;
@@ -249,9 +294,9 @@ export function skyDome(radius: number): THREE.Mesh {
 }
 
 /** Cotton candy clouds in a ring far out: puffs of white, pink and lavender, flat underneath. One mesh. */
-export function cloudRing(distance: number, seed: number): THREE.Mesh {
+export function cloudRing(distance: number, seed: number, look = LOOKS.candy): THREE.Mesh {
   const random = seeded(seed * 31 + 5);
-  const tints = [0xffffff, 0xffe0ee, 0xece2ff, 0xfff2f7].map((c) => new THREE.Color(c));
+  const tints = look.clouds.map((c) => new THREE.Color(c));
   const parts: THREE.BufferGeometry[] = [];
   const count = 10;
   for (let i = 0; i < count; i++) {
@@ -276,7 +321,7 @@ export function cloudRing(distance: number, seed: number): THREE.Mesh {
       parts.push(paint(g, () => tint));
     }
   }
-  const material = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0xffe8f2, emissiveIntensity: 0.55, fog: false });
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: look.cloudGlow, emissiveIntensity: 0.55, fog: false });
   const mesh = new THREE.Mesh(merge(parts), material);
   mesh.renderOrder = -1;
   return mesh;
@@ -292,7 +337,8 @@ export function farScoops(land: DreamLand): THREE.Mesh {
     const r = 36 + random() * 22;
     // Out to the square's corner and beyond, so the scoops ring the whole land.
     const reach = land.half * (1.25 + random() * 0.25) + r * 0.5;
-    const colour = FLAVOURS[i % FLAVOURS.length]!.clone();
+    const flavours = lookOf(land).flavours;
+    const colour = new THREE.Color(flavours[i % flavours.length]!);
     const g = scoop(r, colour, random, 20, 12, true);
     parts.push(g.translate(Math.cos(a) * reach, -r * 0.35, Math.sin(a) * reach));
   }
@@ -312,12 +358,13 @@ export function hillScoops(land: DreamLand, side: number): THREE.Mesh {
     const along = u + (random() - 0.5) * 3;
     const inward = land.half - 2 - random() * 3;
     const [x, z] = side === 0 ? [inward, along] : side === 1 ? [along, inward] : side === 2 ? [-inward, along] : [along, -inward];
-    const colour = FLAVOURS[Math.floor(random() * FLAVOURS.length)]!;
+    const flavours = lookOf(land).flavours;
+    const colour = new THREE.Color(flavours[Math.floor(random() * flavours.length)]!);
     const g = scoop(r, colour, random, 14, 9, true);
     parts.push(g.scale(1, 0.8, 1).translate(x, dreamHeight(land, x, z), z));
   }
   // A soft glow keeps them bright on the side away from the sun.
-  return new THREE.Mesh(merge(parts), new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0xfff0f6, emissiveIntensity: 0.18 }));
+  return new THREE.Mesh(merge(parts), new THREE.MeshLambertMaterial({ vertexColors: true, emissive: lookOf(land).hillGlow, emissiveIntensity: 0.18 }));
 }
 
 /** A soft round glow for the sun sprite. */

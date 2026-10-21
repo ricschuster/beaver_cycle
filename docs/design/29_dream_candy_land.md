@@ -107,3 +107,4 @@ The dream is its own small world with its own rules, scene, and screen, so it ne
 - Should the waking game ever hear about the dream, such as a line from Mama in the morning?
 - A sound for the giggles and the cheer waits for #340.
 - The frame rate on the tablet with the dream's own canvas.
+- The second dream, the veggie garden, is in [note 50](50_veggie_garden_dream.md). It shares this note's code and screen: `land.theme` picks candy land or the garden.

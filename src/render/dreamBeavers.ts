@@ -3,8 +3,8 @@
 // colours of the rainbow. The parts of each model that move together are merged into one mesh, so a beaver costs seven
 // draw calls instead of about thirty.
 import * as THREE from 'three';
-import { DAM_LOGS, LEAP_TIME, LODGE_LOGS, MALLOW_COLOURS, type DreamBeaver, type DreamBuild, type Mallow } from '../sim/dream';
-import { NOSE, TAIL, TEETH, createBeaverModel, type BeaverModel } from './beaverModel';
+import { DAM_LOGS, LEAP_TIME, LODGE_LOGS, MALLOW_COLOURS, type DreamBeaver, type DreamBuild, type Mallow, type VegKind } from '../sim/dream';
+import { NOSE, TAIL, TEETH, createBeaverModel, ellipsoid, type BeaverModel } from './beaverModel';
 
 /** Seconds a marshmallow beaver squashes and stretches after a hop. */
 export const HOP_SQUASH_SECONDS = 0.6;
@@ -133,6 +133,50 @@ export function dreamPlayer(): BeaverModel {
   return model;
 }
 
+const PEA = 0x8fd860;
+const TOMATO = 0xe8402e;
+const CARROT = 0xf2831c;
+const PUMPKIN = 0xf59a2e;
+
+/**
+ * The player's beaver in the veggie garden, a mix of vegetables (Q87): a pea nose, a pumpkin tail, a tomato body, two tomato
+ * feet (in front) and two carrot feet (behind). Painted over the grey marshmallow beaver by where each vertex is, as the rainbow is.
+ */
+export function veggiePlayer(): BeaverModel {
+  const model = mallowModel(RAINBOW_BASE);
+  model.group.updateMatrixWorld(true);
+  const toModel = model.group.matrixWorld.clone().invert();
+  const p = new THREE.Vector3();
+  const c = new THREE.Color();
+  const hsl = { h: 0, s: 0, l: 0 };
+  model.group.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    const colours = o.geometry.getAttribute('color');
+    const positions = o.geometry.getAttribute('position');
+    if (!colours) return;
+    const m = o.matrixWorld.clone().premultiply(toModel);
+    for (let i = 0; i < colours.count; i++) {
+      c.fromBufferAttribute(colours as THREE.BufferAttribute, i);
+      c.getHSL(hsl);
+      p.fromBufferAttribute(positions as THREE.BufferAttribute, i).applyMatrix4(m);
+      // The eyes stay dark and the teeth white; the nose is the rosy dot at the front of the face, the cheeks keep their pink.
+      if (hsl.l < 0.3 || hsl.l > 0.97) continue;
+      const nose = hsl.s > 0.1 && p.z > 0.7 && Math.abs(p.x) < 0.07;
+      if (hsl.s > 0.1 && !nose) continue;
+      const feet = p.y < 0.1 && Math.abs(p.x) > 0.08;
+      const base = nose ? PEA : feet ? (p.z > 0 ? TOMATO : CARROT) : p.z < -0.52 ? PUMPKIN : TOMATO;
+      // The grey's shading (the belly and the paws are lighter or darker than the fur) carries over to the vegetable's colour.
+      const shade = hsl.l;
+      c.set(base);
+      c.getHSL(hsl);
+      c.setHSL(hsl.h, hsl.s, Math.min(0.85, hsl.l * (0.7 + 0.4 * shade)));
+      colours.setXYZ(i, c.r, c.g, c.b);
+    }
+    colours.needsUpdate = true;
+  });
+  return model;
+}
+
 /** Pink cheeks, a rosy nose, white teeth, and a pastel tail for a marshmallow beaver. */
 const BLUSH = 0xff9fbf;
 
@@ -143,11 +187,43 @@ const GREYS = { fur: 0xd9d9d9, dark: 0xbdbdbd, belly: 0xf2f2f2 };
 const GOLDEN = -2;
 const GOLDS = { fur: 0xf2c230, dark: 0xc9961a, belly: 0xffe58a };
 
-/** A marshmallow beaver in the pastel coat `colour` (an index into `MALLOW_COLOURS`), merged for the dream. */
-export function mallowModel(colour: number): BeaverModel {
-  const coat = colour === RAINBOW_BASE ? GREYS : colour === GOLDEN ? GOLDS : MALLOW_COLOURS[((colour % MALLOW_COLOURS.length) + MALLOW_COLOURS.length) % MALLOW_COLOURS.length]!;
+/** The coats of the veggie beavers (Q86): a pea, a carrot, a tomato, a radish, a pumpkin. */
+export const VEG_COATS: Readonly<Record<VegKind, { fur: number; dark: number; belly: number }>> = {
+  pea: { fur: 0x9be06a, dark: 0x72bc42, belly: 0xdcf7b6 },
+  carrot: { fur: 0xf79a30, dark: 0xd9741a, belly: 0xffcf96 },
+  tomato: { fur: 0xec5240, dark: 0xc3342a, belly: 0xffb9ab },
+  radish: { fur: 0xf27fab, dark: 0xcf5380, belly: 0xfde3ec },
+  pumpkin: { fur: 0xf8aa40, dark: 0xd8821c, belly: 0xffdc9e },
+};
+const LEAF_GREEN = 0x6fbf45;
+
+/** What grows from a veggie beaver's head: leaves for most, a stem for a tomato and a pumpkin. Added to the head, so it nods with it. */
+function topper(veg: VegKind): THREE.Mesh[] {
+  const leaf = (rx: number, ry: number, rz: number, x: number, y: number, z: number, tx: number, tz: number): THREE.Mesh => {
+    const m = ellipsoid(rx, ry, rz, LEAF_GREEN, x, y, z);
+    m.rotation.set(tx, 0, tz);
+    return m;
+  };
+  switch (veg) {
+    case 'pea':
+      return [leaf(0.04, 0.012, 0.07, -0.05, 0.14, 0.0, 0.2, 0.6), leaf(0.04, 0.012, 0.07, 0.05, 0.14, 0.0, 0.2, -0.6), ellipsoid(0.012, 0.05, 0.012, LEAF_GREEN, 0, 0.16, 0.02)];
+    case 'carrot':
+      return [0, 1, 2, 3].map((i) => leaf(0.012, 0.11, 0.012, Math.sin(i * 1.6) * 0.03, 0.2, Math.cos(i * 1.6) * 0.03, Math.cos(i * 1.6) * 0.35, -Math.sin(i * 1.6) * 0.35));
+    case 'tomato':
+      return [0, 1, 2, 3, 4].map((i) => leaf(0.012, 0.012, 0.05, Math.sin(i * 1.257) * 0.04, 0.14, Math.cos(i * 1.257) * 0.04, 0, i * 1.257));
+    case 'radish':
+      return [0, 1, 2, 3].map((i) => leaf(0.03, 0.1, 0.012, Math.sin(i * 1.6) * 0.04, 0.2, Math.cos(i * 1.6) * 0.04, Math.cos(i * 1.6) * 0.45, -Math.sin(i * 1.6) * 0.45));
+    case 'pumpkin':
+      return [ellipsoid(0.02, 0.045, 0.02, 0x7a9a3a, 0, 0.17, 0), leaf(0.03, 0.01, 0.05, 0.04, 0.15, 0.02, 0.2, -0.5)];
+  }
+}
+
+/** A marshmallow beaver in the pastel coat `colour` (an index into `MALLOW_COLOURS`), merged for the dream; a veggie one has its vegetable's coat and a topper. */
+export function mallowModel(colour: number, veg?: VegKind): BeaverModel {
+  const coat = veg ? VEG_COATS[veg] : colour === RAINBOW_BASE ? GREYS : colour === GOLDEN ? GOLDS : MALLOW_COLOURS[((colour % MALLOW_COLOURS.length) + MALLOW_COLOURS.length) % MALLOW_COLOURS.length]!;
   const model = createBeaverModel();
   model.setColours(coat);
+  if (veg) for (const m of topper(veg)) model.head.add(m);
   for (const s of [-1, 1]) {
     const cheek = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6), new THREE.MeshLambertMaterial({ color: BLUSH }));
     cheek.position.set(s * 0.125, -0.005, 0.155);
@@ -175,8 +251,8 @@ export const FAR_MALLOW = 16;
  * A marshmallow beaver for far away: a round body, a head with ears, a belly and a tail, in about 600 triangles and one
  * draw call. Same size and colours as `mallowModel`, standing on its origin and facing +z.
  */
-export function mallowFar(colour: number): THREE.Mesh {
-  const coat = MALLOW_COLOURS[((colour % MALLOW_COLOURS.length) + MALLOW_COLOURS.length) % MALLOW_COLOURS.length]!;
+export function mallowFar(colour: number, veg?: VegKind): THREE.Mesh {
+  const coat = veg ? VEG_COATS[veg] : MALLOW_COLOURS[((colour % MALLOW_COLOURS.length) + MALLOW_COLOURS.length) % MALLOW_COLOURS.length]!;
   const parts: THREE.BufferGeometry[] = [];
   const blob = (rx: number, ry: number, rz: number, hex: number, x: number, y: number, z: number): void => {
     const g = new THREE.SphereGeometry(1, 10, 7).toNonIndexed().scale(rx, ry, rz).translate(x, y, z);

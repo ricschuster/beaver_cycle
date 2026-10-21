@@ -134,17 +134,20 @@ test('at night in the lodge the bedtime panel offers sleep and the dream, and bo
   await expect(page.locator('#sleep-prompt')).toBeHidden();
   await page.locator('button[data-action="lodge"]').click();
   await expect(page.locator('#sleep-prompt')).toBeVisible();
+  // The open test menu can cover the bedtime panel as it grows, so close it first.
+  await page.getByRole('button', { name: 'Test menu' }).click();
   await page.locator('button[data-action="sleep-skip"]').click();
   await expect(page.locator('#clock-hud')).toContainText('day 2, morning');
   // By day only the long sleeps are offered: to the next season, not to morning or the dream.
   await expect(page.locator('button[data-action="sleep-skip"]')).toBeHidden();
   await expect(page.locator('button[data-action="sleep-season"]')).toBeVisible();
   // The dream opens candy land over the game, and its Wake up wakes at dawn.
+  await page.getByRole('button', { name: 'Test menu' }).click();
   await page.locator('button[data-time="night"]').click();
   await expect(page.locator('button[data-action="sleep-dream"]')).toBeVisible();
-  // The open test menu can cover the bedtime panel as it grows, so close it first.
   await page.getByRole('button', { name: 'Test menu' }).click();
   await page.locator('button[data-action="sleep-dream"]').click();
+  await page.locator('button[data-action="sleep-dream-candy"]').click();
   await expect(page.locator('#dream')).toBeVisible();
   await page.locator('button[data-action="dream-wake"]').click();
   await expect(page.locator('#dream')).toHaveCount(0);

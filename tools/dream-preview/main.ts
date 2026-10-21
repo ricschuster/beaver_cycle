@@ -1,7 +1,7 @@
 // A page that shows the dream's candy land (dreamView.ts) for the art pass, not the game. Run `npm run dev` and open
 // /tools/dream-preview/. Query: ?seed=N, &t=seconds (freezes the time), &yaw=degrees&pitch=degrees&dist=metres for the camera,
 // &swim=1 (the beaver in the chocolate), &tag=1 (the first mallow is it, or
-// &tag=player), &giggle=1 (the second mallow hides and giggles), &hop=1 (the mallows hop every second), &slap=1 (the beaver slaps its tail), &pond=1 (on the bank of the first pond), &statue=1 (beside the golden statue), &build=1&logs=N (a candy dam and lodge, a log carried), &cycle=N (make and free N views first). Drag to turn the
+// &tag=player), &giggle=1 (the second mallow hides and giggles), &hop=1 (the mallows hop every second), &slap=1 (the beaver slaps its tail), &pond=1 (on the bank of the first pond), &statue=1 (beside the golden statue), &build=1&logs=N (a candy dam and lodge, a log carried), &cycle=N (make and free N views first), &kind=veggie (the veggie garden), &beds=1&stage=N (beside the garden beds, plants at stage N, a can carried). Drag to turn the
 // camera, wheel to zoom. Writes the draw calls and triangles to `window.dreamStats`.
 import { createDreamView } from '../../src/render/dreamView';
 import { createCameraRig } from '../../src/render/cameraRig';
@@ -62,7 +62,7 @@ function fixture(seed: number): DreamState {
 const seed = num('seed', 1);
 let state: DreamState;
 try {
-  state = newDream(seed);
+  state = newDream(seed, [], q.get('kind') === 'veggie' ? 'veggie' : 'candy');
 } catch (err) {
   console.log('dream preview: newDream failed, using the fixture:', err instanceof Error ? err.message : err);
   state = fixture(seed);
@@ -130,6 +130,16 @@ if (q.get('build') === '1') {
   ];
   state.carrying = true;
 }
+if (q.get('beds') === '1' && state.land.beds) {
+  // Beside the first garden bed, a plant in each bed at a stage, and a full can in the paws.
+  const bed = state.land.beds[0]!;
+  b.x = bed.x - 3;
+  b.z = bed.z - 2;
+  b.heading = Math.atan2(bed.x - b.x, bed.z - b.z);
+  b.y = ground(b.x, b.z);
+  state.plants = state.land.beds.map((_, i) => ({ bed: i, owner: i === 0 ? 'player' : state.mallows[i - 1]!.id, stage: Math.min(6, num('stage', 3) + (i % 3)) }));
+  state.game = { kind: 'grow', ends: 150, can: true };
+}
 const giggler = q.get('giggle') === '1' ? state.mallows[1] : undefined;
 if (giggler) giggler.state = 'hidden';
 
@@ -143,7 +153,7 @@ for (let i = 0; i < num('cycle', 0); i++) {
 const view = createDreamView(host, state.land);
 (window as unknown as { dreamView: unknown }).dreamView = view;
 const rig = createCameraRig(view.canvas);
-rig.view.yaw = q.has('yaw') ? (num('yaw', 0) * Math.PI) / 180 : b.heading + Math.PI;
+rig.view.yaw = q.get('front') === '1' ? b.heading : q.has('yaw') ? (num('yaw', 0) * Math.PI) / 180 : b.heading + Math.PI;
 rig.view.pitch = (num('pitch', 20) * Math.PI) / 180;
 rig.view.dist = num('dist', 6.5);
 

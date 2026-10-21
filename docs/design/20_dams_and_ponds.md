@@ -255,8 +255,8 @@ Code in `src/sim/dam.ts` (wear and mend) and `src/sim/pond.ts` (the level that f
   days, and a broken one (below 0.15) drains in the last 3. Nothing is lost, and mending lifts the level again.
 - The crest is worked out in steps of 5 cm, and a pond is flooded again only when a dam's crest moves a step
   (`pondsAt`), so the level never jumps and the fill is not redone every frame.
-- Repair is the build button with a log, mud, or a rock at a worn dam. A wood unit mends 0.1, mud 0.1, a rock
-  0.2 (a long log is 2 units). A good dam takes nothing. A broken dam is mended the same way and keeps its level
+- Repair is the build button with a log, mud, or a rock at a worn dam. A wood unit mends 0.2, mud 0.2, a rock
+  0.4 (a long log is 2 units). That is half the units a lodge or store takes (Q78, #706). A good dam takes nothing. A broken dam is mended the same way and keeps its level
   (#646, wish 4): it never starts from nothing. It is a chore, never a loss.
 - A worn dam loses sticks and mounds in the view, down to a third when gone, and shows the gold repair glow
   (brighter when broken). The HUD line at the spot says how worn it is and how many units it needs. The mark
@@ -279,14 +279,14 @@ Code in `src/sim/dam.ts` (`Dam.level`, `LEVEL_COST`, `raised`) and `src/sim/pond
   be raised, and the HUD line says "dam level 1 done, raise it to level 2: needs ...".
 - While a dam is raised it does not wear, and it is new when the bigger level is whole (the wear record is made
   again). So raising also renews it.
-- A broken dam is mended, not built again, and keeps its level (#646). Mending it from 0 to new takes about 10 wood units.
+- A broken dam is mended, not built again, and keeps its level (#646). Mending it from 0 to new takes about 5 wood units.
 - **Cost follows the wall.** The table price is for a typical wall (`REF_WIDTH`, the scan's median: 16, 20, and 22 m
   at the three crests). A dam costs the table price times its wall length at that crest over the typical one,
   clamped to 0.6 to 2 (`widthFactor`), each material rounded, at least 1. The scan writes the length at each crest
   (`dam_widths` in `dam_sites.json`, rerun `scan_dam_sites.py`); a file without it prices every spot at 1. The
   factor is kept on the dam (`Dam.scale`), so the price is fixed once the dam is started. Raising never lowers it
   (it takes the bigger of the old and the new level's factor), so what is placed is never more than the next level
-  asks. Mending is scaled the same way: one wood unit mends 0.1 divided by the factor, so a long wall takes more
+  asks. Mending is scaled the same way: one wood unit mends 0.2 divided by the factor, so a long wall takes more
   units to mend and a short one fewer. Rocks scale like the rest for now; more with height than length is open.
 - To try it: the test menu "Finish dam here" fills a dam to level 1, and each press after raises it and fills the
   next level, up to what the spot holds.

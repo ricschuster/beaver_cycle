@@ -22,8 +22,8 @@ and the meaning is kept. The handout stays the source. The questions come from t
 
 ## Open points
 
-- Q78: whether a mended dam keeps its size is not stated. The code keeps the level and charges about 10 wood units from 0 to
-  new; "less" is not a number yet.
+- Q78: whether a mended dam keeps its size is not stated. The code keeps the level and, since #706, charges half the units: about
+  5 wood units from 0 to new (`DAM_MEND_FACTOR`). Half is a first guess to tune on a tablet.
 - Q79: needs a rule for a lodge door under water (the beaver may enter at any pond level, but not while the lodge is being built).
 - Q84: "the player picks the length" is read as a setting (for example short, medium, long) rather than a number to type. Check.
 - Q86: read as giving out the five vegetables and six names in order, going round again from the start, until the garden is full.

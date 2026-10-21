@@ -4,6 +4,7 @@ import { applySnapshot, friendTaker, othersOf, pairingOf, partnerCandidate } fro
 import { createWorld, leaveHome } from '../sim/state';
 import { DOOR_DISTANCE, LODGE_WOOD, SOLID_RADIUS, doorPoint } from '../sim/lodge';
 import { newWear } from '../sim/wear';
+import { storeSpot } from '../sim/food';
 import { DAY_SECONDS, nextSpringStart } from '../sim/clock';
 import { guestStage } from '../sim/guests';
 import { stageAt } from '../sim/life';
@@ -140,6 +141,48 @@ describe('the room', () => {
       }
       return room;
     };
+
+    describe('the store and eating', () => {
+      const lodge = { x: 40, z: 0, base: 0, door: Math.PI / 2, wood: LODGE_WOOD, wear: newWear(0), players: ['host', 'g1'] as [string, string], wholeAt: 0 };
+      const homeWorld = { ...world, lodge, storeWear: newWear(0), store: world.store.map(() => null) };
+      const at = storeSpot(lodge)!;
+
+      it('puts a guest\'s piece into the first free place of the store, and takes one out with an empty mouth', () => {
+        const room = two();
+        const [a] = room.guests();
+        a!.carry = 'lily';
+        a!.beaver = { ...a!.beaver, x: at.x, z: at.z };
+        room.receive('a', intent({ do: 'store' }), 0, host, ground);
+        const put = room.step(homeWorld, 0.05, 0, ground, oneTree);
+        expect(put.store[0]).toBe('lily');
+        expect(room.guests()[0]!.carry).toBeNull();
+        room.receive('a', intent({ do: 'store' }), 0.1, host, ground);
+        const took = room.step(put, 0.05, 0.1, ground, oneTree);
+        expect(took.store[0]).toBeNull();
+        expect(room.guests()[0]!.carry).toBe('lily');
+      });
+
+      it('does nothing away from the store', () => {
+        const room = two();
+        room.guests()[0]!.carry = 'lily';
+        room.receive('a', intent({ do: 'store' }), 0, host, ground);
+        const after = room.step(homeWorld, 0.05, 0, ground, oneTree);
+        expect(after.store[0]).toBeNull();
+        expect(room.guests()[0]!.carry).toBe('lily');
+      });
+
+      it('eats the piece in the mouth inside a room, and counts it', () => {
+        const room = two();
+        room.guests()[0]!.carry = 'branch';
+        room.guests()[0]!.inside = true;
+        room.ask('host', 'a', 0);
+        room.ask('a', 'host', 0);
+        room.receive('a', intent({ do: 'eat' }), 0, host, ground);
+        const after = room.step({ ...homeWorld, pairLodges: [{ ...lodge, players: ['host', 'a'] }], pairWith: 'a' }, 0.05, 0, ground, oneTree);
+        expect(room.guests()[0]!.carry).toBeNull();
+        expect(after.eaten).toBe(homeWorld.eaten + 1);
+      });
+    });
 
     it('hands a guest\'s food to the host when its mouth is empty and it stands close', () => {
       const room = two();

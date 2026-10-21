@@ -27,6 +27,8 @@ console.log('start', JSON.stringify(await state()));
 const drop = async (n, p) => { const b = JSON.parse(await p.ev('JSON.stringify(__game.world().beaver)')); return host.ev(`(() => { const w = __game.world(); for (let i = 0; i < ${n}; i++) w.logs.push({ id: 'test:' + Date.now() + ':' + i, x: ${b.x + 1}, y: __game.groundAt(${b.x + 1}, ${b.z}), z: ${b.z}, heading: 0, length: 6, floating: false, at: 0 }); return w.logs.length; })()`); };
 for (let round = 0; round < 8; round++) {
   const who = round % 2 === 0 ? host : guest;
+  // Take reads Drop while the mouth is full (as for the host), so a branch in the mouth goes down first.
+  if (await who.ev('__game.world().carry')) await who.tap('KeyG');
   await drop(1, who);
   await who.tap('KeyG');
   await who.tap('KeyE');

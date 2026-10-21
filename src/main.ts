@@ -446,7 +446,7 @@ async function start(): Promise<void> {
   let lastSnap: Parameters<typeof othersOf>[0] = null;
   let netSentAt = 0;
   let gnawPending = false;
-  let pendingDo: 'build' | 'mend' | 'give' | 'strip' | 'partner' | null = null;
+  let pendingDo: 'build' | 'mend' | 'give' | 'strip' | 'partner' | 'eat' | 'store' | null = null;
   let partnerSeen: { askedBy: number; asking: number; partner: string | null; name: string; stopBy: boolean; stopping: boolean; born: number | null } = { askedBy: 0, asking: 0, partner: null, name: '', stopBy: false, stopping: false, born: null };
   let pendingTake: GuestTake | null = null;
   let pendingDiveTap = false;
@@ -883,7 +883,7 @@ async function start(): Promise<void> {
         if (link) {
           // A guest: the host steps its beaver. Here the wish goes out SEND_HZ times a second and the state comes back.
           if (doPressed === 'gnaw') gnawPending = true;
-          if (doPressed === 'build' || doPressed === 'mend' || doPressed === 'give' || doPressed === 'strip' || doPressed === 'partner') pendingDo = doPressed;
+          if (doPressed === 'build' || doPressed === 'mend' || doPressed === 'give' || doPressed === 'strip' || doPressed === 'partner' || doPressed === 'eat' || doPressed === 'store') pendingDo = doPressed;
           // Asking to stop being partners is the same press: the host knows from the pairing which it is.
           else if (doPressed === 'part') pendingDo = 'partner';
           if (actions.take && takeNow) pendingTake = takeNow;

@@ -32,6 +32,9 @@ start screen instead, so tick "Let friends join this game" and Continue there (a
 - `pair-lodge.mjs 9301 9302` - after `partner.mjs`, with a lodge site ahead of the host (`__game.siteAhead()`): puts a log at the feet of host and guest in turn (a dev build can edit the world), each takes it with Take and builds with Do, until the lodge of the pair is whole (#666). A guest that stands more than 5 m from the lodge, or is blocked by its dome, does not place. Wear it with `__game.world().pairLodges[0].wear = {level: 0.4, since: clock, mend: 0}` and a log from the guest mends it. The pair and its lodge are in the host's save, and a restarted host and a guest with the same key are paired again.
 - `guest-door.mjs 9302 LODGEX LODGEZ DOOR` - a guest swims to 5 m out along the door of a whole pair lodge, then dives in toward the centre (W and Space held) until `inLodge` is true. The host's tablet goes in the same way with port 9301. `space-tap.mjs PORT` taps Space (Dive).
 
+- A guest at the host's store presses Do: a piece in its mouth goes into the first free place, an empty mouth takes the first piece (no stash screen on a guest). In the round room of a pair lodge Do eats the piece (session 169, #663). Take reads Drop while the mouth is full, as for the host, so a guest with a branch drops it before it drags a log (`pair-lodge.mjs` does).
+- Part outside works on a pair: each press says it, the second ends the pair. Stand away from the store, Do reads Store there first. A wiped host emulator needs the APK reinstalled (`adb -s emulator-5554 install -r tools/tablet-live/android/app/build/outputs/apk/debug/app-debug.apk`), then the test menu Adult.
+
 A guest is a thin client, so `__game.goToSpot` does nothing on it (the host steps its beaver); walk it with `walk.mjs`.
 Food put down in the water cannot be picked up again by a swimming beaver (Take reads item only on land).
 

@@ -95,7 +95,7 @@ These are their own pieces of work, and each can be built and played alone befor
 - **Sleep outside a lodge.** The author wants it, maybe, for the early adult who cannot build a dam and a lodge in one day. Today
   only a beaver on the nest in a lodge can sleep (`canRest`, `canSleep` in `src/sim/state.ts`). Open: where it is safe, whether it
   ends skips, and how the dream and a night skip work from there.
-- **Dream together.** The dream room is run by the host for the players who are asleep. A popup tells the others when a beaver
+- **Dream together.** (Proposal in [51](51_dream_together.md).) The dream room is run by the host for the players who are asleep. A popup tells the others when a beaver
   goes to sleep.
 - **Hide and seek.** The dream mechanics, behind trees, in the waking game. A beaver can send a note to friends who are near, they
   walk over, and the game starts. Rules and room are built (#664), see [49](49_hide_and_seek_friends.md).

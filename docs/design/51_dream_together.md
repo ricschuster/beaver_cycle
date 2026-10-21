@@ -1,0 +1,80 @@
+# Dream together
+
+Design note, session 177. Status: a proposal for [#665](https://github.com/ricschuster/beaver_cycle/issues/665), with questions for
+the author at the end. Nothing is built. The author said (Q103 in [44](44_round6_answers.md)): play in the dreams together. Q113
+in [45](45_game_questions_round7.md) (do all have to be asleep, can you walk into a running dream, can some wake while others
+go on) is not answered yet, so this note proposes answers.
+
+## What there is today
+
+- The dream is one player's and lives on that tablet. `createDreamScreen` in `src/ui/dreamScreen.ts` holds a `DreamState`
+  (`src/sim/dream.ts`), steps it with `stepDream` from the local keys, and draws it. The seed is the day and the generation, so
+  the same night gives the same land. Candy land and the veggie garden are the two themes ([29](29_dream_candy_land.md),
+  [50](50_veggie_garden_dream.md)).
+- The dream has marshmallow beavers, boats, hide and seek, tag, the statue game and the plant race, all run by `stepDream`
+  with one `DreamBeaver` for the player.
+- A guest is a thin client ([42](42_multiplayer.md)): the host steps the world, a guest sends intents and draws snapshots.
+- Sleep with friends is still only on paper. Note 42 says night passes fast only when everybody sleeps and a skip needs a yes
+  from all (Q91, Q92). `Room` has no sleep state yet: a guest that sleeps gets no ready check, and `canSleep` in
+  `src/sim/state.ts` is read for the host's own beaver only. So dream together needs a small shared sleep first.
+
+## The proposal
+
+**Who is in.** A dream is for the players who are asleep. Proposal for Q113: you do not all have to sleep at once, and a
+dream can be walked into.
+
+1. The first player to fall asleep opens the dream, on its own tablet as today, with the seed of the night.
+2. A popup on the tablets of the others says "Pip is dreaming" (Q103). It stays as a toast and in the friend list.
+3. When another player falls asleep (at their own time, in their own lodge) they dream into the same room, next to the
+   friends already there. Their bed spot is a free one of the `DreamBed`s.
+4. A player wakes alone with the wake button, as today. The dream goes on for the rest and ends when the last one wakes.
+   A friend who comes late sees what the others built that night.
+
+**Who runs it.** The host, for all. `stepDream` runs on the host with one `DreamInput` per sleeper, and the snapshot carries
+the dream (`Snapshot.dream`: beavers, mallows, boats, plants, builds, game state) next to the world, as `Snapshot.game` carries
+hide and seek. A guest draws it with the same `dreamView`. A host that is awake itself still steps the dream for the sleepers
+on its tablet in the background. A host that sleeps while a guest dreams is one more dreamer.
+
+**What is shared and what is not.** Shared: the land, the beavers of the dreamers, the marshmallows, boats, sweets, kept builds
+and the games. Not shared: nothing a dreamer does touches the waking world (as today, the dream changes nothing but what the
+dream keeps, `dreamKept`). Kept builds are the host's, one set for all.
+
+**Games with friends.** Tag, hide and seek and the statue game already have a `DreamBeaver` for the player and marshmallows for
+the rest. With friends a dreamer takes the place of a marshmallow: the first step lets friends play as hiders, seekers and
+runners only when the game is started with "Play" near a friend; the marshmallows fill the other roles. No score, no winner.
+
+**Boats.** A boat takes one beaver, as now. Two dreamers can have a boat each. A boat is made new each night and kept by the
+host while the dream runs.
+
+**Night skip.** Dreaming counts as asleep for the ready check (note 42). The skip needs a yes from everybody who is awake and
+runs when all are asleep or said yes. A dreamer who wakes ends the skip like any no.
+
+## Not in this first step
+
+- A dream for a guest whose tablet is offline (it wakes, as a guest that leaves the game).
+- Voice or the talk card inside the dream (the dream has its own babble, `talkDream`).
+- More than four dreamers, and a dream for the friend's family beaver.
+- Kept builds from several players: the host's set only.
+
+## Questions for the author
+
+1. **Walk into a dream (Q113).** Proposal: yes, a late sleeper joins the running dream, a wake is for one player only, and the
+   dream ends with the last one. Alternative: the dream starts only when everybody who can sleep is asleep (simpler, but one
+   awake player blocks it for all).
+2. **The popup.** "Pip is dreaming. Go to sleep too?" with a button that walks your beaver to a lodge, or only the news? Proposal:
+   only the news, and a button in the popup that is the sleep button when you are in a lodge.
+3. **Lodges.** A guest sleeps in its own lodge, as the host does. Can a friend who is in the host's lodge dream? Proposal: yes,
+   any player on a nest in a lodge. Sleep outside a lodge is separate (#661).
+4. **Who is the marshmallow.** In tag and hide and seek, do the marshmallows play on when friends are in (proposal: yes, so one
+   friend alone still has a game), or only the friends?
+5. **One theme per night.** The candy land or the veggie garden is chosen at bedtime ([50](50_veggie_garden_dream.md)). With
+   two sleepers who choose? Proposal: the first sleeper's choice, the late ones go to the same theme.
+6. **Seeing each other.** Do the dreamers see their friend's real look (colour and coat, Q93) or the candy look? Proposal: their
+   real look, as in the waking game.
+
+## Steps
+
+1. A shared sleep state in `Room`: who sleeps, who dreams, the popup, the ready check for a skip (this is also what #661 needs).
+2. Move the dream step to the host for guests: `Snapshot.dream`, an intent for the dreamer's input, tests with fake rooms.
+3. Draw the dream on a guest, the late join, the wake of one player.
+4. Friends in the games, the manual (both languages), notes 29 and 42, and the emulator pair for the real run.

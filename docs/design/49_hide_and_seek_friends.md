@@ -1,6 +1,6 @@
 # Hide and seek between friends
 
-Design note, session 173. Status: a proposal for [#664](https://github.com/ricschuster/beaver_cycle/issues/664), with questions for
+Design note, session 173. Status: the author answered the questions (last section), step 1 is built. A proposal for [#664](https://github.com/ricschuster/beaver_cycle/issues/664), with questions for
 the author at the end. Nothing is built. The author said (Q103, Q114 in [46](46_round7_answers.md)): hide behind trees, with the
 mechanics of the dream; a note can go to friends who are not too far away, asking if they want to join; the game starts when they
 have walked over to the beavers who want to play.
@@ -75,3 +75,20 @@ already knows (`world.trees`, felled set). Intents: `{t:'say', q:'hide'}` for th
 2. Room, snapshot and intents, the note question and the role buttons, English and German text.
 3. Seeker view (count, hidden hiders), cheer, hearts, chime.
 4. Manual, notes 29 and 42, emulator playtest, and tune on the tablets when they are there.
+
+## The author's answers
+
+1. All: the note goes to every friend within 60 m, and a Yes to "Want to play?" starts a game for two.
+2. The asker chooses.
+3. Seekers stand still during the count.
+4. The playground (60 m for hiders, 80 m for the game, 90 s) is fine for a first try.
+5. A dam hides nothing.
+6. Families do not join.
+
+## Built so far
+
+Step 1 (`src/net/hideGame.ts`, tested): `invite`, `accept`, `decline`, `step`, `drop`, `frozen`, `hiddenFrom`, `timeLeft`. The
+numbers are constants at the top (`NOTE_REACH` 60, `GATHER_REACH` 8, `INVITE_TIME` 30, `COUNT_TIME` 10, `SEEK_TIME` 90, `FIND_REACH` 7,
+`FIND_CLOSE` 2, `PLAY_RADIUS` 80). A seeker does not see the hiders it has not found, from the start of the count to the end of the round (the
+dream's giggle hint is left out, since a find at 7 m is the only clue). Only the asker's chosen role differs from the others; the others all
+take the other role.

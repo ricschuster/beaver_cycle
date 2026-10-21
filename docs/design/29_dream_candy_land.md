@@ -26,7 +26,7 @@ in the chocolate river.
 
 - **Candy land** is a square of soft pastel ground, about 160 m across, with rolling candy hills at the edges that keep the
   beaver in. A chocolate river winds across it. A little path of round candy stones leads from where the beaver wakes up in
-  the dream, past lollipop trees, cotton candy trees, gumdrop bushes, candy canes, cupcake hills, ice cream cones, and
+  the dream, past lollipop trees, cotton candy trees, cotton candy bushes, gumdrop bushes, candy canes, cupcake hills, ice cream cones, and
   marshmallow rocks, down to the river bank. Every night the river, the path, the props, and the sweets are laid out new from
   a seed. The cotton candy trees (the author, session 81) are a paper stick with a soft cloud of pink, sky blue, or lilac
   spun sugar, and a big one hides a marshmallow beaver, as a big lollipop does.
@@ -37,6 +37,14 @@ in the chocolate river.
   collects it. A star gives a sugar rush, a few seconds of extra speed. The count shows on screen while the beaver dreams. A golden beaver statue (the author's wish 10, #651) stands 4 to 9 m off the
   later part of the path, in a new place each night; touching it gives a rush of 20 s, once a dream (`makeStatue`, `touchStatue`).
   The wish list asked "rare find or always there" (Q4); it is always there until touched, to tune.
+- **Cotton candy bushes and boats** (the author's wish 1, #648, Q80). A cotton candy bush is a low heap of spun sugar puffs
+  (`cottonBush`, 1.3 m high), one more prop kind in candy land. Two or three cotton candy boats float on the chocolate
+  (`makeBoats`, `DreamState.boats`): the first near where the path meets the river, the others further along. Do next to a boat
+  (within 2.6 m) climbs in (`boardBoat`, `aboard`); the stick steers it at 4.6 m/s, a little faster than swimming, and it only goes
+  where the chocolate is 0.5 m deep or more, sliding along the bank (`sail`). In a boat the beaver stands on its floor and does not
+  paddle, hop is off, splash works. Do again with a bank within 4.5 m steps out onto the nearest dry clear ground, ahead first
+  (`leaveBoat`); the boat stays floating there. The prompt says "Get into the cotton candy boat" or "Get out of the boat" and is
+  missing in mid river. Boats are made new each night, not kept. The veggie garden has none. Numbers are first guesses to tune.
 - **Lily pads and ponds** (the author's wishes 7 and 8, #650). Two or three round chocolate ponds, 5 to 8 m across the surface,
   lie beside the river a strip of dry land away from it and from the path (`makePonds`, bowls cut into `landRise`, about 0.9 m
   deep). Each has four white chocolate lily pads and one marshmallow beaver, and the beavers amble between ponds too. More pads

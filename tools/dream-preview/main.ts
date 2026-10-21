@@ -130,6 +130,18 @@ if (q.get('build') === '1') {
   ];
   state.carrying = true;
 }
+if (q.get('boat') === '1' && state.boats?.[0]) {
+  // In the first boat (`?boat=2` stands on the bank beside it instead), looking along the river.
+  const boat = state.boats[0];
+  b.x = q.get('boat') === '1' ? boat.x : boat.x + 3;
+  b.z = boat.z;
+  b.heading = boat.heading;
+  if (q.get('boat') === '1') {
+    state.aboard = boat.id;
+    b.mode = 'swim';
+    b.y = CHOCOLATE_LEVEL + 0.18;
+  }
+}
 if (q.get('beds') === '1' && state.land.beds) {
   // Beside the first garden bed, a plant in each bed at a stage, and a full can in the paws.
   const bed = state.land.beds[0]!;

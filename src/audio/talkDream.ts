@@ -44,6 +44,10 @@ export function dreamCues(events: readonly DreamEvent[]): Cue[] {
       case 'build':
         cues.push({ effect: e.done ? 'chimeStar' : 'setdown', gain: 0.7 });
         break;
+      case 'board':
+      case 'leave':
+        cues.push({ effect: 'splash', gain: 0.5 });
+        break;
       case 'statue':
         cues.push({ effect: 'chimeStar', gain: 0.9 });
         break;

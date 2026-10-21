@@ -8,10 +8,13 @@ import { SLAP_DURATION, type BeaverModel } from './beaverModel';
 import { FAR_MALLOW, disposeModel, dreamPlayer, candyBuild, goldenStatue, leapPitch, mallowFar, mallowModel, placeMallow, veggiePlayer } from './dreamBeavers';
 import { bedsGeometry, disposePlants, plantGeometry, wateringCan } from './gardenProps';
 import { lookOf } from './dreamLook';
-import { candy, pathStones, propsGeometry, starShape, sweetShapes } from './dreamProps';
+import { candy, cottonBoat, pathStones, propsGeometry, starShape, sweetShapes } from './dreamProps';
 import { cloudRing, createChocolateRiver, farScoops, groundGeometry, hillScoops, skyDome, sunTexture } from './dreamScenery';
 import { createParticles, dotTexture, giggleTexture, shadowTexture, sparkleTexture } from './dreamEffects';
-import { seedOf } from './propShapes';
+import { seeded, seedOf } from './propShapes';
+
+/** How far a boat bobs on the chocolate, by its number and the time (metres). */
+const boatBob = (time: number, n: number): number => 0.03 * Math.sin(time * 1.6 + n * 2);
 
 export interface DreamView {
   /** The canvas, which also takes the camera's drag and zoom input (`createCameraRig`). */
@@ -155,6 +158,22 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     }
   };
   drawProps(land.props);
+
+  // The cotton candy boats on the river (wish 1): they bob where they float, and the one the beaver is in follows it.
+  const boatMaterial = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 40, specular: 0x3a3a3a, side: THREE.DoubleSide });
+  const boatMeshes = new Map<string, THREE.Mesh>();
+  const drawBoats = (state: DreamState): void => {
+    (state.boats ?? []).forEach((boat, i) => {
+      let mesh = boatMeshes.get(boat.id);
+      if (!mesh) {
+        mesh = new THREE.Mesh(cottonBoat(i, seeded(i + 1)), boatMaterial);
+        scene.add(mesh);
+        boatMeshes.set(boat.id, mesh);
+      }
+      mesh.position.set(boat.x, CHOCOLATE_LEVEL + boatBob(state.time, i), boat.z);
+      mesh.rotation.y = boat.heading;
+    });
+  };
 
   // The candy dam and lodge the beaver builds, made again when a log goes on.
   const builtMeshes = new Map<string, { logs: number; group: THREE.Group }>();
@@ -434,6 +453,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       if (ev.what === 'sweet') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.5, ev.z, time, ev.kind === 'star' ? 26 : 14, ev.kind === 'star' ? GOLD : CONFETTI, 2.6, 1.6, 0.9);
       else if (ev.what === 'chop') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 1, ev.z, time, 20, CONFETTI, 2.4, 2, 0.9);
       else if (ev.what === 'build') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.8, ev.z, time, ev.done ? 40 : 14, ev.done ? GOLD : CONFETTI, 3, 2.2, 1);
+      else if (ev.what === 'board' || ev.what === 'leave') drops.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.3, ev.z, time, 12, CHOC, 2.6, 1.6, 0.8);
       else if (ev.what === 'statue') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.8, ev.z, time, 40, GOLD, 3.5, 2.5, 1.2);
       else if (ev.what === 'water') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.9, ev.z, time, 16, CONFETTI, 2.2, 1.8, 0.9);
       else if (ev.what === 'fill') drops.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.3, ev.z, time, 10, CHOC, 2.6, 1.6, 0.8);
@@ -488,8 +508,11 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       camera.lookAt(look);
       watchSlap('player', b, time);
       const slapAge = (at: number | null): number | null => (at === null || time - at >= SLAP_DURATION || time < at ? null : time - at);
-      player.update(time, Math.min(1, b.speed / 4), b.mode, 0, slapAge(b.slapAt), state.carrying ? 'branch' : null, null);
-      player.group.position.set(b.x, b.y - (b.mode === 'swim' ? SWIM_SINK : 0), b.z);
+      // In a boat the beaver stands on the boat's floor and rides its bob, and does not paddle.
+      const riding = state.aboard !== undefined;
+      const bob = riding ? boatBob(time, Number(state.aboard!.slice(1))) : 0;
+      player.update(time, riding ? 0 : Math.min(1, b.speed / 4), riding ? 'walk' : b.mode, 0, slapAge(b.slapAt), state.carrying ? 'branch' : null, null);
+      player.group.position.set(b.x, b.y + bob - (b.mode === 'swim' && !riding ? SWIM_SINK : 0), b.z);
       player.group.rotation.set(leapPitch(b, time), b.heading, 0, 'YXZ');
       putShadow(0, b, 1);
 
@@ -553,6 +576,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       statueGlow.material.opacity = 0.4 + 0.15 * Math.sin(time * 3);
       if (state.land.props !== shownProps) drawProps(state.land.props);
       drawBuilds(state);
+      drawBoats(state);
       drawPlants(state);
       if (beds.length > 0) {
         const own = state.game.kind === 'grow' ? state.plants?.find((p) => p.owner === 'player') : undefined;

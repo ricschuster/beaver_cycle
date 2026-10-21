@@ -65,6 +65,8 @@ export function dreamLine(event: DreamEvent, state: DreamState, n: number): stri
       return one(`dream.${event.kind}${event.done ? 'Done' : 'Grows'}`);
     case 'statue':
       return one('dream.statue');
+    case 'board':
+      return one('dream.boarded');
     case 'rush':
       return one(veg ? 'dream.rushVeg' : 'dream.rush');
     case 'greet':

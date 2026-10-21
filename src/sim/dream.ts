@@ -41,6 +41,7 @@ export type PropKind =
   | 'iceCream'
   | 'marshmallowRock'
   | 'cottonCandy'
+  | 'cottonBush'
   | 'lettuceTree'
   | 'broccoliTree'
   | 'leek'
@@ -211,6 +212,14 @@ export interface Plant {
   stage: number;
 }
 
+/** A cotton candy boat on the chocolate river (wish 1, Q80): Do gets in or out, the stick steers. `heading` is the way its bow points. */
+export interface DreamBoat {
+  id: string;
+  x: number;
+  z: number;
+  heading: number;
+}
+
 /** A candy dam across the chocolate or a candy lodge on land, raised log by log (wish 6). `heading` is the way across the dam. */
 export interface DreamBuild {
   kind: 'dam' | 'lodge';
@@ -238,6 +247,10 @@ export interface DreamState {
   carrying?: boolean;
   /** The candy dam and lodge begun or finished this dream, one of each at most. They do not stay for other dreams (Q81). */
   builds?: DreamBuild[];
+  /** The cotton candy boats on the river, the one the beaver is in following it (candy land only). */
+  boats?: DreamBoat[];
+  /** The id of the boat the beaver is in, while it rides. */
+  aboard?: string;
   /** The plants of the last garden game this dream, grown or not (the veggie garden). */
   plants?: Plant[];
   game: DreamGame;
@@ -267,6 +280,9 @@ export type DreamEvent =
   | { what: 'build'; kind: 'dam' | 'lodge'; logs: number; done: boolean; x: number; z: number }
   /** The golden beaver statue was touched: a long rush. */
   | { what: 'statue'; x: number; z: number }
+  /** The beaver got into a boat, or out of it onto the bank. */
+  | { what: 'board'; x: number; z: number }
+  | { what: 'leave'; x: number; z: number }
   | { what: 'greet'; who: string }
   | { what: 'splash'; x: number; z: number }
   | { what: 'tagStart'; it: string }
@@ -345,6 +361,14 @@ const BED_REACH = 2.4;
 const GROW_FRIENDS = 3;
 const WATER_PAUSE = 1.2;
 const STATUE_REACH = 1.4;
+/** A boat goes this fast (m/s, a little quicker than swimming), needs this much chocolate under it, and is boarded from this close to it (metres). */
+export const BOAT_SPEED = 4.6;
+const BOAT_DEPTH = 0.5;
+const BOAT_REACH = 2.6;
+/** The boat's floor stands this high over the chocolate, and a beaver gets out onto land this far from the boat at most. */
+export const BOAT_LIFT = 0.18;
+const LEAVE_REACH = 4.5;
+const BOAT_COUNT = 3;
 /** Marshmallow beavers amble at these speeds (m/s), and say hello the first time the player is this close (metres). */
 const MALLOW_WALK = 1.6;
 const MALLOW_SWIM = 2;
@@ -493,8 +517,37 @@ export function newDream(seed: number, kept: readonly DreamBuild[] = [], theme: 
   const { x, z, heading } = land.start;
   const beaver: DreamBeaver = { x, y: dreamHeight(land, x, z), z, heading, speed: 0, mode: 'walk', hopAt: null, slapAt: null };
   const dream: DreamState = { land, time: 0, beaver, mallows, sweets, count: 0, rushUntil: 0, game: { kind: 'none' }, rng: mixSeed(seed, 4) };
+  if (theme === 'candy') dream.boats = makeBoats(land);
   // The veggie garden has no chopping or building, so nothing is kept for it.
   return kept.length > 0 && theme === 'candy' ? { ...dream, builds: keptInLand(land, kept) } : dream;
+}
+
+/**
+ * Three cotton candy boats moored on the river: the first by where the path meets it, so the beaver finds it at once, the others
+ * further along, each on the side nearer the bank, pointing downstream.
+ */
+function makeBoats(land: DreamLand): DreamBoat[] {
+  const inner = innerOf(land.half) - 4;
+  const ok = land.river.map((p, i) => ({ p, i })).filter(({ p }) => Math.abs(p.x) < inner && Math.abs(p.z) < inner);
+  if (ok.length === 0) return [];
+  const end = land.path[land.path.length - 1]!;
+  let first = ok[0]!;
+  for (const o of ok) if (dist2(o.p, end) < dist2(first.p, end)) first = o;
+  const picks = [first];
+  for (const at of [0.2, 0.8]) {
+    const guess = ok[Math.floor((ok.length - 1) * at)]!;
+    if (picks.every((o) => dist2(o.p, guess.p) > 20 * 20)) picks.push(guess);
+  }
+  return picks.slice(0, BOAT_COUNT).map(({ p, i }, n) => {
+    const a = land.river[Math.max(0, i - 1)]!;
+    const b = land.river[Math.min(land.river.length - 1, i + 1)]!;
+    const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const nx = -(b.z - a.z) / len;
+    const nz = (b.x - a.x) / len;
+    const toward = n === 0 ? Math.sign((end.x - p.x) * nx + (end.z - p.z) * nz) || 1 : n % 2 === 0 ? 1 : -1;
+    const off = (land.riverWidth / 2) * 0.45 * toward;
+    return { id: `b${n}`, x: p.x + nx * off, z: p.z + nz * off, heading: Math.atan2(b.x - a.x, b.z - a.z) };
+  });
 }
 
 const clearOfProps = (land: DreamLand, x: number, z: number, gap: number): boolean =>
@@ -652,7 +705,12 @@ export function stepDream(state: DreamState, input: DreamInput, dt: number): { s
   let s: DreamState = { ...state, time, beaver: moveBeaver(state, input, time, dt, events) };
   s = collect(s, events);
   s = touchStatue(s, events);
-  if (input.play && s.game.kind === 'none') s = bedAt(s) !== null ? startGrow(s, events) : playmate(s) ? startGame(s, rand, events) : work(s, events);
+  s = carryBoat(s);
+  if (input.play && s.game.kind === 'none') {
+    if (bedAt(s) !== null) s = startGrow(s, events);
+    else if (s.aboard || boatNear(s)) s = s.aboard ? leaveBoat(s, events) : boardBoat(s, events);
+    else s = playmate(s) ? startGame(s, rand, events) : work(s, events);
+  }
   else if (input.play && s.game.kind === 'grow') s = tend(s, s.game, events);
   if (s.game.kind === 'choose') s = chooseRules(s, s.game, input.pick, rand, events);
   s = { ...s, mallows: stepMallows(s, rand, dt, events) };
@@ -687,7 +745,37 @@ function pastProps(land: DreamLand, x: number, z: number): DreamPoint {
   return { x, z };
 }
 
+/** The boat the beaver rides: it steers with the stick on the chocolate, and stops where the river gets shallow. */
+function sail(s: DreamState, input: DreamInput, time: number, dt: number, events: DreamEvent[]): DreamBeaver {
+  const b = s.beaver;
+  const land = s.land;
+  const len = Math.hypot(input.move.x, input.move.z);
+  const steer = len > 0.05;
+  const rush = time < s.rushUntil ? RUSH : 1;
+  const heading = steer ? turnToward(b.heading, Math.atan2(input.move.x, input.move.z), TURN * dt) : b.heading;
+  const speed = ease(b.speed, steer ? BOAT_SPEED * Math.min(1, len) * rush : 0, dt, 4);
+  const lim = land.half - EDGE;
+  const afloat = (x: number, z: number): boolean => Math.abs(x) <= lim && Math.abs(z) <= lim && chocolateDepth(land, x, z) >= BOAT_DEPTH;
+  const vx = Math.sin(heading) * speed;
+  const vz = Math.cos(heading) * speed;
+  let x = b.x;
+  let z = b.z;
+  // Along the bank it slides: try the whole move, then each axis alone.
+  if (afloat(x + vx * dt, z + vz * dt)) {
+    x += vx * dt;
+    z += vz * dt;
+  } else if (afloat(x + vx * dt, z)) x += vx * dt;
+  else if (afloat(x, z + vz * dt)) z += vz * dt;
+  let slapAt = b.slapAt;
+  if (input.slap && (slapAt === null || time - slapAt >= SLAP_COOLDOWN)) {
+    slapAt = time;
+    events.push({ what: 'splash', x, z });
+  }
+  return { ...b, x, z, heading, speed: Math.hypot(x - b.x, z - b.z) / Math.max(dt, 1e-6), mode: 'swim', y: CHOCOLATE_LEVEL + BOAT_LIFT, hopAt: null, slapAt, leap: false };
+}
+
 function moveBeaver(s: DreamState, input: DreamInput, time: number, dt: number, events: DreamEvent[]): DreamBeaver {
+  if (s.aboard) return sail(s, input, time, dt, events);
   const b = s.beaver;
   const land = s.land;
   const len = Math.hypot(input.move.x, input.move.z);
@@ -803,6 +891,74 @@ function work(s: DreamState, events: DreamEvent[]): DreamState {
   return { ...s, carrying: false, builds };
 }
 
+/** The boat nearest the beaver and within reach of it, when the beaver is not in one, or null. */
+function boatNear(s: DreamState): DreamBoat | null {
+  if (s.aboard) return null;
+  let best: DreamBoat | null = null;
+  let bestD = BOAT_REACH * BOAT_REACH;
+  for (const boat of s.boats ?? []) {
+    const d = dist2(boat, s.beaver);
+    if (d < bestD) {
+      best = boat;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** The boat the beaver is in goes where the beaver goes. */
+function carryBoat(s: DreamState): DreamState {
+  if (!s.aboard) return s;
+  const b = s.beaver;
+  return { ...s, boats: (s.boats ?? []).map((boat) => (boat.id === s.aboard ? { ...boat, x: b.x, z: b.z, heading: b.heading } : boat)) };
+}
+
+/** Do next to a boat: climb in. The beaver stands in the boat, facing the way the bow points. */
+function boardBoat(s: DreamState, events: DreamEvent[]): DreamState {
+  const boat = boatNear(s);
+  if (!boat) return s;
+  events.push({ what: 'board', x: boat.x, z: boat.z });
+  const beaver: DreamBeaver = { ...s.beaver, x: boat.x, z: boat.z, heading: boat.heading, speed: 0, mode: 'swim', y: CHOCOLATE_LEVEL + BOAT_LIFT, hopAt: null, leap: false };
+  return { ...s, aboard: boat.id, beaver };
+}
+
+/** The nearest dry, clear spot to climb out onto, preferring the way the boat points, or null when no bank is near. */
+function landingSpot(s: DreamState): DreamPoint | null {
+  const b = s.beaver;
+  const land = s.land;
+  const lim = land.half - EDGE;
+  for (let r = 1.8; r <= LEAVE_REACH; r += 0.9) {
+    for (let i = 0; i < 16; i++) {
+      // Straight ahead first, then to either side, then behind.
+      const turn = Math.ceil(i / 2) * (i % 2 === 0 ? 1 : -1) * (TAU / 16);
+      const a = b.heading + turn;
+      const x = b.x + Math.sin(a) * r;
+      const z = b.z + Math.cos(a) * r;
+      if (Math.abs(x) > lim || Math.abs(z) > lim) continue;
+      if (chocolateDepth(land, x, z) > SWIM_OUT * 0.8 || !clearOfProps(land, x, z, BODY + 0.2)) continue;
+      return { x, z };
+    }
+  }
+  return null;
+}
+
+/** Do in a boat: step out onto the bank, if one is near. The boat stays where it floats. */
+function leaveBoat(s: DreamState, events: DreamEvent[]): DreamState {
+  const spot = landingSpot(s);
+  if (!spot) return s;
+  events.push({ what: 'leave', x: spot.x, z: spot.z });
+  const b = s.beaver;
+  const heading = Math.atan2(spot.x - b.x, spot.z - b.z);
+  const beaver: DreamBeaver = { ...b, x: spot.x, z: spot.z, heading, speed: 0, mode: 'walk', y: dreamHeight(s.land, spot.x, spot.z), hopAt: s.time, leap: false };
+  return { ...s, aboard: undefined, beaver };
+}
+
+/** What Do would do about a boat now, for the prompt, or null: get in when next to one, get out when a bank is near. */
+function boatPrompt(s: DreamState): string | null {
+  if (s.aboard) return landingSpot(s) ? t('dream.leaveBoat') : null;
+  return boatNear(s) ? t('dream.boardBoat') : null;
+}
+
 /** Touching the golden beaver statue starts a long sugar rush, once a dream. */
 function touchStatue(s: DreamState, events: DreamEvent[]): DreamState {
   if (s.statueTouched || dist2(s.land.statue, s.beaver) >= STATUE_REACH * STATUE_REACH) return s;
@@ -850,6 +1006,7 @@ export function playPrompt(state: DreamState): string | null {
   if (state.game.kind === 'grow') return tendPrompt(state, state.game);
   if (state.game.kind !== 'none') return null;
   if (bedAt(state) !== null) return t('dream.startGrow');
+  if (state.aboard || boatNear(state)) return boatPrompt(state);
   const m = playmate(state);
   if (!m) return workPrompt(state);
   return inChocolate(state) ? t('dream.playTag', { name: m.name }) : t('dream.playSeek', { name: m.name });

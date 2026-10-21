@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LOOK } from '../sim/look';
-import { cleanAddress, pendingJoin, setPendingJoin } from './pending';
+import { cleanAddress, guestKey, pendingJoin, setPendingJoin } from './pending';
 
 const store = () => {
   const data = new Map<string, string>();
@@ -42,5 +42,18 @@ describe('pendingJoin', () => {
     expect(pendingJoin(blocked)).toBeNull();
     expect(() => setPendingJoin(blocked, { address: '10.0.0.2', coat: { coat: 0, shade: 0 }, look: DEFAULT_LOOK })).not.toThrow();
     expect(pendingJoin(null)).toBeNull();
+  });
+});
+
+describe('the guest key', () => {
+  it('is made once and kept', () => {
+    const s = store();
+    const k = guestKey(s);
+    expect(k).toMatch(/^[a-z0-9]{8,24}$/);
+    expect(guestKey(s)).toBe(k);
+  });
+
+  it('is none without storage', () => {
+    expect(guestKey(null)).toBeUndefined();
   });
 });

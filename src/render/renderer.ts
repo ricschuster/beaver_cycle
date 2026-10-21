@@ -265,6 +265,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const neighbourSpare: { model: BeaverModel; coat: string; look?: string; pace: number }[] = [];
   const parentSpare: { model: BeaverModel; pace: number; coat: string }[] = [];
   const neighbourViews: LodgeView[] = [];
+  const pairViews: LodgeView[] = [];
   const driftMeshes: THREE.Mesh[] = [];
   const driftGeometry = new THREE.SphereGeometry(1, 14, 9);
   const driftMaterial = new THREE.MeshStandardMaterial({ color: 0xf2f6fa, roughness: 1 });
@@ -517,6 +518,12 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       }
       while (neighbourViews.length < world.neighbours.length) neighbourViews.push(createLodgeView(scene, shadows, prepare, false));
       neighbourViews.forEach((view, i) => view.update(bare || inside ? null : world.neighbours[i]?.lodge ?? null, 1));
+      // The lodges that pairs of players build together (#666), drawn like a family's, with the wear of a whole lodge.
+      while (pairViews.length < world.pairLodges.length) pairViews.push(createLodgeView(scene, shadows, prepare, false));
+      pairViews.forEach((view, i) => {
+        const l = world.pairLodges[i];
+        view.update(bare || inside || !l ? null : l, l ? lodgeCondition(l, world.clock) : 1);
+      });
       for (const p of world.partners) {
         let entry = partnerModels.get(p.id);
         if (!entry) {

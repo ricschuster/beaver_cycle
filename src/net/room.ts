@@ -11,8 +11,10 @@ import { withPonds } from '../sim/pond';
 import type { Terrain } from '../sim/terrain';
 import type { TreeSource } from '../sim/trees';
 import type { WorldState } from '../sim/state';
-import { asked, askersOf, drop, expire, noPairing, partnerOf, press, type Pairing } from './pairs';
+import { asked, askersOf, dropAsks, expire, noPairing, partnerOf, press, restore, type Pairing } from './pairs';
 import { stageAt } from '../sim/life';
+import { leaveHome } from '../sim/state';
+import type { PairLodge } from '../sim/pairLodge';
 import { intentOf, readToHost, viewOfGuest, type BeaverView, type Snapshot, type ToGuest } from './protocol';
 
 /** The most friends in one valley besides the host (note 42: up to four players at once). */
@@ -49,8 +51,14 @@ export class Room {
 
   leave(id: string): void {
     this.strangers.delete(id);
+    const seat = this.seats.get(id);
     this.seats.delete(id);
-    this.pairing = drop(this.pairing, id);
+    if (seat) this.pairing = dropAsks(this.pairing, seat.guest.id);
+  }
+
+  /** A host that starts again takes its pairs from the lodges already built (#666). */
+  restorePairs(lodges: readonly PairLodge[]): void {
+    this.pairing = restore(lodges);
   }
 
   /** The families whose baby a guest plays. */
@@ -76,9 +84,11 @@ export class Room {
       const idx = homes.findIndex((_, i) => !taken.has(i));
       const home = idx >= 0 ? idx : null;
       const n = this.seats.size + 1;
+      // A guest with a key of its own is the same player after a break (a pair and its lodge wait for it); else the connection is its id.
+      const pid = m.key && ![...this.seats.values()].some((s) => s.guest.id === `g-${m.key}`) ? `g-${m.key}` : id;
       const at = home !== null ? { x: homes[home]!.x + HOME_OFFSET, z: homes[home]!.z } : { x: host.x + SPAWN_OFFSET * n, z: host.z + SPAWN_OFFSET };
-      this.seats.set(id, { guest: newGuest(id, at, terrain, m.coat, m.look), intent: { move: { x: 0, z: 0 } }, heard: now, home, family: home !== null ? homes[home]!.id ?? null : null });
-      return this.reply(id, { t: 'welcome', id });
+      this.seats.set(id, { guest: newGuest(pid, at, terrain, m.coat, m.look), intent: { move: { x: 0, z: 0 } }, heard: now, home, family: home !== null ? homes[home]!.id ?? null : null });
+      return this.reply(id, { t: 'welcome', id: pid });
     }
     const seat = this.seats.get(id);
     if (seat) {
@@ -91,9 +101,14 @@ export class Room {
   step(world: WorldState, dt: number, now: number, ground: Terrain, trees: TreeSource): WorldState {
     let { felled, logs, dams, rocksTaken, dropped, picked, stripped }: { felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[]; picked: Picked; stripped: Readonly<Record<string, number>> } = world;
     const terrain = withPonds(ground, world.ponds);
-    const solids = [world.lodge, ...world.formerHomes, ...world.neighbours.map((n) => n.lodge)].flatMap((l) => (l ? [{ x: l.x, z: l.z, radius: 4 }] : []));
+    const solids = [world.lodge, ...world.formerHomes, ...world.pairLodges, ...world.neighbours.map((n) => n.lodge)].flatMap((l) => (l ? [{ x: l.x, z: l.z, radius: 4 }] : []));
     let hostCarry = world.carry;
     this.pairing = expire(this.pairing, now);
+    // The host paired: its own lodge becomes a former home (Q110, note 48), and its logs now go to the lodge of the pair.
+    const hostPartner = partnerOf(this.pairing, 'host');
+    if (hostPartner && !world.pairWith) world = leaveHome(world);
+    if (hostPartner !== world.pairWith) world = { ...world, pairWith: hostPartner };
+    let pairLodges: readonly PairLodge[] = world.pairLodges;
     const hostAdult = stageAt(world.clock, world.bornAt) === 'adult';
     for (const seat of this.seats.values()) {
       const intent = now - seat.heard > SILENT_AFTER ? { move: { x: 0, z: 0 } } : seat.intent;
@@ -108,15 +123,15 @@ export class Room {
         const to = this.partnerNear(seat.guest.id, seat.guest.beaver, world.beaver, hostAdult);
         if (to) this.ask(seat.guest.id, to, now);
       }
-      const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock, dams, spots: world.spots, rocksTaken, dropped, ground, picked, stripped }, terrain, trees, solids);
+      const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock, dams, spots: world.spots, rocksTaken, dropped, ground, picked, stripped, pairLodges, ponds: world.ponds, partner: partnerOf(this.pairing, seat.guest.id) }, terrain, trees, solids);
       seat.guest = r.guest;
       // A press arrives once: the next step must not repeat it.
       seat.intent = { ...seat.intent, do: seat.intent.do === 'gnaw' ? 'gnaw' : null, take: null };
-      ({ felled, logs, dams, rocksTaken, dropped, picked, stripped } = r);
+      ({ felled, logs, dams, rocksTaken, dropped, picked, stripped, pairLodges } = r);
     }
-    const same = felled === world.felled && logs === world.logs && dams === world.dams && rocksTaken === world.rocksTaken && dropped === world.dropped && picked === world.picked && stripped === world.stripped;
+    const same = felled === world.felled && logs === world.logs && dams === world.dams && rocksTaken === world.rocksTaken && dropped === world.dropped && picked === world.picked && stripped === world.stripped && pairLodges === world.pairLodges;
     if (hostCarry !== world.carry) world = { ...world, carry: hostCarry };
-    return same ? world : { ...world, felled: [...felled], logs: [...logs], dams: [...dams], rocksTaken: [...rocksTaken], dropped: [...dropped], picked, stripped: { ...stripped } };
+    return same ? world : { ...world, felled: [...felled], logs: [...logs], dams: [...dams], rocksTaken: [...rocksTaken], dropped: [...dropped], picked, stripped: { ...stripped }, pairLodges: [...pairLodges] };
   }
 
   /**
@@ -192,7 +207,7 @@ export class Room {
   snapshot(world: WorldState): Snapshot {
     const b = world.beaver;
     const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null, grown: stageAt(world.clock, world.bornAt) === 'adult' };
-    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, asks: this.pairing.asks.map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]) };
+    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]) };
   }
 
   /** Sends the state to every guest that has said hello. */

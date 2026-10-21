@@ -25,6 +25,24 @@ function dragging(length: number): WorldState {
   return w;
 }
 
+describe('the lodge of a pair (#666)', () => {
+  it('takes the dragged log of a paired host, and not the personal lodge', () => {
+    const w = step({ ...dragging(6), pairWith: 'g1' }, build, 0.1, shore);
+    expect(w.lodge).toBeNull();
+    expect(w.pairLodges).toHaveLength(1);
+    expect(w.pairLodges[0]!.players).toEqual(['host', 'g1']);
+    expect(w.pairLodges[0]!.wood).toBe(2);
+    expect(w.drag).toBeNull();
+    expect(w.logs).toHaveLength(0);
+  });
+
+  it('an unpaired host still builds its own', () => {
+    const w = step(dragging(6), build, 0.1, shore);
+    expect(w.lodge).not.toBeNull();
+    expect(w.pairLodges).toHaveLength(0);
+  });
+});
+
 describe('lodge site', () => {
   it('is ahead of the beaver in shallow water with deep water near', () => {
     const site = lodgeSite(shore, 0, -1, 0);

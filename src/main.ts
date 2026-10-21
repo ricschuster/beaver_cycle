@@ -15,7 +15,7 @@ import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/lif
 import { formerParentsAt, parentsAt } from './sim/family';
 import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
-import { cleanAddress, pendingJoin, setPendingJoin } from './net/pending';
+import { cleanAddress, guestKey, pendingJoin, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
 import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
 import { applySnapshot, friendBeaver, friendTaker, othersOf, pairingOf, partnerCandidate } from './net/view';
@@ -421,6 +421,7 @@ async function start(): Promise<void> {
   const beginHosting = (): void => {
     if (room || netJoin) return;
     const mine = new Room(hostSender());
+    mine.restorePairs(world.pairLodges);
     hostLine = t('together.hostStarting');
     startHosting(mine, { hostAt: () => world.beaver, terrain, homes: () => world.neighbours.filter((n) => n.id.startsWith('family:start:')).map((n) => ({ x: n.lodge.x, z: n.lodge.z, id: n.id })) }, (s) => menu.setStatus(s)).then(
       (a) => {
@@ -446,7 +447,7 @@ async function start(): Promise<void> {
   let partnerSeen: { askedBy: number; asking: number; partner: string | null } = { askedBy: 0, asking: 0, partner: null };
   let pendingTake: GuestTake | null = null;
   if (netHost || hostFromStart) beginHosting();
-  if (netJoin) link = joinHost(netJoin, { t: 'hello', coat: world.coat, look: world.look });
+  if (netJoin) link = joinHost(netJoin, { t: 'hello', coat: world.coat, look: world.look, key: guestKey(storage) });
   let last = performance.now();
 
   // A jump holds the beaver while the streamer loads the target, then moves it.

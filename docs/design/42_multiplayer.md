@@ -103,8 +103,9 @@ These are their own pieces of work, and each can be built and played alone befor
   (`GIVE_REACH`), one presses Do, which reads Partners, and the other sees a toast and presses it too (Q112). An ask waits 30 real
   seconds (`ASK_TIME`), a guest or host that leaves ends its asks and pair. `src/net/pairs.ts` holds the rules, `Room` the state
   (`partnerNear`, `ask`), and the snapshot carries `asks` and `pairs` so every tablet shows the same. The host beaver is a candidate
-  only when it is an adult (`BeaverView.grown`); guests are all grown. The pair lives for the session and is not saved. Still to
-  build: the new lodge they raise together (Q110), which needs a guest to have a lodge of its own, and a kit for each of them (Q111).
+  only when it is an adult (`BeaverView.grown`); guests are all grown. Pairs wait for a partner who leaves: a guest sends a key of its own in its hello (`guestKey`, kept in the tablet's storage),
+  so the host knows the player again after a break, and a pair lives as long as its lodge (`Room.restorePairs`). The pair lodge is
+  built, see [48](48_partner_lodge_and_kits.md); the kits are still to build.
 - **Gifts.** A beaver can put food on the ground for a friend, or hand it over to a friend whose mouth is empty.
   Built (#663) for the families first: with food in the mouth and a family beaver with an empty mouth within 4 m, Do reads Give
   (`takerNear`, `giveFamily` in `src/sim/familyMoods.ts`), and the family trusts more, as for a gift put down. A wary family keeps

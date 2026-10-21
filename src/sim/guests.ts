@@ -15,6 +15,8 @@ import { settle, BREATH_MIN_START, BREATH_REFILL_TIME, BREATH_TIME, DIVE_SPEED, 
 import { BEAVER_RADIUS, CHOP_REACH, CHOP_TIME, MAX_TRUNK, avoidTrunks, type TreeSource } from './trees';
 import type { Intent } from './buttons';
 import type { Terrain } from './terrain';
+import { placeLog, type PairLodge } from './pairLodge';
+import type { Pond } from './pond';
 
 export interface Guest {
   /** The id the host gave the connection. */
@@ -48,6 +50,10 @@ export interface Shared {
   /** The pads picked and the branches stripped so far, as in the world. */
   picked: Picked;
   stripped: Readonly<Record<string, number>>;
+  /** The lodges pairs build together, the ponds, and this guest's partner (an id) or null (#666). */
+  pairLodges: readonly PairLodge[];
+  ponds: readonly Pond[];
+  partner: string | null;
 }
 
 /** The longest stretch of a move checked for bumps in one go (as in `step.ts`). */
@@ -63,7 +69,7 @@ export function newGuest(id: string, at: { x: number; z: number }, terrain: Terr
  * One guest advanced by `dt` seconds on the host's ground. Returns the guest and the shared things its step changed: a tree it
  * gnawed through is felled for everyone and lies as a log. `solids` are the lodges and other things a beaver cannot walk through.
  */
-export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shared, terrain: Terrain, trees: TreeSource, solids: readonly { x: number; z: number; radius: number }[] = []): { guest: Guest; felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[]; picked: Picked; stripped: Readonly<Record<string, number>> } {
+export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shared, terrain: Terrain, trees: TreeSource, solids: readonly { x: number; z: number; radius: number }[] = []): { guest: Guest; felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[]; picked: Picked; stripped: Readonly<Record<string, number>>; pairLodges: readonly PairLodge[] } {
   const b = guest.beaver;
   let { x, z } = intent.move;
   const len = Math.hypot(x, z);
@@ -86,6 +92,7 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
   let { haul, carry, drag } = guest;
   let { dams, rocksTaken, dropped, picked, stripped } = shared;
   let logs = shared.logs;
+  let pairLodges = shared.pairLodges;
   if (drag && (beaver.mode === 'dive' || !logs.some((l) => l.id === drag))) drag = null;
   let chop = guest.chop;
   const take = intent.take;
@@ -129,15 +136,26 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
   if ((intent.do === 'build' || intent.do === 'mend') && beaver.mode !== 'dive') {
     const log = drag ? logs.find((l) => l.id === drag) : undefined;
     const spot = spotAt(shared.spots, beaver.x, beaver.z);
+    let onDam = false;
     if (spot && (haul || log)) {
       const add = log ? { wood: logWood(log) } : haul!.kind === 'mud' ? { mud: 1 } : { rock: 1 };
       const next = placed(dams, spot, add, undefined, shared.clock);
       if (next !== dams) {
+        onDam = true;
         dams = next;
         if (log) {
           logs = logs.filter((l) => l.id !== log.id);
           drag = null;
         } else haul = null;
+      }
+    }
+    if (!onDam && log && shared.partner) {
+      // Paired: a log goes on the lodge the two build together (#666).
+      const r = placeLog(pairLodges, [guest.id, shared.partner], { x: beaver.x, z: beaver.z, heading: beaver.heading }, log, shared.ground, shared.ponds, shared.clock);
+      if (r.used) {
+        pairLodges = r.lodges;
+        logs = logs.filter((l) => l.id !== log.id);
+        drag = null;
       }
     }
   }
@@ -154,5 +172,5 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
     felled = [...felled, chop.id];
     chop = null;
   }
-  return { guest: { ...guest, beaver, chop, haul, carry, drag, pace: len > 0 ? 1 : 0 }, felled, logs, dams, rocksTaken, dropped, picked, stripped };
+  return { guest: { ...guest, beaver, chop, haul, carry, drag, pace: len > 0 ? 1 : 0 }, felled, logs, dams, rocksTaken, dropped, picked, stripped, pairLodges };
 }

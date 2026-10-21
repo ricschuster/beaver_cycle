@@ -229,15 +229,60 @@ describe('the room', () => {
       expect(close.partnerNear('host', host, host, true)).toBeNull();
     });
 
-    it('does not let a guest ask a host that is still a baby, and ends the pair when a guest leaves', () => {
+    it('does not let a guest ask a host that is still a baby', () => {
       const room = near();
       room.receive('g1', intent({ do: 'partner' }), 1, host, ground);
       room.step(baby, 0.05, 1, ground, oneTree);
       expect(room.asking('g1', 'host')).toBe(false);
-      room.ask('host', 'g1', 2);
-      room.ask('g1', 'host', 2);
-      room.leave('g1');
-      expect(room.partner('host')).toBeNull();
+    });
+
+    it('keeps the pair when a guest leaves, and knows the guest again by its key', () => {
+      const room = new Room(() => undefined);
+      const keyed = JSON.stringify({ t: 'hello', coat: { coat: 2, shade: 0 }, look: { name: 'Pip' }, key: 'abcdefgh12' });
+      room.open('c1');
+      room.receive('c1', keyed, 0, host, ground);
+      expect(room.guests()[0]!.id).toBe('g-abcdefgh12');
+      room.ask('host', 'g-abcdefgh12', 0);
+      room.ask('g-abcdefgh12', 'host', 0);
+      room.leave('c1');
+      expect(room.partner('host')).toBe('g-abcdefgh12');
+      room.open('c2');
+      room.receive('c2', keyed, 5, host, ground);
+      expect(room.guests()[0]!.id).toBe('g-abcdefgh12');
+      expect(room.partner('g-abcdefgh12')).toBe('host');
+    });
+
+    it('a second tablet with the same key does not take the first one\'s place', () => {
+      const room = new Room(() => undefined);
+      const keyed = JSON.stringify({ t: 'hello', coat: { coat: 2, shade: 0 }, look: {}, key: 'abcdefgh12' });
+      for (const c of ['c1', 'c2']) {
+        room.open(c);
+        room.receive(c, keyed, 0, host, ground);
+      }
+      expect(room.guests().map((g) => g.id)).toEqual(['g-abcdefgh12', 'c2']);
+    });
+
+    it('the pair builds a lodge together: the host starts it, the guest finishes it, and the host\'s own lodge becomes a former home', () => {
+      const wet = { ...ground, waterDepth: () => 0.5, heightAt: () => -0.5 } as typeof ground;
+      const room = near();
+      room.ask('host', 'g1', 0);
+      room.ask('g1', 'host', 0);
+      const withLodge = { ...world, lodge: { x: 50, z: 50, base: 0, door: 0, wood: 10 } };
+      let w = room.step(withLodge, 0.05, 1, wet, oneTree);
+      expect(w.lodge).toBeNull();
+      expect(w.formerHomes).toHaveLength(1);
+      expect(w.pairWith).toBe('g1');
+      const log = { id: 'l1', x: 0, y: 0, z: 0, length: 6 } as never;
+      w = { ...w, logs: [log], drag: 'l1', pairLodges: [{ x: 0, z: 3, base: 0, door: 0, wood: 8, players: ['host', 'g1'] }] };
+      const g = room.guests()[0]!;
+      g.beaver.x = 0;
+      g.beaver.z = 0;
+      g.drag = 'l1';
+      room.receive('g1', intent({ do: 'build' }), 2, host, wet);
+      w = room.step(w, 0.05, 2, wet, oneTree);
+      expect(w.pairLodges[0]!.wood).toBe(10);
+      expect(w.pairLodges[0]!.wear).toBeDefined();
+      expect(room.snapshot(w).pairLodges).toHaveLength(1);
     });
 
     it('a guest finds the friend to ask from the snapshot', () => {

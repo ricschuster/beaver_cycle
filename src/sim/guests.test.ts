@@ -11,7 +11,7 @@ import { DAY_SECONDS, DAYS_PER_SEASON } from './clock';
 import { lilyPadsNear } from './lily';
 
 const ground = flatTerrain(0);
-const shared: Shared = { felled: [], logs: [], clock: 0, dams: [], spots: [], rocksTaken: [], dropped: [], ground, picked: {}, stripped: {} };
+const shared: Shared = { felled: [], logs: [], clock: 0, dams: [], spots: [], rocksTaken: [], dropped: [], ground, picked: {}, stripped: {}, pairLodges: [], ponds: [], partner: null };
 const at = { x: 0, z: 0 };
 const coat = { coat: 1, shade: 0 };
 const tree = { id: 't1', x: 1, z: 0, wood: 4 };

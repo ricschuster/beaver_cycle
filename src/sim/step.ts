@@ -6,6 +6,7 @@ import { atStore, branchFactor, padFactor, storeCapacity, storeCondition, stripp
 import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, followPond, lodgeSolid, nearLodge, towardDoor } from './lodge';
 import { damAt, placed, spotAt } from './dam';
+import { placeLog, type PairLodge } from './pairLodge';
 import { refineNear, withNewSpots } from './newSpots';
 import { pondsAt, withPonds } from './pond';
 import { STAGE_RULES, softEdge, stageAt } from './life';
@@ -55,7 +56,7 @@ function advance(world: WorldState, actions: Intent, dt: number, ground: Terrain
   // The lodge is solid from outside; inside it the beaver walks the round room, round the water hole, and meets no trees.
   const housed = world.inLodge && world.lodge !== null;
   const near = housed ? [] : trees.trunksNear(b.x + total.x / 2, b.z + total.z / 2, Math.hypot(total.x, total.z) / 2 + 2 * BEAVER_RADIUS + MAX_TRUNK, new Set(world.felled));
-  const former = [...world.formerHomes.map(lodgeSolid), ...world.neighbours.map((n) => lodgeSolid(n.lodge))];
+  const former = [...world.formerHomes.map(lodgeSolid), ...world.pairLodges.map(lodgeSolid), ...world.neighbours.map((n) => lodgeSolid(n.lodge))];
   const trunks = housed ? [holeSolid(world.lodge!)] : world.lodge ? [...near, ...former, lodgeSolid(world.lodge)] : [...near, ...former];
   let p = { x: b.x, z: b.z };
   let pushed = world.logs;
@@ -133,6 +134,8 @@ function advance(world: WorldState, actions: Intent, dt: number, ground: Terrain
     logs,
     drag,
     lodge: built.lodge ? followPond(built.lodge, pondSet.ponds, ground) : null,
+    // A pair's lodge follows its pond like the player's.
+    pairLodges: built.pairLodges.map((l) => followPond(l, pondSet.ponds, ground) as PairLodge),
     dams: built.dams,
     hauled: built.hauled,
     spots,
@@ -207,6 +210,11 @@ function build(world: WorldState, b: BeaverState, actions: Intent, move: { x: nu
         return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul, hauled }, beaver };
       }
       if (haul) return { world: { ...world, lodge, logs, drag, inLodge, storeWear, dams, haul }, beaver };
+    }
+    if (log && world.pairWith) {
+      // Paired with another player: a log goes on the lodge the two of them build together (#666).
+      const r = placeLog(world.pairLodges, ['host', world.pairWith], { x: b.x, z: b.z, heading: b.heading }, log, ground, world.ponds, world.clock);
+      if (r.used) return { world: { ...world, pairLodges: [...r.lodges], logs: logs.filter((l) => l.id !== log.id), drag: null, lodge, inLodge, storeWear, dams, haul }, beaver };
     }
     const target = log ? lodge ?? newLodge(ground, world.ponds, b.x, b.z, b.heading) : null;
     if (log && target && !lodgeComplete(target) && nearLodge(target, b.x, b.z)) {

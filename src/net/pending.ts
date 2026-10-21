@@ -43,3 +43,22 @@ export function setPendingJoin(storage: Pick<Storage, 'setItem' | 'removeItem'> 
     // Not kept: the game starts as the host's own.
   }
 }
+
+const GUEST_KEY = 'beaver-cycle.guest-key';
+
+/**
+ * This tablet's own key as a guest, made once and kept in the browser's storage, so the host knows the player again after a break and
+ * a pair and its lodge wait for them (#666). Without storage there is no key, and the host uses the connection instead.
+ */
+export function guestKey(storage: Pick<Storage, 'getItem' | 'setItem'> | null, random: () => number = Math.random): string | undefined {
+  try {
+    const have = storage?.getItem(GUEST_KEY);
+    if (have && /^[a-z0-9]{8,24}$/.test(have)) return have;
+    let k = '';
+    while (k.length < 12) k += Math.floor(random() * 36).toString(36);
+    storage?.setItem(GUEST_KEY, k);
+    return storage ? k : undefined;
+  } catch {
+    return undefined;
+  }
+}

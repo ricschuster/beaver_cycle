@@ -74,3 +74,16 @@ issues. A new pair after one partner left is not planned.
 | 9 | Visit but not sleep, family only. | A guest cannot go into a lodge today, so nothing changes: the inside of a lodge is for its own pair (and its kits). Visiting stays a thing for later, if at all. |
 
 Build order stays as above. Step 1 (the pair lodge, built by either partner, shared from the first log) comes first.
+
+## Built: step 1, the pair lodge (#666)
+
+- `src/sim/pairLodge.ts`: `PairLodge` is a `Lodge` with the two players. `placeLog` starts it with the first log of either partner,
+  adds wood from either, and mends it when whole and worn. The world has `pairLodges` (saved) and `pairWith` (the host's partner
+  this frame, not saved).
+- The host's log goes there when `pairWith` is set (`step.ts`), a guest's through `stepGuest` (`Shared.partner`). The lodge is solid,
+  follows its pond, and is drawn like a family's lodge (`pairViews` in the renderer), in the snapshot as `pairLodges`.
+- When the host pairs, its own lodge becomes a former home (`Room.step`, `leaveHome`, Q1).
+- A guest sends a key of its own in the hello. The player is `g-<key>`, so a pair, and its lodge, wait for a player who left (Q3).
+  A restarted host takes its pairs from the saved lodges.
+- Still to do in this order: going into the lodge, its store and nests; stopping a pair (Q4, the lodge then becomes a former home
+  of both); the kits (two every spring, Q5); guests that age.

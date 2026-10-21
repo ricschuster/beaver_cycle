@@ -50,3 +50,13 @@ export function expire(p: Pairing, now: number): Pairing {
 export function drop(p: Pairing, id: string): Pairing {
   return { asks: p.asks.filter((a) => a.from !== id && a.to !== id), pairs: p.pairs.filter(([a, b]) => a !== id && b !== id) };
 }
+
+/** A player is away: their asks end, but a pair stays, for the partner to come back to (note 48, Q3). */
+export function dropAsks(p: Pairing, id: string): Pairing {
+  return { ...p, asks: p.asks.filter((a) => a.from !== id && a.to !== id) };
+}
+
+/** The pairs of the lodges already built, for a host that starts again: a pair lives as long as its lodge. */
+export function restore(lodges: readonly { players: readonly [string, string] }[]): Pairing {
+  return { asks: [], pairs: lodges.map((l) => [l.players[0], l.players[1]] as const) };
+}

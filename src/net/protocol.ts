@@ -8,6 +8,7 @@ import type { Food } from '../sim/food';
 import type { Dropped } from '../sim/haul';
 import type { Log } from '../sim/logs';
 import type { Lodge } from '../sim/lodge';
+import type { PairLodge } from '../sim/pairLodge';
 import { cleanLook, type Look } from '../sim/look';
 import type { Intent } from '../sim/buttons';
 
@@ -22,7 +23,7 @@ export const PORT = 8765;
 /** The host sends state this many times a second, and a guest sends its intent as often. */
 export const SEND_HZ = 20;
 
-export type ToHost = { t: 'hello'; coat: Coat; look: Look } | { t: 'intent'; x: number; z: number; dive: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'ping'; ts: number };
+export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'ping'; ts: number };
 
 /** What every guest needs of the world to draw it: the clock, the trees down, the logs, and every beaver but its own host-side state. */
 export interface Snapshot {
@@ -42,6 +43,8 @@ export interface Snapshot {
   /** The dams of the host's world and the host's lodge: a guest draws them and works out the ponds from the dams. */
   dams?: Dam[];
   lodge?: Lodge | null;
+  /** The lodges pairs build together (#666). */
+  pairLodges?: PairLodge[];
   /** Players who asked another to be partners and wait for a yes, as [from, to], and the pairs who said yes (#666). */
   asks?: [string, string][];
   pairs?: [string, string][];
@@ -70,6 +73,9 @@ export interface BeaverView {
 
 export type ToGuest = { t: 'welcome'; id: string } | { t: 'state'; snapshot: Snapshot } | { t: 'pong'; ts: number };
 
+/** A guest's own key, kept on its tablet, so the host knows it again after a break (#666): 8 to 24 lower case letters and digits. */
+const KEY = /^[a-z0-9]{8,24}$/;
+
 const num = (v: unknown, lo = -1e7, hi = 1e7): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : 0);
 
 export function coatOf(v: unknown): Coat {
@@ -86,7 +92,7 @@ export function readToHost(text: string): ToHost | null {
     return null;
   }
   if (!m || typeof m !== 'object') return null;
-  if (m.t === 'hello') return { t: 'hello', coat: coatOf(m.coat), look: cleanLook(m.look as Partial<Look>) };
+  if (m.t === 'hello') return { t: 'hello', coat: coatOf(m.coat), look: cleanLook(m.look as Partial<Look>), ...(typeof m.key === 'string' && KEY.test(m.key) ? { key: m.key } : {}) };
   if (m.t === 'intent') {
     let x = num(m.x, -1, 1);
     let z = num(m.z, -1, 1);

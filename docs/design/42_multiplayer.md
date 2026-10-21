@@ -115,8 +115,14 @@ These are their own pieces of work, and each can be built and played alone befor
   `src/net/view.ts`). Every beaver in the snapshot says what it holds (`BeaverView.carry`, `haul`), so a tablet can tell an empty
   mouth. A guest gets food by itself as the host does: Take on a lily pad, Do by a log strips a branch (`stepGuest` in `src/sim/guests.ts`); the
   pads picked and branches stripped are shared in the snapshot, so a pad one friend took is gone for all.
-- **Talk.** The dialog with beavers of other families ([27_families_and_dialog.md](27_families_and_dialog.md)), with a friend's
-  answer coming back. Open.
+- **Talk** (#667). Do reads Talk by any friend within 4 m in the same place (the author chose this over keeping Partners on Do,
+  session 172). A tree or log in reach comes first, as Gnaw or Strip, since friends work side by side; step away to talk. A card opens with the friend's name and buttons: Be partners? (or Yes, partners!, Stop being partners?, Yes, stop,
+  only when they apply, the same asks as before), three questions (Shall we swim together? Shall we work on a dam? Want to play?)
+  and Bye. A question goes to the friend, whose tablet opens a card with Yes! and Not now; the answer comes back to the asker as a
+  toast. A question waits 30 s, an answer is kept 8 s. The ids are a fixed list (`src/net/says.ts`, `Room.say`, `Room.answer`,
+  `friendChoices` in `src/net/friendCard.ts`), a guest sends `{t:'say', q}` or `{t:'say', a}`, and the host keeps them in
+  `Snapshot.says`. The questions only ask, they change nothing in the game yet; a Yes to "play" is where hide and seek (#664)
+  would start. The first set of questions is a guess, to tune with the author. Talking to families stays as in 27.
 
 ## What stays unchanged
 

@@ -11,6 +11,7 @@ import type { Lodge } from '../sim/lodge';
 import type { PairLodge } from '../sim/pairLodge';
 import { cleanLook, type Look } from '../sim/look';
 import type { Intent } from '../sim/buttons';
+import { isAnswer, isQuestion, type AnswerId, type QuestionId, type Say } from './says';
 
 /** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam, hand food to a friend, strip a branch off a log, ask a friend to be partners or say yes; let go, put down, take a log, a pad, a rock, mud, or a piece put down. */
 export type GuestDo = 'gnaw' | 'build' | 'mend' | 'give' | 'strip' | 'partner' | 'eat' | 'store';
@@ -23,7 +24,7 @@ export const PORT = 8765;
 /** The host sends state this many times a second, and a guest sends its intent as often. */
 export const SEND_HZ = 20;
 
-export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'look'; coat: Coat; look: Look } | { t: 'ping'; ts: number };
+export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'look'; coat: Coat; look: Look } | { t: 'say'; q?: QuestionId; a?: AnswerId } | { t: 'ping'; ts: number };
 
 /** What every guest needs of the world to draw it: the clock, the trees down, the logs, and every beaver but its own host-side state. */
 export interface Snapshot {
@@ -50,6 +51,8 @@ export interface Snapshot {
   pairs?: [string, string][];
   /** Partners who asked to stop being partners and wait for the other's press, as [from, to] (note 48, Q4). */
   stops?: [string, string][];
+  /** The questions players put to friends close by, and the answers (#667). */
+  says?: Say[];
 }
 
 /** One beaver as the others see it. */
@@ -113,6 +116,7 @@ export function readToHost(text: string): ToHost | null {
     const take = typeof m.take === 'string' && TAKES.includes(m.take) ? (m.take as GuestTake) : undefined;
     return { t: 'intent', x, z, dive: m.dive === true, ...(m.diveTap === true ? { diveTap: true } : {}), gnaw: m.gnaw === true, ...(act ? { do: act } : {}), ...(take ? { take } : {}) };
   }
+  if (m.t === 'say') return isQuestion(m.q) ? { t: 'say', q: m.q } : isAnswer(m.a) ? { t: 'say', a: m.a } : null;
   if (m.t === 'ping') return { t: 'ping', ts: num(m.ts, 0, 1e15) };
   return null;
 }

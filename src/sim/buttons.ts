@@ -55,6 +55,8 @@ export interface Around {
   drift: boolean;
   /** A beaver of a family with an empty mouth is close enough to be handed food (`takerNear`). */
   taker?: boolean;
+  /** Another player is close enough to talk to (#667): Do reads Talk, and the card offers questions and, for two who can, partners. */
+  mate?: boolean;
   /** A friend, another player, is close enough to ask to be partners, or to say yes (#666). */
   friend?: boolean;
   /** The friend close by is the partner: Do asks to stop being partners (note 48, Q4). */
@@ -127,23 +129,23 @@ function felledAsSet(felled: readonly string[]): ReadonlySet<string> {
 
 /**
  * What a press of Do does here, the first that fits (design note 30): in the lodge eat, else talk; with a log, mud, or a
- * rock, build or mend, or with mud on the bank by the lodge, mark a scent mound; at the store, open it; by a drift, dig; by a beaver, talk; on land by a tree, gnaw; by a log, strip
- * a branch; by a friend who is a player, ask to be partners. A baby only eats and talks.
+ * rock, build or mend, or with mud on the bank by the lodge, mark a scent mound; at the store, open it; by a drift, dig; by a beaver or a friend who is a player, talk (a friend's card also asks to be partners); on land by a tree, gnaw; by a log, strip
+ * a branch. A baby only eats and talks.
  */
 export function doHere(world: WorldState, ground: Terrain, trees: TreeSource, around: Around): DoKind | null {
   const b = world.beaver;
   const grown = works(world);
   if (world.stashOpen) return null;
-  if (world.inLodge) return world.carry ? 'eat' : around.speaker ? 'talk' : null;
+  if (world.inLodge) return world.carry ? 'eat' : around.speaker || around.mate ? 'talk' : null;
   const log = world.drag ? world.logs.find((l) => l.id === world.drag) : undefined;
   if (log || world.haul) return grown && b.mode !== 'dive' ? placeHere(world, ground, log) ?? (canMark(world) ? 'mark' : null) : null;
   if (grown && b.mode !== 'dive' && lodgeComplete(world.lodge) && atStore(world.lodge, b.x, b.z)) return 'store';
   if (grown && around.drift && b.mode === 'walk') return 'dig';
   if (world.carry && around.taker) return 'give';
-  if (grown && around.friend && b.mode !== 'dive') return around.parting ? 'part' : 'partner';
   if (around.speaker && !around.following) return 'talk';
   const work = grown && !world.carry && b.mode !== 'dive';
   if (work && b.mode === 'walk' && (world.chop || trees.nearest(b.x, b.z, CHOP_REACH, felledAsSet(world.felled)))) return 'gnaw';
   if (work && strippable(world.logs, world.stripped, b.x, b.z)) return 'strip';
-  return around.speaker ? 'talk' : null;
+  // A friend who is a player does not hide Gnaw and Strip: friends work side by side, so Talk comes when no tree or log is in reach (#667).
+  return around.speaker || around.mate ? 'talk' : null;
 }

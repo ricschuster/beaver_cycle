@@ -47,6 +47,7 @@ One press. The label is the word for what it does; greyed, it reads **Do**. The 
 6. A beaver to talk to within reach: **Talk**.
 7. On land by a standing tree: **Gnaw**. One press starts it; keep still until the tree falls.
 8. By a log: **Gnaw** strips a branch off it into the mouth.
+9. A friend who is a player within reach, when none of the above fits: **Talk**. Its card asks a question, or partners (#667).
 
 Not under water, except Talk and Eat. A baby only eats and talks. Talk comes before Gnaw so a beaver by the trees can still be
 talked to; walk a step away to gnaw. The exception is a partner who follows: it is always close, so Gnaw (and Strip) come

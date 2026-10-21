@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Room, MAX_GUESTS } from './room';
-import { applySnapshot, friendTaker, othersOf, pairingOf, partnerCandidate } from './view';
+import { applySnapshot, friendNearby, friendTaker, othersOf, pairingOf, partnerCandidate, saysOf } from './view';
 import { createWorld, leaveHome } from '../sim/state';
 import { DOOR_DISTANCE, LODGE_WOOD, SOLID_RADIUS, doorPoint } from '../sim/lodge';
 import { newWear } from '../sim/wear';
@@ -485,6 +485,72 @@ describe('the room', () => {
         expect(left.formerHomes).toHaveLength(1);
         expect(room.guests()[0]!.inside).toBe(false);
       });
+    });
+  });
+
+  describe('talk between players (#667)', () => {
+    const near = () => {
+      const { room } = joined();
+      room.guests()[0]!.beaver.x = 1;
+      room.guests()[0]!.beaver.z = 0;
+      return room;
+    };
+
+    it('a guest puts a question to the host and the host answers', () => {
+      const room = near();
+      room.receive('g1', JSON.stringify({ t: 'say', q: 'swim' }), 1, host, ground);
+      room.step(world, 0.05, 1, ground, oneTree);
+      expect(saysOf(room.snapshot(world), 'host').asked.map((k) => [k.from, k.q])).toEqual([['g1', 'swim']]);
+      room.answer('host', 'yes', 2);
+      expect(saysOf(room.snapshot(world), 'g1').answers.map((k) => k.a)).toEqual(['yes']);
+      expect(saysOf(room.snapshot(world), 'host').asked).toEqual([]);
+    });
+
+    it('the host puts a question to a guest, who answers through the socket', () => {
+      const room = near();
+      const to = room.friendNear('host', host, host);
+      expect(to).toBe('g1');
+      room.say('host', to!, 'play', 1);
+      expect(saysOf(room.snapshot(world), 'g1').asked).toHaveLength(1);
+      room.receive('g1', JSON.stringify({ t: 'say', a: 'later' }), 2, host, ground);
+      expect(saysOf(room.snapshot(world), 'host').answers.map((k) => k.a)).toEqual(['later']);
+    });
+
+    it('asks no one out of reach, and ignores ids it does not know', () => {
+      const { room } = joined();
+      expect(room.friendNear('host', host, host)).toBeNull();
+      room.receive('g1', JSON.stringify({ t: 'say', q: 'hack' }), 1, host, ground);
+      room.receive('g1', JSON.stringify({ t: 'say', a: 'maybe' }), 1, host, ground);
+      room.step(world, 0.05, 1, ground, oneTree);
+      expect(room.snapshot(world).says).toEqual([]);
+    });
+
+    it('a question nobody is near to hear is dropped, and one that waits too long ends', () => {
+      const { room } = joined();
+      room.receive('g1', JSON.stringify({ t: 'say', q: 'work' }), 1, host, ground);
+      room.step(world, 0.05, 1, ground, oneTree);
+      expect(room.snapshot(world).says).toEqual([]);
+      room.guests()[0]!.beaver.x = 1;
+      room.guests()[0]!.beaver.z = 0;
+      room.receive('g1', JSON.stringify({ t: 'say', q: 'work' }), 2, host, ground);
+      room.step(world, 0.05, 2, ground, oneTree);
+      expect(room.snapshot(world).says).toHaveLength(1);
+      room.step(world, 0.05, 40, ground, oneTree);
+      expect(room.snapshot(world).says).toEqual([]);
+    });
+
+    it('a guest that leaves takes its questions with it', () => {
+      const room = near();
+      room.say('host', 'g1', 'swim', 1);
+      room.leave('g1');
+      expect(room.snapshot(world).says).toEqual([]);
+    });
+
+    it('a tablet finds the friend close by in its snapshot', () => {
+      const room = near();
+      const snap = room.snapshot(world);
+      expect(friendNearby(snap, 'host', host)?.id).toBe('g1');
+      expect(friendNearby(snap, 'g1', { x: 50, z: 50 })).toBeNull();
     });
   });
 });

@@ -18,7 +18,9 @@ import { AnimalField, capFor, type Animal } from './sim/animals';
 import { cleanAddress, guestKey, pendingJoin, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
 import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
-import { applySnapshot, friendBeaver, friendTaker, othersOf, pairingOf, partnerCandidate } from './net/view';
+import { applySnapshot, friendBeaver, friendNearby, friendTaker, othersOf, pairingOf, partnerCandidate, saysOf } from './net/view';
+import { friendChoices } from './net/friendCard';
+import { ANSWERS, SAY_TIME, isQuestion, type AnswerId } from './net/says';
 import { SEND_HZ, viewOfGuest, type GuestTake } from './net/protocol';
 import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
@@ -444,6 +446,9 @@ async function start(): Promise<void> {
   let lostShown = false;
   let guestSnap: ReturnType<typeof othersOf> = [];
   let lastSnap: Parameters<typeof othersOf>[0] = null;
+  // The last question put to this player and the last answer to its own that were shown, by the host's counter (#667).
+  let sayShown = 0;
+  let answerShown = 0;
   let netSentAt = 0;
   let gnawPending = false;
   let pendingDo: 'build' | 'mend' | 'give' | 'strip' | 'partner' | 'eat' | 'store' | null = null;
@@ -1082,6 +1087,24 @@ async function start(): Promise<void> {
       else if (pairing.partner && pairing.stopping && !partnerSeen.stopping) toast.show(t('toast.partnerStopAsk', { name: nameOf(pairing.partner) }));
       else if (!pairing.partner && pairing.askedBy.length > partnerSeen.askedBy) toast.show(t('toast.partnerAsked', { name: nameOf(pairing.askedBy[0]!) }));
       else if (!pairing.partner && pairing.asking.length > partnerSeen.asking) toast.show(t('toast.partnerAsk', { name: nameOf(pairing.asking[0]!) }));
+      // A question for this player opens a card with the answers; an answer to its own question is a toast (#667).
+      const says = saysOf(snap, me);
+      const question = says.asked.at(-1);
+      if (question && question.n !== sayShown && !talkBubble.talking()) {
+        sayShown = question.n;
+        talkingTo = null;
+        talkBubble.say(nameOf(question.from), t(`friend.q.${question.q}`), SAY_TIME * 0.8, ANSWERS.map((a) => ({ id: a, label: t(`friend.a.${a}`) })), (pick) => {
+          talkBubble.hush();
+          const a = pick as AnswerId;
+          if (room) room.answer('host', a, performance.now() / 1000);
+          else link?.send({ t: 'say', a });
+        }, nameOf(question.from) === t('together.friend') ? undefined : t('friend.role'));
+      }
+      for (const a of says.answers) {
+        if (a.n <= answerShown) continue;
+        answerShown = a.n;
+        toast.show(t(a.a === 'yes' ? 'toast.friendYes' : 'toast.friendLater', { name: nameOf(a.to) }));
+      }
       partnerSeen = { askedBy: pairing.askedBy.length, asking: pairing.asking.length, partner: pairing.partner, name: pairing.partner ? nameOf(pairing.partner) : partnerSeen.name, stopBy: pairing.stopBy, stopping: pairing.stopping, born };
     }
     // Each gift is thanked for what it is, and word of it gets around (chatter.ts, familyMoods.ts).
@@ -1111,7 +1134,31 @@ async function start(): Promise<void> {
       talkingTo = null;
     }
     // A press while already talking to this beaver does not start over. The greeting reads what the beaver remembers before this talk.
-    if (near && doPressed === 'talk' && !(talkBubble.talking() && talkingTo?.id === near.id)) {
+    // By a friend who is a player Do opens a card with questions, and partners when both can (#667).
+    const friendTalk = nearby.mate === true && doPressed === 'talk' && (room || link?.id);
+    if (friendTalk) {
+      const me = room ? 'host' : link!.id!;
+      const snap = room ? room.snapshot(world) : lastSnap;
+      const id = room ? room.friendNear('host', world.beaver, world.beaver, world.inLodge, world.inLodge) : friendNearby(snap, me, world.beaver)?.id ?? null;
+      if (id) {
+        const name = snap?.beavers.find((b) => b.id === id)?.look.name || t('together.friend');
+        talkingTo = null;
+        talkBubble.say(name, t('friend.hello'), LINE_SECONDS * 2, friendChoices(id, pairingOf(snap, me), nearby.friend === true), (pick) => {
+          talkBubble.hush();
+          if (pick === 'partner') {
+            if (room) {
+              const to = room.partnerNear('host', world.beaver, world.beaver, lifeAt(world.clock, world.bornAt).stage === 'adult', world.inLodge, world.inLodge);
+              if (to) room.ask('host', to, performance.now() / 1000);
+            } else pendingDo = 'partner';
+          } else if (isQuestion(pick)) {
+            if (room) room.say('host', id, pick, performance.now() / 1000);
+            else link?.send({ t: 'say', q: pick });
+            toast.show(t('toast.friendAsk', { name, text: t(`friend.q.${pick}`) }));
+          }
+        }, name === t('together.friend') ? undefined : t('friend.role'));
+      }
+    }
+    if (near && !friendTalk && doPressed === 'talk' && !(talkBubble.talking() && talkingTo?.id === near.id)) {
       talkingTo = near;
       asked = [];
       talkFacts = factsFor(world, near);
@@ -1134,7 +1181,8 @@ async function start(): Promise<void> {
       }
     }
     // The sleep buttons take the bottom of the screen, so the talk prompt waits (the newborn kit of a pair sees both).
-    talkBubble.prompt(near && doShown === 'talk' && !sleepUp ? near.name : null, touchOn ? DO_LABEL.talk : 'E');
+    const mateName = nearby.mate === true && doShown === 'talk' && !near ? (room ? ((id) => room.guests().find((g) => g.id === id)?.look.name)(room.friendNear('host', world.beaver, world.beaver, world.inLodge, world.inLodge)) : link?.id ? friendNearby(lastSnap, link.id, world.beaver)?.look.name : undefined) || t('together.friend') : null;
+    talkBubble.prompt(near && doShown === 'talk' && !sleepUp ? near.name : sleepUp ? null : mateName, touchOn ? DO_LABEL.talk : 'E');
     talkBubble.tick(dt);
     // Winter: a beaver stuck in a drift calls for help, the player digs it out by gnawing beside it, and it becomes a guide (#346).
     const homeAt = world.formerHomes.at(-1) ?? world.lodge ?? world.beaver;
@@ -1146,7 +1194,7 @@ async function start(): Promise<void> {
     }
     const drift = nearestStuck(stuckList, world.beaver, DIG_REACH);
     dug = STAGE_RULES[lifeAt(world.clock, world.bornAt).stage].works ? digging(dug, drift, world.beaver, doPressed === 'dig', movingNow, dt) : 0;
-    nearby = { taker: takerNear(familyBeavers, world.beaver) !== null || (room ? room.guestTaker(world.beaver, world.inLodge) !== null : link?.id ? friendTaker(lastSnap, link.id, world.beaver) !== null : false), friend: (room ? room.partnerNear('host', world.beaver, world.beaver, lifeAt(world.clock, world.bornAt).stage === 'adult', world.inLodge, world.inLodge) !== null : link?.id ? partnerCandidate(lastSnap, link.id, world.beaver) !== null : false), parting: room ? room.partner('host') !== null : link?.id ? pairingOf(lastSnap, link.id).partner !== null : false, speaker: near !== null, following: near?.kind === 'partner' && near.id === follower(world.partners)?.id, drift: drift !== null };
+    nearby = { mate: room ? room.friendNear('host', world.beaver, world.beaver, world.inLodge, world.inLodge) !== null : link?.id ? friendNearby(lastSnap, link.id, world.beaver) !== null : false, taker: takerNear(familyBeavers, world.beaver) !== null || (room ? room.guestTaker(world.beaver, world.inLodge) !== null : link?.id ? friendTaker(lastSnap, link.id, world.beaver) !== null : false), friend: (room ? room.partnerNear('host', world.beaver, world.beaver, lifeAt(world.clock, world.bornAt).stage === 'adult', world.inLodge, world.inLodge) !== null : link?.id ? partnerCandidate(lastSnap, link.id, world.beaver) !== null : false), parting: room ? room.partner('host') !== null : link?.id ? pairingOf(lastSnap, link.id).partner !== null : false, speaker: near !== null, following: near?.kind === 'partner' && near.id === follower(world.partners)?.id, drift: drift !== null };
     doPressed = null;
     if (drift && dug >= DIG_TIME) {
       world = rescue(world, drift);

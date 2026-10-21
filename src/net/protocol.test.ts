@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { intentOf, readToGuest, readToHost } from './protocol';
 
 describe('messages from a guest', () => {
+  it('read a question or an answer to a friend and nothing else', () => {
+    expect(readToHost('{"t":"say","q":"swim"}')).toEqual({ t: 'say', q: 'swim' });
+    expect(readToHost('{"t":"say","a":"later"}')).toEqual({ t: 'say', a: 'later' });
+    expect(readToHost('{"t":"say","q":"<b>hi</b>"}')).toBeNull();
+    expect(readToHost('{"t":"say"}')).toBeNull();
+  });
+
   it('read an intent and clamp the move to the unit circle', () => {
     const m = readToHost('{"t":"intent","x":30,"z":40,"dive":true,"gnaw":false}');
     expect(m).toMatchObject({ t: 'intent', dive: true, gnaw: false });

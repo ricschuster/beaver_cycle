@@ -60,6 +60,8 @@ export interface NeighbourBeaver {
   scale: number;
   /** Hat, scarf, and tail of a friend's beaver (`guests.ts`); the families have none. */
   look?: { hat: number; scarf: number; tail: number };
+  /** In the round room of a lodge (a friend in a pair lodge), so drawn in the room's scene, not in the valley. */
+  inside?: boolean;
 }
 
 /** A family lodge is at least this far from the home (metres), and from the other families. */

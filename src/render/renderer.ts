@@ -494,8 +494,10 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
           neighbourModels.set(n.id, entry);
         }
         const g = entry.model.group;
-        g.visible = !bare && !inside;
+        // A friend in the round room of a pair lodge is drawn there, and only for a beaver in the room too.
+        g.visible = !bare && (n.inside ?? false) === inside;
         if (!g.visible) continue;
+        if (g.parent !== drawn) drawn.add(g);
         const nCoat = `${n.coat.coat}:${n.coat.shade}`;
         if (nCoat !== entry.coat) {
           entry.coat = nCoat;
@@ -522,7 +524,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
       while (pairViews.length < world.pairLodges.length) pairViews.push(createLodgeView(scene, shadows, prepare, false));
       pairViews.forEach((view, i) => {
         const l = world.pairLodges[i];
-        view.update(bare || inside || !l ? null : l, l ? lodgeCondition(l, world.clock) : 1);
+        // The beaver's own home is one of them once it is whole, and drawn as that (`lodgeView`), not twice.
+        const own = l && world.lodge && l.x === world.lodge.x && l.z === world.lodge.z;
+        view.update(bare || inside || !l || own ? null : l, l ? lodgeCondition(l, world.clock) : 1);
       });
       for (const p of world.partners) {
         let entry = partnerModels.get(p.id);

@@ -1,7 +1,7 @@
 // The host's side of a shared valley, without the socket (ADR 0014, #678): who is in, what each guest wants, and the state to send.
 // The plugin or a test feeds it messages and gives it a way to send text; it never touches the network itself.
 import type { Intent } from '../sim/buttons';
-import { newGuest, stepGuest, type Guest } from '../sim/guests';
+import { guestStage, newGuest, outside, reborn, stepGuest, type Guest } from '../sim/guests';
 import type { Dam } from '../sim/dam';
 import type { Dropped } from '../sim/haul';
 import type { Picked } from '../sim/lily';
@@ -11,10 +11,12 @@ import { withPonds } from '../sim/pond';
 import type { Terrain } from '../sim/terrain';
 import type { TreeSource } from '../sim/trees';
 import type { WorldState } from '../sim/state';
-import { asked, askersOf, dropAsks, expire, noPairing, partnerOf, press, restore, type Pairing } from './pairs';
+import { asked, askersOf, dropAsks, expire, noPairing, partnerOf, press, restore, unpair, type Pairing } from './pairs';
 import { stageAt } from '../sim/life';
-import { leaveHome } from '../sim/state';
-import type { PairLodge } from '../sim/pairLodge';
+import { leaveHome, pairBirth } from '../sim/state';
+import { INTERIOR_RADIUS, lodgeComplete, lodgeSolid } from '../sim/lodge';
+import { nextSpringStart } from '../sim/clock';
+import { pairLodgeOf, type PairLodge } from '../sim/pairLodge';
 import { intentOf, readToHost, viewOfGuest, type BeaverView, type Snapshot, type ToGuest } from './protocol';
 
 /** The most friends in one valley besides the host (note 42: up to four players at once). */
@@ -101,32 +103,39 @@ export class Room {
   step(world: WorldState, dt: number, now: number, ground: Terrain, trees: TreeSource): WorldState {
     let { felled, logs, dams, rocksTaken, dropped, picked, stripped }: { felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[]; picked: Picked; stripped: Readonly<Record<string, number>> } = world;
     const terrain = withPonds(ground, world.ponds);
-    const solids = [world.lodge, ...world.formerHomes, ...world.pairLodges, ...world.neighbours.map((n) => n.lodge)].flatMap((l) => (l ? [{ x: l.x, z: l.z, radius: 4 }] : []));
+    const solids = [
+      ...[world.lodge, ...world.formerHomes, ...world.neighbours.map((n) => n.lodge)].flatMap((l) => (l ? [{ x: l.x, z: l.z, radius: 4 }] : [])),
+      // A pair's lodge is solid to the dome, so the entrance is outside it (`lodgeSolid`).
+      ...world.pairLodges.map(lodgeSolid),
+    ];
     let hostCarry = world.carry;
     this.pairing = expire(this.pairing, now);
     // The host paired: its own lodge becomes a former home (Q110, note 48), and its logs now go to the lodge of the pair.
     const hostPartner = partnerOf(this.pairing, 'host');
     if (hostPartner && !world.pairWith) world = leaveHome(world);
     if (hostPartner !== world.pairWith) world = { ...world, pairWith: hostPartner };
+    world = this.endPairs(world, ground);
+    world = this.kits(world);
     let pairLodges: readonly PairLodge[] = world.pairLodges;
     const hostAdult = stageAt(world.clock, world.bornAt) === 'adult';
+    const hostInside = world.inLodge;
     for (const seat of this.seats.values()) {
       const intent = now - seat.heard > SILENT_AFTER ? { move: { x: 0, z: 0 } } : seat.intent;
       if (intent.do === 'give' && seat.guest.carry) {
         // Food handed to the host or another guest whose mouth is empty (#663).
-        const to = this.taker(seat.guest.id, seat.guest.beaver, world.beaver, hostCarry === null && world.haul === null && world.drag === null);
+        const to = this.taker(seat.guest.id, seat.guest.beaver, world.beaver, hostCarry === null && world.haul === null && world.drag === null, seat.guest.inside, hostInside);
         if (to === 'host') hostCarry = seat.guest.carry;
         else if (to) to.carry = seat.guest.carry;
         if (to) seat.guest = { ...seat.guest, carry: null };
       }
       if (intent.do === 'partner') {
-        const to = this.partnerNear(seat.guest.id, seat.guest.beaver, world.beaver, hostAdult);
+        const to = this.partnerNear(seat.guest.id, seat.guest.beaver, world.beaver, hostAdult, seat.guest.inside, hostInside, world.clock);
         if (to) this.ask(seat.guest.id, to, now);
       }
       const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock, dams, spots: world.spots, rocksTaken, dropped, ground, picked, stripped, pairLodges, ponds: world.ponds, partner: partnerOf(this.pairing, seat.guest.id) }, terrain, trees, solids);
       seat.guest = r.guest;
       // A press arrives once: the next step must not repeat it.
-      seat.intent = { ...seat.intent, do: seat.intent.do === 'gnaw' ? 'gnaw' : null, take: null };
+      seat.intent = { ...seat.intent, do: seat.intent.do === 'gnaw' ? 'gnaw' : null, take: null, diveTap: false };
       ({ felled, logs, dams, rocksTaken, dropped, picked, stripped, pairLodges } = r);
     }
     const same = felled === world.felled && logs === world.logs && dams === world.dams && rocksTaken === world.rocksTaken && dropped === world.dropped && picked === world.picked && stripped === world.stripped && pairLodges === world.pairLodges;
@@ -136,15 +145,15 @@ export class Room {
 
   /**
    * Who can be handed food by the one at `from`: the host when its mouth is empty, else the nearest guest within `GIVE_REACH` with an
-   * empty mouth (not `except`). Null when there is none.
+   * empty mouth (not `except`). Only a beaver in the same place can: all in the valley, or all in the round room of a lodge. Null when there is none.
    */
-  private taker(except: string, from: { x: number; z: number }, host: { x: number; z: number }, hostEmpty: boolean): 'host' | Guest | null {
-    let best: 'host' | Guest | null = hostEmpty && Math.hypot(host.x - from.x, host.z - from.z) <= GIVE_REACH ? 'host' : null;
+  private taker(except: string, from: { x: number; z: number }, host: { x: number; z: number }, hostEmpty: boolean, fromInside = false, hostInside = false): 'host' | Guest | null {
+    let best: 'host' | Guest | null = hostEmpty && hostInside === fromInside && Math.hypot(host.x - from.x, host.z - from.z) <= GIVE_REACH ? 'host' : null;
     let bestD = best ? Math.hypot(host.x - from.x, host.z - from.z) : GIVE_REACH;
     for (const s of this.seats.values()) {
       const g = s.guest;
       const d = Math.hypot(g.beaver.x - from.x, g.beaver.z - from.z);
-      if (g.id !== except && !g.carry && !g.haul && d <= bestD) {
+      if (g.id !== except && g.inside === fromInside && !g.carry && !g.haul && d <= bestD) {
         best = g;
         bestD = d;
       }
@@ -154,21 +163,85 @@ export class Room {
 
   /**
    * The player `from` can ask to be partners, or say yes to: the nearest friend within `GIVE_REACH`, when both are adults with no
-   * partner yet (guests are all grown, the host only when `hostAdult`). `at` is where `from` stands.
+   * partner yet. `at` is where `from` stands. A player with a partner gets the partner back when it is close, for the press that
+   * asks to stop being partners (note 48, Q4).
    */
-  partnerNear(from: string, at: { x: number; z: number }, host: { x: number; z: number }, hostAdult: boolean): string | null {
-    if ((from === 'host' && !hostAdult) || partnerOf(this.pairing, from)) return null;
+  partnerNear(from: string, at: { x: number; z: number }, host: { x: number; z: number }, hostAdult: boolean, fromInside = false, hostInside = false, clock = 0): string | null {
     const dist = (p: { x: number; z: number }) => Math.hypot(p.x - at.x, p.z - at.z);
-    let best: string | null = from !== 'host' && hostAdult && dist(host) <= GIVE_REACH && !partnerOf(this.pairing, 'host') ? 'host' : null;
+    const mine = partnerOf(this.pairing, from);
+    if (mine) {
+      const g = mine === 'host' ? null : [...this.seats.values()].find((k) => k.guest.id === mine)?.guest;
+      const there = mine === 'host' ? (hostInside === fromInside ? dist(host) : Infinity) : g && g.inside === fromInside ? dist(g.beaver) : Infinity;
+      return there <= GIVE_REACH ? mine : null;
+    }
+    if (from === 'host' && !hostAdult) return null;
+    const adult = (g: Guest) => guestStage(g, clock) === 'adult';
+    const me = [...this.seats.values()].find((s) => s.guest.id === from)?.guest;
+    if (me && !adult(me)) return null;
+    let best: string | null = from !== 'host' && hostAdult && hostInside === fromInside && dist(host) <= GIVE_REACH && !partnerOf(this.pairing, 'host') ? 'host' : null;
     let bestD = best ? dist(host) : GIVE_REACH;
     for (const s of this.seats.values()) {
       const d = dist(s.guest.beaver);
-      if (s.guest.id !== from && !partnerOf(this.pairing, s.guest.id) && d <= bestD) {
+      if (s.guest.id !== from && s.guest.inside === fromInside && adult(s.guest) && !partnerOf(this.pairing, s.guest.id) && d <= bestD) {
         best = s.guest.id;
         bestD = d;
       }
     }
     return best;
+  }
+
+  /**
+   * A pair that has come apart (Q4) leaves its lodge as a former home of both: a whole one is kept, solid, and an unfinished one
+   * is gone. The kits of a lodge, grown up, leave it the same way. Whoever was in the room is put out at the entrance.
+   */
+  private endPairs(world: WorldState, ground: Terrain): WorldState {
+    const together = (l: PairLodge): boolean => this.pairing.pairs.some(([a, b]) => l.players.includes(a) && l.players.includes(b));
+    const present = (id: string): Guest | undefined => [...this.seats.values()].find((s) => s.guest.id === id)?.guest;
+    // A kit's lodge is left when every kit of it that is here has grown up (the host's own leaving is `leaveHome`).
+    const grownUp = (l: PairLodge): boolean => l.players.every((id) => (id === 'host' ? world.lodge?.x !== l.x || world.lodge?.z !== l.z : (present(id) ? guestStage(present(id)!, world.clock) === 'adult' : false)));
+    // A guest left in a room whose lodge is gone (the host left it as a grown beaver) is put out at the entrance of the former home.
+    const terrain0 = withPonds(ground, world.ponds);
+    for (const seat of this.seats.values()) {
+      const g = seat.guest;
+      if (!g.inside || pairLodgeOf(world.pairLodges, g.id)) continue;
+      const old = world.formerHomes.find((h) => Math.hypot(g.beaver.x - h.x, g.beaver.z - h.z) <= INTERIOR_RADIUS + 1);
+      seat.guest = old ? outside(g, old, terrain0) : { ...g, inside: false };
+    }
+    const ended = world.pairLodges.filter((l) => (l.kitsAt === undefined ? !together(l) : grownUp(l)));
+    if (ended.length === 0) return world;
+    const terrain = withPonds(ground, world.ponds);
+    for (const l of ended) {
+      for (const seat of this.seats.values()) if (seat.guest.inside && l.players.includes(seat.guest.id)) seat.guest = outside(seat.guest, l, terrain);
+      if (l.players.includes('host') && world.lodge && world.lodge.x === l.x && world.lodge.z === l.z) world = leaveHome(world);
+    }
+    const left = ended.filter((l) => lodgeComplete(l) && !world.formerHomes.some((h) => h.x === l.x && h.z === l.z));
+    return { ...world, pairLodges: world.pairLodges.filter((l) => !ended.includes(l)), formerHomes: [...world.formerHomes, ...left.map((l) => ({ ...l, wear: undefined, parents: l.parents ?? world.parentCoats }))] };
+  }
+
+  /**
+   * On the first day of spring after a pair lodge was made whole, a kit is born to each of the two partners (Q5, note 48): each plays
+   * its own, born on a nest of the lodge, and the two old beavers are their Mama and Papa. The pair is done then, and the lodge is the
+   * kits' home. It waits while a partner is away (Q3), and for both to be grown.
+   */
+  private kits(world: WorldState): WorldState {
+    for (const l of world.pairLodges) {
+      if (l.kitsAt !== undefined || l.wholeAt === undefined || !lodgeComplete(l) || world.clock < nextSpringStart(l.wholeAt)) continue;
+      const [a, b] = l.players;
+      const seatOf = (id: string): Guest | null => (id === 'host' ? null : [...this.seats.values()].find((s) => s.guest.id === id)?.guest ?? null);
+      const grown = (id: string): boolean => (id === 'host' ? stageAt(world.clock, world.bornAt) === 'adult' : seatOf(id) !== null && guestStage(seatOf(id)!, world.clock) === 'adult');
+      if (!grown(a) || !grown(b) || !this.pairing.pairs.some(([x, y]) => [x, y].includes(a) && [x, y].includes(b))) continue;
+      const coatOf = (id: string) => (id === 'host' ? world.coat : seatOf(id)!.coat);
+      const parents: [typeof world.coat, typeof world.coat] = [coatOf(a), coatOf(b)];
+      const home: PairLodge = { ...l, kitsAt: world.clock, parents };
+      for (const id of l.players) {
+        const other = coatOf(id === a ? b : a);
+        if (id === 'host') world = pairBirth({ ...world, pairLodges: world.pairLodges.map((k) => (k === l ? home : k)) }, home, other);
+        else for (const seat of this.seats.values()) if (seat.guest.id === id) seat.guest = reborn(seat.guest, home, other, world.clock);
+      }
+      this.pairing = unpair(this.pairing, a, b);
+      return { ...world, pairLodges: world.pairLodges.map((k) => (k === l ? home : k)), pairWith: null };
+    }
+    return world;
   }
 
   /** `from` asks `to` to be partners, or says yes when `to` asked first. */
@@ -192,8 +265,8 @@ export class Room {
   }
 
   /** The guest the host's food can go to, or null: the nearest friend within `GIVE_REACH` with an empty mouth. */
-  guestTaker(at: { x: number; z: number }): Guest | null {
-    const to = this.taker('host', at, at, false);
+  guestTaker(at: { x: number; z: number }, hostInside = false): Guest | null {
+    const to = this.taker('host', at, at, false, hostInside, hostInside);
     return to && to !== 'host' ? to : null;
   }
 
@@ -206,8 +279,8 @@ export class Room {
   /** What every guest is sent: the shared world and every beaver in it, the host's first. */
   snapshot(world: WorldState): Snapshot {
     const b = world.beaver;
-    const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null, grown: stageAt(world.clock, world.bornAt) === 'adult' };
-    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map(viewOfGuest)], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]) };
+    const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null, grown: stageAt(world.clock, world.bornAt) === 'adult', ...(world.inLodge ? { inside: true } : {}), ...(world.generation > 0 && world.lodge && pairLodgeOf(world.pairLodges, 'host') ? { bornAt: world.bornAt, parents: world.parentCoats } : {}) };
+    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map((g) => viewOfGuest(g, world.clock))], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.filter((a) => !a.stop).map((a) => [a.from, a.to]), stops: this.pairing.asks.filter((a) => a.stop).map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]) };
   }
 
   /** Sends the state to every guest that has said hello. */

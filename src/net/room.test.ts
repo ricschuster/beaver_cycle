@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { Room, MAX_GUESTS } from './room';
 import { applySnapshot, friendTaker, othersOf, pairingOf, partnerCandidate } from './view';
-import { createWorld } from '../sim/state';
+import { createWorld, leaveHome } from '../sim/state';
+import { LODGE_WOOD, SOLID_RADIUS } from '../sim/lodge';
+import { newWear } from '../sim/wear';
+import { DAY_SECONDS, nextSpringStart } from '../sim/clock';
+import { guestStage } from '../sim/guests';
+import { stageAt } from '../sim/life';
 import { flatTerrain } from '../sim/terrain';
 import { CHOP_TIME, type TreeSource } from '../sim/trees';
 
@@ -226,7 +231,12 @@ describe('the room', () => {
       expect(close.partnerNear('host', host, host, false)).toBeNull();
       close.ask('host', 'g1', 0);
       close.ask('g1', 'host', 0);
-      expect(close.partnerNear('host', host, host, true)).toBeNull();
+      // A taken friend is not offered, but the partner is, for the press that asks to stop (Q4).
+      expect(close.partnerNear('host', host, host, true)).toBe('g1');
+      const third = close;
+      third.open('g2');
+      third.receive('g2', hello, 0, host, ground);
+      expect(third.partnerNear('g2', third.guests()[1]!.beaver, host, true)).toBeNull();
     });
 
     it('does not let a guest ask a host that is still a baby', () => {
@@ -292,7 +302,122 @@ describe('the room', () => {
       expect(partnerCandidate(room.snapshot(baby), 'g1', { x: 1, z: 0 })).toBeNull();
       room.ask('host', 'g1', 0);
       room.ask('g1', 'host', 0);
-      expect(partnerCandidate(room.snapshot(world), 'g1', { x: 1, z: 0 })).toBeNull();
+      // With a partner only the partner is offered, close by (Q4).
+      expect(partnerCandidate(room.snapshot(world), 'g1', { x: 1, z: 0 })?.id).toBe('host');
+      expect(partnerCandidate(room.snapshot(world), 'g1', { x: 30, z: 0 })).toBeNull();
+    });
+
+    describe('the pair lodge, stopping, and the kits (note 48)', () => {
+      const lodge = { x: 40, z: 0, base: 0, door: Math.PI / 2, wood: LODGE_WOOD, wear: newWear(0), players: ['host', 'g1'] as [string, string], wholeAt: 0 };
+      const paired = () => {
+        const room = near();
+        room.ask('host', 'g1', 0);
+        room.ask('g1', 'host', 0);
+        return room;
+      };
+
+      it('two partners press at each other to stop, and a whole lodge is a former home of both', () => {
+        const room = paired();
+        const w = { ...world, pairLodges: [lodge], lodge, pairWith: 'g1' };
+        room.ask('host', 'g1', 1);
+        expect(pairingOf(room.snapshot(w), 'g1').stopBy).toBe(true);
+        expect(pairingOf(room.snapshot(w), 'host').stopping).toBe(true);
+        expect(room.partner('host')).toBe('g1');
+        const stopped = room.step(w, 0.05, 1, ground, oneTree);
+        expect(stopped.pairLodges).toHaveLength(1);
+        room.ask('g1', 'host', 2);
+        expect(room.partner('host')).toBeNull();
+        const after = room.step(stopped, 0.05, 2, ground, oneTree);
+        expect(after.pairLodges).toEqual([]);
+        expect(after.formerHomes.map((h) => h.x)).toEqual([40]);
+        expect(after.lodge).toBeNull();
+      });
+
+      it('puts a guest that is in the room out at the entrance when the pair stops', () => {
+        const room = paired();
+        const g = room.guests()[0]!;
+        g.inside = true;
+        g.beaver.x = lodge.x + 2;
+        g.beaver.z = lodge.z;
+        room.ask('host', 'g1', 1);
+        room.ask('g1', 'host', 2);
+        room.step({ ...world, pairLodges: [lodge] }, 0.05, 2, ground, oneTree);
+        const out = room.guests()[0]!;
+        expect(out.inside).toBe(false);
+        expect(Math.hypot(out.beaver.x - lodge.x, out.beaver.z - lodge.z)).toBeGreaterThan(SOLID_RADIUS);
+      });
+
+      it('an unfinished lodge is dropped when the pair stops', () => {
+        const room = paired();
+        room.ask('host', 'g1', 1);
+        room.ask('g1', 'host', 2);
+        const after = room.step({ ...world, pairLodges: [{ ...lodge, wood: 4, wholeAt: undefined }] }, 0.05, 2, ground, oneTree);
+        expect(after.pairLodges).toEqual([]);
+        expect(after.formerHomes).toEqual([]);
+      });
+
+      it('on the first spring after the lodge is whole each partner gets a kit, born on a nest of it', () => {
+        const room = paired();
+        const spring = nextSpringStart(0) + 10;
+        const w = room.step({ ...world, clock: spring, pairLodges: [lodge], lodge, pairWith: 'g1' }, 0.05, 1, ground, oneTree);
+        expect(w.generation).toBe(1);
+        expect(stageAt(w.clock, w.bornAt)).toBe('baby');
+        expect(w.inLodge).toBe(true);
+        expect(w.parentCoats[1]).toEqual({ coat: 2, shade: 0 });
+        expect(w.pairLodges[0]!.kitsAt).toBe(w.clock);
+        expect(w.pairWith).toBeNull();
+        expect(room.partner('host')).toBeNull();
+        const g = room.guests()[0]!;
+        expect(g.inside).toBe(true);
+        expect(g.bornAt).toBe(w.clock);
+        expect(guestStage(g, w.clock)).toBe('baby');
+        const view = room.snapshot(w).beavers.find((b) => b.id === 'g1')!;
+        expect(view).toMatchObject({ inside: true, grown: false, bornAt: w.clock });
+        expect(view.parents).toHaveLength(2);
+        // A lodge with kits is no pair any more, so a restart does not bring the pair back.
+        const again = new Room(() => undefined);
+        again.restorePairs(w.pairLodges);
+        expect(again.partner('host')).toBeNull();
+      });
+
+      it('waits for the spring, and for a partner that is away', () => {
+        const room = paired();
+        const early = room.step({ ...world, clock: nextSpringStart(0) - 5, pairLodges: [lodge], lodge, pairWith: 'g1' }, 0.05, 1, ground, oneTree);
+        expect(early.generation).toBe(0);
+        room.leave('g1');
+        const away = room.step({ ...world, clock: nextSpringStart(0) + 5, pairLodges: [lodge], lodge, pairWith: 'g1' }, 0.05, 2, ground, oneTree);
+        expect(away.generation).toBe(0);
+        expect(away.pairLodges[0]!.kitsAt).toBeUndefined();
+      });
+
+      it('two guests as partners get their own lodge and kits without the host', () => {
+        const room = new Room(() => undefined);
+        for (const id of ['a', 'b']) {
+          room.open(id);
+          room.receive(id, hello, 0, host, ground);
+        }
+        room.ask('a', 'b', 0);
+        room.ask('b', 'a', 0);
+        const own = { ...lodge, players: ['a', 'b'] as [string, string] };
+        const w = room.step({ ...world, clock: nextSpringStart(0) + 5, pairLodges: [own] }, 0.05, 1, ground, oneTree);
+        expect(w.generation).toBe(0);
+        expect(w.pairLodges[0]!.kitsAt).toBeDefined();
+        expect(room.guests().every((g) => g.inside && g.bornAt !== null)).toBe(true);
+        expect(room.guests().map((g) => g.beaver.z).every((z) => Number.isFinite(z))).toBe(true);
+        expect(room.partner('a')).toBeNull();
+      });
+
+      it('lets the kits\' lodge go when they have grown up', () => {
+        const room = paired();
+        const born = nextSpringStart(0) + 10;
+        const w = room.step({ ...world, clock: born, pairLodges: [lodge], lodge, pairWith: 'g1' }, 0.05, 1, ground, oneTree);
+        const grown = born + 61 * DAY_SECONDS;
+        // The host's own leaving is leaveHome; the guest is put out of the room then.
+        const left = room.step(leaveHome({ ...w, clock: grown }), 0.05, 2, ground, oneTree);
+        expect(left.pairLodges).toEqual([]);
+        expect(left.formerHomes).toHaveLength(1);
+        expect(room.guests()[0]!.inside).toBe(false);
+      });
     });
   });
 });

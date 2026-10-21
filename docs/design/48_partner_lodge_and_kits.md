@@ -87,3 +87,26 @@ Build order stays as above. Step 1 (the pair lodge, built by either partner, sha
   A restarted host takes its pairs from the saved lodges.
 - Still to do in this order: going into the lodge, its store and nests; stopping a pair (Q4, the lodge then becomes a former home
   of both); the kits (two every spring, Q5); guests that age.
+
+## Built: steps 2 and 3, going in, stopping, the kits (#666)
+
+- **Going in.** A guest swims in at the door of its pair's whole lodge as the host does (`stepGuest`, `Guest.inside`), walks the
+  round room round the water hole, and a Dive press at the hole takes it out (`diveTap` is now sent in the intent). Its tablet draws
+  the room from the snapshot (`inside` in `BeaverView`, `applySnapshot` sets `inLodge` and the lodge). A friend in the room is drawn
+  only for a beaver in the room too, and food and the partner press only reach a beaver in the same place.
+- **The host's home.** For a host in a pair the whole pair lodge is its `world.lodge` (`homeOf` in `step.ts`), so the door, the
+  store, the nest and sleep work as for its own lodge. The pair's list is the one truth, and a log still mends it through `placeLog`.
+  The store is the host's (`world.store`); a guest cannot reach it yet, and has no nest to sleep on (Q8, #661).
+- **Stopping (Q4).** Partners press Do ("Part") at each other: the first press asks, the other's press ends the pair (`pairs.ts`,
+  a `stop` ask, `stops` in the snapshot). A whole lodge becomes a former home, an unfinished one is dropped, and a guest in the room
+  is put out at the entrance.
+- **Kits (Q5).** On the first day of spring after `wholeAt`, with both partners grown and here (Q3: it waits for one who is away),
+  each partner is reborn as a kit in the lodge (`Room.kits`): the host through `pairBirth`, a guest through `reborn`. Two kits then
+  stand for the pair's year, and the pair is done: `kitsAt` marks the lodge, which is no pair after a restart. Reading of Q5: the
+  pair's kits are the two players, so "two kits every spring" is every turn of the cycle, not twice for one pair. The host's kit is
+  born on the first nest, the guest's on the fourth, the old beavers are Mama and Papa on the two between (`KIT_NEST`).
+- **Guests age.** A guest has `bornAt` (null for a grown one). A kit is small, slow, keeps to the water and near the lodge, and
+  cannot gnaw, build or take, as the host's kit (`guestStage`, the stage rules in `stepGuest`). Its tablet takes the age and the
+  parents' coats from its view. When the kits are grown the lodge is a former home (`Room.endPairs`, `leaveHome` for the host).
+- Two guests as partners work the same way without the host: the lodge, the room and the kits are keyed on the pair's two ids.
+- Still to do: a guest eating from the store (#663), sleep per player (#661), the grandparents (Q6) in the family tree.

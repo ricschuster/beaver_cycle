@@ -87,6 +87,12 @@ already knows (`world.trees`, felled set). Intents: `{t:'say', q:'hide'}` for th
 
 ## Built so far
 
+Step 2 (this note's second PR): `Room` holds the game (`startHide`, `answerHide`, `hostFrozen`, `hiddenFromHost`), the guest message is
+`{t:'hide', r}` (start, with the asker's role and an optional `to` for a Yes to "Want to play?") or `{t:'hide', a}` (answer), and the
+snapshot carries `hide` with the seconds left. Seekers get a snapshot without the hiders they have not found. The talk card has
+**Hide and seek?** and then **I hide / I seek**; an invitation opens a Yes!/Not now card; phase changes and finds are toasts. Hiding
+places are standing trees and lodges (rocks are left out). The big count on screen, hearts and the chime are step 3.
+
 Step 1 (`src/net/hideGame.ts`, tested): `invite`, `accept`, `decline`, `step`, `drop`, `frozen`, `hiddenFrom`, `timeLeft`. The
 numbers are constants at the top (`NOTE_REACH` 60, `GATHER_REACH` 8, `INVITE_TIME` 30, `COUNT_TIME` 10, `SEEK_TIME` 90, `FIND_REACH` 7,
 `FIND_CLOSE` 2, `PLAY_RADIUS` 80). A seeker does not see the hiders it has not found, from the start of the count to the end of the round (the

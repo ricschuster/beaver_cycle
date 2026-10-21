@@ -19,6 +19,7 @@ import { INTERIOR_RADIUS, lodgeComplete, lodgeSolid } from '../sim/lodge';
 import { nextSpringStart } from '../sim/clock';
 import { pairLodgeOf, type PairLodge } from '../sim/pairLodge';
 import { answer, ask as askSay, drop as dropSays, expire as expireSays, noSays, type AnswerId, type QuestionId, type Says } from './says';
+import { accept, decline, drop as dropHide, frozen, hiddenFrom, invite, noteTo, step as stepHide, timeLeft, type Blocker, type HideGame, type Role, type Spot } from './hideGame';
 import { intentOf, readToHost, viewOfGuest, type BeaverView, type Snapshot, type ToGuest } from './protocol';
 
 /** The most friends in one valley besides the host (note 42: up to four players at once). */
@@ -50,6 +51,8 @@ export class Room {
   private pairing: Pairing = noPairing();
   /** The questions put to friends and their answers (#667). */
   private says: Says = noSays();
+  /** The game of hide and seek that runs, if any (#664). */
+  private hide: HideGame | null = null;
   constructor(private readonly send: (to: string, text: string) => void) {}
 
   /** A connection opened: it waits for its hello. */
@@ -64,6 +67,7 @@ export class Room {
     if (seat) {
       this.pairing = dropAsks(this.pairing, seat.guest.id);
       this.says = dropSays(this.says, seat.guest.id);
+      if (this.hide) this.hide = dropHide(this.hide, seat.guest.id);
     }
   }
 
@@ -110,6 +114,10 @@ export class Room {
       if (m.q) seat.say = m.q;
       else if (m.a) this.says = answer(this.says, seat.guest.id, m.a, now);
       seat.heard = now;
+    } else if (seat && m.t === 'hide') {
+      seat.heard = now;
+      if (m.r) this.startHide(seat.guest.id, m.r, now, host, m.to);
+      else if (m.a) this.answerHide(seat.guest.id, m.a);
     } else if (seat && m.t === 'intent') {
       seat.intent = intentOf(m);
       seat.heard = now;
@@ -129,6 +137,10 @@ export class Room {
     let hostCarry = world.carry;
     this.pairing = expire(this.pairing, now);
     this.says = expireSays(this.says, now);
+    if (this.hide) {
+      const r = stepHide(this.hide, this.spots(world), (a, b) => this.blockers(a, b, world, trees, solids), now);
+      this.hide = r.game;
+    }
     // The host paired: its own lodge becomes a former home (Q110, note 48), and its logs now go to the lodge of the pair.
     const hostPartner = partnerOf(this.pairing, 'host');
     if (hostPartner && !world.pairWith) world = leaveHome(world);
@@ -144,7 +156,8 @@ export class Room {
         if (to) this.says = askSay(this.says, seat.guest.id, to, seat.say, now);
         seat.say = undefined;
       }
-      const intent = now - seat.heard > SILENT_AFTER ? { move: { x: 0, z: 0 } } : seat.intent;
+      const still = now - seat.heard > SILENT_AFTER || frozen(this.hide, seat.guest.id);
+      const intent = still ? { move: { x: 0, z: 0 } } : seat.intent;
       if (intent.do === 'give' && seat.guest.carry) {
         // Food handed to the host or another guest whose mouth is empty (#663).
         const to = this.taker(seat.guest.id, seat.guest.beaver, world.beaver, hostCarry === null && world.haul === null && world.drag === null, seat.guest.inside, hostInside);
@@ -244,6 +257,54 @@ export class Room {
     return best;
   }
 
+  /** Everyone who is in the valley, where they stand: the players a game of hide and seek counts. */
+  private spots(world: WorldState): Spot[] {
+    return [...(world.inLodge ? [] : [{ id: 'host', x: world.beaver.x, z: world.beaver.z }]), ...[...this.seats.values()].filter((s) => !s.guest.inside).map((s) => ({ id: s.guest.id, x: s.guest.beaver.x, z: s.guest.beaver.z }))];
+  }
+
+  /** What two players could hide behind: the standing trees near the line between them, and the lodges. */
+  private blockers(a: Spot, b: Spot, world: WorldState, trees: TreeSource, solids: readonly { x: number; z: number; radius: number }[]): Blocker[] {
+    const felled = new Set(world.felled);
+    const mx = (a.x + b.x) / 2;
+    const mz = (a.z + b.z) / 2;
+    const reach = Math.hypot(a.x - b.x, a.z - b.z) / 2 + 2;
+    return [...trees.trunksNear(mx, mz, reach, felled).map((k) => ({ x: k.x, z: k.z, r: k.radius })), ...solids.filter((k) => Math.hypot(k.x - mx, k.z - mz) <= reach + k.radius).map((k) => ({ x: k.x, z: k.z, r: k.radius }))];
+  }
+
+  /** `from` asks the friends close by (or only `to`, who has said yes already) to play hide and seek, and takes `role`. */
+  startHide(from: string, role: Role, now: number, host: { x: number; z: number }, to?: string): void {
+    if (this.hide) return;
+    const at = from === 'host' ? host : this.seats.get(this.idOf(from) ?? '')?.guest.beaver;
+    if (!at) return;
+    const others = [...(from === 'host' ? [] : [{ id: 'host', ...host }]), ...[...this.seats.values()].map((s) => ({ id: s.guest.id, x: s.guest.beaver.x, z: s.guest.beaver.z }))];
+    const asker: Spot = { id: from, x: at.x, z: at.z };
+    const g = invite(asker, role, to ? [to] : noteTo(asker, others), now);
+    this.hide = g && to ? accept(g, to) : g;
+  }
+
+  /** The connection id of the guest with player id `pid`. */
+  private idOf(pid: string): string | undefined {
+    for (const [id, s] of this.seats) if (s.guest.id === pid) return id;
+    return undefined;
+  }
+
+  /** A friend who was asked answers the invitation. */
+  answerHide(id: string, a: AnswerId): void {
+    if (!this.hide) return;
+    this.hide = a === 'yes' ? accept(this.hide, id) : decline(this.hide, id);
+    if (this.hide && this.hide.phase === 'invite' && this.hide.invited.length === 0) this.hide = null;
+  }
+
+  /** True while the host's own beaver has to stand still, counting. */
+  hostFrozen(): boolean {
+    return frozen(this.hide, 'host');
+  }
+
+  /** The players the host's own screen must leave out: hiders it has not found. */
+  hiddenFromHost(): string[] {
+    return hiddenFrom(this.hide, 'host');
+  }
+
   /** `from` puts a question to `to`. */
   say(from: string, to: string, q: QuestionId, now: number): void {
     this.says = askSay(this.says, from, to, q, now);
@@ -341,16 +402,20 @@ export class Room {
   }
 
   /** What every guest is sent: the shared world and every beaver in it, the host's first. */
-  snapshot(world: WorldState): Snapshot {
+  snapshot(world: WorldState, forPlayer?: string, now = 0): Snapshot {
     const b = world.beaver;
     const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null, grown: stageAt(world.clock, world.bornAt) === 'adult', ...(world.inLodge ? { inside: true } : {}), ...(world.generation > 0 && world.lodge && pairLodgeOf(world.pairLodges, 'host') ? { bornAt: world.bornAt, parents: world.parentCoats } : {}) };
-    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map((g) => viewOfGuest(g, world.clock))], played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.filter((a) => !a.stop).map((a) => [a.from, a.to]), stops: this.pairing.asks.filter((a) => a.stop).map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]), says: [...this.says.list] };
+    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map((g) => viewOfGuest(g, world.clock))].filter((v) => !forPlayer || !hiddenFrom(this.hide, forPlayer).includes(v.id)), played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.filter((a) => !a.stop).map((a) => [a.from, a.to]), stops: this.pairing.asks.filter((a) => a.stop).map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]), says: [...this.says.list], ...(this.hide ? { hide: { ...this.hide, left: timeLeft(this.hide, now) } } : {}) };
   }
 
   /** Sends the state to every guest that has said hello. */
-  broadcast(world: WorldState): void {
-    const text = JSON.stringify({ t: 'state', snapshot: this.snapshot(world) } satisfies ToGuest);
-    for (const id of this.seats.keys()) this.send(id, text);
+  broadcast(world: WorldState, now = 0): void {
+    const text = JSON.stringify({ t: 'state', snapshot: this.snapshot(world, undefined, now) } satisfies ToGuest);
+    for (const [id, seat] of this.seats) {
+      // A seeker is not told where the hiders it has not found are (#664).
+      if (hiddenFrom(this.hide, seat.guest.id).length) this.send(id, JSON.stringify({ t: 'state', snapshot: this.snapshot(world, seat.guest.id, now) } satisfies ToGuest));
+      else this.send(id, text);
+    }
   }
 
   private reply(id: string, m: ToGuest): void {

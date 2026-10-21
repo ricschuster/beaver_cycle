@@ -1,11 +1,11 @@
-// What the talk card offers by a friend who is a player (#667): to be partners (or stop, or say yes to an ask), a few questions,
+// What the talk card offers by a friend who is a player (#667): to be partners (or stop, or say yes to an ask), a few questions, hide and seek,
 // and Bye. Pure, so a test can check the buttons. The words are in the language tables.
 import { t } from '../i18n';
 import type { pairingOf } from './view';
 import { QUESTIONS } from './says';
 
 export interface FriendChoice {
-  /** 'partner', a question id, or 'bye'. */
+  /** 'partner', a question id, 'hide' (a game of hide and seek, #664), or 'bye'. */
   id: string;
   label: string;
 }
@@ -19,6 +19,7 @@ export function friendChoices(id: string, pairing: ReturnType<typeof pairingOf>,
   if (pairing.partner === id) out.push({ id: 'partner', label: t(pairing.stopBy ? 'friend.partYes' : 'friend.part') });
   else if (!pairing.partner && canPartner) out.push({ id: 'partner', label: t(pairing.askedBy.includes(id) ? 'friend.partnerYes' : 'friend.partner') });
   for (const q of QUESTIONS) out.push({ id: q, label: t(`friend.q.${q}`) });
+  out.push({ id: 'hide', label: t('friend.hide') });
   out.push({ id: 'bye', label: t('friend.bye') });
   return out;
 }

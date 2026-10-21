@@ -553,4 +553,58 @@ describe('the room', () => {
       expect(friendNearby(snap, 'g1', { x: 50, z: 50 })).toBeNull();
     });
   });
+
+  describe('hide and seek (#664)', () => {
+    const msg = (o: object): string => JSON.stringify({ t: 'hide', ...o });
+
+    it('a guest hides, the host says yes, and the guest cannot move while the host counts', () => {
+      const { room } = joined();
+      room.receive('g1', msg({ r: 'seek' }), 1, host, ground);
+      // The host is within the note and says yes; both stand close.
+      room.answerHide('host', 'yes');
+      let w = room.step(world, 0.1, 2, ground, oneTree);
+      expect(room.snapshot(w, undefined, 2).hide?.phase).toBe('count');
+      expect(room.snapshot(w, undefined, 2).hide?.roles).toEqual({ g1: 'seek', host: 'hide' });
+      room.receive('g1', intent({ x: 1 }), 2.1, host, ground);
+      const before = room.guests()[0]!.beaver.x;
+      w = room.step(w, 1, 2.2, ground, oneTree);
+      expect(room.guests()[0]!.beaver.x).toBe(before);
+      // After the count it moves again.
+      room.receive('g1', intent({ x: 1 }), 13, host, ground);
+      w = room.step(w, 0.5, 13, ground, oneTree);
+      room.receive('g1', intent({ x: 1 }), 13.1, host, ground);
+      room.step(w, 0.5, 13.2, ground, oneTree);
+      expect(room.guests()[0]!.beaver.x).toBeGreaterThan(before);
+    });
+
+    it('a seeker is not sent the hider it has not found, and the host sees it hidden', () => {
+      const { room, sent } = joined();
+      room.receive('g1', msg({ r: 'seek' }), 1, host, ground);
+      room.answerHide('host', 'yes');
+      const w = room.step(world, 0.1, 2, ground, oneTree);
+      sent.length = 0;
+      room.broadcast(w, 2);
+      const state = JSON.parse(sent.at(-1)![1]).snapshot;
+      expect(state.beavers.map((b: { id: string }) => b.id)).toEqual(['g1']);
+      expect(room.hiddenFromHost()).toEqual([]);
+      expect(room.snapshot(w).beavers).toHaveLength(2);
+    });
+
+    it('the host asks a guest by a Yes to play, and a not now ends the game', () => {
+      const { room } = joined();
+      room.startHide('host', 'hide', 1, host, 'g1');
+      expect(room.snapshot(world, undefined, 1).hide?.yes).toEqual(['g1']);
+      const { room: other } = joined();
+      other.startHide('host', 'hide', 1, host);
+      other.answerHide('g1', 'later');
+      expect(other.snapshot(world).hide).toBeUndefined();
+    });
+
+    it('a guest that leaves drops out of the game', () => {
+      const { room } = joined();
+      room.startHide('host', 'seek', 1, host);
+      room.leave('g1');
+      expect(room.snapshot(world).hide).toBeUndefined();
+    });
+  });
 });

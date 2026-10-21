@@ -56,6 +56,10 @@ export function dreamLine(event: DreamEvent, state: DreamState, n: number): stri
   switch (event.what) {
     case 'sweet':
       return event.kind === 'star' ? one('dream.star') : null;
+    case 'chop':
+      return one('dream.chopped');
+    case 'build':
+      return one(`dream.${event.kind}${event.done ? 'Done' : 'Grows'}`);
     case 'statue':
       return one('dream.statue');
     case 'rush':

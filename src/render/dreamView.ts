@@ -5,7 +5,7 @@ import { CHOCOLATE, CHOCOLATE_LEVEL, dreamHeight, type DreamBeaver, type DreamEv
 import { SWIM_SINK } from '../sim/state';
 import type { ViewState } from './cameraRig';
 import { SLAP_DURATION, type BeaverModel } from './beaverModel';
-import { FAR_MALLOW, disposeModel, dreamPlayer, goldenStatue, leapPitch, mallowFar, mallowModel, placeMallow } from './dreamBeavers';
+import { FAR_MALLOW, disposeModel, dreamPlayer, candyBuild, goldenStatue, leapPitch, mallowFar, mallowModel, placeMallow } from './dreamBeavers';
 import { candy, pathStones, propsGeometry, starShape, sweetShapes } from './dreamProps';
 import { DREAM_FOG, cloudRing, createChocolateRiver, farScoops, groundGeometry, hillScoops, skyDome, sunTexture } from './dreamScenery';
 import { createParticles, dotTexture, giggleTexture, shadowTexture, sparkleTexture } from './dreamEffects';
@@ -121,21 +121,52 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   const candyMaterial = (shininess: number): THREE.MeshPhongMaterial => new THREE.MeshPhongMaterial({ vertexColors: true, shininess, specular: 0x3a3a3a });
   scene.add(new THREE.Mesh(pathStones(land.path, heightAt), candyMaterial(50)));
 
-  // The props, merged by patches of land, so the patches behind the camera are not drawn.
+  // The props, merged by patches of land, so the patches behind the camera are not drawn. A chopped tree makes a new land with
+  // one prop fewer, and the patches are made again.
   const PATCHES = 3;
   const patchOf = (v: number): number => Math.min(PATCHES - 1, Math.max(0, Math.floor(((v + land.half) / (land.half * 2)) * PATCHES)));
   const propMaterial = candyMaterial(40);
-  for (let i = 0; i < PATCHES * PATCHES; i++) {
-    const props = land.props.filter((p) => patchOf(p.x) + patchOf(p.z) * PATCHES === i);
-    if (props.length === 0) continue;
-    const geo = propsGeometry(props, (p) => {
-      // Stand on the lowest ground under the foot, a little sunk, so it never floats on a slope.
-      const r = 0.5 * p.size;
-      return Math.min(heightAt(p.x, p.z), heightAt(p.x + r, p.z), heightAt(p.x - r, p.z), heightAt(p.x, p.z + r), heightAt(p.x, p.z - r)) - 0.06;
-    });
-    geo.computeBoundingSphere();
-    scene.add(new THREE.Mesh(geo, propMaterial));
-  }
+  let propMeshes: THREE.Mesh[] = [];
+  let shownProps: DreamLand['props'] | null = null;
+  const drawProps = (all: DreamLand['props']): void => {
+    shownProps = all;
+    for (const old of propMeshes) {
+      scene.remove(old);
+      old.geometry.dispose();
+    }
+    propMeshes = [];
+    for (let i = 0; i < PATCHES * PATCHES; i++) {
+      const props = all.filter((p) => patchOf(p.x) + patchOf(p.z) * PATCHES === i);
+      if (props.length === 0) continue;
+      const geo = propsGeometry(props, (p) => {
+        // Stand on the lowest ground under the foot, a little sunk, so it never floats on a slope.
+        const r = 0.5 * p.size;
+        return Math.min(heightAt(p.x, p.z), heightAt(p.x + r, p.z), heightAt(p.x - r, p.z), heightAt(p.x, p.z + r), heightAt(p.x, p.z - r)) - 0.06;
+      });
+      geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, propMaterial);
+      propMeshes.push(mesh);
+      scene.add(mesh);
+    }
+  };
+  drawProps(land.props);
+
+  // The candy dam and lodge the beaver builds, made again when a log goes on.
+  const builtMeshes = new Map<string, { logs: number; group: THREE.Group }>();
+  const drawBuilds = (state: DreamState): void => {
+    for (const b of state.builds ?? []) {
+      const shown = builtMeshes.get(b.kind);
+      if (shown?.logs === b.logs) continue;
+      if (shown) {
+        scene.remove(shown.group);
+        disposeModel(shown.group);
+      }
+      const group = candyBuild(b, land.riverWidth);
+      group.position.set(b.x, b.kind === 'dam' ? CHOCOLATE_LEVEL : heightAt(b.x, b.z) - 0.05, b.z);
+      scene.add(group);
+      builtMeshes.set(b.kind, { logs: b.logs, group });
+    }
+  };
 
   // Sugar twinkles over the meadow: tiny points that flash now and then, each at its own beat.
   const twinkleTime = { value: 0 };
@@ -347,6 +378,8 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     const near = (who: string): DreamBeaver => state.mallows.find((m) => m.id === who || m.name === who) ?? b;
     for (const ev of events) {
       if (ev.what === 'sweet') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.5, ev.z, time, ev.kind === 'star' ? 26 : 14, ev.kind === 'star' ? GOLD : CONFETTI, 2.6, 1.6, 0.9);
+      else if (ev.what === 'chop') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 1, ev.z, time, 20, CONFETTI, 2.4, 2, 0.9);
+      else if (ev.what === 'build') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.8, ev.z, time, ev.done ? 40 : 14, ev.done ? GOLD : CONFETTI, 3, 2.2, 1);
       else if (ev.what === 'statue') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.8, ev.z, time, 40, GOLD, 3.5, 2.5, 1.2);
       else if (ev.what === 'rush') sparkles.emit(b.x, b.y + 0.5, b.z, time, 24, GOLD, 3, 2.2, 1);
       else if (ev.what === 'shower' || ev.what === 'tagEnd' || ev.what === 'seekEnd' || ev.what === 'hideEnd') sparkles.emit(b.x, b.y + 1.5, b.z, time, 50, CONFETTI, 4.5, 3.5, 1.4);
@@ -399,7 +432,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       camera.lookAt(look);
       watchSlap('player', b, time);
       const slapAge = (at: number | null): number | null => (at === null || time - at >= SLAP_DURATION || time < at ? null : time - at);
-      player.update(time, Math.min(1, b.speed / 4), b.mode, 0, slapAge(b.slapAt), null, null);
+      player.update(time, Math.min(1, b.speed / 4), b.mode, 0, slapAge(b.slapAt), state.carrying ? 'branch' : null, null);
       player.group.position.set(b.x, b.y - (b.mode === 'swim' ? SWIM_SINK : 0), b.z);
       player.group.rotation.set(leapPitch(b, time), b.heading, 0, 'YXZ');
       putShadow(0, b, 1);
@@ -462,6 +495,8 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       statue.visible = !state.statueTouched;
       statue.rotation.y = time * 0.6;
       statueGlow.material.opacity = 0.4 + 0.15 * Math.sin(time * 3);
+      if (state.land.props !== shownProps) drawProps(state.land.props);
+      drawBuilds(state);
       drawSweets(state);
       effects(state, events);
       river.update(time);
@@ -492,6 +527,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
         }
       });
       for (const kind of ['drop', 'swirl', 'star'] as const) for (const part of shapes[kind]) geometries.add(part.geometry);
+      for (const mesh of propMeshes) geometries.add(mesh.geometry);
       river.dispose();
       sparkles.dispose();
       drops.dispose();

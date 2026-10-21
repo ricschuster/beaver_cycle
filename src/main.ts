@@ -703,13 +703,16 @@ async function start(): Promise<void> {
   const dreamScreen = createDreamScreen(document.body, {
     touch: wantsTouchControls(navigator, query),
     onWake: () => sleepPrompt.wakeFromDream(),
+    onKeep: (builds) => {
+      world = { ...world, dreamKept: builds.map((b) => ({ ...b })) };
+    },
     onEvents: (events) => {
       if (!silent) sound.cue(dreamCues(events), performance.now() / 1000);
     },
   });
   const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation): void => {
     world = { ...world, dreamed: true };
-    dreamScreen.start(seed);
+    dreamScreen.start(seed, world.dreamKept);
   };
   let fps = 60;
   let lastReadout = 0;

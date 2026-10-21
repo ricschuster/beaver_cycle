@@ -6,13 +6,13 @@ import { t, tList } from '../i18n';
 import { mergeActions, noActions, relativeToView, type Actions } from '../actions/actions';
 import { createCameraRig, type CameraRig } from '../render/cameraRig';
 import { createDreamView, type DreamView } from '../render/dreamView';
-import { hideOrSeek, newDream, playPrompt, stepDream, type DreamEvent, type DreamInput, type DreamState } from '../sim/dream';
+import { hideOrSeek, newDream, type DreamBuild, playPrompt, stepDream, type DreamEvent, type DreamInput, type DreamState } from '../sim/dream';
 import { DARK_MS, FADE_MS } from './sleepPrompt';
 import { createTouchControls, type TouchControls } from './touchControls';
 
 export interface DreamScreen {
   /** Open a new dream from a seed. Does nothing while a dream is open. */
-  start(seed: number): void;
+  start(seed: number, kept?: readonly DreamBuild[]): void;
   /** One frame of the dream: step it with the actions, draw it, and update the screen. */
   frame(dt: number, actions: Actions): void;
   /** True from `start` until the screen has faded out after Wake up. */
@@ -24,6 +24,8 @@ export interface DreamScreen {
 export interface DreamScreenOptions {
   /** Called once when the player wakes, as the screen starts to fade out over the dark. */
   onWake(): void;
+  /** Called when the player chose, at waking, to keep the dream's candy dam and lodge for later dreams (Q81). */
+  onKeep?(builds: readonly DreamBuild[]): void;
   /** Show the dream's own touch buttons, else a line with the keys. */
   touch: boolean;
   /** Called each frame with what happened in the dream, for its sounds. */
@@ -162,6 +164,7 @@ interface Open {
     promptText: HTMLElement;
     choice: HTMLElement;
     choiceText: HTMLElement;
+    keep: HTMLElement;
   };
   state: DreamState;
   diveBefore: boolean;
@@ -175,6 +178,9 @@ interface Open {
   picked: DreamInput['pick'];
   onKey: (e: KeyboardEvent) => void;
   waking: boolean;
+  /** The dream's dams and lodges when it began, to see whether this dream built or added anything, and whether Keep is being asked. */
+  began: string;
+  keeping: boolean;
   /** True once the first frame is drawn and the screen has started to fade in. */
   warm: boolean;
   /** True while the view compiles its shaders in the background, before the first draw. */
@@ -184,10 +190,23 @@ interface Open {
 export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions): DreamScreen {
   let open: Open | null = null;
 
-  const wake = (): void => {
+  const buildsOf = (s: DreamState): string => JSON.stringify(s.builds ?? []);
+
+  /** Wake up. When this dream built something, ask first whether to keep it for the next dreams. */
+  const wakeClick = (): void => {
+    const o = open;
+    if (!o || o.waking || o.keeping) return;
+    if (buildsOf(o.state) === o.began) return wake(false);
+    o.keeping = true;
+    o.hud.keep.style.display = 'flex';
+  };
+
+  const wake = (keep: boolean): void => {
     const o = open;
     if (!o || o.waking) return;
     o.waking = true;
+    o.hud.keep.style.display = 'none';
+    if (keep) opts.onKeep?.(o.state.builds ?? []);
     // The screen fades out over the dark while the sleep prompt waits in it, then the prompt fades the game in.
     o.root.style.transition = `opacity ${DARK_MS}ms`;
     o.root.style.opacity = '0';
@@ -201,8 +220,8 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     }, DARK_MS);
   };
 
-  const build = (seed: number): Open => {
-    const state = newDream(seed);
+  const build = (seed: number, kept: readonly DreamBuild[]): Open => {
+    const state = newDream(seed, kept);
     const root = el(
       'div',
       `position:fixed;inset:0;z-index:21;overflow:hidden;background:#05060d;opacity:0;transition:opacity ${FADE_MS}ms;` +
@@ -231,7 +250,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       wakeButton.type = 'button';
       wakeButton.textContent = t('dream.wake');
       wakeButton.dataset.action = 'dream-wake';
-      wakeButton.addEventListener('click', wake);
+      wakeButton.addEventListener('click', wakeClick);
       // Play on land asks: hide or seek? Two big buttons, and the keys 1 and 2.
       const choice = el('div', `${PILL};position:absolute;left:50%;bottom:${opts.touch ? 24 : 56}px;transform:translateX(-50%);z-index:2;display:none;flex-direction:column;align-items:center;gap:10px;padding:12px 16px;border-radius:28px;font-size:20px;pointer-events:none;${opts.touch ? 'max-width:min(600px,calc(100vw - 440px))' : 'white-space:nowrap'}`, 'dream-choice');
       const choiceText = el('span', 'text-align:center');
@@ -251,7 +270,24 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         choiceRow.append(b);
       }
       choice.append(choiceText, choiceRow);
-      root.append(countBox, status, big, line, prompt, choice, wakeButton);
+      // Waking after building asks: keep the candy dam and lodge for the next dreams?
+      const keep = el('div', `${PILL};position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;display:none;flex-direction:column;align-items:center;gap:12px;padding:16px 20px;border-radius:28px;font-size:20px;text-align:center;max-width:min(86vw,460px)`, 'dream-keep');
+      const keepText = el('span', '');
+      keepText.textContent = t('dream.keepAsk');
+      const keepRow = el('div', 'display:flex;gap:14px;justify-content:center;flex-wrap:wrap');
+      for (const [yes, label, colour, edge] of [
+        [true, t('dream.keep'), '#8fd6bd', '#5fb79a'],
+        [false, t('dream.letGo'), '#ff8fc1', '#e06aa3'],
+      ] as const) {
+        const b = el('button', `min-width:120px;min-height:64px;padding:8px 22px;border-radius:999px;border:3px solid #fff;background:${colour};color:#fff;font-size:22px;cursor:pointer;touch-action:none;box-shadow:0 4px 0 ${edge};${FONT}`) as HTMLButtonElement;
+        b.type = 'button';
+        b.textContent = label;
+        b.dataset.action = yes ? 'dream-keep' : 'dream-letgo';
+        b.addEventListener('click', () => wake(yes));
+        keepRow.append(b);
+      }
+      keep.append(keepText, keepRow);
+      root.append(countBox, status, big, line, prompt, choice, keep, wakeButton);
 
       let touch: TouchControls | null = null;
       if (opts.touch) {
@@ -282,7 +318,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         view,
         rig,
         touch,
-        hud: { count, status, big, line, prompt, promptText, choice, choiceText },
+        hud: { count, status, big, line, prompt, promptText, choice, choiceText, keep },
         state,
         diveBefore: false,
         lines: [],
@@ -292,6 +328,8 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         picked: undefined,
         onKey,
         waking: false,
+        began: buildsOf(state),
+        keeping: false,
         warm: false,
         compiling: false,
       };
@@ -347,10 +385,10 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
   };
 
   return {
-    start(seed) {
+    start(seed, kept = []) {
       if (open) return;
       try {
-        open = build(seed);
+        open = build(seed, kept);
       } catch (e) {
         // A dream that cannot open must not leave the player in the dark.
         console.error('dream: could not start', e);
@@ -371,7 +409,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         o.root.style.opacity = '1';
         return;
       }
-      if (o.waking) {
+      if (o.waking || o.keeping) {
         o.view.draw(o.state, o.rig.view, []);
         return;
       }

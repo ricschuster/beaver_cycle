@@ -17,6 +17,7 @@ import {
   chocolateDepth,
   dreamHeight,
   hideOrSeek,
+  keptInLand,
   newDream,
   playPrompt,
   workPrompt,
@@ -350,6 +351,42 @@ describe('chop and build', () => {
     const m = s.mallows[0]!;
     const r = stepDream({ ...place(s, { x: m.x + 1, z: m.z }), carrying: true }, press, DT);
     expect(r.events.some((e) => e.what === 'build' || e.what === 'chop')).toBe(false);
+  });
+});
+
+describe('kept dams and lodges', () => {
+  const dam = (x: number, z: number, logs: number) => ({ kind: 'dam' as const, x, z, heading: 0, logs });
+  const lodge = (x: number, z: number, logs: number) => ({ kind: 'lodge' as const, x, z, heading: 0, logs });
+
+  it('a new dream starts with them, a dam across the new river and a lodge on dry clear ground', () => {
+    for (const seed of SEEDS) {
+      const s = newDream(seed, [dam(10, 10, 3), lodge(0, 0, 2)]);
+      expect(s.builds).toHaveLength(2);
+      const d = s.builds!.find((b) => b.kind === 'dam')!;
+      expect(lineDistance(s.land.river, d.x, d.z)).toBeLessThan(0.5);
+      expect(d.logs).toBe(3);
+      const l = s.builds!.find((b) => b.kind === 'lodge')!;
+      expect(l.logs).toBe(2);
+      expect(chocolateDepth(s.land, l.x, l.z)).toBe(0);
+      expect(s.land.props.every((p) => Math.hypot(p.x - l.x, p.z - l.z) > PROP_RADIUS[p.kind] * p.size + 2)).toBe(true);
+    }
+  });
+
+  it('keeps a lodge where it stood when that is fine, and does not change the kept list', () => {
+    const base = newDream(7);
+    const free = keptInLand(base.land, [lodge(0, 0, 1)])[0]!;
+    expect(keptInLand(base.land, [free])[0]).toEqual(free);
+    const kept = [dam(1, 1, 3)];
+    keptInLand(base.land, kept);
+    expect(kept[0]).toEqual(dam(1, 1, 3));
+  });
+
+  it('a kept whole dam takes no more logs, and a kept part lodge takes more', () => {
+    const s = newDream(7, [dam(0, 0, 3), lodge(0, 0, 2)]);
+    const l = s.builds!.find((b) => b.kind === 'lodge')!;
+    const near = { ...place(s, { x: l.x - 1.5, z: l.z }), mallows: [], carrying: true };
+    const r = stepDream(near, input({ play: true }), DT);
+    expect(r.events).toContainEqual(expect.objectContaining({ what: 'build', kind: 'lodge', logs: 3 }));
   });
 });
 

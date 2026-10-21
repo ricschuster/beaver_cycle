@@ -93,6 +93,8 @@ snapshot carries `hide` with the seconds left. Seekers get a snapshot without th
 **Hide and seek?** and then **I hide / I seek**; an invitation opens a Yes!/Not now card; phase changes and finds are toasts. Hiding
 places are standing trees and lodges (rocks are left out). The big count on screen, hearts and the chime are step 3.
 
+Step 3: `src/ui/hideCount.ts` shows a line under the toasts ("Counting... 7", "Run and hide! 7", then "Seeking: 60 s left" or "Hiding: 60 s left"), a find flashes a heart on every tablet that plays and chimes (`chimeStar`), the end cheers (`cheer`). Played on the two emulators with `tools/emulator-pair/hide.mjs` (session 173): the note, the invitation card, the count on both, the seeker held still for the count, the find and the cheer. Not tried: more than one hider, a hider behind a tree, a Yes to "Want to play?", real tablets.
+
 Step 1 (`src/net/hideGame.ts`, tested): `invite`, `accept`, `decline`, `step`, `drop`, `frozen`, `hiddenFrom`, `timeLeft`. The
 numbers are constants at the top (`NOTE_REACH` 60, `GATHER_REACH` 8, `INVITE_TIME` 30, `COUNT_TIME` 10, `SEEK_TIME` 90, `FIND_REACH` 7,
 `FIND_CLOSE` 2, `PLAY_RADIUS` 80). A seeker does not see the hiders it has not found, from the start of the count to the end of the round (the

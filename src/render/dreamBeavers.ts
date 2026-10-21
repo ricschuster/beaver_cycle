@@ -139,10 +139,13 @@ const BLUSH = 0xff9fbf;
 /** The pale grey coat the player's rainbow is painted over: an index past the pastel coats of the others. */
 const RAINBOW_BASE = -1;
 const GREYS = { fur: 0xd9d9d9, dark: 0xbdbdbd, belly: 0xf2f2f2 };
+/** The golden statue's coat, past the pastel ones and the rainbow's grey. */
+const GOLDEN = -2;
+const GOLDS = { fur: 0xf2c230, dark: 0xc9961a, belly: 0xffe58a };
 
 /** A marshmallow beaver in the pastel coat `colour` (an index into `MALLOW_COLOURS`), merged for the dream. */
 export function mallowModel(colour: number): BeaverModel {
-  const coat = colour === RAINBOW_BASE ? GREYS : MALLOW_COLOURS[((colour % MALLOW_COLOURS.length) + MALLOW_COLOURS.length) % MALLOW_COLOURS.length]!;
+  const coat = colour === RAINBOW_BASE ? GREYS : colour === GOLDEN ? GOLDS : MALLOW_COLOURS[((colour % MALLOW_COLOURS.length) + MALLOW_COLOURS.length) % MALLOW_COLOURS.length]!;
   const model = createBeaverModel();
   model.setColours(coat);
   for (const s of [-1, 1]) {
@@ -212,4 +215,19 @@ export function disposeModel(root: THREE.Object3D): void {
     o.geometry.dispose();
     (o.material as THREE.Material).dispose();
   });
+}
+
+/** The golden beaver statue (wish 10): a golden marshmallow beaver on a round stone, a piece of wood across its mouth. Stands on its origin. */
+export function goldenStatue(): THREE.Group {
+  const model = mallowModel(GOLDEN);
+  model.update(0, 0);
+  model.group.position.y = 0.18;
+  const wood = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 8).rotateZ(Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xb98a4e }));
+  wood.position.set(0, -0.06, 0.2);
+  model.head.add(wood);
+  const stone = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.2, 14), new THREE.MeshLambertMaterial({ color: 0xf4f0ff }));
+  stone.position.y = 0.1;
+  const group = new THREE.Group();
+  group.add(stone, model.group);
+  return group;
 }

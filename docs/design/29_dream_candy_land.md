@@ -34,7 +34,9 @@ in the chocolate river.
   it stands out among the pastel ones. It walks on land and swims in the chocolate (no diving under, no breath). The Dive control makes it hop on land
   and leap out of the chocolate like a dolphin. The tail slap splashes chocolate.
 - **Sweets** lie along the path and float in the river: candy drops, swirls, and now and then a golden star. Touching one
-  collects it. A star gives a sugar rush, a few seconds of extra speed. The count shows on screen while the beaver dreams.
+  collects it. A star gives a sugar rush, a few seconds of extra speed. The count shows on screen while the beaver dreams. A golden beaver statue (the author's wish 10, #651) stands 4 to 9 m off the
+  later part of the path, in a new place each night; touching it gives a rush of 20 s, once a dream (`makeStatue`, `touchStatue`).
+  The wish list asked "rare find or always there" (Q4); it is always there until touched, to tune.
 - **Marshmallow beavers**, seven or eight, in pastel colours (pink, mint, lemon, sky, lilac, peach, white), each with a name.
   They wander along the path and the river, hop when happy, and come to say hello the first time the beaver is near.
 - **Play** is the Do control, as for talking in the waking game. Near a marshmallow beaver it starts a game: in the

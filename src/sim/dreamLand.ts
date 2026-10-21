@@ -277,7 +277,43 @@ export function makeLand(seed: number): DreamLand {
   const b = path[1] ?? a;
   const start = { x: a.x, z: a.z, heading: Math.atan2(b.x - a.x, b.z - a.z) };
   const props = makeProps(rand, river, riverWidth, path);
-  return { seed, half: DREAM_HALF, path, river, riverWidth, start, props };
+  const statue = makeStatue(mixSeed(seed, 5), river, riverWidth, path, props);
+  return { seed, half: DREAM_HALF, path, river, riverWidth, start, props, statue };
+}
+
+/** The golden beaver statue stands this far off the path (metres): a few steps, so it is a find and not a hunt. */
+const STATUE_OFF_MIN = 4;
+const STATUE_OFF_MAX = 9;
+/** Ground the statue takes (metres), kept clear of props and the chocolate. */
+const STATUE_RADIUS = 0.7;
+
+/** Somewhere new each night, off the path in its later part, on dry land clear of the props. */
+function makeStatue(
+  state: number,
+  river: readonly DreamPoint[],
+  width: number,
+  path: readonly DreamPoint[],
+  props: readonly DreamProp[],
+): DreamPoint {
+  const rand = rngFrom(state).next;
+  const first = Math.floor(path.length * 0.3);
+  const clear = (x: number, z: number): boolean =>
+    Math.abs(x) <= INNER &&
+    Math.abs(z) <= INNER &&
+    lineDistance(river, x, z) > width / 2 + BANK_CLEAR + STATUE_RADIUS &&
+    props.every((p) => (p.x - x) ** 2 + (p.z - z) ** 2 > (PROP_RADIUS[p.kind] * p.size + STATUE_RADIUS + 0.8) ** 2);
+  for (let attempt = 0; attempt < 400; attempt++) {
+    const i = Math.max(1, Math.min(path.length - 2, first + Math.floor(rand() * (path.length - first))));
+    const a = path[i - 1]!;
+    const b = path[i + 1]!;
+    const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const off = (rand() < 0.5 ? 1 : -1) * (STATUE_OFF_MIN + rand() * (STATUE_OFF_MAX - STATUE_OFF_MIN));
+    const x = path[i]!.x - ((b.z - a.z) / len) * off;
+    const z = path[i]!.z + ((b.x - a.x) / len) * off;
+    if (clear(x, z)) return { x, z };
+  }
+  // No clear spot (not seen with real seeds): stand on the path itself.
+  return { ...path[Math.floor(path.length / 2)]! };
 }
 
 /** What makes the height quick for one land: grids of the signed distance to the river and the distance to the path. */

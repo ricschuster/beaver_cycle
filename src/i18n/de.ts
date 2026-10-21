@@ -1016,6 +1016,7 @@ export const de: Partial<Table> = {
   'dream.playTag': 'Fangen mit {name} spielen',
   'dream.playSeek': 'Mit {name} Verstecken spielen',
   'dream.star': ['Ein goldener Stern!', 'Oh, ein glänzender Stern!', 'Du hast einen Stern gefunden!'],
+  'dream.statue': ['Der goldene Biber! Superschnell!', 'Eine goldene Biberstatue! Wusch!', 'Goldenes Tempo! Juhu!'],
   'dream.rush': ['Zuckerrausch!', 'Wusch! Zuckerrausch!', 'Juhu! Zuckerrausch!'],
   'dream.greet': ['{name} sagt Hallo!', '{name} winkt dir zu!', '{name} hüpft herbei und sagt Hallo!', 'Hallo von {name}!'],
   'dream.tagYou': ['Du fängst! Fang jemanden!', 'Du fängst!'],

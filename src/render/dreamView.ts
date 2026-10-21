@@ -5,7 +5,7 @@ import { CHOCOLATE, CHOCOLATE_LEVEL, dreamHeight, type DreamBeaver, type DreamEv
 import { SWIM_SINK } from '../sim/state';
 import type { ViewState } from './cameraRig';
 import { SLAP_DURATION, type BeaverModel } from './beaverModel';
-import { FAR_MALLOW, disposeModel, dreamPlayer, leapPitch, mallowFar, mallowModel, placeMallow } from './dreamBeavers';
+import { FAR_MALLOW, disposeModel, dreamPlayer, goldenStatue, leapPitch, mallowFar, mallowModel, placeMallow } from './dreamBeavers';
 import { candy, pathStones, propsGeometry, starShape, sweetShapes } from './dreamProps';
 import { DREAM_FOG, cloudRing, createChocolateRiver, farScoops, groundGeometry, hillScoops, skyDome, sunTexture } from './dreamScenery';
 import { createParticles, dotTexture, giggleTexture, shadowTexture, sparkleTexture } from './dreamEffects';
@@ -175,6 +175,15 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   scene.add(player.group);
   const mallows = new Map<string, { model: BeaverModel; far: THREE.Mesh }>();
 
+  // The golden beaver statue: it turns slowly with a glow, and is gone once touched.
+  const statue = goldenStatue();
+  statue.position.set(land.statue.x, heightAt(land.statue.x, land.statue.z), land.statue.z);
+  const statueGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: keep(dotTexture()), color: 0xffe680, transparent: true, opacity: 0.5, depthWrite: false }));
+  statueGlow.scale.setScalar(3);
+  statueGlow.position.y = 0.8;
+  statue.add(statueGlow);
+  scene.add(statue);
+
   // A soft round shadow under each beaver, all in one instanced mesh.
   const shadowCount = 16;
   const shadows = new THREE.InstancedMesh(
@@ -338,6 +347,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     const near = (who: string): DreamBeaver => state.mallows.find((m) => m.id === who || m.name === who) ?? b;
     for (const ev of events) {
       if (ev.what === 'sweet') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.5, ev.z, time, ev.kind === 'star' ? 26 : 14, ev.kind === 'star' ? GOLD : CONFETTI, 2.6, 1.6, 0.9);
+      else if (ev.what === 'statue') sparkles.emit(ev.x, surfaceAt(ev.x, ev.z) + 0.8, ev.z, time, 40, GOLD, 3.5, 2.5, 1.2);
       else if (ev.what === 'rush') sparkles.emit(b.x, b.y + 0.5, b.z, time, 24, GOLD, 3, 2.2, 1);
       else if (ev.what === 'shower' || ev.what === 'tagEnd' || ev.what === 'seekEnd' || ev.what === 'hideEnd') sparkles.emit(b.x, b.y + 1.5, b.z, time, 50, CONFETTI, 4.5, 3.5, 1.4);
       else if (ev.what === 'found' || ev.what === 'spotted' || ev.what === 'greet') {
@@ -449,6 +459,9 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
         markerStar.rotateZ(0.3 * Math.sin(time * 3));
       }
 
+      statue.visible = !state.statueTouched;
+      statue.rotation.y = time * 0.6;
+      statueGlow.material.opacity = 0.4 + 0.15 * Math.sin(time * 3);
       drawSweets(state);
       effects(state, events);
       river.update(time);

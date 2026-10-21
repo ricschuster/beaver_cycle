@@ -38,6 +38,9 @@ export function dreamCues(events: readonly DreamEvent[]): Cue[] {
       case 'sweet':
         cues.push({ effect: e.kind === 'drop' ? 'chime' : e.kind === 'swirl' ? 'chimeHigh' : 'chimeStar', gain: 0.6 });
         break;
+      case 'statue':
+        cues.push({ effect: 'chimeStar', gain: 0.9 });
+        break;
       case 'shower':
         cues.push({ effect: 'chimeStar', gain: 0.8 });
         break;

@@ -201,6 +201,7 @@ export const hud = {
   'dream.playTag': 'Play tag with {name}',
   'dream.playSeek': 'Play hide and seek with {name}',
   'dream.star': ['A golden star!', 'Ooh, a shiny star!', 'You found a star!'],
+  'dream.statue': ['The golden beaver! Super speed!', 'A golden beaver statue! Zoom!', 'Golden speed! Whee!'],
   'dream.rush': ['Sugar rush!', 'Zoom! Sugar rush!', 'Whee! Sugar rush!'],
   'dream.greet': ['{name} says hello!', '{name} waves hi!', '{name} hops over to say hi!', 'Hello from {name}!'],
   'dream.tagYou': ['Tag! You are it. Catch someone!', 'Tag! You are it!'],

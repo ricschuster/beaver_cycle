@@ -1,7 +1,7 @@
 // A page that shows the dream's candy land (dreamView.ts) for the art pass, not the game. Run `npm run dev` and open
 // /tools/dream-preview/. Query: ?seed=N, &t=seconds (freezes the time), &yaw=degrees&pitch=degrees&dist=metres for the camera,
 // &swim=1 (the beaver in the chocolate), &tag=1 (the first mallow is it, or
-// &tag=player), &giggle=1 (the second mallow hides and giggles), &hop=1 (the mallows hop every second), &slap=1 (the beaver slaps its tail), &cycle=N (make and free N views first). Drag to turn the
+// &tag=player), &giggle=1 (the second mallow hides and giggles), &hop=1 (the mallows hop every second), &slap=1 (the beaver slaps its tail), &statue=1 (beside the golden statue), &build=1&logs=N (a candy dam and lodge, a log carried), &cycle=N (make and free N views first). Drag to turn the
 // camera, wheel to zoom. Writes the draw calls and triangles to `window.dreamStats`.
 import { createDreamView } from '../../src/render/dreamView';
 import { createCameraRig } from '../../src/render/cameraRig';
@@ -24,7 +24,7 @@ function fixture(seed: number): DreamState {
       props.push({ id: `${kind}${i}`, kind, x: side * (5 + k * 3 + (i % 3)), z: -34 + i * 5 + k, size: 0.7 + ((i * 37) % 9) / 10, yaw: i * 1.3, colour: (i + k) % 7, hide: kind === 'cupcake' });
     }
   });
-  const land: DreamLand = { seed, half: 80, path, river, riverWidth: 9, start: { x: 0, z: -30, heading: 0 }, props };
+  const land: DreamLand = { seed, half: 80, path, river, riverWidth: 9, start: { x: 0, z: -30, heading: 0 }, props, statue: { x: 8, z: -20 } };
   const sweets: Sweet[] = [];
   path.forEach((p, i) => {
     if (i % 3 === 0) sweets.push({ id: `s${i}`, kind: i % 9 === 0 ? 'star' : i % 2 === 0 ? 'drop' : 'swirl', x: p.x, z: p.z, colour: i % 7, floating: false, taken: false });
@@ -97,6 +97,30 @@ state.mallows.forEach((m, i) => {
 if (q.has('tag')) {
   const it = q.get('tag') === 'player' ? 'player' : state.mallows[0]!.id;
   state.game = { kind: 'tag', it, players: state.mallows.map((m) => m.id), since: 0, ends: 60, catches: 0 };
+}
+if (q.get('statue') === '1') {
+  // Beside the golden statue, looking at it.
+  const st = state.land.statue;
+  b.x = st.x - 3;
+  b.z = st.z;
+  b.heading = Math.PI / 2;
+  b.y = ground(b.x, b.z);
+}
+if (q.get('build') === '1') {
+  // A candy dam at the river by the end of the path, a lodge ahead of the beaver, and a log in its mouth.
+  const end = state.land.path[state.land.path.length - 1]!;
+  const mid = state.land.river.reduce((best, p) => (Math.hypot(p.x - end.x, p.z - end.z) < Math.hypot(best.x - end.x, best.z - end.z) ? p : best));
+  const next = state.land.river[state.land.river.indexOf(mid) + 1] ?? mid;
+  // The beaver stands at the end of the path, facing the dam.
+  b.x = end.x;
+  b.z = end.z;
+  b.heading = Math.atan2(mid.x - end.x, mid.z - end.z);
+  b.y = ground(b.x, b.z);
+  state.builds = [
+    { kind: 'dam', x: mid.x, z: mid.z, heading: Math.atan2(-(next.z - mid.z), next.x - mid.x), logs: 3 },
+    { kind: 'lodge', x: b.x + Math.sin(b.heading) * 5, z: b.z + Math.cos(b.heading) * 5, heading: b.heading, logs: num('logs', 4) },
+  ];
+  state.carrying = true;
 }
 const giggler = q.get('giggle') === '1' ? state.mallows[1] : undefined;
 if (giggler) giggler.state = 'hidden';

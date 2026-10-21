@@ -86,4 +86,4 @@ The dream is its own small world ([29_dream_candy_land.md](29_dream_candy_land.m
 
 ## Not done
 
-Item 10, the golden statue, is built (#651, see note 29). Nothing else of the dream wishes is. The issues are #646 to #652. Later lists get their own note.
+Items 6 and 10, chop and build and the golden statue, are built (#649 and #651, see note 29). Nothing else of the dream wishes is. The issues are #646 to #652. Later lists get their own note.

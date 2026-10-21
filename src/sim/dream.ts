@@ -15,6 +15,7 @@ import {
   riverFrame,
   rngFrom,
   wanderSpots,
+  withProps,
 } from './dreamLand';
 
 export { PROP_RADIUS };
@@ -151,6 +152,16 @@ export type DreamGame =
    */
   | { kind: 'hide'; phase: 'counting' | 'seeking'; until: number; base: DreamPoint; seekers: string[]; found: string[] };
 
+/** A candy dam across the chocolate or a candy lodge on land, raised log by log (wish 6). `heading` is the way across the dam. */
+export interface DreamBuild {
+  kind: 'dam' | 'lodge';
+  x: number;
+  z: number;
+  heading: number;
+  /** Candy logs put on so far. It is whole at `DAM_LOGS` or `LODGE_LOGS`. */
+  logs: number;
+}
+
 export interface DreamState {
   land: DreamLand;
   /** Seconds since the dream began. */
@@ -164,6 +175,10 @@ export interface DreamState {
   rushUntil: number;
   /** The statue has been touched this dream. */
   statueTouched?: boolean;
+  /** The beaver carries a candy log from a tree it chopped. */
+  carrying?: boolean;
+  /** The candy dam and lodge begun or finished this dream, one of each at most. They do not stay for other dreams (Q81). */
+  builds?: DreamBuild[];
   game: DreamGame;
   /** The seeded random source's state, carried from step to step so the same inputs give the same dream. */
   rng?: number;
@@ -185,6 +200,10 @@ export interface DreamInput {
 export type DreamEvent =
   | { what: 'sweet'; kind: SweetKind; x: number; z: number }
   | { what: 'rush' }
+  /** A candy tree came down and the beaver has its log. */
+  | { what: 'chop'; x: number; z: number }
+  /** A log went on the dam or the lodge; `done` when that was the last. */
+  | { what: 'build'; kind: 'dam' | 'lodge'; logs: number; done: boolean; x: number; z: number }
   /** The golden beaver statue was touched: a long rush. */
   | { what: 'statue'; x: number; z: number }
   | { what: 'greet'; who: string }
@@ -481,7 +500,7 @@ export function stepDream(state: DreamState, input: DreamInput, dt: number): { s
   let s: DreamState = { ...state, time, beaver: moveBeaver(state, input, time, dt, events) };
   s = collect(s, events);
   s = touchStatue(s, events);
-  if (input.play && s.game.kind === 'none') s = startGame(s, rand, events);
+  if (input.play && s.game.kind === 'none') s = playmate(s) ? startGame(s, rand, events) : work(s, events);
   if (s.game.kind === 'choose') s = chooseRules(s, s.game, input.pick, rand, events);
   s = { ...s, mallows: stepMallows(s, rand, dt, events) };
   if (s.game.kind === 'tag') s = tagRules(s, s.game, rand, events);
@@ -549,6 +568,85 @@ function moveBeaver(s: DreamState, input: DreamInput, time: number, dt: number, 
   return { ...after, y: baseY(land, p.x, p.z, mode) + hopLift(after, time) };
 }
 
+/** Candy logs a dam and a lodge take, and the trees that can be chopped (the lollipop and the cotton candy tree). */
+export const DAM_LOGS = 3;
+export const LODGE_LOGS = 4;
+const CHOPPABLE: readonly PropKind[] = ['lollipop', 'cottonCandy'];
+/** A tree is chopped from this close to its trunk's edge, and a dam is raised from this close to the chocolate's edge (metres). */
+const CHOP_REACH = 1.6;
+const DAM_REACH = 2.5;
+/** A lodge needs this much clear ground (metres from its middle) and stands this far ahead of the beaver. */
+const LODGE_CLEAR = 2.2;
+const LODGE_AHEAD = 2;
+
+const builtOf = (s: DreamState, kind: DreamBuild['kind']): DreamBuild | undefined => s.builds?.find((b) => b.kind === kind);
+const need = (kind: DreamBuild['kind']): number => (kind === 'dam' ? DAM_LOGS : LODGE_LOGS);
+
+/** The tree the beaver would chop: the nearest choppable one within reach. */
+function treeAt(s: DreamState): DreamProp | null {
+  let best: DreamProp | null = null;
+  let bestD = Infinity;
+  for (const p of s.land.props) {
+    if (!CHOPPABLE.includes(p.kind)) continue;
+    const reach = PROP_RADIUS[p.kind] * p.size + BODY + CHOP_REACH;
+    const d = dist2(p, s.beaver);
+    if (d < reach * reach && d < bestD) {
+      best = p;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** Where a log would go now, or null: on the dam when by the chocolate, else on the lodge a step ahead on clear land. */
+function buildSpot(s: DreamState): DreamBuild | null {
+  const b = s.beaver;
+  const land = s.land;
+  const bank = riverDistance(land, b.x, b.z) - land.riverWidth / 2;
+  if (bank < DAM_REACH) {
+    const dam = builtOf(s, 'dam');
+    if (dam) return dam.logs < DAM_LOGS ? dam : null;
+    const { out } = riverFrame(land, b.x, b.z);
+    const d = riverDistance(land, b.x, b.z);
+    return { kind: 'dam', x: b.x - out.x * d, z: b.z - out.z * d, heading: Math.atan2(out.x, out.z), logs: 0 };
+  }
+  const lodge = builtOf(s, 'lodge');
+  if (lodge) return lodge.logs < LODGE_LOGS && dist2(lodge, b) < 6 * 6 ? lodge : null;
+  const x = b.x + Math.sin(b.heading) * LODGE_AHEAD;
+  const z = b.z + Math.cos(b.heading) * LODGE_AHEAD;
+  const dry = riverDistance(land, x, z) - land.riverWidth / 2 > LODGE_CLEAR + BANK_GAP && dreamHeight(land, x, z) > CHOCOLATE_LEVEL + 0.3;
+  return dry && clearOfProps(land, x, z, LODGE_CLEAR) ? { kind: 'lodge', x, z, heading: b.heading, logs: 0 } : null;
+}
+const BANK_GAP = 1;
+
+/** What the Do control would do now when no marshmallow beaver is near, for the prompt, or null. */
+export function workPrompt(state: DreamState): string | null {
+  if (state.game.kind !== 'none') return null;
+  if (state.carrying) {
+    const spot = buildSpot(state);
+    if (!spot) return null;
+    return t(spot.logs === 0 ? (spot.kind === 'dam' ? 'dream.startDam' : 'dream.startLodge') : spot.kind === 'dam' ? 'dream.addDam' : 'dream.addLodge');
+  }
+  return treeAt(state) ? t('dream.chop') : null;
+}
+
+/** Do with no one to play with: chop a tree for a log, or put the log on the dam or the lodge. Nothing wears and nothing is saved. */
+function work(s: DreamState, events: DreamEvent[]): DreamState {
+  if (s.game.kind !== 'none') return s;
+  if (!s.carrying) {
+    const tree = treeAt(s);
+    if (!tree) return s;
+    events.push({ what: 'chop', x: tree.x, z: tree.z });
+    return { ...s, land: withProps(s.land, s.land.props.filter((p) => p.id !== tree.id)), carrying: true };
+  }
+  const spot = buildSpot(s);
+  if (!spot) return s;
+  const raised = { ...spot, logs: spot.logs + 1 };
+  const builds = [...(s.builds ?? []).filter((b) => b.kind !== spot.kind), raised];
+  events.push({ what: 'build', kind: spot.kind, logs: raised.logs, done: raised.logs >= need(spot.kind), x: spot.x, z: spot.z });
+  return { ...s, carrying: false, builds };
+}
+
 /** Touching the golden beaver statue starts a long sugar rush, once a dream. */
 function touchStatue(s: DreamState, events: DreamEvent[]): DreamState {
   if (s.statueTouched || dist2(s.land.statue, s.beaver) >= STATUE_REACH * STATUE_REACH) return s;
@@ -595,7 +693,7 @@ const inChocolate = (s: DreamState): boolean => chocolateDepth(s.land, s.beaver.
 export function playPrompt(state: DreamState): string | null {
   if (state.game.kind !== 'none') return null;
   const m = playmate(state);
-  if (!m) return null;
+  if (!m) return workPrompt(state);
   return inChocolate(state) ? t('dream.playTag', { name: m.name }) : t('dream.playSeek', { name: m.name });
 }
 

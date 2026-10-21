@@ -37,6 +37,13 @@ in the chocolate river.
   collects it. A star gives a sugar rush, a few seconds of extra speed. The count shows on screen while the beaver dreams. A golden beaver statue (the author's wish 10, #651) stands 4 to 9 m off the
   later part of the path, in a new place each night; touching it gives a rush of 20 s, once a dream (`makeStatue`, `touchStatue`).
   The wish list asked "rare find or always there" (Q4); it is always there until touched, to tune.
+- **Chop and build** (the author's wish 6, #649). Do with no marshmallow beaver near does work. Next to a lollipop or cotton candy
+  tree it chops: the tree is gone for the night and the beaver carries a candy log (one at a time). With a log, Do by the
+  chocolate (within 2.5 m of its edge) lays it on a candy dam across the river, three logs make it whole. Do on dry land a step
+  ahead, 3 m or more from the chocolate and clear of props, lays it on a candy lodge, four logs make it whole. One dam and one
+  lodge at most. Nothing wears and nothing is saved, as the wish list proposed. They do not stay for other dreams (Q81); the
+  choice to keep them at waking is #708. Eating sweets stays as it is: touching one takes it. `chopped` trees leave `land.props`
+  through `withProps`, so hiding and bumping never see them.
 - **Marshmallow beavers**, seven or eight, in pastel colours (pink, mint, lemon, sky, lilac, peach, white), each with a name.
   They wander along the path and the river, hop when happy, and come to say hello the first time the beaver is near.
 - **Play** is the Do control, as for talking in the waking game. Near a marshmallow beaver it starts a game: in the

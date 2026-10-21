@@ -333,6 +333,14 @@ interface Field {
 }
 
 const fields = new WeakMap<DreamLand, Field>();
+
+/** The same land with other props (a tree chopped down), keeping the grids already worked out. */
+export function withProps(land: DreamLand, props: DreamProp[]): DreamLand {
+  const next = { ...land, props };
+  const known = fields.get(land);
+  if (known) fields.set(next, known);
+  return next;
+}
 const PATH_CAP = 12;
 
 function field(land: DreamLand): Field {

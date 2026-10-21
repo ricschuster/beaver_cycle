@@ -3,7 +3,7 @@
 // colours of the rainbow. The parts of each model that move together are merged into one mesh, so a beaver costs seven
 // draw calls instead of about thirty.
 import * as THREE from 'three';
-import { LEAP_TIME, MALLOW_COLOURS, type DreamBeaver, type Mallow } from '../sim/dream';
+import { DAM_LOGS, LEAP_TIME, LODGE_LOGS, MALLOW_COLOURS, type DreamBeaver, type DreamBuild, type Mallow } from '../sim/dream';
 import { NOSE, TAIL, TEETH, createBeaverModel, type BeaverModel } from './beaverModel';
 
 /** Seconds a marshmallow beaver squashes and stretches after a hop. */
@@ -229,5 +229,40 @@ export function goldenStatue(): THREE.Group {
   stone.position.y = 0.1;
   const group = new THREE.Group();
   group.add(stone, model.group);
+  return group;
+}
+
+const LOG_COLOURS = [0xc9895a, 0xf0a0c0, 0xb98a4e];
+
+/**
+ * The candy dam or lodge as far as it has got (`build.logs` logs on), standing on its origin. The dam lies across the river along
+ * `build.heading`, its logs in a stack of two and one. The lodge is a round iced dome that grows with each log, sticks round its foot.
+ */
+export function candyBuild(build: DreamBuild, riverWidth: number): THREE.Group {
+  const group = new THREE.Group();
+  const stripe = (i: number): THREE.MeshLambertMaterial => new THREE.MeshLambertMaterial({ color: LOG_COLOURS[i % LOG_COLOURS.length]! });
+  if (build.kind === 'dam') {
+    const length = riverWidth + 3;
+    const spots = [{ along: -0.45, y: 0.3 }, { along: 0.45, y: 0.3 }, { along: 0, y: 0.95 }];
+    for (let i = 0; i < Math.min(build.logs, DAM_LOGS); i++) {
+      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, length, 10).rotateZ(Math.PI / 2), stripe(i));
+      log.position.set(0, spots[i]!.y, spots[i]!.along);
+      group.add(log);
+    }
+    // The cylinders lie along x; turn the group so that axis is across the river.
+    group.rotation.y = build.heading - Math.PI / 2;
+    return group;
+  }
+  const grown = Math.min(build.logs, LODGE_LOGS) / LODGE_LOGS;
+  const r = 0.8 + 1.1 * grown;
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xf6b8d2 }));
+  group.add(dome);
+  for (let i = 0; i < build.logs * 3; i++) {
+    const a = (i / (build.logs * 3)) * Math.PI * 2;
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.9, 6), stripe(i));
+    stick.position.set(Math.sin(a) * r * 0.95, 0.35, Math.cos(a) * r * 0.95);
+    stick.rotation.set(Math.cos(a) * 0.5, 0, -Math.sin(a) * 0.5);
+    group.add(stick);
+  }
   return group;
 }

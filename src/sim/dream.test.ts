@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   CHOCOLATE_LEVEL,
   COUNT_TIME,
+  DAM_LOGS,
+  LODGE_LOGS,
   HIDE_TIME,
   MALLOW_COLOURS,
   PROP_RADIUS,
@@ -17,6 +19,7 @@ import {
   hideOrSeek,
   newDream,
   playPrompt,
+  workPrompt,
   stepDream,
   type DreamEvent,
   type DreamInput,
@@ -24,7 +27,7 @@ import {
   type DreamState,
   type Mallow,
 } from './dream';
-import { INNER, lineDistance } from './dreamLand';
+import { INNER, lineDistance, riverFrame } from './dreamLand';
 
 const DT = 1 / 30;
 const still: DreamInput = { move: { x: 0, z: 0 }, hop: false, slap: false, play: false };
@@ -293,6 +296,63 @@ describe('sweets', () => {
   });
 });
 
+describe('chop and build', () => {
+  const lonely = (seed: number): DreamState => ({ ...newDream(seed), mallows: [] });
+  const press = input({ play: true });
+
+  it('chops a candy tree for a log, and the tree is gone', () => {
+    const s = lonely(7);
+    const tree = s.land.props.find((p) => p.kind === 'lollipop' || p.kind === 'cottonCandy')!;
+    const near = place(s, { x: tree.x + PROP_RADIUS[tree.kind] * tree.size + 0.6, z: tree.z });
+    expect(workPrompt(near)).not.toBeNull();
+    const r = stepDream(near, press, DT);
+    expect(r.events).toContainEqual({ what: 'chop', x: tree.x, z: tree.z });
+    expect(r.state.carrying).toBe(true);
+    expect(r.state.land.props.some((p) => p.id === tree.id)).toBe(false);
+    expect(r.state.land.props.length).toBe(s.land.props.length - 1);
+    // With a log in the mouth there is no second chop.
+    expect(stepDream(r.state, press, DT).events.some((e) => e.what === 'chop')).toBe(false);
+  });
+
+  it('raises a candy dam across the river in three logs', () => {
+    let s = lonely(7);
+    const mid = riverMiddle(s);
+    const { out } = riverFrame(s.land, mid.x, mid.z);
+    s = place(s, { x: mid.x + out.x * (s.land.riverWidth / 2 + 1), z: mid.z + out.z * (s.land.riverWidth / 2 + 1) });
+    for (let i = 1; i <= DAM_LOGS; i++) {
+      const r = stepDream({ ...s, carrying: true }, press, DT);
+      s = r.state;
+      expect(s.carrying).toBe(false);
+      expect(r.events).toContainEqual(expect.objectContaining({ what: 'build', kind: 'dam', logs: i, done: i === DAM_LOGS }));
+    }
+    const dam = s.builds!.find((b) => b.kind === 'dam')!;
+    expect(Math.hypot(dam.x - mid.x, dam.z - mid.z)).toBeLessThan(1.5);
+    // A finished dam takes no more logs.
+    expect(workPrompt({ ...s, carrying: true })).toBeNull();
+  });
+
+  it('raises a candy lodge on dry land in four logs', () => {
+    let s = lonely(7);
+    let spot: DreamPoint | null = null;
+    for (let x = -50; x <= 50 && !spot; x += 5) for (let z = -50; z <= 50 && !spot; z += 5) if (workPrompt({ ...place(s, { x, z }), carrying: true })) spot = { x, z };
+    expect(spot).not.toBeNull();
+    s = place(s, spot!);
+    for (let i = 1; i <= LODGE_LOGS; i++) {
+      const r = stepDream({ ...s, carrying: true }, press, DT);
+      s = r.state;
+      expect(r.events).toContainEqual(expect.objectContaining({ what: 'build', kind: 'lodge', logs: i, done: i === LODGE_LOGS }));
+    }
+    expect(s.builds).toHaveLength(1);
+  });
+
+  it('Do with a marshmallow beaver near still plays', () => {
+    const s = newDream(7);
+    const m = s.mallows[0]!;
+    const r = stepDream({ ...place(s, { x: m.x + 1, z: m.z }), carrying: true }, press, DT);
+    expect(r.events.some((e) => e.what === 'build' || e.what === 'chop')).toBe(false);
+  });
+});
+
 describe('marshmallow beavers', () => {
   it('say hello once, the first time the player comes near', () => {
     const s = newDream(42);
@@ -329,7 +389,7 @@ describe('playPrompt', () => {
     expect(playPrompt(place(s, { x: dry.x + 2, z: dry.z }))).toBe(`Play hide and seek with ${dry.name}`);
     const wet = s.mallows.find((m) => chocolateDepth(s.land, m.x, m.z) > 0.5)!;
     expect(playPrompt(place(s, { x: wet.x + 0.5, z: wet.z }))).toBe(`Play tag with ${wet.name}`);
-    expect(playPrompt(place(s, { x: wet.x + 30, z: wet.z + 30 }))).toBeNull();
+    expect(playPrompt(place({ ...s, land: { ...s.land, props: [] } }, { x: wet.x + 30, z: wet.z + 30 }))).toBeNull();
   });
 });
 

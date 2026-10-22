@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dreamOf, mergeInput, wireOf } from './dreamWire';
+import { blendDream, dreamOf, mergeInput, wireOf } from './dreamWire';
 import { joinDream, newDream, stepDream, viewFrom, type DreamInput } from '../sim/dream';
 import { readToHost } from './protocol';
 
@@ -27,6 +27,31 @@ describe('a dream on the wire', () => {
     const text = JSON.stringify(wireOf(newDream(7), 'g1', 'candy'));
     expect(text).not.toContain('"river"');
     expect(JSON.parse(text).taken).toEqual([]);
+  });
+});
+
+describe('smoothing between snapshots', () => {
+  it('glides beavers, friends, marshmallow beavers and boats a share of the way, and turns the short way round', () => {
+    const a = joinDream(newDream(7), 'g1');
+    const move = (s: typeof a, dx: number, heading: number): typeof a => ({
+      ...s,
+      beaver: { ...s.beaver, x: s.beaver.x + dx, heading },
+      friends: s.friends!.map((f) => ({ ...f, beaver: { ...f.beaver, z: f.beaver.z + dx } })),
+      mallows: s.mallows.map((m) => ({ ...m, x: m.x + dx })),
+      boats: s.boats!.map((b) => ({ ...b, z: b.z + dx })),
+    });
+    const from = { ...a, beaver: { ...a.beaver, heading: 3.0 } };
+    const to = move(from, 2, -3.0);
+    const mid = blendDream(from, to, 0.5);
+    expect(mid.beaver.x).toBeCloseTo(from.beaver.x + 1, 6);
+    expect(mid.friends![0]!.beaver.z).toBeCloseTo(from.friends![0]!.beaver.z + 1, 6);
+    expect(mid.mallows[0]!.x).toBeCloseTo(from.mallows[0]!.x + 1, 6);
+    expect(mid.boats![0]!.z).toBeCloseTo(from.boats![0]!.z + 1, 6);
+    // 3.0 to -3.0 is a short turn through pi, not a long one back through 0.
+    expect(Math.abs(Math.cos(mid.beaver.heading) + 1)).toBeLessThan(0.01);
+    expect(blendDream(from, to, 1)).toBe(to);
+    expect(blendDream(null, to, 0.5)).toBe(to);
+    expect(blendDream({ ...from, land: { ...from.land } }, to, 0.5)).toBe(to);
   });
 });
 

@@ -741,6 +741,25 @@ describe('the room', () => {
       expect(room.snapshot(world, 'g1', 2).dream).toBeUndefined();
     });
 
+    it('sends a guest the news of the dream with its snapshot, once', () => {
+      const { room, sent } = joined();
+      room.lie('g1', 'dream', true, 0);
+      frames(room, 1);
+      // A guest standing on a sweet makes news (a sweet event) for the next snapshot.
+      const sweet = room.dreamState()!.sweets.find((w) => !w.floating && w.kind === 'drop')!;
+      const dream = (room as unknown as { dream: { state: { beaver: { x: number; z: number } } } }).dream;
+      dream.state.beaver.x = sweet.x;
+      dream.state.beaver.z = sweet.z;
+      frames(room, 1);
+      sent.length = 0;
+      room.broadcast(world, 1);
+      const first = JSON.parse(sent.find(([to]) => to === 'g1')![1]).snapshot.dream;
+      expect(first.events.some((e: { what: string }) => e.what === 'sweet')).toBe(true);
+      sent.length = 0;
+      room.broadcast(world, 2);
+      expect(JSON.parse(sent.find(([to]) => to === 'g1')![1]).snapshot.dream.events).toBeUndefined();
+    });
+
     it('keeps a press until a step has used it, and ignores the input of a guest that does not dream', () => {
       const room = twoGuests();
       stick(room, 'g1', 0, 1, { hop: true });

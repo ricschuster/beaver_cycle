@@ -1064,6 +1064,7 @@ export const de: Partial<Table> = {
   'dream.found': ['Du hast {name} gefunden! Noch {left}', 'Da ist {name}! Noch {left}', 'Kuckuck, {name}! Noch {left}'],
   'dream.seekEnd': ['Alle gefunden! Süßes für alle!', 'Du hast alle gefunden! Hurra!', 'Alle gefunden! Was für ein Sucher!'],
   'dream.friendCounts': 'Dein Freund zählt',
+  'dream.aFriend': 'Freund',
   'dream.friendsCount': '{n} Freunde zählen',
   'dream.hideStart': ['{who} bis zehn. Lauf und versteck dich!', 'Sie zählen! Schnell, versteck dich!', 'Versteck dich hinter einem großen Bonbon!'],
   'dream.hideGo': ['Wir kommen, ob ihr bereit seid oder nicht!', 'Psst! Sie suchen!', 'Da kommen sie! Bleib versteckt!'],

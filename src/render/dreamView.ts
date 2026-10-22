@@ -526,6 +526,8 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
         player.setLook({ hat: state.look?.hat ?? 0, scarf: state.look?.scarf ?? 0, tail: 0 });
       }
       const friends = state.friends ?? [];
+      const it = state.game.kind === 'tag' ? state.game.it : null;
+      let friendMarked: { x: number; y: number; z: number } | null = null;
       const here = new Set<string>();
       friends.forEach((f, i) => {
         here.add(f.id);
@@ -543,6 +545,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
           entry.model.setLook({ hat, scarf, tail: 0 });
         }
         entry.model.group.visible = true;
+        if (it === f.id) friendMarked = entry.model.group.position;
         const fb = f.beaver;
         // In a boat a friend stands on the boat's floor and rides its bob, as the player does.
         const aboard = f.aboard !== undefined;
@@ -552,8 +555,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       });
       for (const [id, entry] of friendModels) if (!here.has(id)) entry.model.group.visible = false;
 
-      const it = state.game.kind === 'tag' ? state.game.it : null;
-      let marked: { x: number; y: number; z: number } | null = it === 'player' ? player.group.position : null;
+      let marked: { x: number; y: number; z: number } | null = it === 'player' ? player.group.position : friendMarked;
       const seen = new Set<string>();
       state.mallows.forEach((m, i) => {
         seen.add(m.id);
@@ -623,6 +625,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
           bedStar.quaternion.copy(camera.quaternion);
         }
         showCan('player', b, state.game.kind === 'grow' && state.game.can);
+        for (const f of friends) showCan(f.id, f.beaver, state.game.kind === 'grow' && state.game.cans?.includes(f.id) === true);
         for (const m of state.mallows) showCan(m.id, m, m.can === true);
       }
       drawSweets(state);

@@ -1,9 +1,8 @@
 # Dream together
 
-Design note, session 177. Status: a proposal for [#665](https://github.com/ricschuster/beaver_cycle/issues/665), with questions for
-the author at the end. Nothing is built. The author said (Q103 in [44](44_round6_answers.md)): play in the dreams together. Q113
+Design note, session 177. Status: the author answered the questions (last section). A proposal for [#665](https://github.com/ricschuster/beaver_cycle/issues/665); only the popup is built. The author said (Q103 in [44](44_round6_answers.md)): play in the dreams together. Q113
 in [45](45_game_questions_round7.md) (do all have to be asleep, can you walk into a running dream, can some wake while others
-go on) is not answered yet, so this note proposes answers.
+go on) is answered at the end.
 
 ## What there is today
 
@@ -29,6 +28,7 @@ dream can be walked into.
    friends already there. Their bed spot is a free one of the `DreamBed`s.
 4. A player wakes alone with the wake button, as today. The dream goes on for the rest and ends when the last one wakes.
    A friend who comes late sees what the others built that night.
+   The new sleeper takes its own look's hat and scarf into the room (answer 6).
 
 **Who runs it.** The host, for all. `stepDream` runs on the host with one `DreamInput` per sleeper, and the snapshot carries
 the dream (`Snapshot.dream`: beavers, mallows, boats, plants, builds, game state) next to the world, as `Snapshot.game` carries
@@ -78,6 +78,20 @@ runs when all are asleep or said yes. A dreamer who wakes ends the skip like any
   shows "Pip is dreaming" (or "A friend is dreaming" without a name). Only the host can sleep today, so only the host's dream
   shows. The host's room keeps stepping and broadcasting while its dream is open, so the guests no longer freeze behind it (they
   did before: the dream frame returned before `Room.step`). Checked on the emulator pair.
+
+## The author's answers
+
+Session 177. The proposals above stand, with these changes.
+
+1. **Walk into a dream.** Yes, as proposed.
+2. **The popup.** Only the news.
+3. **Lodges.** Any player if possible, but the author thought only owners can enter a lodge. That is how it is: the inside of a
+   lodge is for its own pair and its kits, and a guest cannot go into the host's lodge ([48](48_partner_lodge_and_kits.md), item 9).
+   So a player can dream when it can sleep, which is on the nest of its own lodge. A guest with no lodge of its own cannot
+   dream until it has a pair lodge or sleeps outside (#661). Nothing changes in who may enter.
+4. **The marshmallows.** They play on when friends are in.
+5. **One theme per night.** The first sleeper chooses.
+6. **Seeing each other.** The candy look, but each dreamer keeps its hat and scarf (the `Look`: no coat colour, the dress stays).
 
 ## Steps
 

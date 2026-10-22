@@ -145,6 +145,7 @@ export const hud = {
   'toast.hostBack': 'Back in the valley of the host',
   'toast.dreaming': '{name} is dreaming',
   'toast.dreamingFriend': 'A friend is dreaming',
+  'toast.skipStopped': 'A friend wants to play on, so the time stays',
   'toast.escortAlready': '{name} is already showing you the way',
   'toast.escortNowhere': '{name}: I do not know where to take you yet. Build a lodge first',
   'toast.escortStart': '{name} leads the way. Follow',

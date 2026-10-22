@@ -12,6 +12,7 @@ import type { PairLodge } from '../sim/pairLodge';
 import { cleanLook, type Look } from '../sim/look';
 import type { Intent } from '../sim/buttons';
 import type { HideGame, Role } from './hideGame';
+import type { Goal } from './sleepCheck';
 import { isAnswer, isQuestion, type AnswerId, type QuestionId, type Say } from './says';
 
 /** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam, hand food to a friend, strip a branch off a log, ask a friend to be partners or say yes; let go, put down, take a log, a pad, a rock, mud, or a piece put down. */
@@ -25,7 +26,7 @@ export const PORT = 8765;
 /** The host sends state this many times a second, and a guest sends its intent as often. */
 export const SEND_HZ = 20;
 
-export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'look'; coat: Coat; look: Look } | { t: 'say'; q?: QuestionId; a?: AnswerId } | { t: 'hide'; r?: Role; a?: AnswerId; to?: string } | { t: 'ping'; ts: number };
+export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'look'; coat: Coat; look: Look } | { t: 'sleep'; g: Goal; dream?: boolean } | { t: 'sleep'; a: 'yes' | 'no' | 'wake' } | { t: 'say'; q?: QuestionId; a?: AnswerId } | { t: 'hide'; r?: Role; a?: AnswerId; to?: string } | { t: 'ping'; ts: number };
 
 /** What every guest needs of the world to draw it: the clock, the trees down, the logs, and every beaver but its own host-side state. */
 export interface Snapshot {
@@ -58,6 +59,17 @@ export interface Snapshot {
   hide?: HideView;
   /** The players who are dreaming now, so the others can be told (#665). */
   dreaming?: string[];
+  /** The players who are asleep, a dream included, and the skip that waits for the friends' yes (#661, #665). */
+  asleep?: string[];
+  skip?: SkipView;
+}
+
+/** A sleeper's skip of the clock, as the friends see it: who asked, where it ends, who is asked, and the seconds left. */
+export interface SkipView {
+  from: string;
+  goal: Goal;
+  waiting: string[];
+  left: number;
 }
 
 export type HideView = HideGame & { left: number };
@@ -122,6 +134,10 @@ export function readToHost(text: string): ToHost | null {
     const act = typeof m.do === 'string' && DOS.includes(m.do) ? (m.do as GuestDo) : undefined;
     const take = typeof m.take === 'string' && TAKES.includes(m.take) ? (m.take as GuestTake) : undefined;
     return { t: 'intent', x, z, dive: m.dive === true, ...(m.diveTap === true ? { diveTap: true } : {}), gnaw: m.gnaw === true, ...(act ? { do: act } : {}), ...(take ? { take } : {}) };
+  }
+  if (m.t === 'sleep') {
+    if (m.a === 'yes' || m.a === 'no' || m.a === 'wake') return { t: 'sleep', a: m.a };
+    return m.g === 'night' || m.g === 'season' ? { t: 'sleep', g: m.g, ...(m.dream === true ? { dream: true } : {}) } : null;
   }
   if (m.t === 'say') return isQuestion(m.q) ? { t: 'say', q: m.q } : isAnswer(m.a) ? { t: 'say', a: m.a } : null;
   if (m.t === 'hide') {

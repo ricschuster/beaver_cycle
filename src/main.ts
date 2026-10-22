@@ -60,6 +60,7 @@ import { COACH_KEY, createCoach, wantsCoach } from './ui/coach';
 import { askSlot, type SlotChoice } from './ui/slotCard';
 import { AUTOSAVE_EVERY, ago, clearSave, loadSave, parseSlot, readSlots, renameSave, wantsSave, writeSave, cleanName, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
+import { createSleepAsk } from './ui/sleepAsk';
 import { createDreamScreen } from './ui/dreamScreen';
 import type { DreamTheme } from './sim/dream';
 import { createTestMenu, type TestMenu } from './ui/testMenu';
@@ -694,9 +695,32 @@ async function start(): Promise<void> {
   const trees: TreeSource = renderer.terrain ? { nearest: (x, z, reach, felled) => renderer.terrain!.nearestTree(x, z, reach, felled), trunksNear: (x, z, reach, felled) => renderer.terrain!.trunksNear(x, z, reach, felled) } : noTrees;
   const sleepPrompt = createSleepPrompt(hud, {
     onWake(goal) {
+      // With friends the room moves the clock once they agree (#661); a guest's clock is the host's. Alone, the wake does.
+      if (!goal || room || link) return;
       world = goal === 'night' ? sleep(world) : sleepUntil(world, goal);
     },
+    onLie(goal) {
+      if (room) room.lie('host', goal, false, performance.now() / 1000);
+      else if (link?.id) {
+        link.send({ t: 'sleep', g: goal === 'season' ? 'season' : 'night' });
+        guestLying = { at: performance.now() / 1000, seen: false };
+      }
+      return !!room || !!link?.id;
+    },
+    onGiveUp() {
+      if (room) room.wake('host', performance.now() / 1000);
+      else link?.send({ t: 'sleep', a: 'wake' });
+      guestLying = null;
+    },
     onDream: (theme) => startDream(undefined, theme),
+  });
+  // A friend's bed waits for the host to settle it: set when the guest sent its wish, until the host lists it asleep and then does not.
+  let guestLying: { at: number; seen: boolean } | null = null;
+  const sleepAsk = createSleepAsk(hud, {
+    onAnswer(yes) {
+      if (room) room.answerSkip('host', yes, performance.now() / 1000);
+      else link?.send({ t: 'sleep', a: yes ? 'yes' : 'no' });
+    },
   });
   // The dream (docs/design/29_dream_candy_land.md): candy land over the game, made new each night from the day and the
   // generation. While it is open the frame loop gives it the input and neither steps nor draws the waking game. Waking goes
@@ -704,7 +728,7 @@ async function start(): Promise<void> {
   const dreamScreen = createDreamScreen(document.body, {
     touch: wantsTouchControls(navigator, query),
     onWake: () => {
-      room?.setDreaming('host', false);
+      room?.wake('host', performance.now() / 1000);
       sleepPrompt.wakeFromDream();
     },
     onKeep: (builds) => {
@@ -714,9 +738,16 @@ async function start(): Promise<void> {
       if (!silent) sound.cue(dreamCues(events), performance.now() / 1000);
     },
   });
+  // What the room decided for the host's own bed (#661): a plain sleep wakes with the clock moved or not, a dream goes on until the host wakes.
+  const hostSleepNews = (): void => {
+    const news = room?.sleepNews('host');
+    if (!news) return;
+    if (news === 'stop') toast.show(t('toast.skipStopped'));
+    if (!dreamScreen.active()) sleepPrompt.release(news === 'go');
+  };
   const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation, theme: DreamTheme = 'candy'): void => {
     world = { ...world, dreamed: true };
-    room?.setDreaming('host', true);
+    room?.lie('host', canSleep(world) ? 'night' : 'dream', true, performance.now() / 1000);
     dreamScreen.start(seed, world.dreamKept, theme);
   };
   let fps = 60;
@@ -847,6 +878,7 @@ async function start(): Promise<void> {
       // The guests keep playing while the host dreams, and are told (#665).
       if (room) {
         world = room.step(world, dt, now / 1000, terrain, trees);
+        hostSleepNews();
         if (now - netSentAt > 1000 / SEND_HZ) {
           netSentAt = now;
           room.broadcast(world, now / 1000);
@@ -957,6 +989,7 @@ async function start(): Promise<void> {
           world = step(world, { move: room?.hostFrozen() ? { x: 0, z: 0 } : move, dive: actions.dive, diveTap: actions.diveTap, slap: actions.slap, do: doPressed, take: actions.take ? takeNow : null, stashTap: actions.stashTap, stashClose: actions.stashClose }, dt, terrain, trees);
           if (room) {
             world = room.step(world, dt, now / 1000, terrain, trees);
+            hostSleepNews();
             if (now - netSentAt > 1000 / SEND_HZ) {
               netSentAt = now;
               room.broadcast(world, now / 1000);
@@ -1047,7 +1080,7 @@ async function start(): Promise<void> {
     const rest = canRest(world);
     const stage = lifeAt(world.clock, world.bornAt).stage;
     sleepUp = canSleep(world) || rest;
-    sleepPrompt.set({ night: canSleep(world), rest, grow: rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null });
+    sleepPrompt.set({ night: canSleep(world), rest, grow: !link && rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null, dream: !link });
     const ponded = withPonds(terrain, world.ponds);
     if (now - animalsAt > 100) {
       animalsAt = now;
@@ -1108,6 +1141,17 @@ async function start(): Promise<void> {
       }
       const snap = room ? room.snapshot(world, undefined, now / 1000) : lastSnap;
       const pairing = pairingOf(snap, me);
+      // The question of a friend's bed (#661), and a guest's own bed waiting for the host to settle it.
+      const skip = snap?.skip;
+      const asked = skip && skip.goal !== 'dream' && skip.waiting.includes(me) ? { from: skip.from, goal: skip.goal } : null;
+      sleepAsk.set(asked ? { name: snap?.beavers.find((b) => b.id === asked.from)?.look.name || null, goal: asked.goal } : null);
+      if (link?.id && guestLying) {
+        if (snap?.asleep?.includes(me)) guestLying.seen = true;
+        else if (snap && (guestLying.seen || now / 1000 - guestLying.at > 5)) {
+          sleepPrompt.release(guestLying.seen);
+          guestLying = null;
+        }
+      }
       const nameOf = (id: string | null) => snap?.beavers.find((b) => b.id === id)?.look.name || t('together.friend');
       const born = room ? world.bornAt : snap?.beavers.find((v) => v.id === me)?.bornAt ?? null;
       if (pairing.partner && pairing.partner !== partnerSeen.partner) toast.show(t('toast.partnered', { name: nameOf(pairing.partner) }));

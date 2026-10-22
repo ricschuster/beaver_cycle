@@ -1,6 +1,6 @@
 # Dream together
 
-Design note, session 177. Status: the author answered the questions (last section). A proposal for [#665](https://github.com/ricschuster/beaver_cycle/issues/665); only the popup is built. The author said (Q103 in [44](44_round6_answers.md)): play in the dreams together. Q113
+Design note, session 177. Status: the author answered the questions (last section). A proposal for [#665](https://github.com/ricschuster/beaver_cycle/issues/665); the popup and the shared sleep (step 1) are built. The author said (Q103 in [44](44_round6_answers.md)): play in the dreams together. Q113
 in [45](45_game_questions_round7.md) (do all have to be asleep, can you walk into a running dream, can some wake while others
 go on) is answered at the end.
 
@@ -79,6 +79,15 @@ runs when all are asleep or said yes. A dreamer who wakes ends the skip like any
   shows. The host's room keeps stepping and broadcasting while its dream is open, so the guests no longer freeze behind it (they
   did before: the dream frame returned before `Room.step`). Checked on the emulator pair.
 
+- The shared sleep (session 178, step 1): `src/net/sleepCheck.ts` is the pure rule and `Room` holds it (`lie`, `wake`, `answerSkip`,
+  `sleepNews`), with the `sleep` message of a guest (a bed, a yes or no, a wake) and `Snapshot.asleep` and `Snapshot.skip`. A
+  skip of the clock needs a yes from every friend who is awake and runs when all are asleep or said yes (Q91). One no stops it
+  (Q92) and no answer in 30 s is a no. A plain sleeper that is refused wakes with the clock where it was; a dreamer stays in its
+  dream, which ends only when it wakes, so a dream never ends because of a friend. A card asks the friend ("Pip wants to sleep
+  until morning. Come along?") on the host and on a guest. The host's own bed waits in the dark with a wake button. A guest lies
+  down on a nest of its own pair lodge (night for the night) and its tablet has no dream button yet. The room moves the clock,
+  so a host that sleeps alone still skips at once. Not yet checked on the emulator pair.
+
 ## The author's answers
 
 Session 177. The proposals above stand, with these changes.
@@ -95,7 +104,7 @@ Session 177. The proposals above stand, with these changes.
 
 ## Steps
 
-1. A shared sleep state in `Room`: who sleeps, who dreams, the popup, the ready check for a skip (this is also what #661 needs).
+1. A shared sleep state in `Room`: who sleeps, who dreams, the popup, the ready check for a skip (this is also what #661 needs). Built, see above.
 2. Move the dream step to the host for guests: `Snapshot.dream`, an intent for the dreamer's input, tests with fake rooms.
 3. Draw the dream on a guest, the late join, the wake of one player.
 4. Friends in the games, the manual (both languages), notes 29 and 42, and the emulator pair for the real run.

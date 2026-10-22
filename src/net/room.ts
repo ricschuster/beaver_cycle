@@ -14,12 +14,13 @@ import type { WorldState } from '../sim/state';
 import { asked, askersOf, dropAsks, expire, noPairing, partnerOf, press, restore, unpair, type Pairing } from './pairs';
 import { stageAt } from '../sim/life';
 import { atStore, storeCapacity, storeCondition, tapped } from '../sim/food';
-import { leaveHome, pairBirth } from '../sim/state';
-import { INTERIOR_RADIUS, lodgeComplete, lodgeSolid } from '../sim/lodge';
-import { nextSpringStart } from '../sim/clock';
+import { leaveHome, pairBirth, skipTo } from '../sim/state';
+import { INTERIOR_RADIUS, atNest, lodgeComplete, lodgeSolid } from '../sim/lodge';
+import { isNight, nextSpringStart } from '../sim/clock';
 import { pairLodgeOf, type PairLodge } from '../sim/pairLodge';
 import { answer, ask as askSay, drop as dropSays, expire as expireSays, noSays, type AnswerId, type QuestionId, type Says } from './says';
 import { accept, decline, drop as dropHide, frozen, hiddenFrom, invite, noteTo, step as stepHide, timeLeft, type Blocker, type HideGame, type Role, type Spot } from './hideGame';
+import { answer as answerSleep, ASK_TIME, isAsleep, leave as leaveSleep, lie, noSleep, tick as tickSleep, wake as wakeSleep, waitingFor, type Goal, type SleepCheck, type Step } from './sleepCheck';
 import { intentOf, readToHost, viewOfGuest, type BeaverView, type Snapshot, type ToGuest } from './protocol';
 
 /** The most friends in one valley besides the host (note 42: up to four players at once). */
@@ -41,7 +42,12 @@ interface Seat {
   family: string | null;
   /** A question this guest wants to put to the friend close by, until the next step finds who that is (#667). */
   say?: QuestionId;
+  /** A wish to lie down that the next step checks against where this guest stands (#661). */
+  lie?: { g: Goal; dream: boolean };
 }
+
+/** What a sleeper is told once its sleep is settled: the clock moved, or its skip was refused and it wakes. */
+export type SleepNews = 'go' | 'stop';
 
 export class Room {
   private seats = new Map<string, Seat>();
@@ -53,8 +59,12 @@ export class Room {
   private says: Says = noSays();
   /** The game of hide and seek that runs, if any (#664). */
   private hide: HideGame | null = null;
-  /** The players who are dreaming (#665). */
-  private dreaming = new Set<string>();
+  /** Who sleeps or dreams and the skip that waits for the friends' yes (#661, #665). */
+  private sleep: SleepCheck = noSleep();
+  /** Where the clock goes once the step runs, when a skip was agreed. */
+  private skip: Goal | null = null;
+  /** What each sleeper is told, until it takes it (`sleepNews`). */
+  private news = new Map<string, SleepNews>();
   constructor(private readonly send: (to: string, text: string) => void) {}
 
   /** A connection opened: it waits for its hello. */
@@ -66,18 +76,63 @@ export class Room {
     this.strangers.delete(id);
     const seat = this.seats.get(id);
     this.seats.delete(id);
-    this.dreaming.delete(id);
     if (seat) {
+      this.settle(leaveSleep(this.sleep, seat.guest.id, this.players(), 0));
       this.pairing = dropAsks(this.pairing, seat.guest.id);
       this.says = dropSays(this.says, seat.guest.id);
       if (this.hide) this.hide = dropHide(this.hide, seat.guest.id);
     }
   }
 
-  /** A player falls asleep into a dream or wakes (#665): the others are told in the next snapshot. */
-  setDreaming(id: string, on: boolean): void {
-    if (on) this.dreaming.add(id);
-    else this.dreaming.delete(id);
+  /** Everyone in the room: the host and each guest. */
+  private players(): string[] {
+    return ['host', ...this.guests().map((g) => g.id)];
+  }
+
+  /** Takes a step of the sleep check: the new state, and the news a verdict sends to the sleepers. */
+  private settle(r: Step): void {
+    this.sleep = r.check;
+    const v = r.verdict;
+    if (v?.t === 'go') {
+      this.skip = v.goal;
+      for (const id of v.woke) this.news.set(id, 'go');
+    } else if (v?.t === 'stop') this.news.set(v.from, 'stop');
+  }
+
+  /**
+   * A player lies down to sleep or dream until `goal` (#661, #665). The others are told in the next snapshot, and asked when the
+   * skip is not only theirs. The host calls this for itself; a guest asks with a message and the next step checks its bed.
+   */
+  lie(id: string, goal: Goal, dream: boolean, now: number): void {
+    this.news.delete(id);
+    this.settle(lie(this.sleep, id, goal, dream, this.players(), now));
+  }
+
+  /** A player wakes by itself: a dream ends for it alone, and the skip it asked for ends with it. */
+  wake(id: string, now: number): void {
+    this.settle(wakeSleep(this.sleep, id, this.players(), now));
+  }
+
+  /** A friend says yes or no to the skip that waits for them. */
+  answerSkip(id: string, yes: boolean, now: number): void {
+    this.settle(answerSleep(this.sleep, id, yes, this.players(), now));
+  }
+
+  /** The verdict for a sleeper, once, or null while it is still waiting. */
+  sleepNews(id: string): SleepNews | null {
+    const n = this.news.get(id) ?? null;
+    this.news.delete(id);
+    return n;
+  }
+
+  /** True while the player sleeps or dreams. */
+  asleep(id: string): boolean {
+    return isAsleep(this.sleep, id);
+  }
+
+  /** The players who dream now. */
+  private dreamers(): string[] {
+    return this.sleep.asleep.filter((s) => s.dreaming).map((s) => s.id);
   }
 
   /** A host that starts again takes its pairs from the lodges already built (#666). */
@@ -119,6 +174,11 @@ export class Room {
     if (seat && m.t === 'look') {
       seat.guest = { ...seat.guest, coat: m.coat, look: m.look };
       seat.heard = now;
+    } else if (seat && m.t === 'sleep') {
+      seat.heard = now;
+      if ('g' in m) seat.lie = { g: m.g, dream: m.dream === true };
+      else if (m.a === 'wake') this.wake(seat.guest.id, now);
+      else this.answerSkip(seat.guest.id, m.a === 'yes', now);
     } else if (seat && m.t === 'say') {
       if (m.q) seat.say = m.q;
       else if (m.a) this.says = answer(this.says, seat.guest.id, m.a, now);
@@ -146,6 +206,19 @@ export class Room {
     let hostCarry = world.carry;
     this.pairing = expire(this.pairing, now);
     this.says = expireSays(this.says, now);
+    // A guest lies down only on a nest of its own pair lodge, at night for the night (#661).
+    for (const seat of this.seats.values()) {
+      const wish = seat.lie;
+      if (!wish) continue;
+      seat.lie = undefined;
+      const lodge = seat.guest.inside ? pairLodgeOf(world.pairLodges, seat.guest.id) : undefined;
+      if (lodge && atNest(lodge, seat.guest.beaver.x, seat.guest.beaver.z) && (wish.g !== 'night' || isNight(world.clock))) this.lie(seat.guest.id, wish.g, wish.dream, now);
+    }
+    this.settle(tickSleep(this.sleep, this.players(), now));
+    if (this.skip && this.skip !== 'dream') {
+      world = skipTo(world, this.skip);
+      this.skip = null;
+    }
     if (this.hide) {
       const r = stepHide(this.hide, this.spots(world), (a, b) => this.blockers(a, b, world, trees, solids), now);
       this.hide = r.game;
@@ -414,7 +487,7 @@ export class Room {
   snapshot(world: WorldState, forPlayer?: string, now = 0): Snapshot {
     const b = world.beaver;
     const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null, grown: stageAt(world.clock, world.bornAt) === 'adult', ...(world.inLodge ? { inside: true } : {}), ...(world.generation > 0 && world.lodge && pairLodgeOf(world.pairLodges, 'host') ? { bornAt: world.bornAt, parents: world.parentCoats } : {}) };
-    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map((g) => viewOfGuest(g, world.clock))].filter((v) => !forPlayer || !hiddenFrom(this.hide, forPlayer).includes(v.id)), played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.filter((a) => !a.stop).map((a) => [a.from, a.to]), stops: this.pairing.asks.filter((a) => a.stop).map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]), says: [...this.says.list], ...(this.dreaming.size ? { dreaming: [...this.dreaming] } : {}), ...(this.hide ? { hide: { ...this.hide, left: timeLeft(this.hide, now) } } : {}) };
+    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map((g) => viewOfGuest(g, world.clock))].filter((v) => !forPlayer || !hiddenFrom(this.hide, forPlayer).includes(v.id)), played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.filter((a) => !a.stop).map((a) => [a.from, a.to]), stops: this.pairing.asks.filter((a) => a.stop).map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]), says: [...this.says.list], ...(this.dreamers().length ? { dreaming: this.dreamers() } : {}), ...(this.sleep.asleep.length ? { asleep: this.sleep.asleep.map((s) => s.id) } : {}), ...(this.sleep.ask ? { skip: { from: this.sleep.ask.from, goal: this.sleep.ask.goal, waiting: waitingFor(this.sleep, this.players()), left: Math.max(0, ASK_TIME - (now - this.sleep.ask.at)) } } : {}), ...(this.hide ? { hide: { ...this.hide, left: timeLeft(this.hide, now) } } : {}) };
   }
 
   /** Sends the state to every guest that has said hello. */

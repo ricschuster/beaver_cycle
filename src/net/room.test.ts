@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { Room, MAX_GUESTS } from './room';
 import { applySnapshot, friendNearby, friendTaker, othersOf, pairingOf, partnerCandidate, saysOf } from './view';
 import { createWorld, leaveHome } from '../sim/state';
-import { DOOR_DISTANCE, LODGE_WOOD, SOLID_RADIUS, doorPoint } from '../sim/lodge';
+import { DOOR_DISTANCE, LODGE_WOOD, NEST_SPOTS, SOLID_RADIUS, doorPoint } from '../sim/lodge';
 import { newWear } from '../sim/wear';
 import { storeSpot } from '../sim/food';
-import { DAY_SECONDS, nextSpringStart } from '../sim/clock';
+import { DAY_SECONDS, isNight, nextSpringStart } from '../sim/clock';
 import { guestStage } from '../sim/guests';
 import { stageAt } from '../sim/life';
 import { flatTerrain } from '../sim/terrain';
@@ -607,21 +607,96 @@ describe('the room', () => {
       expect(room.snapshot(world).hide).toBeUndefined();
     });
   });
-  describe('dreaming (#665)', () => {
-    it('tells the guests who is dreaming, and stops when they wake', () => {
+  describe('sleeping together (#661, #665)', () => {
+    const night = (() => {
+      let c = 0;
+      while (!isNight(c)) c += 600;
+      return c;
+    })();
+    const sleepers = () => {
       const { room } = joined();
+      return room;
+    };
+    const send = (room: Room, m: object, now = 1) => room.receive('g1', JSON.stringify(m), now, host, ground);
+
+    it('tells the guests who is dreaming, and stops when they wake', () => {
+      const room = sleepers();
       expect(room.snapshot(world).dreaming).toBeUndefined();
-      room.setDreaming('host', true);
+      room.lie('host', 'night', true, 0);
       expect(room.snapshot(world).dreaming).toEqual(['host']);
-      room.setDreaming('host', false);
+      expect(room.snapshot(world).asleep).toEqual(['host']);
+      room.wake('host', 1);
       expect(room.snapshot(world).dreaming).toBeUndefined();
+      expect(room.snapshot(world).asleep).toBeUndefined();
     });
 
     it('forgets a guest that leaves while it dreams', () => {
-      const { room } = joined();
-      room.setDreaming('g1', true);
+      const room = sleepers();
+      room.lie('g1', 'night', true, 0);
       room.leave('g1');
       expect(room.snapshot(world).dreaming).toBeUndefined();
+    });
+
+    it('asks the friends, and moves the clock for all on their yes', () => {
+      const room = sleepers();
+      room.lie('host', 'night', false, 0);
+      expect(room.snapshot(world, undefined, 2).skip).toEqual({ from: 'host', goal: 'night', waiting: ['g1'], left: 28 });
+      send(room, { t: 'sleep', a: 'yes' });
+      expect(room.sleepNews('host')).toBe('go');
+      expect(room.sleepNews('host')).toBeNull();
+      const after = room.step({ ...world, clock: night }, 0.05, 3, ground, oneTree);
+      expect(after.clock).toBeGreaterThan(night);
+      expect(isNight(after.clock)).toBe(false);
+      expect(room.snapshot(after).asleep).toBeUndefined();
+    });
+
+    it('wakes the asker and leaves the clock when a friend says no', () => {
+      const room = sleepers();
+      room.lie('host', 'night', false, 0);
+      send(room, { t: 'sleep', a: 'no' });
+      expect(room.sleepNews('host')).toBe('stop');
+      const after = room.step({ ...world, clock: night }, 0.05, 2, ground, oneTree);
+      expect(after.clock).toBe(night);
+      expect(room.asleep('host')).toBe(false);
+    });
+
+    it('lets a host that dreams dream on when a friend says no', () => {
+      const room = sleepers();
+      room.lie('host', 'night', true, 0);
+      send(room, { t: 'sleep', a: 'no' });
+      expect(room.sleepNews('host')).toBe('stop');
+      expect(room.asleep('host')).toBe(true);
+    });
+
+    it('takes no answer in time as a no', () => {
+      const room = sleepers();
+      room.lie('host', 'night', false, 0);
+      room.step({ ...world, clock: night }, 0.05, 31, ground, oneTree);
+      expect(room.sleepNews('host')).toBe('stop');
+    });
+
+    it('lets a lone host skip at once', () => {
+      const room = new Room(() => undefined);
+      room.lie('host', 'night', false, 0);
+      expect(room.sleepNews('host')).toBe('go');
+      expect(room.step({ ...world, clock: night }, 0.05, 1, ground, oneTree).clock).toBeGreaterThan(night);
+    });
+
+    it('puts a guest to bed only on a nest of its own pair lodge at night', () => {
+      const room = sleepers();
+      const lodge = { x: 40, z: 0, base: 0, door: Math.PI / 2, wood: LODGE_WOOD, wear: newWear(0), players: ['host', 'g1'] as [string, string], wholeAt: 0 };
+      const w = { ...world, clock: night, pairLodges: [lodge], lodge };
+      send(room, { t: 'sleep', g: 'night' });
+      room.step(w, 0.05, 1, ground, oneTree);
+      expect(room.asleep('g1')).toBe(false);
+      const g = room.guests()[0]!;
+      Object.assign(g, { inside: true, beaver: { ...g.beaver, x: lodge.x + NEST_SPOTS[1]!.x, z: lodge.z + NEST_SPOTS[1]!.z } });
+      send(room, { t: 'sleep', g: 'night', dream: true });
+      room.step(w, 0.05, 2, ground, oneTree);
+      expect(room.asleep('g1')).toBe(true);
+      expect(room.snapshot(w).dreaming).toEqual(['g1']);
+      send(room, { t: 'sleep', a: 'wake' });
+      expect(room.asleep('g1')).toBe(false);
     });
   });
 });

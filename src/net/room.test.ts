@@ -607,4 +607,21 @@ describe('the room', () => {
       expect(room.snapshot(world).hide).toBeUndefined();
     });
   });
+  describe('dreaming (#665)', () => {
+    it('tells the guests who is dreaming, and stops when they wake', () => {
+      const { room } = joined();
+      expect(room.snapshot(world).dreaming).toBeUndefined();
+      room.setDreaming('host', true);
+      expect(room.snapshot(world).dreaming).toEqual(['host']);
+      room.setDreaming('host', false);
+      expect(room.snapshot(world).dreaming).toBeUndefined();
+    });
+
+    it('forgets a guest that leaves while it dreams', () => {
+      const { room } = joined();
+      room.setDreaming('g1', true);
+      room.leave('g1');
+      expect(room.snapshot(world).dreaming).toBeUndefined();
+    });
+  });
 });

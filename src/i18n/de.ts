@@ -961,6 +961,8 @@ export const de: Partial<Table> = {
   'toast.partnerStopped': 'Du und {name} seid kein Paar mehr. Eure Burg ist jetzt ein altes Zuhause',
   'toast.kitsBorn': 'Frühling! Du und {name} habt Junge, und du spielst deins',
   'toast.hostBack': 'Wieder im Tal des Gastgebers',
+  'toast.dreaming': '{name} träumt',
+  'toast.dreamingFriend': 'Ein Freund träumt',
   'toast.escortAlready': '{name} zeigt dir schon den Weg',
   'toast.escortNowhere': '{name}: Ich weiß noch nicht, wohin ich dich bringen soll. Bau zuerst einen Bau',
   'toast.escortStart': '{name} geht voran. Komm mit',

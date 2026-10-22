@@ -143,6 +143,8 @@ export const hud = {
   'toast.partnerStopped': 'You and {name} are not partners any more. Your lodge is a home you left',
   'toast.kitsBorn': 'Spring! You and {name} have kits, and you play yours',
   'toast.hostBack': 'Back in the valley of the host',
+  'toast.dreaming': '{name} is dreaming',
+  'toast.dreamingFriend': 'A friend is dreaming',
   'toast.escortAlready': '{name} is already showing you the way',
   'toast.escortNowhere': '{name}: I do not know where to take you yet. Build a lodge first',
   'toast.escortStart': '{name} leads the way. Follow',

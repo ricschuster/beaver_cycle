@@ -703,7 +703,10 @@ async function start(): Promise<void> {
   // through the sleep prompt, which moves the clock to dawn (when the beaver could sleep) and fades the game back in.
   const dreamScreen = createDreamScreen(document.body, {
     touch: wantsTouchControls(navigator, query),
-    onWake: () => sleepPrompt.wakeFromDream(),
+    onWake: () => {
+      room?.setDreaming('host', false);
+      sleepPrompt.wakeFromDream();
+    },
     onKeep: (builds) => {
       world = { ...world, dreamKept: builds.map((b) => ({ ...b })) };
     },
@@ -713,6 +716,7 @@ async function start(): Promise<void> {
   });
   const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation, theme: DreamTheme = 'candy'): void => {
     world = { ...world, dreamed: true };
+    room?.setDreaming('host', true);
     dreamScreen.start(seed, world.dreamKept, theme);
   };
   let fps = 60;
@@ -840,6 +844,15 @@ async function start(): Promise<void> {
     if (dreamScreen.active()) {
       dreamScreen.frame(dt, mergeActions(readKeyboard(), touch.read()));
       if (!silent) sound.music('dream', fps, now / 1000);
+      // The guests keep playing while the host dreams, and are told (#665).
+      if (room) {
+        world = room.step(world, dt, now / 1000, terrain, trees);
+        if (now - netSentAt > 1000 / SEND_HZ) {
+          netSentAt = now;
+          room.broadcast(world, now / 1000);
+        }
+        streamer?.update(world.beaver.x, world.beaver.z, room.guests().map((g) => g.beaver));
+      }
       return;
     }
     if (jump && streamer) {
@@ -913,7 +926,16 @@ async function start(): Promise<void> {
             pendingTake = null;
           }
           const snap = link.take();
-          if (snap) lastSnap = snap;
+          if (snap) {
+            // A friend who falls asleep into a dream is told to the others (#665).
+            for (const id of snap.dreaming ?? []) {
+              if (id !== link.id && !(lastSnap?.dreaming ?? []).includes(id)) {
+                const name = snap.beavers.find((v) => v.id === id)?.look.name;
+                toast.show(name ? t('toast.dreaming', { name }) : t('toast.dreamingFriend'));
+              }
+            }
+            lastSnap = snap;
+          }
           if (snap && link.id) {
             world = applySnapshot(world, snap, link.id);
             // The host's dams make the ponds here too, worked out from the dams as the host does.

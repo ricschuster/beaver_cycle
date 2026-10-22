@@ -53,6 +53,8 @@ export class Room {
   private says: Says = noSays();
   /** The game of hide and seek that runs, if any (#664). */
   private hide: HideGame | null = null;
+  /** The players who are dreaming (#665). */
+  private dreaming = new Set<string>();
   constructor(private readonly send: (to: string, text: string) => void) {}
 
   /** A connection opened: it waits for its hello. */
@@ -64,11 +66,18 @@ export class Room {
     this.strangers.delete(id);
     const seat = this.seats.get(id);
     this.seats.delete(id);
+    this.dreaming.delete(id);
     if (seat) {
       this.pairing = dropAsks(this.pairing, seat.guest.id);
       this.says = dropSays(this.says, seat.guest.id);
       if (this.hide) this.hide = dropHide(this.hide, seat.guest.id);
     }
+  }
+
+  /** A player falls asleep into a dream or wakes (#665): the others are told in the next snapshot. */
+  setDreaming(id: string, on: boolean): void {
+    if (on) this.dreaming.add(id);
+    else this.dreaming.delete(id);
   }
 
   /** A host that starts again takes its pairs from the lodges already built (#666). */
@@ -405,7 +414,7 @@ export class Room {
   snapshot(world: WorldState, forPlayer?: string, now = 0): Snapshot {
     const b = world.beaver;
     const hostView: BeaverView = { id: 'host', coat: world.coat, look: world.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: 0, chopping: world.chop !== null, carry: world.carry, haul: world.haul?.kind ?? null, grown: stageAt(world.clock, world.bornAt) === 'adult', ...(world.inLodge ? { inside: true } : {}), ...(world.generation > 0 && world.lodge && pairLodgeOf(world.pairLodges, 'host') ? { bornAt: world.bornAt, parents: world.parentCoats } : {}) };
-    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map((g) => viewOfGuest(g, world.clock))].filter((v) => !forPlayer || !hiddenFrom(this.hide, forPlayer).includes(v.id)), played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.filter((a) => !a.stop).map((a) => [a.from, a.to]), stops: this.pairing.asks.filter((a) => a.stop).map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]), says: [...this.says.list], ...(this.hide ? { hide: { ...this.hide, left: timeLeft(this.hide, now) } } : {}) };
+    return { clock: world.clock, felled: world.felled, logs: world.logs, beavers: [hostView, ...this.guests().map((g) => viewOfGuest(g, world.clock))].filter((v) => !forPlayer || !hiddenFrom(this.hide, forPlayer).includes(v.id)), played: this.played(), dams: world.dams, lodge: world.lodge, rocksTaken: world.rocksTaken, dropped: world.dropped, picked: world.picked, stripped: world.stripped, pairLodges: world.pairLodges, asks: this.pairing.asks.filter((a) => !a.stop).map((a) => [a.from, a.to]), stops: this.pairing.asks.filter((a) => a.stop).map((a) => [a.from, a.to]), pairs: this.pairing.pairs.map(([a, b]) => [a, b]), says: [...this.says.list], ...(this.dreaming.size ? { dreaming: [...this.dreaming] } : {}), ...(this.hide ? { hide: { ...this.hide, left: timeLeft(this.hide, now) } } : {}) };
   }
 
   /** Sends the state to every guest that has said hello. */

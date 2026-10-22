@@ -110,3 +110,10 @@ Build order stays as above. Step 1 (the pair lodge, built by either partner, sha
   parents' coats from its view. When the kits are grown the lodge is a former home (`Room.endPairs`, `leaveHome` for the host).
 - Two guests as partners work the same way without the host: the lodge, the room and the kits are keyed on the pair's two ids.
 - Still to do: a guest eating from the store (#663), sleep per player (#661), the grandparents (Q6) in the family tree.
+
+## Answered: sleeping outside a lodge (#661)
+
+The author answered: yes, only away from predators, the night only, no dreams. Built as `canSleepOut` in `src/sim/state.ts`: on
+land, at night, not in a lodge, and `threatened` (`src/sim/predators.ts`) false, meaning no predator on the beaver's trail and none
+of the ambient predators within 100 m. Anyone can, not only a beaver without a lodge. The panel offers the night button only to a
+beaver standing still, and no season or growing-up skip, no dream. With friends it is the same shared night as in a lodge.

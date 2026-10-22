@@ -3,7 +3,7 @@ import type { Animal } from './animals';
 import { AnimalField } from './animals';
 import { DAY_SECONDS } from './clock';
 import { noIntent } from './buttons';
-import { HURT_SPEED, HURT_TIME, RULES, isMate, hurtFactor, isHurt, meetPredators, predatorAnimals } from './predators';
+import { HURT_SPEED, HURT_TIME, RULES, isMate, hurtFactor, isHurt, meetPredators, predatorAnimals, threatened } from './predators';
 import { createWorld, WALK_SPEED, type WorldState } from './state';
 import { step } from './step';
 import { flatTerrain, type Terrain } from './terrain';
@@ -200,5 +200,15 @@ describe('the wolf pair', () => {
 
   it('the other kinds come alone', () => {
     expect(run(createWorld(land, 0, 0), [lynx(20, 0)], 0.1).world.predators).toHaveLength(1);
+  });
+});
+
+describe('sleeping out (#661)', () => {
+  it('is threatened by a predator within 100 m, not by a far one or a deer', () => {
+    const w = createWorld(land);
+    expect(threatened(w, [])).toBe(false);
+    expect(threatened(w, [fox(60, 0)])).toBe(true);
+    expect(threatened(w, [fox(150, 0)])).toBe(false);
+    expect(threatened(w, [{ ...fox(10, 0), kind: 'deer' }])).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DAYS_PER_SEASON, DAYS_PER_YEAR, DAY_FRACTION, DAY_SECONDS, LODGE_CLOCK_RATE, START_CLOCK, dateAt, daylight, isNight, nextDawn, withSeason, withTimeOfDay } from './clock';
 import { noIntent } from './buttons';
-import { canSleep, createWorld, setInLodge, sleep } from './state';
+import { canSleep, canSleepOut, createWorld, setInLodge, sleep } from './state';
 import { step } from './step';
 import { flatTerrain } from './terrain';
 
@@ -64,12 +64,22 @@ describe('world clock', () => {
 
   it('sleeps through the night to the next dawn, only in the lodge at night', () => {
     const night = { ...createWorld(flat), clock: DAY_SECONDS * 0.8 };
-    expect(sleep(night)).toBe(night);
+    expect(sleep(night, true)).toBe(night);
     const slept = sleep(setInLodge(night, true));
     expect(slept.clock).toBe(DAY_SECONDS);
     expect(slept.clock).toBe(nextDawn(night.clock));
     const day = setInLodge({ ...createWorld(flat), clock: DAY_SECONDS * 0.3 }, true);
     expect(sleep(day)).toBe(day);
+  });
+
+  it('sleeps out of a lodge on land at night with no predator near, and skips only the night (#661)', () => {
+    const night = { ...createWorld(flat), clock: DAY_SECONDS * 0.8 };
+    expect(canSleepOut(night, false)).toBe(true);
+    expect(sleep(night).clock).toBe(nextDawn(night.clock));
+    expect(canSleepOut(night, true)).toBe(false);
+    expect(canSleepOut({ ...night, clock: DAY_SECONDS * 0.3 }, false)).toBe(false);
+    expect(canSleepOut({ ...night, beaver: { ...night.beaver, mode: 'swim' } }, false)).toBe(false);
+    expect(canSleepOut(setInLodge(night, true), false)).toBe(false);
   });
 });
 

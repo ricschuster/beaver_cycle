@@ -118,6 +118,14 @@ export function exposed(world: WorldState): boolean {
   return world.beaver.mode === 'walk' && !world.inLodge;
 }
 
+/** A predator this close (metres) keeps the beaver from sleeping outside a lodge (#661). */
+export const SLEEP_SAFE_DISTANCE = 100;
+
+/** A predator is on the beaver's trail, or an ambient one is near: no sleeping out in the open (#661). */
+export function threatened(world: WorldState, animals: readonly Animal[]): boolean {
+  return world.predators.length > 0 || animals.some((a) => isPredator(a.kind) && Math.hypot(a.x - world.beaver.x, a.z - world.beaver.z) < SLEEP_SAFE_DISTANCE);
+}
+
 function atEnd(p: Predator, to: Partial<Predator>): Predator {
   return { ...p, ...to };
 }

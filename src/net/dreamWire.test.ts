@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { dreamOf, wireOf } from './dreamWire';
-import { joinDream, newDream, stepDream, type DreamInput } from '../sim/dream';
+import { dreamOf, mergeInput, wireOf } from './dreamWire';
+import { joinDream, newDream, stepDream, viewFrom, type DreamInput } from '../sim/dream';
 import { readToHost } from './protocol';
 
 const still: DreamInput = { move: { x: 0, z: 0 }, hop: false, slap: false, play: false };
@@ -35,5 +35,25 @@ describe('the dream message', () => {
     const m = readToHost(JSON.stringify({ t: 'dream', input: { move: { x: 9, z: 0 }, hop: true, slap: 'yes', play: false, pick: 'seek' } }));
     expect(m).toEqual({ t: 'dream', input: { move: { x: 1, z: 0 }, hop: true, slap: false, play: false, pick: 'seek' } });
     expect(readToHost(JSON.stringify({ t: 'dream' }))).toEqual({ t: 'dream', input: { move: { x: 0, z: 0 }, hop: false, slap: false, play: false } });
+  });
+});
+
+describe('what a friend sees', () => {
+  it('carries the looks over the wire and swaps the viewer in as the beaver', () => {
+    const s = joinDream({ ...newDream(7), look: { hat: 2, scarf: 3 } }, 'g1', { hat: 4, scarf: 5 });
+    const wire = JSON.parse(JSON.stringify(wireOf(s, 'host', 'candy')));
+    const seen = viewFrom(dreamOf(wire), 'g1', 'host');
+    expect(seen.beaver).toEqual(s.friends![0]!.beaver);
+    expect(seen.look).toEqual({ hat: 4, scarf: 5 });
+    expect(seen.friends).toEqual([{ id: 'host', beaver: s.beaver, look: { hat: 2, scarf: 3 } }]);
+    expect(seen.game).toEqual({ kind: 'none' });
+    expect(viewFrom(s, 'host', 'host')).toBe(s);
+    expect(viewFrom(s, 'nobody', 'host')).toBe(s);
+  });
+
+  it('keeps presses until sent and the newest stick', () => {
+    const a = mergeInput(null, { ...still, hop: true, move: { x: 1, z: 0 } });
+    const b = mergeInput(a, { ...still, slap: true, move: { x: 0, z: 1 }, pick: 'hide' });
+    expect(b).toEqual({ move: { x: 0, z: 1 }, hop: true, slap: true, play: false, pick: 'hide' });
   });
 });

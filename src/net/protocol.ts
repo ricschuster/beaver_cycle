@@ -14,7 +14,7 @@ import type { Intent } from '../sim/buttons';
 import type { HideGame, Role } from './hideGame';
 import type { Goal } from './sleepCheck';
 import type { DreamWire } from './dreamWire';
-import type { DreamInput } from '../sim/dream';
+import type { DreamInput, DreamTheme } from '../sim/dream';
 import { isAnswer, isQuestion, type AnswerId, type QuestionId, type Say } from './says';
 
 /** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam, hand food to a friend, strip a branch off a log, ask a friend to be partners or say yes; let go, put down, take a log, a pad, a rock, mud, or a piece put down. */
@@ -28,7 +28,7 @@ export const PORT = 8765;
 /** The host sends state this many times a second, and a guest sends its intent as often. */
 export const SEND_HZ = 20;
 
-export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'look'; coat: Coat; look: Look } | { t: 'sleep'; g: Goal; dream?: boolean } | { t: 'sleep'; a: 'yes' | 'no' | 'wake' } | { t: 'dream'; input: DreamInput } | { t: 'say'; q?: QuestionId; a?: AnswerId } | { t: 'hide'; r?: Role; a?: AnswerId; to?: string } | { t: 'ping'; ts: number };
+export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'look'; coat: Coat; look: Look } | { t: 'sleep'; g: Goal; dream?: boolean; theme?: DreamTheme } | { t: 'sleep'; a: 'yes' | 'no' | 'wake' } | { t: 'dream'; input: DreamInput } | { t: 'say'; q?: QuestionId; a?: AnswerId } | { t: 'hide'; r?: Role; a?: AnswerId; to?: string } | { t: 'ping'; ts: number };
 
 /** What every guest needs of the world to draw it: the clock, the trees down, the logs, and every beaver but its own host-side state. */
 export interface Snapshot {
@@ -141,7 +141,7 @@ export function readToHost(text: string): ToHost | null {
   }
   if (m.t === 'sleep') {
     if (m.a === 'yes' || m.a === 'no' || m.a === 'wake') return { t: 'sleep', a: m.a };
-    return m.g === 'night' || m.g === 'season' ? { t: 'sleep', g: m.g, ...(m.dream === true ? { dream: true } : {}) } : null;
+    return m.g === 'night' || m.g === 'season' ? { t: 'sleep', g: m.g, ...(m.dream === true ? { dream: true, ...(m.theme === 'veggie' ? { theme: 'veggie' as const } : {}) } : {}) } : null;
   }
   if (m.t === 'dream') {
     const i = (m.input ?? {}) as Partial<DreamInput> & { move?: { x?: unknown; z?: unknown } };

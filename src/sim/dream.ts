@@ -235,6 +235,14 @@ export interface DreamFriend {
   /** The player's id in the room: 'host' or the id the host gave a guest. */
   id: string;
   beaver: DreamBeaver;
+  /** The hat and scarf the friend takes into the dream (answer 6 of note 51); the coat is the candy look. */
+  look?: DreamLook;
+}
+
+/** What a dreamer keeps of its waking look: the hat and the scarf (`Look` in `look.ts`). */
+export interface DreamLook {
+  hat: number;
+  scarf: number;
 }
 
 /** Friends in one dream, at most (note 42: four players). */
@@ -245,6 +253,8 @@ export interface DreamState {
   /** Seconds since the dream began. */
   time: number;
   beaver: DreamBeaver;
+  /** The hat and scarf of the player whose beaver this is. */
+  look?: DreamLook;
   /** Friends asleep in this dream besides the player whose dream it is (#665). */
   friends?: DreamFriend[];
   mallows: Mallow[];
@@ -737,7 +747,7 @@ export function stepDream(state: DreamState, input: DreamInput, dt: number, frie
 const STILL: DreamInput = { move: { x: 0, z: 0 }, hop: false, slap: false, play: false };
 
 /** A friend falls asleep into this dream, on the path a step or two beside where the player woke. Does nothing when it is in already or the dream is full. */
-export function joinDream(state: DreamState, id: string): DreamState {
+export function joinDream(state: DreamState, id: string, look?: DreamLook): DreamState {
   const friends = state.friends ?? [];
   if (friends.some((f) => f.id === id) || friends.length >= MAX_FRIENDS) return state;
   const { land } = state;
@@ -749,7 +759,7 @@ export function joinDream(state: DreamState, id: string): DreamState {
   const z = clamp(land.start.z - Math.sin(heading) * side, -(land.half - EDGE), land.half - EDGE);
   const mode = modeAt(land, x, z, 'walk');
   const beaver: DreamBeaver = { x, y: baseY(land, x, z, mode), z, heading, speed: 0, mode, hopAt: null, slapAt: null };
-  return { ...state, friends: [...friends, { id, beaver }] };
+  return { ...state, friends: [...friends, { id, beaver, ...(look ? { look } : {}) }] };
 }
 
 /** A friend wakes: it leaves the dream, which goes on for the rest. */
@@ -766,7 +776,22 @@ export function handOver(state: DreamState, id: string): DreamState {
   if (!f) return state;
   const left = leaveDream(state, id);
   const calm = (m: Mallow): Mallow => ({ ...m, state: 'wander', hideAt: undefined, goal: undefined, until: undefined, peek: undefined, looked: undefined, can: undefined, watered: undefined, jink: undefined });
-  return { ...left, beaver: f.beaver, aboard: undefined, carrying: false, plants: undefined, game: { kind: 'none' }, mallows: left.mallows.map(calm) };
+  const { look: _old, ...bare } = left;
+  return { ...bare, ...(f.look ? { look: f.look } : {}), beaver: f.beaver, aboard: undefined, carrying: false, plants: undefined, game: { kind: 'none' }, mallows: left.mallows.map(calm) };
+}
+
+/**
+ * The dream as player `me` sees it: its own beaver is `beaver` (the camera and the player model follow it) and the owner of the dream
+ * is one of the friends. The owner's carrying, boat and games stay the owner's, so a friend sees none of them in its own status.
+ */
+export function viewFrom(state: DreamState, me: string, owner: string): DreamState {
+  if (me === owner) return state;
+  const mine = state.friends?.find((f) => f.id === me);
+  if (!mine) return state;
+  const others = (state.friends ?? []).filter((f) => f.id !== me);
+  const first: DreamFriend = { id: owner, beaver: state.beaver, ...(state.look ? { look: state.look } : {}) };
+  const { look: _look, ...bare } = state;
+  return { ...bare, ...(mine.look ? { look: mine.look } : {}), beaver: mine.beaver, friends: [first, ...others], aboard: undefined, carrying: false, game: { kind: 'none' } };
 }
 
 /** The hills slow the part of a move that heads out to the edge. */

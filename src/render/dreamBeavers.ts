@@ -275,7 +275,7 @@ export function mallowFar(colour: number, veg?: VegKind): THREE.Mesh {
 }
 
 /** Pose and place a marshmallow beaver at dream time `time`: rounder, with the squash and stretch of a fresh hop. */
-export function placeMallow(model: BeaverModel, m: Mallow, time: number, y: number, slapAge: number | null): void {
+export function placeMallow(model: BeaverModel, m: DreamBeaver, time: number, y: number, slapAge: number | null): void {
   model.update(time, Math.min(1, m.speed / 4), m.mode, 0, slapAge, null, null);
   const s = hopSquash(m.hopAt === null ? null : time - m.hopAt);
   const w = 1 / Math.sqrt(s);

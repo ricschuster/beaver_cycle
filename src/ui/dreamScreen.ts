@@ -19,6 +19,18 @@ export interface DreamScreen {
   active(): boolean;
   /** The dream as it is now, or null when none is open (for tests). */
   state(): DreamState | null;
+  /** Wake at once with no question about keeping, for a dream the room ended (#665). Does nothing when none is open. */
+  stop(): void;
+}
+
+/** A dream run by the room instead of by this screen (#665): the screen sends what the player wants and draws what comes back. */
+export interface DreamLink {
+  /** The dream as this player sees it (`viewFrom`), whether it is the player's own dream, and what happened since the last call. Null while none has come yet. */
+  view(): { state: DreamState; mine: boolean; events: readonly DreamEvent[] } | null;
+  /** What the player wants this frame. */
+  send(input: DreamInput): void;
+  /** False for a guest, whose builds are not kept (the host's are). */
+  keeps: boolean;
 }
 
 export interface DreamScreenOptions {
@@ -30,6 +42,8 @@ export interface DreamScreenOptions {
   touch: boolean;
   /** Called each frame with what happened in the dream, for its sounds. */
   onEvents?(events: readonly DreamEvent[]): void;
+  /** Returns the link while the room runs the dream (a host in a room, a guest), else null and the screen steps its own dream. */
+  link?(): DreamLink | null;
 }
 
 /** Seconds a line stays, and less when more wait behind it. At most this many wait. */
@@ -192,6 +206,10 @@ interface Open {
   playTapped: boolean;
   /** Hide or seek was tapped or keyed, for the next frame. */
   picked: DreamInput['pick'];
+  /** False while the dream is a friend's: its games and prompts are not this player's. */
+  mine: boolean;
+  /** The dream's builds are kept at waking (false for a friend and for a guest). */
+  keeps: boolean;
   onKey: (e: KeyboardEvent) => void;
   waking: boolean;
   /** The dream's dams and lodges when it began, to see whether this dream built or added anything, and whether Keep is being asked. */
@@ -212,7 +230,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
   const wakeClick = (): void => {
     const o = open;
     if (!o || o.waking || o.keeping) return;
-    if (buildsOf(o.state) === o.began) return wake(false);
+    if (!o.keeps || !o.mine || buildsOf(o.state) === o.began) return wake(false);
     o.keeping = true;
     o.hud.keep.style.display = 'flex';
   };
@@ -325,7 +343,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       }
       const onKey = (e: KeyboardEvent): void => {
         const want = PICK_KEYS[e.code];
-        if (want && open && !open.waking && hideOrSeek(open.state) !== null) open.picked = want;
+        if (want && open && !open.waking && open.mine && hideOrSeek(open.state) !== null) open.picked = want;
       };
       window.addEventListener('keydown', onKey);
       // The fade starts after the first draw (`frame`), which compiles the shaders and makes the models in a stall of its own.
@@ -342,6 +360,8 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         said: 0,
         playTapped: false,
         picked: undefined,
+        mine: true,
+        keeps: true,
         onKey,
         waking: false,
         began: buildsOf(state),
@@ -376,7 +396,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
     hud.big.style.display = s.big ? 'block' : 'none';
     if (s.big) text(hud.big, s.big);
     for (const e of events) {
-      const said = dreamLine(e, state, o.said);
+      const said = o.mine ? dreamLine(e, state, o.said) : null;
       if (said === null) continue;
       o.said++;
       o.lines.push(said);
@@ -392,10 +412,10 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         o.lineLeft = o.lines.length > 0 ? LINE_SECONDS_BUSY : LINE_SECONDS;
       }
     } else if (o.lines.length > 0) o.lineLeft = Math.min(o.lineLeft, LINE_SECONDS_BUSY);
-    const ask = playPrompt(state);
+    const ask = o.mine ? playPrompt(state) : null;
     hud.prompt.style.display = ask ? 'flex' : 'none';
     if (ask) text(hud.promptText, opts.touch ? ask : t('dream.promptKey', { ask }));
-    const asked = hideOrSeek(state);
+    const asked = o.mine ? hideOrSeek(state) : null;
     hud.choice.style.display = asked ? 'flex' : 'none';
     if (asked) text(hud.choiceText, t('dream.ask', { name: asked }));
   };
@@ -437,14 +457,27 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       o.picked = undefined;
       o.diveBefore = !!merged.dive;
       const countBefore = o.state.count;
-      const stepped = stepDream(o.state, input, dt);
+      const link = opts.link?.() ?? null;
+      let stepped: { state: DreamState; events: readonly DreamEvent[] };
+      if (link) {
+        // The room steps the dream; this player's input goes to it and the view comes back.
+        link.send(input);
+        const v = link.view();
+        o.keeps = link.keeps;
+        o.mine = v?.mine ?? true;
+        stepped = v ? { state: v.state, events: v.events } : { state: o.state, events: [] };
+      } else {
+        stepped = stepDream(o.state, input, dt);
+        o.mine = true;
+      }
       o.state = stepped.state;
       o.rig.update(dt, o.state.beaver.heading, merged.move.x !== 0 || merged.move.z !== 0);
       o.view.draw(o.state, o.rig.view, stepped.events);
       showHud(o, stepped.events, dt, countBefore);
-      if (stepped.events.length > 0) opts.onEvents?.(stepped.events);
+      if (stepped.events.length > 0 && o.mine) opts.onEvents?.(stepped.events);
     },
     active: () => open !== null,
     state: () => open?.state ?? null,
+    stop: () => wake(false),
   };
 }

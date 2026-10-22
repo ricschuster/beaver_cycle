@@ -72,6 +72,13 @@ runs when all are asleep or said yes. A dreamer who wakes ends the skip like any
 6. **Seeing each other.** Do the dreamers see their friend's real look (colour and coat, Q93) or the candy look? Proposal: their
    real look, as in the waking game.
 
+## Built so far
+
+- The popup (session 177): a player who goes into a dream is in `Snapshot.dreaming` (`Room.setDreaming`), and every other tablet
+  shows "Pip is dreaming" (or "A friend is dreaming" without a name). Only the host can sleep today, so only the host's dream
+  shows. The host's room keeps stepping and broadcasting while its dream is open, so the guests no longer freeze behind it (they
+  did before: the dream frame returned before `Room.step`). Checked on the emulator pair.
+
 ## Steps
 
 1. A shared sleep state in `Room`: who sleeps, who dreams, the popup, the ready check for a skip (this is also what #661 needs).

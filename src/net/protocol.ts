@@ -56,6 +56,8 @@ export interface Snapshot {
   says?: Say[];
   /** The game of hide and seek that runs, with the seconds left of its phase (#664). */
   hide?: HideView;
+  /** The players who are dreaming now, so the others can be told (#665). */
+  dreaming?: string[];
 }
 
 export type HideView = HideGame & { left: number };

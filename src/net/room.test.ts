@@ -699,4 +699,84 @@ describe('the room', () => {
       expect(room.asleep('g1')).toBe(false);
     });
   });
+
+  describe('the dream the host runs for guests (#665)', () => {
+    const twoGuests = () => {
+      const { room } = joined();
+      room.open('g2');
+      room.receive('g2', hello, 0, host, ground);
+      return room;
+    };
+    const stick = (room: Room, id: string, x: number, z: number, more: object = {}) => room.receive(id, JSON.stringify({ t: 'dream', input: { move: { x, z }, hop: false, slap: false, play: false, ...more } }), 1, host, ground);
+    const frames = (room: Room, n: number) => {
+      for (let i = 0; i < n; i++) room.step(world, 1 / 30, 1 + i / 30, ground, oneTree);
+    };
+
+    it('opens with the first guest to dream and steers its beaver by its input', () => {
+      const room = twoGuests();
+      expect(room.dreamState()).toBeNull();
+      room.lie('g1', 'dream', true, 0);
+      frames(room, 1);
+      const first = room.dreamState()!;
+      expect(first).not.toBeNull();
+      stick(room, 'g1', 0, 1);
+      frames(room, 60);
+      expect(room.dreamState()!.beaver.z - first.beaver.z).toBeGreaterThan(2);
+    });
+
+    it('takes a later sleeper as a friend and sends the dream only to dreamers', () => {
+      const room = twoGuests();
+      room.lie('g1', 'dream', true, 0);
+      room.lie('g2', 'dream', true, 0);
+      frames(room, 2);
+      expect(room.dreamState()!.friends!.map((f) => f.id)).toEqual(['g2']);
+      stick(room, 'g2', 1, 0);
+      frames(room, 30);
+      const f = room.dreamState()!.friends![0]!;
+      expect(f.beaver.x).toBeGreaterThan(room.dreamState()!.land.start.x + 1);
+      expect(room.snapshot(world, 'g1', 1).dream?.owner).toBe('g1');
+      expect(room.snapshot(world, 'g2', 1).dream?.friends).toHaveLength(1);
+      expect(room.snapshot(world, undefined, 1).dream).toBeUndefined();
+      room.wake('g1', 2);
+      expect(room.snapshot(world, 'g1', 2).dream).toBeUndefined();
+    });
+
+    it('keeps a press until a step has used it, and ignores the input of a guest that does not dream', () => {
+      const room = twoGuests();
+      stick(room, 'g1', 0, 1, { hop: true });
+      room.lie('g1', 'dream', true, 0);
+      frames(room, 1);
+      expect(room.dreamState()!.beaver.hopAt).toBeNull();
+      stick(room, 'g1', 0, 0, { hop: true });
+      stick(room, 'g1', 0, 0);
+      frames(room, 1);
+      expect(room.dreamState()!.beaver.hopAt).not.toBeNull();
+    });
+
+    it('goes on for a friend when the dreamer wakes, and ends with the last one', () => {
+      const room = twoGuests();
+      room.lie('g1', 'dream', true, 0);
+      room.lie('g2', 'dream', true, 0);
+      frames(room, 2);
+      const before = room.dreamState()!.friends![0]!.beaver;
+      room.wake('g1', 1);
+      frames(room, 1);
+      const after = room.dreamState()!;
+      expect(room.snapshot(world, 'g2', 1).dream?.owner).toBe('g2');
+      expect(after.friends).toBeUndefined();
+      expect(Math.hypot(after.beaver.x - before.x, after.beaver.z - before.z)).toBeLessThan(0.5);
+      room.wake('g2', 2);
+      frames(room, 1);
+      expect(room.dreamState()).toBeNull();
+    });
+
+    it('ends when a dreaming guest leaves', () => {
+      const room = twoGuests();
+      room.lie('g1', 'dream', true, 0);
+      frames(room, 1);
+      room.leave('g1');
+      frames(room, 1);
+      expect(room.dreamState()).toBeNull();
+    });
+  });
 });

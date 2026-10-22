@@ -230,11 +230,23 @@ export interface DreamBuild {
   logs: number;
 }
 
+/** A friend asleep in the same dream (#665): it walks, swims, hops and slaps, and plays no game of its own yet. */
+export interface DreamFriend {
+  /** The player's id in the room: 'host' or the id the host gave a guest. */
+  id: string;
+  beaver: DreamBeaver;
+}
+
+/** Friends in one dream, at most (note 42: four players). */
+export const MAX_FRIENDS = 3;
+
 export interface DreamState {
   land: DreamLand;
   /** Seconds since the dream began. */
   time: number;
   beaver: DreamBeaver;
+  /** Friends asleep in this dream besides the player whose dream it is (#665). */
+  friends?: DreamFriend[];
   mallows: Mallow[];
   sweets: Sweet[];
   /** Sweets collected this dream. */
@@ -697,12 +709,13 @@ export function chocolateDepth(land: DreamLand, x: number, z: number): number {
 }
 
 /** One step of the dream: the beaver, sweets, marshmallow beavers and the games. Returns the new state and what happened. */
-export function stepDream(state: DreamState, input: DreamInput, dt: number): { state: DreamState; events: DreamEvent[] } {
+export function stepDream(state: DreamState, input: DreamInput, dt: number, friends: Readonly<Record<string, DreamInput>> = {}): { state: DreamState; events: DreamEvent[] } {
   const events: DreamEvent[] = [];
   const rng = rngFrom(state.rng ?? mixSeed(state.land.seed, 4));
   const rand = rng.next;
   const time = state.time + dt;
   let s: DreamState = { ...state, time, beaver: moveBeaver(state, input, time, dt, events) };
+  if (state.friends?.length) s = { ...s, friends: state.friends.map((f) => ({ ...f, beaver: moveBeaver({ ...state, beaver: f.beaver, aboard: undefined }, friends[f.id] ?? STILL, time, dt, events) })) };
   s = collect(s, events);
   s = touchStatue(s, events);
   s = carryBoat(s);
@@ -719,6 +732,41 @@ export function stepDream(state: DreamState, input: DreamInput, dt: number): { s
   else if (s.game.kind === 'hide') s = hideRules(s, s.game, rand, events);
   else if (s.game.kind === 'grow') s = growRules(s, s.game, events);
   return { state: { ...s, rng: rng.state() }, events };
+}
+
+const STILL: DreamInput = { move: { x: 0, z: 0 }, hop: false, slap: false, play: false };
+
+/** A friend falls asleep into this dream, on the path a step or two beside where the player woke. Does nothing when it is in already or the dream is full. */
+export function joinDream(state: DreamState, id: string): DreamState {
+  const friends = state.friends ?? [];
+  if (friends.some((f) => f.id === id) || friends.length >= MAX_FRIENDS) return state;
+  const { land } = state;
+  // Each friend takes the next place along a row across the path, left and right in turn.
+  const n = friends.length + 1;
+  const side = (n % 2 === 1 ? 1 : -1) * Math.ceil(n / 2) * 1.6;
+  const heading = land.start.heading;
+  const x = clamp(land.start.x + Math.cos(heading) * side, -(land.half - EDGE), land.half - EDGE);
+  const z = clamp(land.start.z - Math.sin(heading) * side, -(land.half - EDGE), land.half - EDGE);
+  const mode = modeAt(land, x, z, 'walk');
+  const beaver: DreamBeaver = { x, y: baseY(land, x, z, mode), z, heading, speed: 0, mode, hopAt: null, slapAt: null };
+  return { ...state, friends: [...friends, { id, beaver }] };
+}
+
+/** A friend wakes: it leaves the dream, which goes on for the rest. */
+export function leaveDream(state: DreamState, id: string): DreamState {
+  if (!state.friends?.some((f) => f.id === id)) return state;
+  const friends = state.friends.filter((f) => f.id !== id);
+  const { friends: _gone, ...rest } = state;
+  return friends.length ? { ...rest, friends } : rest;
+}
+
+/** The dream of a player who woke goes on for a friend: the friend's beaver is the player now, and the games the old one was in are over. */
+export function handOver(state: DreamState, id: string): DreamState {
+  const f = state.friends?.find((o) => o.id === id);
+  if (!f) return state;
+  const left = leaveDream(state, id);
+  const calm = (m: Mallow): Mallow => ({ ...m, state: 'wander', hideAt: undefined, goal: undefined, until: undefined, peek: undefined, looked: undefined, can: undefined, watered: undefined, jink: undefined });
+  return { ...left, beaver: f.beaver, aboard: undefined, carrying: false, plants: undefined, game: { kind: 'none' }, mallows: left.mallows.map(calm) };
 }
 
 /** The hills slow the part of a move that heads out to the edge. */

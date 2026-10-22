@@ -88,6 +88,14 @@ runs when all are asleep or said yes. A dreamer who wakes ends the skip like any
   down on a nest of its own pair lodge (night for the night) and its tablet has no dream button yet. The room moves the clock,
   so a host that sleeps alone still skips at once. Not yet checked on the emulator pair.
 
+- The dream run by the host for guests (session 178, step 2, no screen yet): `DreamState.friends` with `joinDream`, `leaveDream`
+  and `handOver` in `src/sim/dream.ts` (a friend walks, swims, hops and slaps by its own `DreamInput`; boats, building, sweets and
+  the games stay with the player whose dream it is). `Room` opens the dream with the first guest who dreams, takes later guests as
+  friends, hands the dream to a friend when its owner wakes (the games it was in end), and closes it with the last. A guest sends
+  `{ t: 'dream', input }`; a dreamer gets `Snapshot.dream` (`src/net/dreamWire.ts`: the seed, the beavers, the marshmallows, the sweets
+  taken, the games; the land is made again from the seed, so it is not sent). Only candy land so far, and the host's own dream is
+  still its own screen's: the next step puts the host in the same run and draws it on a guest.
+
 ## The author's answers
 
 Session 177. The proposals above stand, with these changes.
@@ -105,6 +113,6 @@ Session 177. The proposals above stand, with these changes.
 ## Steps
 
 1. A shared sleep state in `Room`: who sleeps, who dreams, the popup, the ready check for a skip (this is also what #661 needs). Built, see above.
-2. Move the dream step to the host for guests: `Snapshot.dream`, an intent for the dreamer's input, tests with fake rooms.
+2. Move the dream step to the host for guests: `Snapshot.dream`, an intent for the dreamer's input, tests with fake rooms. Built, see above.
 3. Draw the dream on a guest, the late join, the wake of one player.
 4. Friends in the games, the manual (both languages), notes 29 and 42, and the emulator pair for the real run.

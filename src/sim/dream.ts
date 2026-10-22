@@ -202,8 +202,8 @@ export type DreamGame =
    * have found the player or `until`, a minute on. `found` is the seekers that have found the player.
    */
   | { kind: 'hide'; phase: 'counting' | 'seeking'; until: number; base: DreamPoint; seekers: string[]; found: string[] }
-  /** Growing plants in the garden beds: the player and some veggie beavers water one each; the first to full size, else the biggest at `ends`, wins. `can` is the player's can being full. */
-  | { kind: 'grow'; ends: number; can: boolean };
+  /** Growing plants in the garden beds: the player and some veggie beavers water one each; the first to full size, else the biggest at `ends`, wins. `can` is the player's can being full, `cans` the friends whose cans are. */
+  | { kind: 'grow'; ends: number; can: boolean; cans?: string[] };
 
 /** A plant in a garden bed: its stage from 0 (a seed) to `GROW_STAGES`. `owner` is 'player' or a veggie beaver's id. */
 export interface Plant {
@@ -751,20 +751,36 @@ export function stepDream(state: DreamState, input: DreamInput, dt: number, frie
  * a view of the dream in which the owner is a friend, so the rules for the owner's moves and boats serve it too.
  */
 function stepFriends(s: DreamState, friends: readonly DreamFriend[], inputs: Readonly<Record<string, DreamInput>>, time: number, dt: number, events: DreamEvent[]): DreamState {
-  let { sweets, count, rushUntil, boats } = s;
+  let { sweets, count, rushUntil, boats, game, plants, statueTouched } = s;
   const out = new Map<string, DreamFriend>();
   for (const f of friends) {
     const input = inputs[f.id] ?? STILL;
     const others = friends.filter((o) => o.id !== f.id).map((o) => out.get(o.id) ?? o);
-    let v: DreamState = { ...s, sweets, count, rushUntil, ...(boats ? { boats } : {}), beaver: f.beaver, aboard: f.aboard, friends: [{ id: '', beaver: s.beaver, aboard: s.aboard }, ...others] };
+    let v: DreamState = { ...s, sweets, count, rushUntil, game, ...(plants ? { plants } : {}), ...(boats ? { boats } : {}), ...(statueTouched ? { statueTouched } : {}), beaver: f.beaver, aboard: f.aboard, friends: [{ id: '', beaver: s.beaver, aboard: s.aboard }, ...others] };
     v = { ...v, beaver: moveBeaver(v, input, time, dt, events) };
-    v = carryBoat(collect(v, events));
-    if (input.play) v = v.aboard ? leaveBoat(v, events) : boardBoat(v, events);
+    v = touchStatue(carryBoat(collect(v, events)), events);
+    // In a plant race a friend with a plant tends it; else Do is for a boat.
+    if (input.play) {
+      if (v.game.kind === 'grow' && ownBed(v, f.id)) v = tend(v, v.game, events, f.id);
+      else v = v.aboard ? leaveBoat(v, events) : boardBoat(v, events);
+    }
     out.set(f.id, { ...f, beaver: v.beaver, ...(v.aboard !== undefined ? { aboard: v.aboard } : { aboard: undefined }) });
-    ({ sweets, count, rushUntil, boats } = v);
+    ({ sweets, count, rushUntil, boats, game, plants, statueTouched } = v);
   }
-  return { ...s, friends: friends.map((f) => out.get(f.id)!), sweets, count, rushUntil, ...(boats ? { boats } : {}) };
+  return { ...s, friends: friends.map((f) => out.get(f.id)!), sweets, count, rushUntil, game, ...(plants ? { plants } : {}), ...(boats ? { boats } : {}), ...(statueTouched ? { statueTouched } : {}) };
 }
+
+/** Where a person or marshmallow beaver of a game is: 'player' is the owner, else a friend or a marshmallow beaver by id. */
+function whoAt(s: DreamState, id: string): DreamBeaver | undefined {
+  if (id === 'player') return s.beaver;
+  return s.friends?.find((f) => f.id === id)?.beaver ?? s.mallows.find((m) => m.id === id);
+}
+
+/** Whether `id` is a person: the owner ('player') or a friend asleep in the dream, not a marshmallow beaver. */
+const isHuman = (s: DreamState, id: string): boolean => id === 'player' || !!s.friends?.some((f) => f.id === id);
+
+/** Every person in the dream: the owner and the friends. They all find hiders, are seen by seekers and hear giggles. */
+const people = (s: DreamState): DreamBeaver[] => [s.beaver, ...(s.friends ?? []).map((f) => f.beaver)];
 
 const STILL: DreamInput = { move: { x: 0, z: 0 }, hop: false, slap: false, play: false };
 
@@ -789,7 +805,13 @@ export function leaveDream(state: DreamState, id: string): DreamState {
   if (!state.friends?.some((f) => f.id === id)) return state;
   const friends = state.friends.filter((f) => f.id !== id);
   const { friends: _gone, ...rest } = state;
-  return friends.length ? { ...rest, friends } : rest;
+  const g = state.game;
+  // The games go on without it: it is no longer a player, it, quarry or can holder.
+  const game: DreamGame =
+    g.kind === 'tag' ? { ...g, players: g.players.filter((p) => p !== id), it: g.it === id ? 'player' : g.it, ...(g.chase === id ? { chase: undefined } : {}) }
+    : g.kind === 'grow' && g.cans?.includes(id) ? { ...g, cans: g.cans.filter((c) => c !== id) }
+    : g;
+  return friends.length ? { ...rest, game, friends } : { ...rest, game };
 }
 
 /** The dream of a player who woke goes on for a friend: the friend's beaver is the player now, and the games the old one was in are over. */
@@ -813,7 +835,28 @@ export function viewFrom(state: DreamState, me: string, owner: string): DreamSta
   const others = (state.friends ?? []).filter((f) => f.id !== me);
   const first: DreamFriend = { id: owner, beaver: state.beaver, ...(state.look ? { look: state.look } : {}), ...(state.aboard ? { aboard: state.aboard } : {}) };
   const { look: _look, ...bare } = state;
-  return { ...bare, ...(mine.look ? { look: mine.look } : {}), beaver: mine.beaver, friends: [first, ...others], aboard: mine.aboard, carrying: false, game: { kind: 'none' } };
+  const view = { ...bare, ...(mine.look ? { look: mine.look } : {}), beaver: mine.beaver, friends: [first, ...others], aboard: mine.aboard, carrying: false };
+  return { ...view, game: gameFrom(state, me, owner), ...(state.plants ? { plants: state.plants.map((p) => ({ ...p, owner: swapId(p.owner, me, owner) })) } : {}) };
+}
+
+/** `me` is 'player' in its own view and the owner an ordinary friend, and the other way round. */
+const swapId = (id: string, me: string, owner: string): string => (id === me ? 'player' : id === 'player' ? owner : id);
+
+/** The game as friend `me` sees it: the owner's question is not its own, and who is who is swapped as in `viewFrom`. */
+function gameFrom(state: DreamState, me: string, owner: string): DreamGame {
+  const g = state.game;
+  switch (g.kind) {
+    case 'tag':
+      return { ...g, it: swapId(g.it, me, owner), players: g.players.map((id) => (id === me ? owner : id)), ...(g.chase !== undefined ? { chase: swapId(g.chase, me, owner) } : {}) };
+    case 'grow': {
+      const cans = [...(g.can ? [owner] : []), ...(g.cans ?? []).filter((id) => id !== me)];
+      return { kind: 'grow', ends: g.ends, can: g.cans?.includes(me) ?? false, ...(cans.length ? { cans } : {}) };
+    }
+    case 'choose':
+      return { kind: 'none' };
+    default:
+      return g;
+  }
 }
 
 /** The hills slow the part of a move that heads out to the edge. */
@@ -1110,6 +1153,13 @@ export function playPrompt(state: DreamState): string | null {
   return inChocolate(state) ? t('dream.playTag', { name: m.name }) : t('dream.playSeek', { name: m.name });
 }
 
+/** What Do would do for a friend in a dream that is not its own (`viewFrom`): tend its plant in a plant race, else get in or out of a boat, or null. */
+export function friendPrompt(state: DreamState): string | null {
+  if (state.game.kind === 'grow' && ownBed(state)) return tendPrompt(state, state.game);
+  if (state.aboard || boatNear(state)) return boatPrompt(state);
+  return null;
+}
+
 /** The marshmallow beaver's name while the player is asked to hide or seek, else null. */
 export function hideOrSeek(state: DreamState): string | null {
   const g = state.game;
@@ -1151,7 +1201,9 @@ const backToWander = (m: Mallow): Mallow => ({
 
 function startTag(s: DreamState, chosen: Mallow, rand: () => number, events: DreamEvent[]): DreamState {
   const t = s.time;
-  const players = [chosen.id, ...s.mallows.filter((m) => m !== chosen && dist2(m, s.beaver) < TAG_JOIN * TAG_JOIN).map((m) => m.id)];
+  const near = (id: DreamPoint): boolean => dist2(id, s.beaver) < TAG_JOIN * TAG_JOIN;
+  // Friends near the player play too: a mallow that is it may chase them, and one that tags them makes them it.
+  const players = [chosen.id, ...s.mallows.filter((m) => m !== chosen && near(m)).map((m) => m.id), ...(s.friends ?? []).filter((f) => near(f.beaver)).map((f) => f.id)];
   const mallows = s.mallows.map((m): Mallow => {
     if (m === chosen) return { ...backToWander(m), state: 'chase', met: true, until: t + IT_WAIT, hopAt: t, leap: m.mode === 'swim' };
     if (!players.includes(m.id)) return m;
@@ -1325,7 +1377,7 @@ function stepMallow(s: DreamState, m: Mallow, rand: () => number, dt: number, ev
       if (m.nextAt === undefined) return { ...m, nextAt: t + GIGGLE_MIN + rand() * GIGGLE_SPREAD };
       if (t < m.nextAt) return m;
       const next = { ...m, nextAt: t + GIGGLE_MIN + rand() * GIGGLE_SPREAD };
-      if (dist2(m, b) > HEAR_REACH * HEAR_REACH) return next;
+      if (!people(s).some((h) => dist2(m, h) < HEAR_REACH * HEAR_REACH)) return next;
       events.push({ what: 'giggle', who: m.name, x: m.x, z: m.z });
       return { ...next, giggleAt: t };
     }
@@ -1423,10 +1475,20 @@ export function bankSpot(land: DreamLand, bed: DreamPoint): DreamPoint {
 
 const onBank = (s: DreamState): boolean => riverDistance(s.land, s.beaver.x, s.beaver.z) - s.land.riverWidth / 2 < DAM_REACH;
 
-/** The bed of the player's plant. */
-const ownBed = (s: DreamState): DreamPoint | null => {
-  const mine = s.plants?.find((p) => p.owner === 'player');
+/** The bed of the plant of `who` ('player' or a friend's id), or null. */
+const ownBed = (s: DreamState, who = 'player'): DreamPoint | null => {
+  const mine = s.plants?.find((p) => p.owner === who);
   return mine ? s.land.beds?.[mine.bed] ?? null : null;
+};
+
+/** Whether the can of `who` is full. */
+const canFull = (g: Extract<DreamGame, { kind: 'grow' }>, who: string): boolean => (who === 'player' ? g.can : !!g.cans?.includes(who));
+
+/** The game with the can of `who` full or empty. */
+const withCan = (g: Extract<DreamGame, { kind: 'grow' }>, who: string, full: boolean): DreamGame => {
+  if (who === 'player') return { ...g, can: full };
+  const cans = (g.cans ?? []).filter((id) => id !== who);
+  return { ...g, cans: full ? [...cans, who] : cans };
 };
 
 /** What the Do control does in a game of growing now, for the prompt: fill the can at the river, or water the plant at its bed. */
@@ -1436,18 +1498,19 @@ function tendPrompt(s: DreamState, g: Extract<DreamGame, { kind: 'grow' }>): str
   return onBank(s) ? t('dream.fillCan') : null;
 }
 
-function tend(s: DreamState, g: Extract<DreamGame, { kind: 'grow' }>, events: DreamEvent[]): DreamState {
-  const bed = ownBed(s);
+/** Do in a game of growing, for the beaver of the state (`s.beaver`) as `who`: fill the can at the river, or water its plant at its bed. */
+function tend(s: DreamState, g: Extract<DreamGame, { kind: 'grow' }>, events: DreamEvent[], who = 'player'): DreamState {
+  const bed = ownBed(s, who);
   const b = s.beaver;
-  if (g.can) {
+  if (canFull(g, who)) {
     if (!bed || dist2(bed, b) >= BED_REACH * BED_REACH) return s;
-    const plants = (s.plants ?? []).map((p) => (p.owner === 'player' ? { ...p, stage: Math.min(GROW_STAGES, p.stage + 1) } : p));
-    events.push({ what: 'water', who: 'player', stage: plants.find((p) => p.owner === 'player')!.stage, x: bed.x, z: bed.z });
-    return { ...s, plants, game: { ...g, can: false } };
+    const plants = (s.plants ?? []).map((p) => (p.owner === who ? { ...p, stage: Math.min(GROW_STAGES, p.stage + 1) } : p));
+    events.push({ what: 'water', who, stage: plants.find((p) => p.owner === who)!.stage, x: bed.x, z: bed.z });
+    return { ...s, plants, game: withCan(g, who, false) };
   }
   if (!onBank(s)) return s;
-  events.push({ what: 'fill', who: 'player', x: b.x, z: b.z });
-  return { ...s, game: { ...g, can: true } };
+  events.push({ what: 'fill', who, x: b.x, z: b.z });
+  return { ...s, game: withCan(g, who, true) };
 }
 
 /** Do at a bed: the player and the nearest veggie beavers (up to three) each get a bed and a seed, and the beavers go for their cans. */
@@ -1455,11 +1518,15 @@ function startGrow(s: DreamState, events: DreamEvent[]): DreamState {
   const beds = s.land.beds ?? [];
   const mine = bedAt(s);
   if (mine === null) return s;
-  const friends = [...s.mallows].sort((p, q) => dist2(p, s.beaver) - dist2(q, s.beaver)).slice(0, Math.min(GROW_FRIENDS, beds.length - 1));
+  const slots = Math.min(GROW_FRIENDS, beds.length - 1);
+  // Friends near the player grow a plant too, and the veggie beavers fill the beds that are left.
+  const guests = [...(s.friends ?? [])].filter((f) => dist2(f.beaver, s.beaver) < SEEK_JOIN * SEEK_JOIN).sort((p, q) => dist2(p.beaver, s.beaver) - dist2(q.beaver, s.beaver)).slice(0, slots);
+  const friends = [...s.mallows].sort((p, q) => dist2(p, s.beaver) - dist2(q, s.beaver)).slice(0, slots - guests.length);
   const free = beds.map((_, i) => i).filter((i) => i !== mine);
-  const plants: Plant[] = [{ bed: mine, owner: 'player', stage: 0 }, ...friends.map((m, k) => ({ bed: free[k]!, owner: m.id, stage: 0 }))];
+  const owners = [...guests.map((f) => f.id), ...friends.map((m) => m.id)];
+  const plants: Plant[] = [{ bed: mine, owner: 'player', stage: 0 }, ...owners.map((owner, k) => ({ bed: free[k]!, owner, stage: 0 }))];
   const mallows = s.mallows.map((m): Mallow => (friends.includes(m) ? { ...backToWander(m), state: 'water', met: true, watered: 0, can: false } : m));
-  events.push({ what: 'growStart', friends: friends.length });
+  events.push({ what: 'growStart', friends: owners.length });
   return { ...s, plants, mallows, game: { kind: 'grow', ends: s.time + GROW_TIME, can: false } };
 }
 
@@ -1492,7 +1559,8 @@ function biggest(plants: readonly Plant[]): Plant | undefined {
 
 /** The beavers' plants grow as they water; the game ends when one is full, or when the time is up. */
 function growRules(s: DreamState, g: Extract<DreamGame, { kind: 'grow' }>, events: DreamEvent[]): DreamState {
-  const plants = (s.plants ?? []).map((p) => (p.owner === 'player' ? p : { ...p, stage: Math.min(GROW_STAGES, s.mallows.find((m) => m.id === p.owner)?.watered ?? p.stage) }));
+  // The plants of people grow as they water; a veggie beaver's as it waters.
+  const plants = (s.plants ?? []).map((p) => (isHuman(s, p.owner) ? p : { ...p, stage: Math.min(GROW_STAGES, s.mallows.find((m) => m.id === p.owner)?.watered ?? p.stage) }));
   const top = biggest(plants);
   const full = plants.find((p) => p.stage >= GROW_STAGES);
   if (!full && s.time < g.ends) return { ...s, plants };
@@ -1510,8 +1578,7 @@ function growRules(s: DreamState, g: Extract<DreamGame, { kind: 'grow' }>, event
 
 /** Where the one a marshmallow beaver that is it chases is now. */
 function quarry(s: DreamState, g: Extract<DreamGame, { kind: 'tag' }>): DreamPoint {
-  const id = g.chase ?? 'player';
-  return id === 'player' ? s.beaver : s.mallows.find((m) => m.id === id) ?? s.beaver;
+  return whoAt(s, g.chase ?? 'player') ?? s.beaver;
 }
 
 function chase(s: DreamState, m: Mallow, rand: () => number, dt: number): Mallow {
@@ -1544,7 +1611,7 @@ function flee(s: DreamState, m: Mallow, rand: () => number, dt: number): Mallow 
     const { out } = riverFrame(land, m.x, m.z);
     return go(s, next, -out.x, -out.z, CHASE_SPEED, dt);
   }
-  const it = g.it === 'player' ? b : s.mallows.find((o) => o.id === g.it) ?? b;
+  const it = whoAt(s, g.it) ?? b;
   const dx = m.x - it.x;
   const dz = m.z - it.z;
   const d = Math.hypot(dx, dz) || 1;
@@ -1555,7 +1622,7 @@ function flee(s: DreamState, m: Mallow, rand: () => number, dt: number): Mallow 
     const vx = along.x * way + (dx / d) * 0.5;
     const vz = along.z * way + (dz / d) * 0.5;
     const a = (next.jink ?? 0) * 0.7;
-    const speed = g.it === 'player' ? FLEE_FROM_PLAYER : g.chase === m.id ? FLEE_FROM_MALLOW : FLEE_FROM_MALLOW + 0.2;
+    const speed = isHuman(s, g.it) ? FLEE_FROM_PLAYER : g.chase === m.id ? FLEE_FROM_MALLOW : FLEE_FROM_MALLOW + 0.2;
     if (d < 3.5 && !hopping(next, t) && rand() < dt * 0.8) next = { ...next, hopAt: t, leap: true };
     return go(s, next, vx * Math.cos(a) + vz * Math.sin(a), -vx * Math.sin(a) + vz * Math.cos(a), speed, dt, true);
   }
@@ -1564,22 +1631,31 @@ function flee(s: DreamState, m: Mallow, rand: () => number, dt: number): Mallow 
   return stand(s, next, dt, true);
 }
 
-function tagRules(s: DreamState, g: Extract<DreamGame, { kind: 'tag' }>, rand: () => number, events: DreamEvent[]): DreamState {
+function tagRules(s: DreamState, g0: Extract<DreamGame, { kind: 'tag' }>, rand: () => number, events: DreamEvent[]): DreamState {
   const t = s.time;
   const b = s.beaver;
+  // A friend who was it and has gone is no longer: the player is it.
+  const g = g0.it === 'player' || whoAt(s, g0.it) ? g0 : { ...g0, it: 'player' };
   let game = g;
   let mallows = s.mallows;
   const named = (id: string): string => (id === 'player' ? 'player' : mallows.find((m) => m.id === id)?.name ?? id);
   if (t >= (g.calm ?? 0)) {
     let caught: string | null = null;
-    if (g.it === 'player') caught = mallows.find((m) => g.players.includes(m.id) && dist2(m, b) < CATCH_REACH * CATCH_REACH)?.id ?? null;
-    else {
+    if (isHuman(s, g.it)) {
+      // A person who is it tags whoever of the players it touches, the player (the owner) too when a friend is it.
+      const me = whoAt(s, g.it)!;
+      const targets = g.it === 'player' ? g.players : ['player', ...g.players];
+      caught = targets.find((id) => {
+        const at = id === g.it ? undefined : whoAt({ ...s, mallows }, id);
+        return at !== undefined && dist2(at, me) < CATCH_REACH * CATCH_REACH;
+      }) ?? null;
+    } else {
       const it = mallows.find((m) => m.id === g.it);
       if (it && dist2(it, quarry(s, g)) < CATCH_REACH * CATCH_REACH) caught = g.chase ?? 'player';
     }
     if (caught) {
       const by = named(g.it);
-      const chase = caught === 'player' ? undefined : pickQuarry(g.players, caught, g.it, rand);
+      const chase = isHuman(s, caught) ? undefined : pickQuarry(s, g.players, caught, g.it, rand);
       game = { ...g, it: caught, since: t, calm: t + NO_TAG_BACK, catches: g.catches + 1, chase };
       mallows = mallows.map((m): Mallow => {
         if (m.id === caught) return { ...m, state: 'chase', until: t + IT_WAIT, hopAt: t, leap: m.mode === 'swim' };
@@ -1598,17 +1674,20 @@ function tagRules(s: DreamState, g: Extract<DreamGame, { kind: 'tag' }>, rand: (
   return shower({ ...s, game: { kind: 'none' }, mallows: mallows.map((m) => (players.has(m.id) ? backToWander(m) : m)) }, rand, events, true);
 }
 
-/** Who a new marshmallow it chases: mostly the player, else another player, not the one that just caught it if it can help it. */
-function pickQuarry(players: readonly string[], it: string, was: string, rand: () => number): string {
-  if (rand() < CHASE_PLAYER) return 'player';
-  let others = players.filter((id) => id !== it && id !== was);
-  if (others.length === 0) others = players.filter((id) => id !== it);
+/** Who a new marshmallow it chases: mostly a person (the player, or a friend who plays), else another marshmallow beaver, not the one that just caught it if it can help it. */
+function pickQuarry(s: DreamState, players: readonly string[], it: string, was: string, rand: () => number): string {
+  const persons = ['player', ...players.filter((id) => isHuman(s, id))];
+  if (rand() < CHASE_PLAYER) return persons.length === 1 ? 'player' : persons[Math.floor(rand() * persons.length)]!;
+  const mallowIds = players.filter((id) => !isHuman(s, id));
+  let others = mallowIds.filter((id) => id !== it && id !== was);
+  if (others.length === 0) others = mallowIds.filter((id) => id !== it);
   return others.length === 0 ? 'player' : others[Math.floor(rand() * others.length)]!;
 }
 
 function seekRules(s: DreamState, g: Extract<DreamGame, { kind: 'seek' }>, rand: () => number, events: DreamEvent[]): DreamState {
   const t = s.time;
-  const b = s.beaver;
+  // Friends look too: anyone who walks up to a hider or touches its prop finds it.
+  const seekers = people(s);
   if (g.phase === 'counting') {
     if (t < g.until) return s;
     events.push({ what: 'seekGo' });
@@ -1619,8 +1698,8 @@ function seekRules(s: DreamState, g: Extract<DreamGame, { kind: 'seek' }>, rand:
   const mallows = s.mallows.map((m): Mallow => {
     if ((m.state !== 'hidden' && m.state !== 'hide') || !g.hiders.includes(m.id)) return m;
     const prop = s.land.props.find((p) => p.id === m.hideAt);
-    const near = dist2(m, b) < FIND_REACH * FIND_REACH;
-    const touch = m.state === 'hidden' && prop !== undefined && dist2(prop, b) < (PROP_RADIUS[prop.kind] * prop.size + BODY + 0.8) ** 2;
+    const near = seekers.some((b) => dist2(m, b) < FIND_REACH * FIND_REACH);
+    const touch = m.state === 'hidden' && prop !== undefined && seekers.some((b) => dist2(prop, b) < (PROP_RADIUS[prop.kind] * prop.size + BODY + 0.8) ** 2);
     if (!near && !touch) return m;
     found = [...found, m.id];
     events.push({ what: 'found', who: m.name, left: g.hiders.length - found.length });
@@ -1674,7 +1753,7 @@ function seek(s: DreamState, m: Mallow, rand: () => number, dt: number, events: 
   if (g.kind !== 'hide') return backToWander(m);
   const t = s.time;
   let next = m;
-  if (dist2(m, s.beaver) < NEAR_GIGGLE * NEAR_GIGGLE && (m.nextAt === undefined || t >= m.nextAt)) {
+  if (people(s).some((h) => dist2(m, h) < NEAR_GIGGLE * NEAR_GIGGLE) && (m.nextAt === undefined || t >= m.nextAt)) {
     events.push({ what: 'giggle', who: m.name, x: m.x, z: m.z });
     next = { ...next, giggleAt: t, nextAt: t + 2 + rand() * 2 };
   }
@@ -1738,7 +1817,8 @@ function hideRules(s: DreamState, g: Extract<DreamGame, { kind: 'hide' }>, rand:
   // A seeker that sees the player has found them: it giggles, cheers with a hop, and goes back to the base.
   let found = g.found;
   const mallows = s.mallows.map((m): Mallow => {
-    if (m.state !== 'seek' || !g.seekers.includes(m.id) || !sees(s.land, m, s.beaver)) return m;
+    // Friends hide with the player: a seeker that sees any of them has found someone.
+    if (m.state !== 'seek' || !g.seekers.includes(m.id) || !people(s).some((h) => sees(s.land, m, h))) return m;
     found = [...found, m.id];
     events.push({ what: 'spotted', who: m.name, left: g.seekers.length - found.length });
     const home = ring(g.base, g.seekers.indexOf(m.id), g.seekers.length, innerOf(s.land.half));

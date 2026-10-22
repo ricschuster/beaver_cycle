@@ -6,7 +6,7 @@ import { t, tList } from '../i18n';
 import { mergeActions, noActions, relativeToView, type Actions } from '../actions/actions';
 import { createCameraRig, type CameraRig } from '../render/cameraRig';
 import { createDreamView, type DreamView } from '../render/dreamView';
-import { GROW_STAGES, hideOrSeek, newDream, type DreamBuild, type DreamTheme, playPrompt, stepDream, type DreamEvent, type DreamInput, type DreamState } from '../sim/dream';
+import { GROW_STAGES, friendPrompt, hideOrSeek, newDream, type DreamBuild, type DreamTheme, playPrompt, stepDream, type DreamEvent, type DreamInput, type DreamState } from '../sim/dream';
 import { DARK_MS, FADE_MS } from './sleepPrompt';
 import { createTouchControls, type TouchControls } from './touchControls';
 
@@ -61,7 +61,9 @@ export const PICK_KEYS: Readonly<Record<string, 'hide' | 'seek'>> = { Digit1: 'h
 
 /** A marshmallow beaver's name from an event, which may carry its id or its name. 'player' stays 'player'. */
 export function mallowName(state: DreamState, who: string): string {
-  return state.mallows.find((m) => m.id === who)?.name ?? who;
+  const m = state.mallows.find((o) => o.id === who);
+  if (m) return m.name;
+  return state.friends?.some((f) => f.id === who) ? t('dream.aFriend') : who;
 }
 
 const pick = (lines: readonly string[], n: number): string => lines[Math.abs(Math.floor(n)) % lines.length]!;
@@ -412,7 +414,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
         o.lineLeft = o.lines.length > 0 ? LINE_SECONDS_BUSY : LINE_SECONDS;
       }
     } else if (o.lines.length > 0) o.lineLeft = Math.min(o.lineLeft, LINE_SECONDS_BUSY);
-    const ask = o.mine ? playPrompt(state) : null;
+    const ask = o.mine ? playPrompt(state) : friendPrompt(state);
     hud.prompt.style.display = ask ? 'flex' : 'none';
     if (ask) text(hud.promptText, opts.touch ? ask : t('dream.promptKey', { ask }));
     const asked = o.mine ? hideOrSeek(state) : null;
@@ -474,7 +476,7 @@ export function createDreamScreen(parent: HTMLElement, opts: DreamScreenOptions)
       o.rig.update(dt, o.state.beaver.heading, merged.move.x !== 0 || merged.move.z !== 0);
       o.view.draw(o.state, o.rig.view, stepped.events);
       showHud(o, stepped.events, dt, countBefore);
-      if (stepped.events.length > 0 && o.mine) opts.onEvents?.(stepped.events);
+      if (stepped.events.length > 0) opts.onEvents?.(stepped.events);
     },
     active: () => open !== null,
     state: () => open?.state ?? null,

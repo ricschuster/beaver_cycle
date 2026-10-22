@@ -1,7 +1,9 @@
 // A dream on the wire (#665, docs/design/51_dream_together.md). The host runs the dream; a guest that dreams gets it in its snapshot and
 // draws it. The land and the sweets come from the seed on both sides (`newDream` is the same code), so the wire carries only what
 // moves: the beavers, the marshmallows, the sweets taken or added, and the games. Pure, no DOM.
-import { newDream, type DreamBeaver, type DreamInput, type DreamLook, type DreamBoat, type DreamBuild, type DreamFriend, type DreamGame, type DreamState, type DreamTheme, type Mallow, type Plant, type Sweet } from '../sim/dream';
+import { newDream, type DreamBeaver, type DreamEvent, type DreamInput, type DreamLook, type DreamBoat, type DreamBuild, type DreamFriend, type DreamGame, type DreamState, type DreamTheme, type Mallow, type Plant, type Sweet } from '../sim/dream';
+
+const TAU = Math.PI * 2;
 
 export interface DreamWire {
   seed: number;
@@ -25,6 +27,8 @@ export interface DreamWire {
   aboard?: string;
   plants?: Plant[];
   game: DreamGame;
+  /** What happened in the dream since the last snapshot this guest was sent (sparkles, sounds). */
+  events?: DreamEvent[];
 }
 
 export const wireOf = (s: DreamState, owner: string, theme: DreamTheme): DreamWire => {
@@ -81,6 +85,25 @@ export function dreamOf(w: DreamWire): DreamState {
     ...(w.aboard !== undefined ? { aboard: w.aboard } : {}),
     ...(w.plants ? { plants: w.plants } : {}),
     game: w.game,
+  };
+}
+
+/**
+ * The dream between two snapshots: positions and headings a share `k` (0 to 1) of the way from `from` to `to`, so a guest that gets
+ * 20 snapshots a second draws a smooth walk. Everything else is `to`'s. A new land (another seed) is not blended.
+ */
+export function blendDream(from: DreamState | null, to: DreamState, k: number): DreamState {
+  if (!from || from.land !== to.land || k >= 1) return to;
+  const f = Math.max(0, k);
+  const turn = (a: number, b: number): number => a + ((((b - a) % TAU) + 3 * Math.PI) % TAU - Math.PI) * f;
+  const move = <T extends DreamBeaver>(a: T | undefined, b: T): T => (a ? { ...b, x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, heading: turn(a.heading, b.heading) } : b);
+  const byId = <T extends { id: string }>(list: readonly T[] | undefined, id: string): T | undefined => list?.find((o) => o.id === id);
+  return {
+    ...to,
+    beaver: move(from.beaver, to.beaver),
+    ...(to.friends ? { friends: to.friends.map((o) => { const a = byId(from.friends, o.id); return a ? { ...o, beaver: move(a.beaver, o.beaver) } : o; }) } : {}),
+    mallows: to.mallows.map((m) => move(byId(from.mallows, m.id), m)),
+    ...(to.boats ? { boats: to.boats.map((o) => { const a = byId(from.boats, o.id); return a ? { ...o, x: a.x + (o.x - a.x) * f, z: a.z + (o.z - a.z) * f, heading: turn(a.heading, o.heading) } : o; }) } : {}),
   };
 }
 

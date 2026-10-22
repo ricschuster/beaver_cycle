@@ -63,7 +63,7 @@ import { createSleepPrompt } from './ui/sleepPrompt';
 import { createSleepAsk } from './ui/sleepAsk';
 import { createDreamScreen, type DreamLink } from './ui/dreamScreen';
 import { viewFrom, type DreamInput, type DreamTheme } from './sim/dream';
-import { dreamOf, mergeInput, type DreamWire } from './net/dreamWire';
+import { blendDream, dreamOf, mergeInput, type DreamWire } from './net/dreamWire';
 import { createTestMenu, type TestMenu } from './ui/testMenu';
 import { NO_TEST_MENU, gameQuery } from './devTools';
 import { STREAM_HEARD } from './audio/mix';
@@ -761,7 +761,7 @@ async function start(): Promise<void> {
       return { state: viewFrom(state, 'host', info.owner), mine: info.owner === 'host', events: room.takeDreamEvents() };
     },
   };
-  let guestViewed: { wire: DreamWire; state: ReturnType<typeof dreamOf> } | null = null;
+  let guestViewed: { wire: DreamWire; state: ReturnType<typeof dreamOf>; from: ReturnType<typeof dreamOf> | null; at: number } | null = null;
   const guestDreamLink: DreamLink = {
     keeps: false,
     send: (input) => {
@@ -770,8 +770,13 @@ async function start(): Promise<void> {
     view() {
       const wire = lastSnap?.dream;
       if (!wire || !link?.id) return null;
-      if (guestViewed?.wire !== wire) guestViewed = { wire, state: dreamOf(wire) };
-      return { state: viewFrom(guestViewed.state, link.id, wire.owner), mine: wire.owner === link.id, events: [] };
+      const now = performance.now();
+      // A new snapshot: its news is told once, and the picture glides from the last one to it over one snapshot interval.
+      const fresh = guestViewed?.wire !== wire;
+      if (fresh) guestViewed = { wire, state: dreamOf(wire), from: guestViewed ? guestViewed.state : null, at: now };
+      const seen = guestViewed!;
+      const glide = blendDream(seen.from, seen.state, (now - seen.at) / (1000 / SEND_HZ));
+      return { state: viewFrom(glide, link.id, wire.owner), mine: wire.owner === link.id, events: fresh ? wire.events ?? [] : [] };
     },
   };
   // What the room decided for the host's own bed (#661): a plain sleep wakes with the clock moved or not, a dream goes on until the host wakes.

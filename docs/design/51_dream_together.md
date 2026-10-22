@@ -108,9 +108,19 @@ runs when all are asleep or said yes. A dreamer who wakes ends the skip like any
 
 - Sweets and boats for friends (session 179, step 4): `stepFriends` in `src/sim/dream.ts` steps each friend as the beaver of a view in
   which the owner is a friend, so a friend takes sweets (one count and one sugar rush for all) and boards or leaves a boat of its own
-  (`DreamFriend.aboard`; a boat takes one beaver, and `handOver` keeps the boat). Not built: friends in tag, hide and seek and the plant
-  race. Those rules name the one 'player' in about twenty places (who is it, who is chased, who hides, whose plant), so friends as
-  runners, hiders or seekers need those to take any number of human players first. The manual says so.
+  (`DreamFriend.aboard`; a boat takes one beaver, and `handOver` keeps the boat).
+
+- Friends in the games, smoothing and news (session 180, step 4 done): the owner starts a game, and the friends near start with it, as
+  people next to the owner (`whoAt`, `isHuman`, `people` in `src/sim/dream.ts`). Tag: friends within 25 m are players; a marshmallow
+  beaver that is it may chase a friend, a friend it tags is it (the answer to "who is it when a friend is caught": whoever is caught is
+  it, a friend or the owner, and only the one who is it tags); a friend who is it tags by touching a player, the owner too, and a
+  friend who wakes while it hands "it" back to the owner. Hide and seek: anyone who walks up to a hider or touches its prop finds it,
+  and a seeker that sees the owner or any friend has found someone. The plant race: friends within 35 m each get a bed and a can
+  (`DreamGame.cans`), Do tends the friend's own plant, and the veggie beavers fill the beds that are left. Friends touch the golden
+  statue too (a rush for all). A friend's `viewFrom` swaps ids in the game so its own plant, can and "you are it" read as the
+  player's, and drops the owner's question; `friendPrompt` is its Do prompt (tend, or a boat). Friends are named "Friend" in lines.
+  The guest gets the dream's events with its snapshot (`DreamWire.events`, once per guest) and draws between two snapshots
+  (`blendDream`). Not on the emulator pair or a tablet yet.
 
 ## The author's answers
 
@@ -131,4 +141,4 @@ Session 177. The proposals above stand, with these changes.
 1. A shared sleep state in `Room`: who sleeps, who dreams, the popup, the ready check for a skip (this is also what #661 needs). Built, see above.
 2. Move the dream step to the host for guests: `Snapshot.dream`, an intent for the dreamer's input, tests with fake rooms. Built, see above.
 3. Draw the dream on a guest, the late join, the wake of one player. Built, see above.
-4. Friends in the games, the manual (both languages), notes 29 and 42, and the emulator pair for the real run. The manual, the notes, sweets and boats are done; the games and the emulator run are open.
+4. Friends in the games, the manual (both languages), notes 29 and 42, and the emulator pair for the real run. Built, see above; the emulator run is open.

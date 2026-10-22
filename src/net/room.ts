@@ -74,6 +74,8 @@ export class Room {
   private dreamWish = new Map<string, { theme: DreamTheme; seed?: number }>();
   /** What happened in the last step of the dream, until a screen takes it (sparkles, sounds, lines). */
   private dreamEvents: DreamEvent[] = [];
+  /** What happened in the dream since the last snapshot each guest who dreams was sent. */
+  private dreamNews = new Map<string, DreamEvent[]>();
   /** What each sleeper is told, until it takes it (`sleepNews`). */
   private news = new Map<string, SleepNews>();
   constructor(private readonly send: (to: string, text: string) => void) {}
@@ -150,6 +152,12 @@ export class Room {
     // Only the host's screen reads them (a guest gets none on the wire yet).
     if (dreamers.includes('host')) this.dreamEvents.push(...stepped.events);
     else this.dreamEvents = [];
+    for (const id of dreamers) {
+      if (id === 'host') continue;
+      const news = [...(this.dreamNews.get(id) ?? []), ...stepped.events];
+      this.dreamNews.set(id, news.length > 100 ? news.slice(news.length - 100) : news);
+    }
+    for (const id of this.dreamNews.keys()) if (!dreamers.includes(id)) this.dreamNews.delete(id);
     if (this.dreamEvents.length > 200) this.dreamEvents.splice(0, this.dreamEvents.length - 200);
     // Presses are used up; the stick stays as the player last sent it.
     for (const [id, i] of this.dreamIn) this.dreamIn.set(id, { move: i.move, hop: false, slap: false, play: false });
@@ -576,7 +584,16 @@ export class Room {
     const text = JSON.stringify({ t: 'state', snapshot: this.snapshot(world, undefined, now) } satisfies ToGuest);
     for (const [id, seat] of this.seats) {
       // A seeker is not told where the hiders it has not found are (#664).
-      if (hiddenFrom(this.hide, seat.guest.id).length || (this.dream && this.dreamers().includes(seat.guest.id))) this.send(id, JSON.stringify({ t: 'state', snapshot: this.snapshot(world, seat.guest.id, now) } satisfies ToGuest));
+      if (hiddenFrom(this.hide, seat.guest.id).length || (this.dream && this.dreamers().includes(seat.guest.id))) {
+        const snapshot = this.snapshot(world, seat.guest.id, now);
+        // The dream's news goes out with this snapshot, once.
+        const news = this.dreamNews.get(seat.guest.id);
+        if (snapshot.dream && news?.length) {
+          snapshot.dream = { ...snapshot.dream, events: news };
+          this.dreamNews.delete(seat.guest.id);
+        }
+        this.send(id, JSON.stringify({ t: 'state', snapshot } satisfies ToGuest));
+      }
       else this.send(id, text);
     }
   }

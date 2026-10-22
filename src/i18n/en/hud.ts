@@ -239,6 +239,8 @@ export const hud = {
   'dream.found': ['You found {name}! {left} left', 'There is {name}! {left} left', 'Peekaboo, {name}! {left} left'],
   'dream.seekEnd': ['Everyone found! Sweets for all!', 'You found them all! Hooray!', 'All found! What a seeker!'],
   'dream.friendCounts': 'Your friend counts',
+  /** What a friend asleep in the same dream is called in a line, where a marshmallow beaver's name would stand. */
+  'dream.aFriend': 'Friend',
   'dream.friendsCount': '{n} friends count',
   'dream.hideStart': ['{who} to ten. Run and hide!', 'They are counting! Quick, hide!', 'Hide behind a big candy!'],
   'dream.hideGo': ['Ready or not, here we come!', 'Shh! They are looking!', 'Here they come! Stay hidden!'],

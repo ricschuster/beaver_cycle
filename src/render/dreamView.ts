@@ -1,7 +1,7 @@
 // The dream's scene (docs/design/29_dream_candy_land.md): candy land drawn with three.js on its own canvas, made when a dream
 // starts and thrown away on waking. It reads the dream's state and never changes it.
 import * as THREE from 'three';
-import { CHOCOLATE_LEVEL, GROW_STAGES, VEGS, dreamHeight, type DreamBeaver, type DreamEvent, type DreamLand, type DreamState, type Sweet, type SweetKind, type VegKind } from '../sim/dream';
+import { CHOCOLATE_LEVEL, GROW_STAGES, MALLOW_COLOURS, VEGS, dreamHeight, type DreamBeaver, type DreamEvent, type DreamLand, type DreamState, type Sweet, type SweetKind, type VegKind } from '../sim/dream';
 import { SWIM_SINK } from '../sim/state';
 import type { ViewState } from './cameraRig';
 import { SLAP_DURATION, type BeaverModel } from './beaverModel';
@@ -229,6 +229,10 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
   const player = veggie ? veggiePlayer() : dreamPlayer();
   scene.add(player.group);
   const mallows = new Map<string, { model: BeaverModel; far: THREE.Mesh }>();
+  // Friends asleep in the same dream (#665): a candy beaver each, in a pastel coat picked by its id, with its own hat and scarf.
+  const friendModels = new Map<string, { model: BeaverModel; hat: number; scarf: number }>();
+  const pastel = (id: string): number => [...id].reduce((n, c) => n + c.charCodeAt(0), 0) % MALLOW_COLOURS.length;
+  let playerLook = '';
 
   // The golden beaver statue: it turns slowly with a glow, and is gone once touched.
   const statue = goldenStatue();
@@ -516,6 +520,35 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
       player.group.rotation.set(leapPitch(b, time), b.heading, 0, 'YXZ');
       putShadow(0, b, 1);
 
+      const worn = `${state.look?.hat ?? 0},${state.look?.scarf ?? 0}`;
+      if (worn !== playerLook) {
+        playerLook = worn;
+        player.setLook({ hat: state.look?.hat ?? 0, scarf: state.look?.scarf ?? 0, tail: 0 });
+      }
+      const friends = state.friends ?? [];
+      const here = new Set<string>();
+      friends.forEach((f, i) => {
+        here.add(f.id);
+        let entry = friendModels.get(f.id);
+        if (!entry) {
+          entry = { model: mallowModel(pastel(f.id)), hat: -1, scarf: -1 };
+          friendModels.set(f.id, entry);
+          scene.add(entry.model.group);
+        }
+        const hat = f.look?.hat ?? 0;
+        const scarf = f.look?.scarf ?? 0;
+        if (entry.hat !== hat || entry.scarf !== scarf) {
+          entry.hat = hat;
+          entry.scarf = scarf;
+          entry.model.setLook({ hat, scarf, tail: 0 });
+        }
+        entry.model.group.visible = true;
+        const fb = f.beaver;
+        placeMallow(entry.model, fb, time, fb.y - (fb.mode === 'swim' ? SWIM_SINK : 0), slapAge(fb.slapAt));
+        putShadow(state.mallows.length + 1 + i, fb, 1.05);
+      });
+      for (const [id, entry] of friendModels) if (!here.has(id)) entry.model.group.visible = false;
+
       const it = state.game.kind === 'tag' ? state.game.it : null;
       let marked: { x: number; y: number; z: number } | null = it === 'player' ? player.group.position : null;
       const seen = new Set<string>();
@@ -559,7 +592,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
         entry.model.group.visible = false;
         entry.far.visible = false;
       }
-      shadows.count = Math.min(shadowCount, state.mallows.length + 1);
+      shadows.count = Math.min(shadowCount, state.mallows.length + 1 + friends.length);
       shadows.instanceMatrix.needsUpdate = true;
 
       marker.visible = marked !== null;
@@ -605,7 +638,7 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
     },
     dispose() {
       observer?.disconnect();
-      for (const model of [player, ...[...mallows.values()].map((e) => e.model)]) {
+      for (const model of [player, ...[...mallows.values()].map((e) => e.model), ...[...friendModels.values()].map((e) => e.model)]) {
         scene.remove(model.group);
         disposeModel(model.group);
       }

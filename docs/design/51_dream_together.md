@@ -96,6 +96,16 @@ runs when all are asleep or said yes. A dreamer who wakes ends the skip like any
   taken, the games; the land is made again from the seed, so it is not sent). Only candy land so far, and the host's own dream is
   still its own screen's: the next step puts the host in the same run and draws it on a guest.
 
+- The dream drawn on a guest and the host in the same run (session 179, step 3): with a room the host's own dream is the room's too
+  (`Room.lie` takes the theme and seed, `steer`, `dreamInfo`, `takeDreamEvents`), so a host that sleeps while a guest dreams joins as
+  a friend, and a guest that sleeps while the host dreams joins the host's dream with the host's land. `viewFrom` (`src/sim/dream.ts`)
+  swaps the viewer in as `beaver`, so `dreamView` and the camera need no "me" id; the owner is drawn as a friend. `DreamState.look` and
+  `DreamFriend.look` carry hat and scarf (answer 6) and `dreamView` draws each friend as a pastel candy beaver by its id. `DreamLink`
+  in `dreamScreen.ts` lets a screen send its input and draw what the room gives back (the host reads the room, a guest its snapshot).
+  A guest has the Dream button and the theme choice; it sends `{ t: 'sleep', dream: true, theme }`, opens its screen with the first
+  `Snapshot.dream` and wakes with a message. A friend sees no games, prompts or lines of the owner (step 4). Events are not on the wire,
+  so a guest has no sparkles from the host's sweets, and it draws at the 20 Hz of the snapshots, with no smoothing yet.
+
 ## The author's answers
 
 Session 177. The proposals above stand, with these changes.
@@ -114,5 +124,5 @@ Session 177. The proposals above stand, with these changes.
 
 1. A shared sleep state in `Room`: who sleeps, who dreams, the popup, the ready check for a skip (this is also what #661 needs). Built, see above.
 2. Move the dream step to the host for guests: `Snapshot.dream`, an intent for the dreamer's input, tests with fake rooms. Built, see above.
-3. Draw the dream on a guest, the late join, the wake of one player.
+3. Draw the dream on a guest, the late join, the wake of one player. Built, see above.
 4. Friends in the games, the manual (both languages), notes 29 and 42, and the emulator pair for the real run.

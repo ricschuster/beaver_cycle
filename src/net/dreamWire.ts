@@ -1,7 +1,7 @@
 // A dream on the wire (#665, docs/design/51_dream_together.md). The host runs the dream; a guest that dreams gets it in its snapshot and
 // draws it. The land and the sweets come from the seed on both sides (`newDream` is the same code), so the wire carries only what
 // moves: the beavers, the marshmallows, the sweets taken or added, and the games. Pure, no DOM.
-import { newDream, type DreamBeaver, type DreamBoat, type DreamBuild, type DreamFriend, type DreamGame, type DreamState, type DreamTheme, type Mallow, type Plant, type Sweet } from '../sim/dream';
+import { newDream, type DreamBeaver, type DreamInput, type DreamLook, type DreamBoat, type DreamBuild, type DreamFriend, type DreamGame, type DreamState, type DreamTheme, type Mallow, type Plant, type Sweet } from '../sim/dream';
 
 export interface DreamWire {
   seed: number;
@@ -10,6 +10,7 @@ export interface DreamWire {
   owner: string;
   time: number;
   beaver: DreamBeaver;
+  look?: DreamLook;
   friends?: DreamFriend[];
   mallows: Mallow[];
   /** Ids of sweets taken, and sweets that came after the dream began (a shower). */
@@ -35,6 +36,7 @@ export const wireOf = (s: DreamState, owner: string, theme: DreamTheme): DreamWi
     owner,
     time: s.time,
     beaver: s.beaver,
+    ...(s.look ? { look: s.look } : {}),
     ...(s.friends ? { friends: s.friends } : {}),
     mallows: s.mallows,
     taken: s.sweets.filter((w) => w.taken).map((w) => w.id),
@@ -66,6 +68,7 @@ export function dreamOf(w: DreamWire): DreamState {
     ...base,
     time: w.time,
     beaver: w.beaver,
+    ...(w.look ? { look: w.look } : {}),
     ...(w.friends ? { friends: w.friends } : {}),
     mallows: w.mallows,
     sweets: [...base.sweets, ...(w.added ?? [])].map((s) => (taken.has(s.id) ? { ...s, taken: true } : s)),
@@ -79,4 +82,10 @@ export function dreamOf(w: DreamWire): DreamState {
     ...(w.plants ? { plants: w.plants } : {}),
     game: w.game,
   };
+}
+
+/** Two inputs of one player before a send: the stick is the newer one, a press stays until it has been sent. */
+export function mergeInput(old: DreamInput | null, next: DreamInput): DreamInput {
+  if (!old) return next;
+  return { move: next.move, hop: old.hop || next.hop, slap: old.slap || next.slap, play: old.play || next.play, pick: next.pick ?? old.pick };
 }

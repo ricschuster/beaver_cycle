@@ -770,6 +770,51 @@ describe('the room', () => {
       expect(room.dreamState()).toBeNull();
     });
 
+    it('puts the host in the same dream, as a friend of the guest who dreamed first', () => {
+      const room = twoGuests();
+      room.lie('g1', 'dream', true, 0);
+      frames(room, 1);
+      room.lie('host', 'dream', true, 0);
+      frames(room, 1);
+      expect(room.dreamInfo()!.owner).toBe('g1');
+      expect(room.dreamState()!.friends!.map((f) => f.id)).toEqual(['host']);
+      room.steer('host', { move: { x: 1, z: 0 }, hop: false, slap: false, play: false });
+      const x = room.dreamState()!.friends![0]!.beaver.x;
+      frames(room, 5);
+      expect(room.dreamState()!.friends![0]!.beaver.x).not.toBe(x);
+      expect(room.takeDreamEvents()).toBeInstanceOf(Array);
+    });
+
+    it('opens the host dream for a guest who dreams after it, with the hosts theme and seed', () => {
+      const room = twoGuests();
+      room.lie('host', 'dream', true, 0, { theme: 'veggie', seed: 42 });
+      frames(room, 1);
+      expect(room.dreamInfo()).toEqual({ owner: 'host', seed: 42, theme: 'veggie' });
+      room.lie('g1', 'dream', true, 0, { theme: 'candy' });
+      frames(room, 1);
+      expect(room.dreamInfo()!.theme).toBe('veggie');
+      expect(room.snapshot(world, 'g1', 1).dream).toMatchObject({ owner: 'host', theme: 'veggie', seed: 42 });
+      room.wake('host', 1);
+      frames(room, 1);
+      expect(room.dreamInfo()!.owner).toBe('g1');
+    });
+
+    it('takes the hat and scarf of each dreamer into the dream', () => {
+      const room = twoGuests();
+      room.lie('host', 'dream', true, 0);
+      room.lie('g1', 'dream', true, 0);
+      frames(room, 1);
+      expect(room.dreamState()!.look).toEqual({ hat: world.look.hat, scarf: world.look.scarf });
+      expect(room.dreamState()!.friends![0]!.look).toBeDefined();
+    });
+
+    it('opens a veggie dream when the guest asks for one', () => {
+      const room = twoGuests();
+      room.lie('g1', 'dream', true, 0, { theme: 'veggie' });
+      frames(room, 1);
+      expect(room.dreamInfo()!.theme).toBe('veggie');
+    });
+
     it('ends when a dreaming guest leaves', () => {
       const room = twoGuests();
       room.lie('g1', 'dream', true, 0);

@@ -1,11 +1,11 @@
 // A page that shows the dream's candy land (dreamView.ts) for the art pass, not the game. Run `npm run dev` and open
 // /tools/dream-preview/. Query: ?seed=N, &t=seconds (freezes the time), &yaw=degrees&pitch=degrees&dist=metres for the camera,
 // &swim=1 (the beaver in the chocolate), &tag=1 (the first mallow is it, or
-// &tag=player), &giggle=1 (the second mallow hides and giggles), &hop=1 (the mallows hop every second), &slap=1 (the beaver slaps its tail), &pond=1 (on the bank of the first pond), &statue=1 (beside the golden statue), &build=1&logs=N (a candy dam and lodge, a log carried), &cycle=N (make and free N views first), &kind=veggie (the veggie garden), &beds=1&stage=N (beside the garden beds, plants at stage N, a can carried). Drag to turn the
+// &tag=player), &giggle=1 (the second mallow hides and giggles), &hop=1 (the mallows hop every second), &slap=1 (the beaver slaps its tail), &pond=1 (on the bank of the first pond), &statue=1 (beside the golden statue), &build=1&logs=N (a candy dam and lodge, a log carried), &cycle=N (make and free N views first), &kind=veggie (the veggie garden), &friends=N (N friends in the same dream with their own hats and scarves, and the player in a hat and scarf), &beds=1&stage=N (beside the garden beds, plants at stage N, a can carried). Drag to turn the
 // camera, wheel to zoom. Writes the draw calls and triangles to `window.dreamStats`.
 import { createDreamView } from '../../src/render/dreamView';
 import { createCameraRig } from '../../src/render/cameraRig';
-import { CHOCOLATE_LEVEL, dreamHeight, newDream, type DreamEvent, type DreamLand, type DreamProp, type DreamState, type Mallow, type PropKind, type Sweet } from '../../src/sim/dream';
+import { CHOCOLATE_LEVEL, dreamHeight, joinDream, newDream, type DreamEvent, type DreamLand, type DreamProp, type DreamState, type Mallow, type PropKind, type Sweet } from '../../src/sim/dream';
 
 const q = new URLSearchParams(location.search);
 const num = (k: string, d: number): number => (q.has(k) ? Number(q.get(k)) : d);
@@ -73,6 +73,10 @@ const b = state.beaver;
 b.x = state.land.start.x;
 b.z = state.land.start.z;
 b.heading = state.land.start.heading;
+if (q.has('friends')) {
+  state = { ...state, look: { hat: 3, scarf: 4 } };
+  for (let i = 0; i < Math.min(3, num('friends', 1)); i++) state = joinDream(state, `g${i}`, { hat: 1 + i * 3, scarf: 2 + i * 4 });
+}
 if (q.get('swim') === '1') {
   // Into the chocolate at the end of the path, facing along the river.
   const end = state.land.path[state.land.path.length - 1]!;

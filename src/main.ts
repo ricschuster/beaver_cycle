@@ -61,8 +61,9 @@ import { askSlot, type SlotChoice } from './ui/slotCard';
 import { AUTOSAVE_EVERY, ago, clearSave, loadSave, parseSlot, readSlots, renameSave, wantsSave, writeSave, cleanName, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
 import { createSleepAsk } from './ui/sleepAsk';
-import { createDreamScreen } from './ui/dreamScreen';
-import type { DreamTheme } from './sim/dream';
+import { createDreamScreen, type DreamLink } from './ui/dreamScreen';
+import { viewFrom, type DreamInput, type DreamTheme } from './sim/dream';
+import { dreamOf, mergeInput, type DreamWire } from './net/dreamWire';
 import { createTestMenu, type TestMenu } from './ui/testMenu';
 import { NO_TEST_MENU, gameQuery } from './devTools';
 import { STREAM_HEARD } from './audio/mix';
@@ -712,8 +713,17 @@ async function start(): Promise<void> {
       else link?.send({ t: 'sleep', a: 'wake' });
       guestLying = null;
     },
-    onDream: (theme) => startDream(undefined, theme),
+    onDream: (theme) => (link ? guestDream(theme) : startDream(undefined, theme)),
   });
+  // A guest's dream (#665): the host runs it; the guest asks with a message and opens its screen when the first frame comes back.
+  let guestDreaming: { at: number } | null = null;
+  let guestDreamSent: DreamInput | null = null;
+  let guestNoDream = 0;
+  const guestDream = (theme: DreamTheme): void => {
+    world = { ...world, dreamed: true };
+    link?.send({ t: 'sleep', g: 'night', dream: true, theme });
+    guestDreaming = { at: performance.now() / 1000 };
+  };
   // A friend's bed waits for the host to settle it: set when the guest sent its wish, until the host lists it asleep and then does not.
   let guestLying: { at: number; seen: boolean } | null = null;
   const sleepAsk = createSleepAsk(hud, {
@@ -728,9 +738,12 @@ async function start(): Promise<void> {
   const dreamScreen = createDreamScreen(document.body, {
     touch: wantsTouchControls(navigator, query),
     onWake: () => {
-      room?.wake('host', performance.now() / 1000);
+      if (room) room.wake('host', performance.now() / 1000);
+      else if (link?.id) link.send({ t: 'sleep', a: 'wake' });
       sleepPrompt.wakeFromDream();
     },
+    // The room runs the dream whenever there is one: for a host in its room, and for a guest in the host's.
+    link: () => (room ? hostDreamLink : link?.id ? guestDreamLink : null),
     onKeep: (builds) => {
       world = { ...world, dreamKept: builds.map((b) => ({ ...b })) };
     },
@@ -738,6 +751,29 @@ async function start(): Promise<void> {
       if (!silent) sound.cue(dreamCues(events), performance.now() / 1000);
     },
   });
+  const hostDreamLink: DreamLink = {
+    keeps: true,
+    send: (input) => room?.steer('host', input),
+    view() {
+      const state = room?.dreamState();
+      const info = room?.dreamInfo();
+      if (!room || !state || !info) return null;
+      return { state: viewFrom(state, 'host', info.owner), mine: info.owner === 'host', events: room.takeDreamEvents() };
+    },
+  };
+  let guestViewed: { wire: DreamWire; state: ReturnType<typeof dreamOf> } | null = null;
+  const guestDreamLink: DreamLink = {
+    keeps: false,
+    send: (input) => {
+      guestDreamSent = mergeInput(guestDreamSent, input);
+    },
+    view() {
+      const wire = lastSnap?.dream;
+      if (!wire || !link?.id) return null;
+      if (guestViewed?.wire !== wire) guestViewed = { wire, state: dreamOf(wire) };
+      return { state: viewFrom(guestViewed.state, link.id, wire.owner), mine: wire.owner === link.id, events: [] };
+    },
+  };
   // What the room decided for the host's own bed (#661): a plain sleep wakes with the clock moved or not, a dream goes on until the host wakes.
   const hostSleepNews = (): void => {
     const news = room?.sleepNews('host');
@@ -747,8 +783,10 @@ async function start(): Promise<void> {
   };
   const startDream = (seed = Math.floor(world.clock / DAY_SECONDS) * 7919 + world.generation, theme: DreamTheme = 'candy'): void => {
     world = { ...world, dreamed: true };
-    room?.lie('host', canSleep(world) ? 'night' : 'dream', true, performance.now() / 1000);
-    dreamScreen.start(seed, world.dreamKept, theme);
+    // A dream a friend already opened is joined: its land is the first sleeper's.
+    const open = room?.dreamInfo();
+    room?.lie('host', canSleep(world) ? 'night' : 'dream', true, performance.now() / 1000, { theme, seed });
+    dreamScreen.start(open?.seed ?? seed, world.dreamKept, open?.theme ?? theme);
   };
   let fps = 60;
   let lastReadout = 0;
@@ -874,6 +912,25 @@ async function start(): Promise<void> {
     if (lookOpen && !room) return;
     if (dreamScreen.active()) {
       dreamScreen.frame(dt, mergeActions(readKeyboard(), touch.read()));
+      if (link) {
+        // A guest in a dream: its beaver stands still, the dream input goes to the host, and the host's frames come back.
+        if (now - netSentAt > 1000 / SEND_HZ && link.id) {
+          netSentAt = now;
+          link.send({ t: 'intent', x: 0, z: 0, dive: false, gnaw: false });
+          if (guestDreamSent) link.send({ t: 'dream', input: guestDreamSent });
+          guestDreamSent = guestDreamSent && { ...guestDreamSent, hop: false, slap: false, play: false, pick: undefined };
+        }
+        const snap = link.take();
+        if (snap) lastSnap = snap;
+        // The room ended the dream (the host left, or it let it go): wake too.
+        guestNoDream = lastSnap?.dream ? 0 : guestNoDream || now;
+        if (guestNoDream && now - guestNoDream > 2000) {
+          guestNoDream = 0;
+          dreamScreen.stop();
+        }
+        if (!silent) sound.music('dream', fps, now / 1000);
+        return;
+      }
       if (!silent) sound.music('dream', fps, now / 1000);
       // The guests keep playing while the host dreams, and are told (#665).
       if (room) {
@@ -967,6 +1024,19 @@ async function start(): Promise<void> {
               }
             }
             lastSnap = snap;
+          }
+          // The dream a guest asked for: open it with the first frame the host sends, or give up and wake when none comes.
+          if (guestDreaming && !dreamScreen.active()) {
+            const wire = lastSnap?.dream;
+            if (wire) {
+              guestDreaming = null;
+              guestDreamSent = null;
+              dreamScreen.start(wire.seed, [], wire.theme);
+            } else if (now / 1000 - guestDreaming.at > 5) {
+              guestDreaming = null;
+              link.send({ t: 'sleep', a: 'wake' });
+              sleepPrompt.wakeFromDream();
+            }
           }
           if (snap && link.id) {
             world = applySnapshot(world, snap, link.id);
@@ -1080,7 +1150,7 @@ async function start(): Promise<void> {
     const rest = canRest(world);
     const stage = lifeAt(world.clock, world.bornAt).stage;
     sleepUp = canSleep(world) || rest;
-    sleepPrompt.set({ night: canSleep(world), rest, grow: !link && rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null, dream: !link });
+    sleepPrompt.set({ night: canSleep(world), rest, grow: !link && rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null, dream: true });
     const ponded = withPonds(terrain, world.ponds);
     if (now - animalsAt > 100) {
       animalsAt = now;

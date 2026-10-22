@@ -544,7 +544,10 @@ export function createDreamView(parent: HTMLElement, land: DreamLand): DreamView
         }
         entry.model.group.visible = true;
         const fb = f.beaver;
-        placeMallow(entry.model, fb, time, fb.y - (fb.mode === 'swim' ? SWIM_SINK : 0), slapAge(fb.slapAt));
+        // In a boat a friend stands on the boat's floor and rides its bob, as the player does.
+        const aboard = f.aboard !== undefined;
+        const bob = aboard ? boatBob(time, Number(f.aboard!.slice(1))) : 0;
+        placeMallow(entry.model, aboard ? { ...fb, mode: 'walk', speed: 0 } : fb, time, fb.y + bob - (fb.mode === 'swim' && !aboard ? SWIM_SINK : 0), slapAge(fb.slapAt));
         putShadow(state.mallows.length + 1 + i, fb, 1.05);
       });
       for (const [id, entry] of friendModels) if (!here.has(id)) entry.model.group.visible = false;

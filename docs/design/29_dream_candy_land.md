@@ -110,6 +110,13 @@ The dream is its own small world with its own rules, scene, and screen, so it ne
 - `src/ui/dreamScreen.ts`: the dream screen over the game, with the sweet count, the prompt, the hide or seek buttons, game
   lines, the touch buttons, and Wake up. `main.ts` stops the waking game's step and drawing while the dream screen is open.
 
+## With friends
+
+With a room (note 42) the dream is run by the room, for the host and the guests who sleep ([51](51_dream_together.md)). The other
+sleepers are candy beavers in pastel coats with their own hat and scarf, and each takes sweets (one count for all) and may ride a boat
+of its own. The games (tag, hide and seek, the plant race) are still the player's alone: the marshmallows play with the player whose
+dream it is, and a friend in the dream only watches them.
+
 ## Open questions
 
 - Should the waking game ever hear about the dream, such as a line from Mama in the morning?

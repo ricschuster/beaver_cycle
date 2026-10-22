@@ -237,6 +237,8 @@ export interface DreamFriend {
   beaver: DreamBeaver;
   /** The hat and scarf the friend takes into the dream (answer 6 of note 51); the coat is the candy look. */
   look?: DreamLook;
+  /** The id of the boat the friend is in, while it rides. A boat takes one beaver. */
+  aboard?: string;
 }
 
 /** What a dreamer keeps of its waking look: the hat and the scarf (`Look` in `look.ts`). */
@@ -725,7 +727,7 @@ export function stepDream(state: DreamState, input: DreamInput, dt: number, frie
   const rand = rng.next;
   const time = state.time + dt;
   let s: DreamState = { ...state, time, beaver: moveBeaver(state, input, time, dt, events) };
-  if (state.friends?.length) s = { ...s, friends: state.friends.map((f) => ({ ...f, beaver: moveBeaver({ ...state, beaver: f.beaver, aboard: undefined }, friends[f.id] ?? STILL, time, dt, events) })) };
+  if (state.friends?.length) s = stepFriends(s, state.friends, friends, time, dt, events);
   s = collect(s, events);
   s = touchStatue(s, events);
   s = carryBoat(s);
@@ -742,6 +744,26 @@ export function stepDream(state: DreamState, input: DreamInput, dt: number, frie
   else if (s.game.kind === 'hide') s = hideRules(s, s.game, rand, events);
   else if (s.game.kind === 'grow') s = growRules(s, s.game, events);
   return { state: { ...s, rng: rng.state() }, events };
+}
+
+/**
+ * The friends move, take sweets (the count and the rush are shared), and ride a boat each. Each friend is stepped as the beaver of
+ * a view of the dream in which the owner is a friend, so the rules for the owner's moves and boats serve it too.
+ */
+function stepFriends(s: DreamState, friends: readonly DreamFriend[], inputs: Readonly<Record<string, DreamInput>>, time: number, dt: number, events: DreamEvent[]): DreamState {
+  let { sweets, count, rushUntil, boats } = s;
+  const out = new Map<string, DreamFriend>();
+  for (const f of friends) {
+    const input = inputs[f.id] ?? STILL;
+    const others = friends.filter((o) => o.id !== f.id).map((o) => out.get(o.id) ?? o);
+    let v: DreamState = { ...s, sweets, count, rushUntil, ...(boats ? { boats } : {}), beaver: f.beaver, aboard: f.aboard, friends: [{ id: '', beaver: s.beaver, aboard: s.aboard }, ...others] };
+    v = { ...v, beaver: moveBeaver(v, input, time, dt, events) };
+    v = carryBoat(collect(v, events));
+    if (input.play) v = v.aboard ? leaveBoat(v, events) : boardBoat(v, events);
+    out.set(f.id, { ...f, beaver: v.beaver, ...(v.aboard !== undefined ? { aboard: v.aboard } : { aboard: undefined }) });
+    ({ sweets, count, rushUntil, boats } = v);
+  }
+  return { ...s, friends: friends.map((f) => out.get(f.id)!), sweets, count, rushUntil, ...(boats ? { boats } : {}) };
 }
 
 const STILL: DreamInput = { move: { x: 0, z: 0 }, hop: false, slap: false, play: false };
@@ -777,7 +799,7 @@ export function handOver(state: DreamState, id: string): DreamState {
   const left = leaveDream(state, id);
   const calm = (m: Mallow): Mallow => ({ ...m, state: 'wander', hideAt: undefined, goal: undefined, until: undefined, peek: undefined, looked: undefined, can: undefined, watered: undefined, jink: undefined });
   const { look: _old, ...bare } = left;
-  return { ...bare, ...(f.look ? { look: f.look } : {}), beaver: f.beaver, aboard: undefined, carrying: false, plants: undefined, game: { kind: 'none' }, mallows: left.mallows.map(calm) };
+  return { ...bare, ...(f.look ? { look: f.look } : {}), beaver: f.beaver, aboard: f.aboard, carrying: false, plants: undefined, game: { kind: 'none' }, mallows: left.mallows.map(calm) };
 }
 
 /**
@@ -789,9 +811,9 @@ export function viewFrom(state: DreamState, me: string, owner: string): DreamSta
   const mine = state.friends?.find((f) => f.id === me);
   if (!mine) return state;
   const others = (state.friends ?? []).filter((f) => f.id !== me);
-  const first: DreamFriend = { id: owner, beaver: state.beaver, ...(state.look ? { look: state.look } : {}) };
+  const first: DreamFriend = { id: owner, beaver: state.beaver, ...(state.look ? { look: state.look } : {}), ...(state.aboard ? { aboard: state.aboard } : {}) };
   const { look: _look, ...bare } = state;
-  return { ...bare, ...(mine.look ? { look: mine.look } : {}), beaver: mine.beaver, friends: [first, ...others], aboard: undefined, carrying: false, game: { kind: 'none' } };
+  return { ...bare, ...(mine.look ? { look: mine.look } : {}), beaver: mine.beaver, friends: [first, ...others], aboard: mine.aboard, carrying: false, game: { kind: 'none' } };
 }
 
 /** The hills slow the part of a move that heads out to the edge. */
@@ -969,7 +991,10 @@ function boatNear(s: DreamState): DreamBoat | null {
   if (s.aboard) return null;
   let best: DreamBoat | null = null;
   let bestD = BOAT_REACH * BOAT_REACH;
+  // A boat takes one beaver: the ones a friend is in are not free.
+  const taken = new Set((s.friends ?? []).flatMap((f) => (f.aboard ? [f.aboard] : [])));
   for (const boat of s.boats ?? []) {
+    if (taken.has(boat.id)) continue;
     const d = dist2(boat, s.beaver);
     if (d < bestD) {
       best = boat;

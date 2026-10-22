@@ -20,6 +20,8 @@ export interface SleepChoices {
   rest: boolean;
   /** Offer sleeping until growing up, or null for an adult. The text names the next stage. */
   grow: 'teenager' | 'adult' | null;
+  /** Offer the dream too (absent means yes). A friend's tablet has no dream of its own yet (#665). */
+  dream?: boolean;
 }
 
 export interface SleepPrompt {
@@ -30,11 +32,20 @@ export interface SleepPrompt {
    * menu, ?dream=1) wakes from the same dark, put up at once under the dream screen. Does nothing while a plain sleep is on.
    */
   wakeFromDream(): void;
+  /** The friends have decided: wake with the skip done (`go`) or without it. Does nothing unless the prompt is waiting. */
+  release(go: boolean): void;
 }
 
 export interface SleepPromptOptions {
-  /** Called in the dark, once, when the beaver wakes: move the clock to dawn, the next season, or growing up. */
-  onWake(goal: SleepGoal): void;
+  /** Called in the dark, once, when the beaver wakes: move the clock to dawn, the next season, or growing up. `null` when the skip was refused: wake and leave the clock. */
+  onWake(goal: SleepGoal | null): void;
+  /**
+   * Called in the dark when a plain sleep begins, before it wakes. Return true when friends share the clock and must say yes first
+   * (#661): the prompt then stays dark with a wake button until `release` comes. Absent or false, it wakes at once.
+   */
+  onLie?(goal: SleepGoal): boolean;
+  /** Called when the sleeper gives up waiting for its friends and wakes by hand. */
+  onGiveUp?(): void;
   /** Called in the dark after the dream was chosen (candy land or the veggie garden): open it; it calls `wakeFromDream` when it ends. */
   onDream(theme: DreamTheme): void;
 }
@@ -73,6 +84,17 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   const growButton = document.createElement('button');
   growButton.dataset.action = 'sleep-grow';
   growButton.style.cssText = BUTTON;
+  // While the friends are asked, the dark shows what it waits for and a way out.
+  const waiting = document.createElement('div');
+  waiting.dataset.action = 'sleep-waiting';
+  waiting.style.cssText = 'display:none;position:absolute;left:50%;bottom:24px;transform:translateX(-50%);flex-direction:column;align-items:center;gap:12px;color:#f3e3b5;font:16px system-ui,sans-serif;text-align:center';
+  const waitingText = document.createElement('div');
+  waitingText.textContent = t('sleep.waiting');
+  const giveUpButton = document.createElement('button');
+  giveUpButton.textContent = t('sleep.wakeNow');
+  giveUpButton.dataset.action = 'sleep-giveup';
+  giveUpButton.style.cssText = BUTTON;
+  waiting.append(waitingText, giveUpButton);
   panel.append(skipButton, dreamButton, candyButton, veggieButton, seasonButton, growButton);
 
   const dark = document.createElement('div');
@@ -80,17 +102,19 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   dark.style.cssText =
     `position:fixed;inset:0;z-index:20;background:#05060d;opacity:0;pointer-events:none;transition:opacity ${FADE_MS}ms`;
 
+  dark.append(waiting);
   parent.append(panel, dark);
 
   let busy = false;
   let dreaming = false;
   let choosing = false;
+  let holding = false;
   let choices: SleepChoices = { night: false, rest: false, grow: null };
   let goal: SleepGoal = 'night';
   const refresh = (): void => {
     if (!choices.night) choosing = false;
     skipButton.hidden = !choices.night;
-    dreamButton.hidden = !choices.night || choosing;
+    dreamButton.hidden = !choices.night || choosing || choices.dream === false;
     candyButton.hidden = veggieButton.hidden = !choices.night || !choosing;
     seasonButton.hidden = !choices.rest;
     growButton.hidden = choices.grow === null;
@@ -104,9 +128,11 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
   };
 
   // Fade out, wake in the dark, fade back in.
-  const wake = (): void => {
+  const wake = (go = true): void => {
     dreaming = false;
-    opts.onWake(goal);
+    holding = false;
+    waiting.style.display = 'none';
+    opts.onWake(go ? goal : null);
     setTimeout(() => {
       fadeTo(0);
       setTimeout(() => {
@@ -122,7 +148,17 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
     busy = true;
     refresh();
     fadeTo(1);
-    setTimeout(wake, FADE_MS);
+    setTimeout(() => {
+      if (opts.onLie?.(next)) {
+        holding = true;
+        waiting.style.display = 'flex';
+      } else wake();
+    }, FADE_MS);
+  };
+  giveUpButton.onclick = () => {
+    if (!holding) return;
+    opts.onGiveUp?.();
+    wake(false);
   };
   skipButton.onclick = sleepTo('night');
   seasonButton.onclick = sleepTo('season');
@@ -151,6 +187,9 @@ export function createSleepPrompt(parent: HTMLElement, opts: SleepPromptOptions)
     set(value) {
       choices = value;
       refresh();
+    },
+    release(go) {
+      if (holding) wake(go);
     },
     wakeFromDream() {
       if (busy && !dreaming) return;

@@ -61,7 +61,8 @@ The clock is the world's, so it is shared and run by the host. Wear, seasons, an
      never blocks anyone, but a kit born "on the first day of spring" would no longer line up with the seasons, and the lodge, the
      dams, and the other families would not move along with the sleeper's age.
   3. **Host decides.** Only the host can skip, for everyone. Simple, but the guests have no say.
-  Answered in Q91 and Q92: option 1, and one no stops the skip.
+  Answered in Q91 and Q92: option 1, and one no stops the skip. Built in `src/net/sleepCheck.ts` and `Room` ([51](51_dream_together.md)): the
+  friends are asked on a card, no answer in 30 s is a no, a refused sleeper wakes and the clock stays.
 - A baby and an adult can play at the same time. Only the skip is shared.
 
 ## Joining and leaving

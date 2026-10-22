@@ -64,3 +64,14 @@ describe('messages from the host', () => {
     expect(bad.take).toBeUndefined();
   });
 });
+
+describe('the sleep message', () => {
+  it('reads a bed and an answer, and nothing else', () => {
+    expect(readToHost(JSON.stringify({ t: 'sleep', g: 'night', dream: true }))).toEqual({ t: 'sleep', g: 'night', dream: true });
+    expect(readToHost(JSON.stringify({ t: 'sleep', g: 'season' }))).toEqual({ t: 'sleep', g: 'season' });
+    expect(readToHost(JSON.stringify({ t: 'sleep', a: 'yes' }))).toEqual({ t: 'sleep', a: 'yes' });
+    expect(readToHost(JSON.stringify({ t: 'sleep', a: 'wake' }))).toEqual({ t: 'sleep', a: 'wake' });
+    expect(readToHost(JSON.stringify({ t: 'sleep', g: 'grow' }))).toBeNull();
+    expect(readToHost(JSON.stringify({ t: 'sleep', a: 'maybe' }))).toBeNull();
+  });
+});

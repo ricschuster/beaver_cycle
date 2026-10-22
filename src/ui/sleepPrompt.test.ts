@@ -35,13 +35,15 @@ describe('the sleep prompt and the dream', () => {
     vi.unstubAllGlobals();
   });
 
-  const make = () => {
+  const make = (hold?: (g: SleepGoal) => boolean, giveUp?: () => void) => {
     const dom = fakeDom();
-    const woke: SleepGoal[] = [];
+    const woke: (SleepGoal | null)[] = [];
     const themes: string[] = [];
     const prompt = createSleepPrompt({ append: () => {} } as unknown as HTMLElement, {
       onWake: (g) => woke.push(g),
       onDream: (theme) => themes.push(theme),
+      ...(hold ? { onLie: hold } : {}),
+      ...(giveUp ? { onGiveUp: giveUp } : {}),
     });
     prompt.set({ night: true, rest: false, grow: null });
     return { dom, woke, dreams: () => themes.length, themes, prompt };
@@ -97,5 +99,49 @@ describe('the sleep prompt and the dream', () => {
     expect(woke).toEqual([]);
     vi.advanceTimersByTime(FADE_MS);
     expect(woke).toEqual(['night']);
+  });
+
+  it('stays dark while the friends are asked, and wakes with the skip on a yes (#661)', () => {
+    const lies: SleepGoal[] = [];
+    const { dom, woke, prompt } = make((g) => {
+      lies.push(g);
+      return true;
+    });
+    dom.byAction('sleep-skip').onclick!();
+    vi.advanceTimersByTime(FADE_MS);
+    expect(lies).toEqual(['night']);
+    expect(dom.byAction('sleep-waiting').style.display).toBe('flex');
+    vi.advanceTimersByTime(60_000);
+    expect(woke).toEqual([]);
+    prompt.release(true);
+    expect(woke).toEqual(['night']);
+    expect(dom.byAction('sleep-waiting').style.display).toBe('none');
+  });
+
+  it('wakes with no skip on a no, and does nothing for a release it did not wait for', () => {
+    const { dom, woke, prompt } = make(() => true);
+    prompt.release(true);
+    expect(woke).toEqual([]);
+    dom.byAction('sleep-season').onclick!();
+    vi.advanceTimersByTime(FADE_MS);
+    prompt.release(false);
+    expect(woke).toEqual([null]);
+  });
+
+  it('lets the sleeper give up waiting', () => {
+    let gaveUp = 0;
+    const { dom, woke } = make(() => true, () => gaveUp++);
+    dom.byAction('sleep-skip').onclick!();
+    vi.advanceTimersByTime(FADE_MS);
+    dom.byAction('sleep-giveup').onclick!();
+    expect(gaveUp).toBe(1);
+    expect(woke).toEqual([null]);
+  });
+
+  it('hides the dream button for a tablet with no dream of its own', () => {
+    const { dom, prompt } = make();
+    prompt.set({ night: true, rest: false, grow: null, dream: false });
+    expect(dom.byAction('sleep-dream').hidden).toBe(true);
+    expect(dom.byAction('sleep-skip').hidden).toBe(false);
   });
 });

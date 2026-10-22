@@ -271,6 +271,12 @@ export function sleep(world: WorldState): WorldState {
   return { ...world, clock: nextDawn(world.clock) };
 }
 
+/** The clock moved to where a sleep ends, with no check of who sleeps (the shared sleep of a room has made it). */
+export function skipTo(world: WorldState, goal: 'night' | 'season' | 'grow'): WorldState {
+  const target = goal === 'night' ? nextDawn(world.clock) : goal === 'season' ? nextSeasonStart(world.clock) : growUpDawn(world.clock, world.bornAt);
+  return target !== null && target > world.clock ? { ...world, clock: target } : world;
+}
+
 /** The player's choice of look for the life that begins: the fur, and the hat, scarf, tail colour and name. */
 export function chooseLook(world: WorldState, coat: Coat, look: Partial<Look>): WorldState {
   return { ...world, coat, look: cleanLook(look) };

@@ -97,7 +97,9 @@ These are their own pieces of work, and each can be built and played alone befor
   only a beaver on the nest in a lodge can sleep (`canRest`, `canSleep` in `src/sim/state.ts`). Open: where it is safe, whether it
   ends skips, and how the dream and a night skip work from there.
 - **Dream together.** (Proposal in [51](51_dream_together.md).) The dream room is run by the host for the players who are asleep. A popup tells the others when a beaver
-  goes to sleep.
+  goes to sleep. Built in sessions 177 to 179: the room runs one dream for the host and the guests who sleep, a late sleeper walks in as a
+  friend, a guest has the Dream button, and each friend is drawn as a candy beaver with its hat and scarf. Friends take sweets and
+  ride a boat each; they do not yet play the games (see 51).
 - **Hide and seek.** The dream mechanics, behind trees, in the waking game. A beaver can send a note to friends who are near, they
   walk over, and the game starts. Rules and room are built (#664), see [49](49_hide_and_seek_friends.md).
 - **Partners between players (#666).** Built as a first step: the ask and the yes. Two adult players with no partner stand within 4 m

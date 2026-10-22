@@ -106,6 +106,12 @@ runs when all are asleep or said yes. A dreamer who wakes ends the skip like any
   `Snapshot.dream` and wakes with a message. A friend sees no games, prompts or lines of the owner (step 4). Events are not on the wire,
   so a guest has no sparkles from the host's sweets, and it draws at the 20 Hz of the snapshots, with no smoothing yet.
 
+- Sweets and boats for friends (session 179, step 4): `stepFriends` in `src/sim/dream.ts` steps each friend as the beaver of a view in
+  which the owner is a friend, so a friend takes sweets (one count and one sugar rush for all) and boards or leaves a boat of its own
+  (`DreamFriend.aboard`; a boat takes one beaver, and `handOver` keeps the boat). Not built: friends in tag, hide and seek and the plant
+  race. Those rules name the one 'player' in about twenty places (who is it, who is chased, who hides, whose plant), so friends as
+  runners, hiders or seekers need those to take any number of human players first. The manual says so.
+
 ## The author's answers
 
 Session 177. The proposals above stand, with these changes.
@@ -125,4 +131,4 @@ Session 177. The proposals above stand, with these changes.
 1. A shared sleep state in `Room`: who sleeps, who dreams, the popup, the ready check for a skip (this is also what #661 needs). Built, see above.
 2. Move the dream step to the host for guests: `Snapshot.dream`, an intent for the dreamer's input, tests with fake rooms. Built, see above.
 3. Draw the dream on a guest, the late join, the wake of one player. Built, see above.
-4. Friends in the games, the manual (both languages), notes 29 and 42, and the emulator pair for the real run.
+4. Friends in the games, the manual (both languages), notes 29 and 42, and the emulator pair for the real run. The manual, the notes, sweets and boats are done; the games and the emulator run are open.

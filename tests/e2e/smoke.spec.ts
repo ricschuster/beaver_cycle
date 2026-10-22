@@ -107,7 +107,7 @@ test('the test menu sets the speed and jumps to a location', async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
-test('the test menu moves the clock and the season, and sleep needs the lodge', async ({ page }) => {
+test('the test menu moves the clock and the season, and a night can be slept out in the open (#661)', async ({ page }) => {
   await page.goto('/?shadows=0&lodge=0');
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
   await page.getByRole('button', { name: 'Test menu' }).click();
@@ -116,9 +116,10 @@ test('the test menu moves the clock and the season, and sleep needs the lodge', 
   // A season button jumps to the first day with the season's full look (SEASON_FULL_DAY): day 4.
   await page.locator('button[data-season="winter"]').click();
   await expect(page.locator('#clock-hud')).toContainText('Winter, day 4');
+  // Out in the open, on land with no predator near, the night can be slept through (#661).
   await page.locator('button[data-action="sleep"]').click();
-  await expect(page.locator('#clock-hud')).toContainText('Winter, day 4');
-  await page.locator('button[data-action="lodge"]').click();
+  await expect(page.locator('#clock-hud')).toContainText('Winter, day 5, morning');
+  // By day it cannot.
   await page.locator('button[data-action="sleep"]').click();
   await expect(page.locator('#clock-hud')).toContainText('Winter, day 5, morning');
   await expect(page.locator('button[data-action="shadows"]')).toBeDisabled();
@@ -131,7 +132,10 @@ test('at night in the lodge the bedtime panel offers sleep and the dream, and bo
   await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
   await page.getByRole('button', { name: 'Test menu' }).click();
   await page.locator('button[data-time="night"]').click();
-  await expect(page.locator('#sleep-prompt')).toBeHidden();
+  // Out in the open the night button is offered, with no dream and no season sleep (#661).
+  await expect(page.locator('button[data-action="sleep-skip"]')).toBeVisible();
+  await expect(page.locator('button[data-action="sleep-dream"]')).toBeHidden();
+  await expect(page.locator('button[data-action="sleep-season"]')).toBeHidden();
   await page.locator('button[data-action="lodge"]').click();
   await expect(page.locator('#sleep-prompt')).toBeVisible();
   // The open test menu can cover the bedtime panel as it grows, so close it first.

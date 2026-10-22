@@ -10,7 +10,7 @@ import { SEASON_FULL_DAY } from './render/seasonLook';
 import { newWear } from './sim/wear';
 import { LODGE_WOOD, findSite, atHole, atNest, checkSite, checkSpot, lodgeProgress } from './sim/lodge';
 import { DAYS_PER_YEAR, DAY_SECONDS, dateAt, daylight, withSeason, withTimeOfDay } from './sim/clock';
-import { canRest, canSleep, newLife, chooseLook, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
+import { canRest, canSleep, canSleepOut, newLife, chooseLook, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
 import { formerParentsAt, parentsAt } from './sim/family';
 import { homeDam } from './sim/routines';
@@ -37,7 +37,7 @@ import { giftFamilies, giveFamily, greetedBy, takerNear, familyMood, familyTrust
 import { FEED_TRUST, banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
 import { lead, leaderAnimal } from './sim/guides';
 import { pondGuests, trackPonds } from './sim/pondGuests';
-import { isPredator, meetPredators, predatorAnimals, type PredatorEvent } from './sim/predators';
+import { isPredator, meetPredators, threatened, predatorAnimals, type PredatorEvent } from './sim/predators';
 import { CUE_EVERY, HEARD_DISTANCE, follower, mateOf } from './sim/partners';
 import { loneBeaverWay, loneNewsLine, pointerDots, pointerTarget, startPointer, type WayPointer } from './sim/wayToPartner';
 import { createLifeHud } from './ui/lifeHud';
@@ -641,7 +641,7 @@ async function start(): Promise<void> {
           }
         : undefined,
     onSleep() {
-      world = sleep(world);
+      world = sleep(world, threatened(world, lastAmbient));
     },
     onDream(theme) {
       startDream(undefined, theme);
@@ -698,7 +698,7 @@ async function start(): Promise<void> {
     onWake(goal) {
       // With friends the room moves the clock once they agree (#661); a guest's clock is the host's. Alone, the wake does.
       if (!goal || room || link) return;
-      world = goal === 'night' ? sleep(world) : sleepUntil(world, goal);
+      world = goal === 'night' ? sleep(world, threatened(world, lastAmbient)) : sleepUntil(world, goal);
     },
     onLie(goal) {
       if (room) room.lie('host', goal, false, performance.now() / 1000);
@@ -1154,8 +1154,10 @@ async function start(): Promise<void> {
     stashPanel.set(world.stashOpen, world.store, world.carry, storeCapacity(storeCondition(world.storeWear, world.clock)));
     const rest = canRest(world);
     const stage = lifeAt(world.clock, world.bornAt).stage;
-    sleepUp = canSleep(world) || rest;
-    sleepPrompt.set({ night: canSleep(world), rest, grow: !link && rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null, dream: true });
+    // Out in the open (#661) the panel offers the night only, and only to a beaver standing still, so it does not flicker while walking.
+    const outside = !rest && !movingNow && canSleepOut(world, threatened(world, lastAmbient));
+    sleepUp = canSleep(world) || rest || outside;
+    sleepPrompt.set({ night: canSleep(world) || outside, rest, grow: !link && rest && stage !== 'adult' ? (stage === 'baby' ? 'teenager' : 'adult') : null, dream: !outside });
     const ponded = withPonds(terrain, world.ponds);
     if (now - animalsAt > 100) {
       animalsAt = now;

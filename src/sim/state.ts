@@ -247,6 +247,14 @@ export function canSleep(world: WorldState): boolean {
   return canRest(world) && isNight(world.clock);
 }
 
+/**
+ * The beaver can sleep out of a lodge (#661): on land, at night, with no predator near (`threatened` in `predators.ts`). It only
+ * skips the night, with no dream. Anyone can, and a lodge keeps its nest for resting ahead to a season or to growing up.
+ */
+export function canSleepOut(world: WorldState, threatened: boolean): boolean {
+  return !threatened && !world.inLodge && world.beaver.mode === 'walk' && isNight(world.clock);
+}
+
 /** The beaver can rest in its lodge, on the nest, at any hour. Resting lets it sleep ahead to a season or to growing up. */
 export function canRest(world: WorldState): boolean {
   return world.inLodge && (!world.lodge || atNest(world.lodge, world.beaver.x, world.beaver.z));
@@ -264,10 +272,10 @@ export function sleepUntil(world: WorldState, goal: SleepGoal): WorldState {
 
 /**
  * Sleep through the night: in the lodge at night, jump the clock to the next dawn. Otherwise nothing happens.
- * The dream (Q65) ends the same way, so both ways of sleeping wake the beaver here.
+ * The dream (Q65) ends the same way, so both ways of sleeping wake the beaver here. Out of a lodge it needs no predator near.
  */
-export function sleep(world: WorldState): WorldState {
-  if (!canSleep(world)) return world;
+export function sleep(world: WorldState, threatened = false): WorldState {
+  if (!canSleep(world) && !canSleepOut(world, threatened)) return world;
   return { ...world, clock: nextDawn(world.clock) };
 }
 

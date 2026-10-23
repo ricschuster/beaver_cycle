@@ -11,6 +11,8 @@ export const de: Partial<Table> = {
   'settings.music': 'Musik',
   'settings.sounds': 'Geräusche',
   'settings.map': 'Karte',
+  'settings.awake': 'Bildschirm bleibt an',
+  'settings.awakeNote': 'Der Bildschirm bleibt hell, solange du spielst. Nach 10 Minuten ohne Berührung schläft er ein.',
   'settings.shadows': 'Schatten',
   'settings.shadowsNote': 'Schatten sehen schön aus, machen aber manche Tablets langsam. Wenn du sie änderst, startet das Spiel neu, genau da, wo du warst.',
   'settings.savedGames': 'Gespeicherte Spiele',

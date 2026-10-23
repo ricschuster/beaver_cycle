@@ -9,7 +9,9 @@ describe('parsePrefs', () => {
   });
 
   it('reads the choices and drops a mode it does not know', () => {
-    expect(parsePrefs('{"minimap":"north","shadows":true}')).toEqual({ minimap: 'north', shadows: true, lang: 'auto', lastHost: '' });
+    expect(parsePrefs('{"minimap":"north","shadows":true}')).toEqual({ minimap: 'north', shadows: true, lang: 'auto', lastHost: '', keepAwake: true });
+    expect(parsePrefs('{"keepAwake":false}').keepAwake).toBe(false);
+    expect(parsePrefs('{"keepAwake":"no"}').keepAwake).toBe(true);
     expect(parsePrefs('{"lang":"de"}').lang).toBe('de');
     expect(parsePrefs('{"lang":"klingon"}').lang).toBe('auto');
     expect(parsePrefs('{"lastHost":"10.0.0.2"}').lastHost).toBe('10.0.0.2');
@@ -22,9 +24,9 @@ describe('savePrefs and loadPrefs', () => {
   it('keep the choices between runs', () => {
     const data = new Map<string, string>();
     const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
-    savePrefs(storage, { minimap: 'off', shadows: true, lang: 'de', lastHost: '192.168.0.7' });
+    savePrefs(storage, { minimap: 'off', shadows: true, lang: 'de', lastHost: '192.168.0.7', keepAwake: false });
     expect(data.has(PREFS_KEY)).toBe(true);
-    expect(loadPrefs(storage)).toEqual({ minimap: 'off', shadows: true, lang: 'de', lastHost: '192.168.0.7' });
+    expect(loadPrefs(storage)).toEqual({ minimap: 'off', shadows: true, lang: 'de', lastHost: '192.168.0.7', keepAwake: false });
   });
 
   it('survive storage that throws or is missing', () => {

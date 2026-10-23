@@ -1,4 +1,4 @@
-// The saved game (docs/design/26_saving.md). Four slots in the browser's storage: the world, plus where the coach was. The world is
+// The saved game (docs/design/26_saving.md). Eight slots in the browser's storage: the world, plus where the coach was. The world is
 // plain data except the ponds' grids, which are typed arrays and go in as base64. No DOM here: the storage comes in as an argument.
 import { t } from '../i18n';
 import type { Stage } from '../sim/life';
@@ -9,11 +9,11 @@ import type { WorldState } from '../sim/state';
 export const SAVE_KEY = 'beaver-cycle.save';
 export const SAVE_BACKUP_KEY = 'beaver-cycle.save.unreadable';
 
-export const SLOT_COUNT = 4;
+export const SLOT_COUNT = 8;
 /** The longest name a slot may have. */
 export const NAME_MAX = 24;
 
-/** The key of slot 1 to 4. Slot 1 keeps the old key, so a save made before the slots is slot 1 as it is. */
+/** The key of slot 1 to `SLOT_COUNT`. Slot 1 keeps the old key, so a save made before the slots is slot 1 as it is. */
 export function slotKey(slot: number): string {
   return slot <= 1 ? SAVE_KEY : `${SAVE_KEY}.${slot}`;
 }
@@ -197,7 +197,7 @@ export function renameSave(storage: SaveStorage, slot: number, name: string): bo
 /** What a slot card shows. `world` is only read for the life stage and generation, so a slot is a few fields, not a game. */
 export type SlotInfo = { slot: number; kind: 'empty' } | { slot: number; kind: 'unreadable' } | { slot: number; kind: 'used'; name: string; savedAt: number; clock: number; bornAt: number; generation: number };
 
-/** The four slots, for the start screen. A slot that cannot be read is kept under its backup key by `loadSave`, as at a start. */
+/** All the slots, for the start screen. A slot that cannot be read is kept under its backup key by `loadSave`, as at a start. */
 export function readSlots(storage: SaveStorage, fresh: WorldState): SlotInfo[] {
   return Array.from({ length: SLOT_COUNT }, (_, i) => {
     const slot = i + 1;

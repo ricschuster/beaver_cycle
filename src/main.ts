@@ -75,6 +75,7 @@ import { createMuteButton } from './ui/muteButton';
 import { createOsmCredit } from './ui/osmCredit';
 import { getLang, resolveLang, setLang, t, text, type LangChoice } from './i18n';
 import { loadPrefs, savePrefs } from './ui/prefs';
+import { startScreenAwake } from './ui/screenAwake';
 import { FRAME_CAP_FPS, createFrameCap } from './frameCap';
 import { createAchievementsPanel, createSettingsPanel } from './ui/settingsPanel';
 import { createFlyButtons } from './ui/flyButtons';
@@ -152,6 +153,9 @@ async function start(): Promise<void> {
   // Changing the language starts the game again, so the page language is set once here.
   document.documentElement.lang = getLang();
   let langChoice: LangChoice = prefs.lang;
+  // The screen stays on while the game is in front, the start screen too (#771); the Settings choice turns it off.
+  let keepAwake = prefs.keepAwake;
+  const screenAwake = startScreenAwake(keepAwake);
 
   installNarrowHud();
 
@@ -221,7 +225,7 @@ async function start(): Promise<void> {
     else if (wantsCoach(remembered(COACH_KEY), query, navigator.webdriver)) coachPending = true;
   }
   let lastHost = prefs.lastHost;
-  const keptPrefs = (shadows: boolean) => ({ minimap: minimap.mode(), shadows, lang: langChoice, lastHost });
+  const keptPrefs = (shadows: boolean) => ({ minimap: minimap.mode(), shadows, lang: langChoice, lastHost, keepAwake });
   const shadowsAtStart = (query.has('shadows') ? query.get('shadows') === '1' : prefs.shadows) && !free;
   const renderer = createRenderer(document.body, store && streamer ? { store, streamer } : null, {
     shadows: shadowsAtStart,
@@ -337,7 +341,7 @@ async function start(): Promise<void> {
   if (netJoin && pending?.me) world = chooseLook(world, pending.me.coat, pending.me.look);
   const startAs = netJoin ? 'adult' : STAGES.includes(stageParam as Stage) ? (stageParam as Stage) : navigator.webdriver ? 'adult' : 'baby';
   if (startAs !== 'adult') world = startStage(world, startAs);
-  // The saved game (docs/design/26_saving.md): four slots. With a saved game the player picks a slot on the start screen; ?slot=N
+  // The saved game (docs/design/26_saving.md): eight slots. With a saved game the player picks a slot on the start screen; ?slot=N
   // goes straight to that slot (the Settings shadows restart uses it), and with no saved game at all the game starts in slot 1.
   let startNote: string | null = null;
   let slot = 1;
@@ -506,6 +510,14 @@ async function start(): Promise<void> {
           minimap.setMode(nextMode(minimap.mode()));
           savePrefs(storage, keptPrefs(shadowsAtStart));
           return MAP_LABEL[minimap.mode()];
+        },
+      },
+      keepAwake: {
+        on: () => keepAwake,
+        onToggle(on) {
+          keepAwake = on;
+          screenAwake.setEnabled(on);
+          savePrefs(storage, keptPrefs(shadowsAtStart));
         },
       },
       shadows: {

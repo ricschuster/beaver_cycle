@@ -106,12 +106,12 @@ describe('save', () => {
   it('keeps the save of the games before the slots as slot 1', () => {
     expect(slotKey(1)).toBe(SAVE_KEY);
     expect(backupKey(1)).toBe(SAVE_BACKUP_KEY);
-    expect(new Set([1, 2, 3, 4].map(slotKey)).size).toBe(SLOT_COUNT);
+    expect(new Set(Array.from({ length: SLOT_COUNT }, (_, i) => slotKey(i + 1))).size).toBe(SLOT_COUNT);
     const s = memory();
     // A save as version 1 wrote it: no name.
     s.setItem(SAVE_KEY, encodeSave(fresh(), coachOff, 7));
     const slots = readSlots(s, fresh());
-    expect(slots.map((i) => i.kind)).toEqual(['used', 'empty', 'empty', 'empty']);
+    expect(slots.map((i) => i.kind)).toEqual(['used', ...Array(SLOT_COUNT - 1).fill('empty')]);
     expect(loadSave(s, fresh(), 1).kind).toBe('ok');
   });
 
@@ -129,7 +129,7 @@ describe('save', () => {
     const s = memory();
     s.setItem(slotKey(2), '{broken');
     s.setItem(SAVE_KEY, encodeSave(fresh(), coachOff, 1));
-    expect(readSlots(s, fresh()).map((i) => i.kind)).toEqual(['used', 'unreadable', 'empty', 'empty']);
+    expect(readSlots(s, fresh()).map((i) => i.kind)).toEqual(['used', 'unreadable', ...Array(SLOT_COUNT - 2).fill('empty')]);
     expect(s.getItem(backupKey(2))).toBe('{broken');
     expect(s.getItem(slotKey(2))).toBeNull();
     expect(s.getItem(SAVE_KEY)).not.toBeNull();
@@ -151,6 +151,6 @@ describe('save', () => {
   it('cleans names and slot numbers', () => {
     expect(cleanName('a'.repeat(50))).toHaveLength(24);
     expect(parseSlot('3')).toBe(3);
-    for (const bad of ['0', '5', 'x', '1.5', null]) expect(parseSlot(bad)).toBeNull();
+    for (const bad of ['0', String(SLOT_COUNT + 1), 'x', '1.5', null]) expect(parseSlot(bad)).toBeNull();
   });
 });

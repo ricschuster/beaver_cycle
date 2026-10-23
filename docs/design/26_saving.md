@@ -6,12 +6,12 @@ the coach inside the save, no export for now.
 
 ## Slots
 
-Four slots (issue #562). Slot 1 is the old key `beaver-cycle.save`, so a game saved before the slots is slot 1 with no migration;
-slots 2 to 4 are `beaver-cycle.save.2` to `.4`. A game has an optional name (up to 24 characters, `name` in the save, no version
+Eight slots (issue #562, raised from four in #772). Slot 1 is the old key `beaver-cycle.save`, so a game saved before the slots is slot 1 with no migration;
+slots 2 to 8 are `beaver-cycle.save.2` to `.8`. A game has an optional name (up to 24 characters, `name` in the save, no version
 bump since an old save simply has none); the start screen shows the name or "Game N", the life stage, the generation, and when it
 was last played. Each slot keeps its own unreadable copy (`<key>.unreadable`).
 
-The start screen (`src/ui/slotCard.ts`) shows all four slots when any holds a game. A used slot has Continue, Rename and Delete
+The start screen (`src/ui/slotCard.ts`) shows all eight slots when any holds a game. A used slot has Continue, Rename and Delete
 (Delete asks twice); an empty one has New game, with an optional name. With no game saved at all the game starts in slot 1 without
 the screen, as before. `?slot=N` goes straight to that slot (a new game if it is empty): the Settings shadows restart uses it.
 Settings has a Start screen button that saves and goes back to the screen without `?slot`.

@@ -1635,7 +1635,10 @@ function tagRules(s: DreamState, g0: Extract<DreamGame, { kind: 'tag' }>, rand: 
   const t = s.time;
   const b = s.beaver;
   // A friend who was it and has gone is no longer: the player is it.
-  const g = g0.it === 'player' || whoAt(s, g0.it) ? g0 : { ...g0, it: 'player' };
+  const kept = g0.it === 'player' || whoAt(s, g0.it) ? g0 : { ...g0, it: 'player' };
+  // A friend who comes near the player while the game runs joins it, as one near at the start does (#763).
+  const joining = (s.friends ?? []).filter((f) => !kept.players.includes(f.id) && dist2(f.beaver, b) < TAG_JOIN * TAG_JOIN).map((f) => f.id);
+  const g = joining.length ? { ...kept, players: [...kept.players, ...joining] } : kept;
   let game = g;
   let mallows = s.mallows;
   const named = (id: string): string => (id === 'player' ? 'player' : mallows.find((m) => m.id === id)?.name ?? id);

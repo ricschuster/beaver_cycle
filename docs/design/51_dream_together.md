@@ -111,7 +111,7 @@ runs when all are asleep or said yes. A dreamer who wakes ends the skip like any
   (`DreamFriend.aboard`; a boat takes one beaver, and `handOver` keeps the boat).
 
 - Friends in the games, smoothing and news (session 180, step 4 done): the owner starts a game, and the friends near start with it, as
-  people next to the owner (`whoAt`, `isHuman`, `people` in `src/sim/dream.ts`). Tag: friends within 25 m are players; a marshmallow
+  people next to the owner (`whoAt`, `isHuman`, `people` in `src/sim/dream.ts`). Tag: friends within 25 m are players, at the start and later when one comes near (#763); a marshmallow
   beaver that is it may chase a friend, a friend it tags is it (the answer to "who is it when a friend is caught": whoever is caught is
   it, a friend or the owner, and only the one who is it tags); a friend who is it tags by touching a player, the owner too, and a
   friend who wakes while it hands "it" back to the owner. Hide and seek: anyone who walks up to a hider or touches its prop finds it,

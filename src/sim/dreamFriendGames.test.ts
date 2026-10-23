@@ -33,6 +33,16 @@ describe('friends in tag', () => {
     expect(s.game).toMatchObject({ kind: 'tag', it: m.id, players: [m.id, 'g1'] });
   });
 
+  it('brings in a friend who comes near after the game began, and not one far off (#763)', () => {
+    const { s } = tagging();
+    const c = s.land.river[Math.floor(s.land.river.length / 2)]!;
+    const away = joinDream(s, 'late');
+    const far = friendAt(away, 'late', { x: c.x + 90, z: c.z });
+    expect(step(far, still, { late: still }).state.game).toMatchObject({ kind: 'tag', players: [expect.any(String), 'g1'] });
+    const near = friendAt(away, 'late', { x: c.x, z: c.z + 3 });
+    expect(step(near, still, { late: still }).state.game).toMatchObject({ kind: 'tag', players: [expect.any(String), 'g1', 'late'] });
+  });
+
   it('makes a friend it when a marshmallow beaver catches it, and the friend then tags by touching', () => {
     const { s, m } = tagging();
     // The marshmallow beaver that is it goes for the friend, and stands beside it.

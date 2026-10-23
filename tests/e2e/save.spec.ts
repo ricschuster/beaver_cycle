@@ -56,3 +56,24 @@ test('an automated run without ?save=1 neither reads nor writes the save', async
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
   expect(await page.evaluate(() => localStorage.getItem('beaver-cycle.save'))).toBeNull();
 });
+
+test('the look card of a new game goes back to the slots', async ({ page }) => {
+  await page.goto(URL);
+  await page.waitForFunction(() => '__game' in window, null, { polling: 100 });
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await page.goto(`${URL}&look=1`);
+  await page.locator('[data-slot="2"] [data-action="slot-new"]').click();
+  await page.locator('[data-action="slot-start"]').click();
+  await expect(page.locator('#look-card')).toBeVisible();
+  await page.locator('[data-action="look-back"]').click();
+  // Back to the slots, and nothing was made in slot 2.
+  await expect(page.locator('#look-card')).toHaveCount(0);
+  await expect(page.locator('#slot-card')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('beaver-cycle.save.2'))).toBeNull();
+  // The way on still works.
+  await page.locator('[data-slot="2"] [data-action="slot-new"]').click();
+  await page.locator('[data-action="slot-start"]').click();
+  await page.locator('[data-action="look-go"]').click();
+  await expect(page.locator('#look-card')).toHaveCount(0);
+  await expect(page.locator('#slot-card')).toHaveCount(0);
+});

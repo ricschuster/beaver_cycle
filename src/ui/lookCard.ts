@@ -17,8 +17,13 @@ export type PreviewFactory = (canvas: HTMLCanvasElement) => { show(coat: Coat, l
 const hex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 const BASE = 'min-width:44px;min-height:44px;border-radius:10px;font:16px system-ui,sans-serif;cursor:pointer;';
 
-/** Shows the card over the page and resolves with the choice. `initial` is what shows first, so a player who taps Go changes nothing. */
-export function askLook(parent: HTMLElement, initial: LookChoice, preview?: PreviewFactory): Promise<LookChoice> {
+/**
+ * Shows the card over the page and resolves with the choice. `initial` is what shows first, so a player who taps Go changes nothing.
+ * With `back` the card also has a Back button, for a card that opens from an earlier screen (the slot card): it resolves with null.
+ */
+export function askLook(parent: HTMLElement, initial: LookChoice, preview?: PreviewFactory): Promise<LookChoice>;
+export function askLook(parent: HTMLElement, initial: LookChoice, preview: PreviewFactory | undefined, opts: { back: true }): Promise<LookChoice | null>;
+export function askLook(parent: HTMLElement, initial: LookChoice, preview?: PreviewFactory, opts?: { back: boolean }): Promise<LookChoice | null> {
   return new Promise((resolve) => {
     let coat: Coat = { coat: initial.coat.coat, shade: nearestShade(initial.coat.shade) };
     const look: Look = { ...initial.look };
@@ -125,7 +130,23 @@ export function askLook(parent: HTMLElement, initial: LookChoice, preview?: Prev
       root.remove();
       resolve({ coat, look: { ...look, name: name.value.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX) } });
     };
-    card.append(nameTitle, name, go);
+    const buttons = document.createElement('div');
+    buttons.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+    if (opts?.back) {
+      const back = document.createElement('button');
+      back.type = 'button';
+      back.dataset.action = 'look-back';
+      back.textContent = t('slots.back');
+      back.style.cssText = `${BASE}margin-top:12px;padding:8px 22px;border:0;background:#e3d6b0;color:#2a1f0e;`;
+      back.onclick = () => {
+        shown?.dispose();
+        root.remove();
+        resolve(null);
+      };
+      buttons.append(back);
+    }
+    buttons.append(go);
+    card.append(nameTitle, name, buttons);
     refresh();
   });
 }

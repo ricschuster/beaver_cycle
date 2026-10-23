@@ -350,6 +350,17 @@ async function start(): Promise<void> {
   // Chosen on the start screen: host this game for friends (ADR 0014). Joining reloads as a guest, below.
   let hostFromStart = false;
   const saving = storage !== null && !free && !netJoin && wantsSave(query, navigator.webdriver);
+  // The look card (#659) opens on a new game, and again when each kit is born. An automated browser skips it unless ?look=1.
+  const asksLook = navigator.webdriver ? query.get('look') === '1' : !free;
+  let lookOpen = false;
+  let lookPicked = false;
+  const chooseNewLook = async () => {
+    lookOpen = true;
+    const picked = await askLook(document.body, { coat: world.coat, look: world.look }, createLookPreview);
+    world = chooseLook(world, picked.coat, picked.look);
+    lookOpen = false;
+    return picked;
+  };
   if (saving) {
     const wanted = parseSlot(query.get('slot'));
     const slots = readSlots(storage, world);
@@ -357,13 +368,25 @@ async function start(): Promise<void> {
     if (wanted) choice = { slot: wanted, action: slots[wanted - 1]!.kind === 'used' ? 'continue' : 'new', name: '' };
     else if (slots.every((i) => i.kind !== 'used')) choice = { slot: 1, action: 'new', name: '' };
     else {
-      choice = await askSlot(document.body, {
-        slots: () => readSlots(storage, world),
-        rename: (n, name) => void renameSave(storage, n, name),
-        remove: (n) => clearSave(storage, n),
-        ago: (at) => ago(at, Date.now()),
-        together: canPlayTogether() ? { canHost: hostPlugin() !== null, lastHost } : null,
-      });
+      for (;;) {
+        choice = await askSlot(document.body, {
+          slots: () => readSlots(storage, world),
+          rename: (n, name) => void renameSave(storage, n, name),
+          remove: (n) => clearSave(storage, n),
+          ago: (at) => ago(at, Date.now()),
+          together: canPlayTogether() ? { canHost: hostPlugin() !== null, lastHost } : null,
+        });
+        if (choice.join || choice.action !== 'new' || !asksLook) break;
+        // A new game goes on to the look card, which can go back to the slots (#775).
+        lookOpen = true;
+        const picked = await askLook(document.body, { coat: world.coat, look: world.look }, createLookPreview, { back: true });
+        lookOpen = false;
+        if (picked) {
+          world = chooseLook(world, picked.coat, picked.look);
+          lookPicked = true;
+          break;
+        }
+      }
     }
     if (choice.join) {
       // A guest plays a fresh world of the host's, so the game starts again as one (it picks its look on the way in).
@@ -393,21 +416,12 @@ async function start(): Promise<void> {
     }
     if (!wanted && slots.some((i) => i.kind === 'unreadable')) startNote = t('toast.unreadable');
   }
-  // The look card (#659) opens on a new game, and again when each kit is born. An automated browser skips it unless ?look=1.
-  const asksLook = navigator.webdriver ? query.get('look') === '1' : !free;
-  let lookOpen = false;
   let sleepUp = false;
   // A guest has no store of its own to count (the host's holds the food), so its line would read "store 0 of 0".
   const guestFood = <F extends { store: unknown } | null>(food: F): F => (food && link ? { ...food, store: null } : food);
-  const chooseNewLook = async () => {
-    lookOpen = true;
-    const picked = await askLook(document.body, { coat: world.coat, look: world.look }, createLookPreview);
-    world = chooseLook(world, picked.coat, picked.look);
-    lookOpen = false;
-    return picked;
-  };
   if (freshGame && asksLook) {
-    await chooseNewLook();
+    // A look already picked on the way from the start screen is not asked again.
+    if (!lookPicked) await chooseNewLook();
     // The beaver's name names the game too, unless the player named the game already.
     if (!slotName) slotName = cleanName(world.look.name);
   } else if (netJoin && !pending?.me && asksLook) {

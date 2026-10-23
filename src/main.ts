@@ -395,11 +395,12 @@ async function start(): Promise<void> {
   let sleepUp = false;
   // A guest has no store of its own to count (the host's holds the food), so its line would read "store 0 of 0".
   const guestFood = <F extends { store: unknown } | null>(food: F): F => (food && link ? { ...food, store: null } : food);
-  const chooseNewLook = async (): Promise<void> => {
+  const chooseNewLook = async () => {
     lookOpen = true;
     const picked = await askLook(document.body, { coat: world.coat, look: world.look }, createLookPreview);
     world = chooseLook(world, picked.coat, picked.look);
     lookOpen = false;
+    return picked;
   };
   if (freshGame && asksLook) {
     await chooseNewLook();
@@ -1233,9 +1234,12 @@ async function start(): Promise<void> {
       const born = room ? world.bornAt : snap?.beavers.find((v) => v.id === me)?.bornAt ?? null;
       if (pairing.partner && pairing.partner !== partnerSeen.partner) toast.show(t('toast.partnered', { name: nameOf(pairing.partner) }));
       else if (!pairing.partner && partnerSeen.partner) {
-        toast.show(t(born !== partnerSeen.born ? 'toast.kitsBorn' : 'toast.partnerStopped', { name: partnerSeen.name }));
-        // A guest reborn as a kit picks its look too; the host keeps the choice and sends it back with the snapshot.
-        if (link && asksLook && born !== partnerSeen.born) void chooseNewLook().then(() => link?.send({ t: 'look', coat: world.coat, look: world.look }));
+        // Urgent for kits: older toasts wait in the queue, and the kits are the news (#761).
+        const kits = born !== partnerSeen.born;
+        toast.show(t(kits ? 'toast.kitsBorn' : 'toast.partnerStopped', { name: partnerSeen.name }), kits);
+        // A guest reborn as a kit picks its look too; the host keeps the choice and sends it back with the snapshot. The pick is sent as
+        // it was made: every snapshot sets the guest's coat back to the host's until the host has heard this.
+        if (link && asksLook && kits) void chooseNewLook().then((picked) => link?.send({ t: 'look', coat: picked.coat, look: picked.look }));
       }
       else if (pairing.partner && pairing.stopBy && !partnerSeen.stopBy) toast.show(t('toast.partnerStopAsked', { name: nameOf(pairing.partner) }));
       else if (pairing.partner && pairing.stopping && !partnerSeen.stopping) toast.show(t('toast.partnerStopAsk', { name: nameOf(pairing.partner) }));

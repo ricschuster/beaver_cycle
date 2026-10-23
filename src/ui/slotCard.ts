@@ -3,7 +3,7 @@
 // the storage and passes what it needs in `SlotActions`.
 import { t } from '../i18n';
 import { cleanAddress } from '../net/pending';
-import { NAME_MAX, type SlotInfo } from '../persist/save';
+import { NAME_MAX, SLOT_COUNT, type SlotInfo } from '../persist/save';
 import { stageAt } from '../sim/life';
 
 export interface SlotChoice {
@@ -28,6 +28,8 @@ export interface SlotActions {
   ago(savedAt: number): string;
 }
 
+/** The window width from which the slots go in two columns. */
+const WIDE_AT = 640;
 const BUTTON = 'min-width:44px;min-height:44px;padding:8px 14px;border:0;border-radius:10px;font:16px system-ui,sans-serif;cursor:pointer;';
 const STAGE_WORD = { baby: 'stage.baby', teenager: 'stage.teenager', adult: 'stage.adult' } as const;
 
@@ -45,7 +47,7 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
     root.setAttribute('aria-label', t('slots.label'));
     root.style.cssText = 'position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(20,30,20,.85);font:16px/1.5 system-ui,sans-serif;overflow-y:auto';
     const card = document.createElement('div');
-    card.style.cssText = 'box-sizing:border-box;width:min(30rem,94vw);max-height:96vh;overflow-y:auto;padding:16px 18px;border-radius:14px;background:#f6f1e4;color:#2a1f0e';
+    card.style.cssText = 'box-sizing:border-box;width:min(46rem,94vw);max-height:96vh;overflow-y:auto;padding:16px 18px;border-radius:14px;background:#f6f1e4;color:#2a1f0e';
     root.appendChild(card);
     parent.appendChild(root);
 
@@ -83,7 +85,13 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
       const heading = document.createElement('div');
       heading.textContent = t('slots.heading');
       heading.style.cssText = 'font-size:22px;font-weight:700;margin-bottom:8px';
-      card.replaceChildren(heading, ...actions.slots().map(row), ...(actions.together ? [together(actions.together)] : []));
+      // Two columns of half the slots on a tablet, so all of them show without scrolling; one column on a narrow screen.
+      const grid = document.createElement('div');
+      grid.dataset.role = 'slots';
+      const wide = window.innerWidth >= WIDE_AT;
+      grid.style.cssText = `display:grid;gap:8px;${wide ? `grid-auto-flow:column;grid-template-rows:repeat(${Math.ceil(SLOT_COUNT / 2)},auto);grid-template-columns:1fr 1fr` : ''}`;
+      grid.append(...actions.slots().map(row));
+      card.replaceChildren(heading, grid, ...(actions.together ? [together(actions.together)] : []));
     };
 
     /** The Play together box under the slots: a tick to host the game picked above, and an address to join a friend's. */
@@ -138,13 +146,13 @@ export function askSlot(parent: HTMLElement, actions: SlotActions): Promise<Slot
     const row = (info: SlotInfo): HTMLElement => {
       const box = document.createElement('div');
       box.dataset.slot = String(info.slot);
-      box.style.cssText = 'padding:10px 12px;margin:8px 0;border-radius:10px;border:1px solid #b9a97d;background:#fbf8ee';
+      box.style.cssText = 'padding:8px 12px;margin:0;border-radius:10px;border:1px solid #b9a97d;background:#fbf8ee';
       const title = document.createElement('div');
       title.style.cssText = 'font-weight:700';
       const detail = document.createElement('div');
       detail.style.cssText = 'font-size:14px;color:#6b5d44';
       const buttons = document.createElement('div');
-      buttons.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px';
+      buttons.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-top:6px';
       box.append(title, detail);
       const here = mode?.slot === info.slot ? mode.kind : null;
 

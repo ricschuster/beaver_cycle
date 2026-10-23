@@ -1,5 +1,5 @@
 // The player's choices in the Settings panel that are not sound (sound keeps its own, src/audio/settings.ts): the minimap mode,
-// the sun's shadows and the language. Kept in the browser between runs. Storage can be blocked, so a failed read gives the defaults and a
+// the sun's shadows, the language and keeping the screen on. Kept in the browser between runs. Storage can be blocked, so a failed read gives the defaults and a
 // failed write is ignored.
 
 import type { LangChoice } from '../i18n';
@@ -14,12 +14,14 @@ export interface Prefs {
   lang: LangChoice;
   /** The address of the host this tablet joined last, so the next Join starts with it ('' while there is none). */
   lastHost: string;
+  /** Keep the screen on while the game is played (#771). On by default. */
+  keepAwake: boolean;
 }
 
 /** The key the choices are kept under. */
 export const PREFS_KEY = 'beaver-cycle.prefs';
 
-export const DEFAULT_PREFS: Prefs = { minimap: null, shadows: false, lang: 'auto', lastHost: '' };
+export const DEFAULT_PREFS: Prefs = { minimap: null, shadows: false, lang: 'auto', lastHost: '', keepAwake: true };
 
 const MODES: readonly string[] = ['north', 'turn', 'off'];
 
@@ -34,6 +36,7 @@ export function parsePrefs(text: string | null): Prefs {
       shadows: o.shadows === true,
       lang: o.lang === 'en' || o.lang === 'de' ? o.lang : 'auto',
       lastHost: typeof o.lastHost === 'string' ? o.lastHost.slice(0, 64) : '',
+      keepAwake: o.keepAwake !== false,
     };
   } catch {
     return DEFAULT_PREFS;

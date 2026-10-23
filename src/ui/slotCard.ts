@@ -1,4 +1,4 @@
-// The start screen when a saved game exists: four slots. A used slot is continued, renamed or deleted; an empty one starts a new
+// The start screen when a saved game exists: eight slots. A used slot is continued, renamed or deleted; an empty one starts a new
 // game, with a name if the player likes. Deleting is asked twice, since it throws the saved game away. DOM only: the caller owns
 // the storage and passes what it needs in `SlotActions`.
 import { t } from '../i18n';

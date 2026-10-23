@@ -14,6 +14,8 @@ export interface SettingsOptions {
   map: { label(): string; onNext(): string };
   /** The shadows. Changing them restarts the game, so the caller saves first. */
   shadows: { on(): boolean; onToggle(on: boolean): void };
+  /** Keeps the screen on while playing (#771). A press takes effect at once. */
+  keepAwake: { on(): boolean; onToggle(on: boolean): void };
   /** The language: the choice now, and a new choice restarts the game, so the caller saves first. */
   language: { value(): LangChoice; onChange(choice: LangChoice): void };
   /** Playing with friends on the Wi-Fi (ADR 0014): hosting or joining is chosen on the start screen; here is how it goes, and Leave for a guest. Null when this run is on its own. */
@@ -136,6 +138,23 @@ export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions):
   note.style.cssText = 'font-size:13px;color:#6b5d44;margin-top:4px';
   ui.body.appendChild(note);
 
+  const awakeButton = document.createElement('button');
+  awakeButton.type = 'button';
+  awakeButton.dataset.action = 'settings-awake';
+  awakeButton.style.cssText = CHOICE;
+  const showAwake = (): void => {
+    awakeButton.textContent = opts.keepAwake.on() ? t('ui.on') : t('ui.off');
+  };
+  awakeButton.onclick = () => {
+    opts.keepAwake.onToggle(!opts.keepAwake.on());
+    showAwake();
+  };
+  row(t('settings.awake')).appendChild(awakeButton);
+  const awakeNote = document.createElement('div');
+  awakeNote.textContent = t('settings.awakeNote');
+  awakeNote.style.cssText = 'font-size:13px;color:#6b5d44;margin-top:4px';
+  ui.body.appendChild(awakeNote);
+
   // The choice is offered once there is more than one shipped language.
   const langButtons: { choice: LangChoice; button: HTMLButtonElement }[] = [];
   if (LANGS.length > 1) {
@@ -205,6 +224,7 @@ export function createSettingsPanel(parent: HTMLElement, opts: SettingsOptions):
     sounds.value = String(opts.sounds.value());
     mapButton.textContent = opts.map.label();
     showShadows();
+    showAwake();
     for (const { choice, button } of langButtons) button.setAttribute('aria-pressed', String(choice === opts.language.value()));
   };
   refresh();

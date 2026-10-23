@@ -11,6 +11,8 @@ export const ui = {
   'settings.music': 'Music',
   'settings.sounds': 'Sounds',
   'settings.map': 'Map',
+  'settings.awake': 'Screen stays on',
+  'settings.awakeNote': 'The screen stays lit while you play. It goes to sleep after 10 minutes without a touch.',
   'settings.shadows': 'Shadows',
   'settings.shadowsNote': 'Shadows look nice but slow some tablets down. Changing them starts the game again, where you left off.',
   'settings.savedGames': 'Saved games',

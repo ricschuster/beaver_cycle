@@ -524,6 +524,11 @@ export class Room {
       const old = world.formerHomes.find((h) => Math.hypot(g.beaver.x - h.x, g.beaver.z - h.z) <= INTERIOR_RADIUS + 1);
       seat.guest = old ? outside(g, old, terrain0) : { ...g, inside: false };
     }
+    // A guest grown up leaves its family's lodge: it is put out at the entrance and no longer lives there (as a kit leaves its pair lodge).
+    for (const seat of this.seats.values()) {
+      const g = seat.guest;
+      if (g.homeLodge && guestStage(g, world.clock) === 'adult') seat.guest = { ...(g.inside ? outside(g, g.homeLodge, terrain0) : g), homeLodge: null };
+    }
     const ended = world.pairLodges.filter((l) => (l.kitsAt === undefined ? !together(l) : grownUp(l)));
     if (ended.length === 0) return world;
     const terrain = withPonds(ground, world.ponds);

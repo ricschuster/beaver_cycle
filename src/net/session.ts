@@ -37,7 +37,7 @@ export async function startHosting(room: Room, game: HostGame, log: (s: string) 
   const plugin = hostPlugin();
   if (!plugin) throw new Error('This app cannot host: no HostServer plugin (a browser can only join).');
   await plugin.addListener('open', (e) => {
-    room.open(e.id!);
+    room.open(e.id!, performance.now() / 1000);
     log(`${e.id} connected`);
   });
   await plugin.addListener('close', (e) => {

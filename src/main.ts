@@ -17,7 +17,7 @@ import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
 import { guestKey, pendingJoin, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
-import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
+import { canPlayTogether, HOST_QUIET_S, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
 import { applySnapshot, friendBeaver, friendNearby, friendTaker, hideOf, othersOf, pairingOf, partnerCandidate, saysOf } from './net/view';
 import type { Role } from './net/hideGame';
 import { friendChoices } from './net/friendCard';
@@ -480,6 +480,7 @@ async function start(): Promise<void> {
   let link: GuestLink | null = null;
   let wasLinked = false;
   let lostShown = false;
+  let quietShown = false;
   let guestSnap: ReturnType<typeof othersOf> = [];
   let lastSnap: Parameters<typeof othersOf>[0] = null;
   // The last question put to this player and the last answer to its own that were shown, by the host's counter (#667).
@@ -1078,6 +1079,12 @@ async function start(): Promise<void> {
             lostShown = lostShown || (!linked && link.status() === 'closed');
             if (linked) lostShown = false;
             wasLinked = linked;
+          }
+          // A host that stopped without closing the link (its page closed, its app asleep) leaves the guest standing still.
+          const quiet = linked && link.quietFor() > HOST_QUIET_S;
+          if (quiet !== quietShown) {
+            toast.show(t(quiet ? 'toast.hostQuiet' : 'toast.hostBack'));
+            quietShown = quiet;
           }
           menu.setStatus(link.id ? `Joined ${netJoin} as ${link.id}` : `Joining ${netJoin}: ${link.status()}`);
         } else {

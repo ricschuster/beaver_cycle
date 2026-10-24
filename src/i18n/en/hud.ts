@@ -103,6 +103,7 @@ export const hud = {
 
   'toast.unreadable': 'A saved game could not be read, so it was put aside.',
   'toast.hostLost': 'Lost the host. Trying to join again...',
+  'toast.hostQuiet': 'The host has gone quiet. Waiting...',
   'toast.partnerAsked': '{name} asks: partners? Press Talk, then Yes',
   'toast.partnerAsk': 'You asked {name} to be partners',
   'toast.partnered': 'You and {name} are partners now',

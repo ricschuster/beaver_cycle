@@ -256,6 +256,11 @@ export class Room {
     this.pairing = restore(lodges);
   }
 
+  /** The clock jumped by `delta` seconds (a test tool): the guests who were born as kits keep their age, as the host's beaver does (`setClock`). */
+  shiftAges(delta: number): void {
+    for (const seat of this.seats.values()) if (seat.guest.bornAt !== null) seat.guest = { ...seat.guest, bornAt: seat.guest.bornAt + delta };
+  }
+
   /** The families whose baby a guest plays. */
   played(): string[] {
     return [...this.seats.values()].flatMap((s) => (s.family ? [s.family] : []));

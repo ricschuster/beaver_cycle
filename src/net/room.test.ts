@@ -964,3 +964,26 @@ describe('a connection that does not say hello (#785)', () => {
     expect(room.guests()).toHaveLength(0);
   });
 });
+
+describe('a jump of the clock (test tool)', () => {
+  const lodge = { x: 100, z: 0, base: 0, door: Math.PI / 2, wood: LODGE_WOOD };
+  const parents: [{ coat: number; shade: number }, { coat: number; shade: number }] = [{ coat: 1, shade: 0 }, { coat: 2, shade: 0 }];
+  const homes = [{ x: 100, z: 0, id: 'family:start:0', lodge, parents }];
+
+  it('leaves a kit guest as old as it was, and a grown guest grown', () => {
+    const room = new Room(() => undefined);
+    const born = 5 * DAY_SECONDS;
+    room.open('a');
+    room.receive('a', hello, 0, host, ground, homes, born);
+    room.open('b');
+    room.receive('b', hello, 0, host, ground);
+    const clock = born + DAY_SECONDS;
+    const stage = (id: string, at: number) => guestStage(room.guests().find((g) => g.id === id)!, at);
+    const before = stage('a', clock);
+    const jump = 40 * DAY_SECONDS;
+    room.shiftAges(jump);
+    expect(stage('a', clock + jump)).toBe(before);
+    expect(room.guests().find((g) => g.id === 'a')!.bornAt).toBe(born + jump);
+    expect(room.guests().find((g) => g.id === 'b')!.bornAt).toBeNull();
+  });
+});

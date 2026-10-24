@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Room, MAX_GUESTS } from './room';
+import { Room, MAX_GUESTS, HELLO_WITHIN, MAX_STRANGERS } from './room';
 import { applySnapshot, friendNearby, friendTaker, othersOf, pairingOf, partnerCandidate, saysOf } from './view';
 import { createWorld, leaveHome } from '../sim/state';
 import { DOOR_DISTANCE, LODGE_WOOD, NEST_SPOTS, SOLID_RADIUS, doorPoint } from '../sim/lodge';
@@ -907,5 +907,51 @@ describe('the room', () => {
       frames(room, 1);
       expect(room.dreamState()).toBeNull();
     });
+  });
+});
+
+describe('a connection that does not say hello (#785)', () => {
+  const trees: TreeSource = { nearest: () => null, trunksNear: () => [] };
+
+  it('is forgotten after a while, so a hello that comes much later is ignored', () => {
+    const room = new Room(() => undefined);
+    room.open('s', 10);
+    room.step(world, 0.1, 10 + HELLO_WITHIN + 1, ground, trees);
+    room.receive('s', hello, 10 + HELLO_WITHIN + 1, host, ground);
+    expect(room.guests()).toHaveLength(0);
+  });
+
+  it('still takes a hello inside the time, whatever the steps in between', () => {
+    const room = new Room(() => undefined);
+    room.open('s', 10);
+    room.step(world, 0.1, 10 + HELLO_WITHIN, ground, trees);
+    room.receive('s', hello, 10 + HELLO_WITHIN, host, ground);
+    expect(room.guests()).toHaveLength(1);
+  });
+
+  it('forgets an old stranger when a new connection opens', () => {
+    const room = new Room(() => undefined);
+    room.open('old', 0);
+    room.open('new', HELLO_WITHIN + 1);
+    room.receive('old', hello, HELLO_WITHIN + 1, host, ground);
+    room.receive('new', hello, HELLO_WITHIN + 1, host, ground);
+    expect(room.guests().map((g) => g.id)).toEqual(['new']);
+  });
+
+  it('holds only so many strangers, and the oldest make way for the newest', () => {
+    const room = new Room(() => undefined);
+    for (let i = 0; i <= MAX_STRANGERS; i++) room.open(`s${i}`, i);
+    room.receive('s0', hello, MAX_STRANGERS, host, ground);
+    expect(room.guests()).toHaveLength(0);
+    room.receive(`s${MAX_STRANGERS}`, hello, MAX_STRANGERS, host, ground);
+    expect(room.guests()).toHaveLength(1);
+  });
+
+  it('forgets a connection that closes, as before', () => {
+    const room = new Room(() => undefined);
+    room.open('s', 0);
+    room.leave('s');
+    room.receive('s', hello, 1, host, ground);
+    expect(room.guests()).toHaveLength(0);
   });
 });

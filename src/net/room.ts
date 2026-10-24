@@ -42,6 +42,10 @@ export interface HomeSite {
 const SPAWN_OFFSET = 4;
 /** A guest whose last message is older than this many seconds stops its beaver. */
 const SILENT_AFTER = 3;
+/** A connection that has not said hello within this many seconds is forgotten (a hello is sent the moment a link opens). */
+export const HELLO_WITHIN = 30;
+/** At most this many connections wait for a hello; a newer one pushes out the oldest. */
+export const MAX_STRANGERS = 8;
 /** How far from the middle of a free lodge a guest appears, outside its walls. */
 const HOME_OFFSET = 6;
 
@@ -73,8 +77,8 @@ export type SleepNews = 'go' | 'stop';
 
 export class Room {
   private seats = new Map<string, Seat>();
-  /** Connections that have not yet said hello. */
-  private strangers = new Set<string>();
+  /** Connections that have not yet said hello, with the real second each opened. */
+  private strangers = new Map<string, number>();
   /** Who asked whom to be partners, and who said yes (#666). */
   private pairing: Pairing = noPairing();
   /** The questions put to friends and their answers (#667). */
@@ -98,9 +102,19 @@ export class Room {
   private news = new Map<string, SleepNews>();
   constructor(private readonly send: (to: string, text: string) => void) {}
 
-  /** A connection opened: it waits for its hello. */
-  open(id: string): void {
-    this.strangers.add(id);
+  /** A connection opened at real second `now`: it waits for its hello, but not forever and not in any number. */
+  open(id: string, now = 0): void {
+    this.forget(now);
+    this.strangers.set(id, now);
+    for (const old of this.strangers.keys()) {
+      if (this.strangers.size <= MAX_STRANGERS) break;
+      this.strangers.delete(old);
+    }
+  }
+
+  /** Forgets the connections that waited longer than `HELLO_WITHIN` for a hello. A late hello is then ignored. */
+  private forget(now: number): void {
+    for (const [id, at] of this.strangers) if (now - at > HELLO_WITHIN) this.strangers.delete(id);
   }
 
   leave(id: string): void {
@@ -305,6 +319,7 @@ export class Room {
   /** Every guest advanced by `dt`. Returns the world with what they changed: trees felled, the logs, the dams they built, the rocks taken. */
   step(world: WorldState, dt: number, now: number, ground: Terrain, trees: TreeSource): WorldState {
     let { felled, logs, dams, rocksTaken, dropped, picked, stripped }: { felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[]; picked: Picked; stripped: Readonly<Record<string, number>> } = world;
+    this.forget(now);
     const terrain = withPonds(ground, world.ponds);
     const solids = [
       // The host's lodge is the lodge of its pair once it has one, and that one is solid only as far as its dome (below), so a guest reaches the door.

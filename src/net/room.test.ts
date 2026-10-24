@@ -109,6 +109,25 @@ describe('the room', () => {
     expect(room.guests()[0]!.inside).toBe(true);
   });
 
+  it('puts a guest out of its family lodge when it grows up, and it no longer lives there', () => {
+    const room = new Room(() => undefined);
+    const lodge = { x: 100, z: 0, base: 0, door: Math.PI / 2, wood: LODGE_WOOD };
+    const homes = [{ x: 100, z: 0, id: 'family:start:0', lodge, parents: [{ coat: 1, shade: 0 }, { coat: 2, shade: 0 }] as [{ coat: number; shade: number }, { coat: number; shade: number }] }];
+    const born = 5 * DAY_SECONDS;
+    room.open('a');
+    room.receive('a', hello, 0, host, ground, homes, born);
+    const tree = { nearest: () => null, trunksNear: () => [] };
+    room.step({ ...world, clock: born + DAY_SECONDS }, 0.1, 1, ground, tree);
+    expect(room.guests()[0]!.inside).toBe(true);
+    const grown = born + 400 * DAY_SECONDS;
+    expect(guestStage(room.guests()[0]!, grown)).toBe('adult');
+    room.step({ ...world, clock: grown }, 0.1, 2, ground, tree);
+    const g = room.guests()[0]!;
+    expect(g.inside).toBe(false);
+    expect(g.homeLodge).toBeNull();
+    expect(Math.hypot(g.beaver.x - lodge.x, g.beaver.z - lodge.z)).toBeGreaterThan(SOLID_RADIUS);
+  });
+
   it('ignores an intent before the hello, a second hello, and nonsense', () => {
     const sent: string[] = [];
     const room = new Room((_t, text) => sent.push(text));

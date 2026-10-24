@@ -26,7 +26,7 @@ import type { Speech } from './render/speechBubble';
 import { BUBBLE_LIFE } from './render/speechBubble';
 import { noPartnerSeen, partnerNews, seenNow } from './net/partnerNews';
 import { SpeechHeard } from './net/speechHeard';
-import { SEND_HZ, viewOfGuest, type GuestTake } from './net/protocol';
+import { SEND_HZ, viewOfGuest } from './net/protocol';
 import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
 import { WALK_IN, departsAt, settleFamily, settledId, visitorsAt } from './sim/scent';
@@ -64,6 +64,7 @@ import { COACH_KEY, createCoach, wantsCoach } from './ui/coach';
 import { askSlot, type SlotChoice } from './ui/slotCard';
 import { AUTOSAVE_EVERY, ago, clearSave, loadSave, parseSlot, readSlots, renameSave, wantsSave, writeSave, cleanName, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
+import { GuestIntent } from './net/guestIntent';
 import { GuestDream } from './net/guestDream';
 import { askedOf, GuestLying } from './net/sleepNews';
 import { createSleepAsk } from './ui/sleepAsk';
@@ -491,11 +492,8 @@ async function start(): Promise<void> {
   let hideInviteShown = '';
   let hideSeen: { key: string; phase: string; found: number } | null = null;
   let netSentAt = 0;
-  let gnawPending = false;
-  let pendingDo: 'build' | 'mend' | 'give' | 'strip' | 'partner' | 'eat' | 'store' | null = null;
+  const guestIntent = new GuestIntent();
   let partnerSeen = noPartnerSeen();
-  let pendingTake: GuestTake | null = null;
-  let pendingDiveTap = false;
   if (netHost || hostFromStart) beginHosting();
   if (netJoin) link = joinHost(netJoin, { t: 'hello', coat: world.coat, look: world.look, key: guestKey(storage) });
   let last = performance.now();
@@ -1038,19 +1036,10 @@ async function start(): Promise<void> {
       } else {
         if (link) {
           // A guest: the host steps its beaver. Here the wish goes out SEND_HZ times a second and the state comes back.
-          if (doPressed === 'gnaw') gnawPending = true;
-          if (doPressed === 'build' || doPressed === 'mend' || doPressed === 'give' || doPressed === 'strip' || doPressed === 'partner' || doPressed === 'eat' || doPressed === 'store') pendingDo = doPressed;
-          // Asking to stop being partners is the same press: the host knows from the pairing which it is.
-          else if (doPressed === 'part') pendingDo = 'partner';
-          if (actions.take && takeNow) pendingTake = takeNow;
-          if (actions.diveTap) pendingDiveTap = true;
+          guestIntent.press(doPressed, actions.take ? takeNow : null, !!actions.diveTap);
           if (now - netSentAt > 1000 / SEND_HZ && link.id) {
             netSentAt = now;
-            link.send({ t: 'intent', x: move.x, z: move.z, dive: !!actions.dive, ...(pendingDiveTap ? { diveTap: true } : {}), gnaw: gnawPending, ...(pendingDo ? { do: pendingDo } : {}), ...(pendingTake ? { take: pendingTake } : {}) });
-            gnawPending = false;
-            pendingDiveTap = false;
-            pendingDo = null;
-            pendingTake = null;
+            link.send(guestIntent.send(move, !!actions.dive));
           }
           const snap = link.take();
           if (snap) {
@@ -1377,7 +1366,7 @@ async function start(): Promise<void> {
             if (room) {
               const to = room.partnerNear('host', world.beaver, world.beaver, lifeAt(world.clock, world.bornAt).stage === 'adult', world.inLodge, world.inLodge);
               if (to) room.ask('host', to, performance.now() / 1000);
-            } else pendingDo = 'partner';
+            } else guestIntent.partner();
           } else if (pick === 'hide') {
             // The note goes to every friend close by, not only the one in front (#664).
             talkBubble.say(name, t('hide.pick'), LINE_SECONDS * 3, hideRoles(), (r) => {

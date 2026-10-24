@@ -51,6 +51,8 @@ tablet shows the host's clock, felled trees, and logs, and its own beaver where 
 ## Consequences
 
 - The host needs the plugin, so a browser cannot host. A browser guest needs nothing.
+- Amended for testing: a laptop browser can host through `tools/host-bridge`, a Node program that listens for the tablets and relays to the page on
+  localhost (`?hostbridge=1`, dev tools only). The wire to the tablets is unchanged, and the release build never contains it.
 - Guests need the host's IP typed. Router DHCP may change it between evenings, and the host screen shows it every time.
 - The spike moved dots, not the game. The real sim has one beaver (`WorldState.beaver`), so the host needs a place for guest
   beavers before a guest can move and chop in the world. That is the next piece of #41.

@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:release": "npm run build && playwright test -c playwright.release.config.ts",
+    "host-bridge": "node tools/host-bridge/bridge.mjs",
     "stress": "node tools/stress/stress.mjs"
   },
   "dependencies": {
@@ -25,8 +26,10 @@
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.4",
     "@types/three": "^0.186.0",
+    "@types/ws": "^8.18.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "ws": "^8.22.0"
   }
 }

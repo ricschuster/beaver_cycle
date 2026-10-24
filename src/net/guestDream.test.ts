@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { DreamInput } from '../sim/dream';
+import { newDream, type DreamInput } from '../sim/dream';
+import { wireOf, type DreamWire } from './dreamWire';
 import { DREAM_GONE, DREAM_WAIT, GuestDream } from './guestDream';
 
 const input = (over: Partial<DreamInput> = {}): DreamInput => ({ move: { x: 0, z: 0 }, hop: false, slap: false, play: false, ...over }) as DreamInput;
@@ -55,5 +56,17 @@ describe('a guest dreaming', () => {
     g.ended(false, 1000);
     g.ended(true, 2000);
     expect(g.ended(false, 3500)).toBe(false);
+  });
+});
+
+describe('a guest drawing the host\'s dream', () => {
+  const wire = (seed: number): DreamWire => wireOf(newDream(seed), 'a', 'candy');
+
+  it('tells a new snapshot as fresh once, and not the same one again', () => {
+    const g = new GuestDream();
+    const w = wire(1);
+    expect(g.glide(w, 0, 50).fresh).toBe(true);
+    expect(g.glide(w, 10, 50).fresh).toBe(false);
+    expect(g.glide(wire(1), 60, 50).fresh).toBe(true);
   });
 });

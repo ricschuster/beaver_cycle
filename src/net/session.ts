@@ -1,7 +1,7 @@
 // The two ends of a connection on the WLAN (ADR 0014, #678): the host listens through the HostServer plugin of the app, a guest
 // opens a WebSocket to the host's IP. Both pass plain text; `room.ts` and `protocol.ts` decide what it means.
 import { PORT, readToGuest, type Snapshot, type ToHost } from './protocol';
-import type { Room } from './room';
+import type { HomeSite, Room } from './room';
 import type { Terrain } from '../sim/terrain';
 
 interface HostPlugin {
@@ -27,7 +27,9 @@ export interface HostGame {
   hostAt(): { x: number; z: number };
   terrain: Terrain;
   /** The lodges of the starting families, which a guest may take as its home (the host's own lodge is not one). */
-  homes?(): { x: number; z: number; id: string }[];
+  homes?(): HomeSite[];
+  /** The clock the host beaver was born at, so a guest starts as old as the host. */
+  bornAt?(): number;
 }
 
 /** Starts listening and feeds the room. Resolves with the address to show, or rejects when this app cannot host. */
@@ -42,7 +44,7 @@ export async function startHosting(room: Room, game: HostGame, log: (s: string) 
     room.leave(e.id!);
     log(`${e.id} left`);
   });
-  await plugin.addListener('message', (e) => room.receive(e.id!, e.text!, performance.now() / 1000, game.hostAt(), game.terrain, game.homes?.()));
+  await plugin.addListener('message', (e) => room.receive(e.id!, e.text!, performance.now() / 1000, game.hostAt(), game.terrain, game.homes?.(), game.bornAt?.()));
   await plugin.addListener('error', (e) => log(`server error ${e.error}`));
   return plugin.start({ port: PORT });
 }

@@ -43,6 +43,8 @@ export interface Guest {
   parents: [Coat, Coat] | null;
   /** The clock the guest was born at, once it is a kit of a pair lodge (note 48); null for a guest that has always been grown. */
   bornAt: number | null;
+  /** The lodge of the starting family the guest lives in, once it has taken one (note 42); null when it stands by the host. */
+  homeLodge: Lodge | null;
 }
 
 /** The life stage of a guest: a grown beaver unless it was born as a kit. */
@@ -72,7 +74,7 @@ export interface Shared {
 const SWEEP_STEP = 0.4;
 
 /** A guest in the round room of its lodge: it walks round the water hole, and a press of Dive at the hole takes it out through the entrance (as the host's does, `step.ts`). */
-function inRoom(guest: Guest, home: PairLodge, intent: Intent, dt: number, share: number, terrain: Terrain): Guest {
+function inRoom(guest: Guest, home: Lodge, intent: Intent, dt: number, share: number, terrain: Terrain): Guest {
   const b = guest.beaver;
   let { x, z } = intent.move;
   const len = Math.hypot(x, z);
@@ -100,8 +102,20 @@ function inRoom(guest: Guest, home: PairLodge, intent: Intent, dt: number, share
 /** A guest at a place, standing still. */
 export function newGuest(id: string, at: { x: number; z: number }, terrain: Terrain, coat: Coat, look: Partial<Look> | undefined): Guest {
   const { y, mode } = settle(terrain, at.x, at.z, { mode: 'walk', y: 0 });
-  return { id, coat, look: cleanLook(look) ?? DEFAULT_LOOK, beaver: { x: at.x, y, z: at.z, mode, heading: 0, breath: 1 }, chop: null, haul: null, carry: null, drag: null, pace: 0, inside: false, parents: null, bornAt: null };
+  return { id, coat, look: cleanLook(look) ?? DEFAULT_LOOK, beaver: { x: at.x, y, z: at.z, mode, heading: 0, breath: 1 }, chop: null, haul: null, carry: null, drag: null, pace: 0, inside: false, parents: null, bornAt: null, homeLodge: null };
 }
+
+/**
+ * The guest at home in the lodge of a starting family (note 42): on its nest in the round room, born when the host was, so it is as
+ * old as the host and grows up with the clock. Mama and Papa of the family are its parents.
+ */
+export function housed(guest: Guest, lodge: Lodge, bornAt: number | null, parents: [Coat, Coat] | null): Guest {
+  const nest = NEST_SPOTS[KIT_NEST.guest]!;
+  return { ...guest, homeLodge: lodge, bornAt, parents, inside: true, beaver: { x: lodge.x + nest.x, z: lodge.z + nest.z, y: lodge.base, mode: 'walk', heading: 0, breath: 1 } };
+}
+
+/** The lodge whose round room a guest is in or may go into: the one it and its partner built, else its family's. */
+export const roomOf = (guest: Pick<Guest, 'id' | 'homeLodge'>, pairLodges: readonly PairLodge[]): Lodge | null => pairLodgeOf(pairLodges, guest.id) ?? guest.homeLodge;
 
 /**
  * The guest as a kit of the pair lodge it and its partner built (note 48): born on its own nest in the room, small, in a coat of one
@@ -126,7 +140,8 @@ export function outside(guest: Guest, lodge: Lodge, terrain: Terrain): Guest {
 export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shared, terrain: Terrain, trees: TreeSource, solids: readonly { x: number; z: number; radius: number }[] = []): { guest: Guest; felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[]; picked: Picked; stripped: Readonly<Record<string, number>>; pairLodges: readonly PairLodge[] } {
   const b = guest.beaver;
   const rules = STAGE_RULES[guestStage(guest, shared.clock)];
-  const home = pairLodgeOf(shared.pairLodges, guest.id);
+  const pairHome = pairLodgeOf(shared.pairLodges, guest.id);
+  const home = pairHome ?? guest.homeLodge;
   if (guest.inside && home && lodgeComplete(home)) {
     return { guest: inRoom(guest, home, intent, dt, rules.speed, terrain), felled: shared.felled, logs: shared.logs, dams: shared.dams, rocksTaken: shared.rocksTaken, dropped: shared.dropped, picked: shared.picked, stripped: shared.stripped, pairLodges: shared.pairLodges };
   }
@@ -220,7 +235,7 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
         } else haul = null;
       }
     }
-    const players = home?.players ?? (shared.partner ? ([guest.id, shared.partner] as [string, string]) : null);
+    const players = pairHome?.players ?? (shared.partner ? ([guest.id, shared.partner] as [string, string]) : null);
     if (!onDam && log && players) {
       // Paired, or a kit of the lodge the two built together: a log goes on it (#666).
       const r = placeLog(pairLodges, players, { x: beaver.x, z: beaver.z, heading: beaver.heading }, log, shared.ground, shared.ponds, shared.clock);

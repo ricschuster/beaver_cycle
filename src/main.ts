@@ -24,6 +24,7 @@ import { friendChoices } from './net/friendCard';
 import { ANSWERS, SAY_TIME, agrees, isQuestion, isSay, pickPhrases, pictureOf, repliesFor, type AnswerId, type ReplyId } from './net/says';
 import type { Speech } from './render/speechBubble';
 import { BUBBLE_LIFE } from './render/speechBubble';
+import { noPartnerSeen, partnerNews, seenNow } from './net/partnerNews';
 import { SEND_HZ, viewOfGuest, type GuestTake } from './net/protocol';
 import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
@@ -492,7 +493,7 @@ async function start(): Promise<void> {
   let netSentAt = 0;
   let gnawPending = false;
   let pendingDo: 'build' | 'mend' | 'give' | 'strip' | 'partner' | 'eat' | 'store' | null = null;
-  let partnerSeen: { askedBy: number; asking: number; partner: string | null; name: string; stopBy: boolean; stopping: boolean; born: number | null } = { askedBy: 0, asking: 0, partner: null, name: '', stopBy: false, stopping: false, born: null };
+  let partnerSeen = noPartnerSeen();
   let pendingTake: GuestTake | null = null;
   let pendingDiveTap = false;
   if (netHost || hostFromStart) beginHosting();
@@ -1296,19 +1297,13 @@ async function start(): Promise<void> {
         else if (!at.inside) speeches.push({ x: at.x, y: at.y, z: at.z, picture: b.picture, age });
       }
       const born = room ? world.bornAt : snap?.beavers.find((v) => v.id === me)?.bornAt ?? null;
-      if (pairing.partner && pairing.partner !== partnerSeen.partner) toast.show(t('toast.partnered', { name: nameOf(pairing.partner) }));
-      else if (!pairing.partner && partnerSeen.partner) {
-        // Urgent for kits: older toasts wait in the queue, and the kits are the news (#761).
-        const kits = born !== partnerSeen.born;
-        toast.show(t(kits ? 'toast.kitsBorn' : 'toast.partnerStopped', { name: partnerSeen.name }), kits);
+      const news = partnerNews(pairing, partnerSeen, born);
+      if (news) {
+        toast.show(t(news.key, { name: news.about ? nameOf(news.about) : partnerSeen.name }), news.urgent);
         // A guest reborn as a kit picks its look too; the host keeps the choice and sends it back with the snapshot. The pick is sent as
         // it was made: every snapshot sets the guest's coat back to the host's until the host has heard this.
-        if (link && asksLook && kits) void chooseNewLook().then((picked) => link?.send({ t: 'look', coat: picked.coat, look: picked.look }));
+        if (link && asksLook && news.kits) void chooseNewLook().then((picked) => link?.send({ t: 'look', coat: picked.coat, look: picked.look }));
       }
-      else if (pairing.partner && pairing.stopBy && !partnerSeen.stopBy) toast.show(t('toast.partnerStopAsked', { name: nameOf(pairing.partner) }));
-      else if (pairing.partner && pairing.stopping && !partnerSeen.stopping) toast.show(t('toast.partnerStopAsk', { name: nameOf(pairing.partner) }));
-      else if (!pairing.partner && pairing.askedBy.length > partnerSeen.askedBy) toast.show(t('toast.partnerAsked', { name: nameOf(pairing.askedBy[0]!) }));
-      else if (!pairing.partner && pairing.asking.length > partnerSeen.asking) toast.show(t('toast.partnerAsk', { name: nameOf(pairing.asking[0]!) }));
       // A question for this player opens a card with the answers; an answer to its own question is a toast (#667).
       const says = saysOf(snap, me);
       const question = says.asked.at(-1);
@@ -1366,7 +1361,7 @@ async function start(): Promise<void> {
       }
       hideCount.set(hideLine(game));
       hideSeen = game ? { key: game.key, phase: game.phase, found: game.found.length } : null;
-      partnerSeen = { askedBy: pairing.askedBy.length, asking: pairing.asking.length, partner: pairing.partner, name: pairing.partner ? nameOf(pairing.partner) : partnerSeen.name, stopBy: pairing.stopBy, stopping: pairing.stopping, born };
+      partnerSeen = seenNow(pairing, partnerSeen, pairing.partner ? nameOf(pairing.partner) : null, born);
     }
     // Each gift is thanked for what it is, and word of it gets around (chatter.ts, familyMoods.ts).
     for (const g of gifts.gifts) {

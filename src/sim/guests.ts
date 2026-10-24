@@ -271,3 +271,47 @@ export function stepGuest(guest: Guest, intent: Intent, dt: number, shared: Shar
   }
   return { guest: { ...guest, beaver: housed, chop, haul, carry, drag, pace: len > 0 ? 1 : 0, inside }, felled, logs, dams, rocksTaken, dropped, picked, stripped, pairLodges };
 }
+
+/** What the host keeps of a guest that has a key of its own, so the same player is the same beaver when it joins again (note 52). */
+export interface SavedGuest {
+  /** `g-<key>`, the id the guest has in this world. */
+  id: string;
+  coat: Coat;
+  look: Look;
+  bornAt: number | null;
+  parents: [Coat, Coat] | null;
+  /** The starting family whose lodge it lived in, or null when it had none (grown up, or the world had no lodge). */
+  family: string | null;
+  /** True when it was in the round room of that family lodge, not outside and not in a pair lodge. */
+  inside: boolean;
+  /** The last place it stood outside. */
+  x: number;
+  z: number;
+  /** The world clock when it was last here. */
+  seenAt: number;
+}
+
+/** The most guests the host remembers; the longest unseen go first. */
+export const MAX_MEMORY = 12;
+
+/** The record of a guest now: `family` is the id of the starting family it lives with, `inFamilyRoom` whether it is in that lodge's room, and `out` the last place it stood outside. */
+export function memoryOf(guest: Guest, family: string | null, inFamilyRoom: boolean, out: { x: number; z: number }, clock: number): SavedGuest {
+  return { id: guest.id, coat: guest.coat, look: guest.look, bornAt: guest.bornAt, parents: guest.parents, family, inside: inFamilyRoom, x: out.x, z: out.z, seenAt: clock };
+}
+
+/** The records with this one put in place of its older self, at most `MAX_MEMORY` of them. */
+export function remembered(list: readonly SavedGuest[], rec: SavedGuest): SavedGuest[] {
+  const all = [...list.filter((r) => r.id !== rec.id), rec];
+  return all.length <= MAX_MEMORY ? all : [...all].sort((a, b) => b.seenAt - a.seenAt).slice(0, MAX_MEMORY);
+}
+
+/** The guest as it was: its coat, look, age and parents come back from the record, and the rest is as the host just made it. */
+export function recalled(guest: Guest, rec: SavedGuest): Guest {
+  return { ...guest, coat: rec.coat, look: rec.look, bornAt: rec.bornAt, parents: rec.parents };
+}
+
+/** The guest standing at a place on the ground, outside, as it last stood. */
+export function placedAt(guest: Guest, at: { x: number; z: number }, terrain: Terrain): Guest {
+  const { y, mode } = settle(terrain, at.x, at.z, { mode: 'walk', y: 0 });
+  return { ...guest, inside: false, pace: 0, beaver: { ...guest.beaver, x: at.x, z: at.z, y, mode } };
+}

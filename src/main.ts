@@ -1564,8 +1564,8 @@ async function start(): Promise<void> {
     // Mama and Papa as drawn now: of the player's lodge while young, and of every lodge the family has left.
     parents: () => [...parentsAt(world.lodge, world.bornAt, world.clock, world.inLodge, withPonds(terrain, world.ponds), world.parentCoats, homeDam(world.lodge, world.spots, world.dams)), ...formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds))],
     formerParents: () => formerParentsAt(world.formerHomes, world.clock, withPonds(terrain, world.ponds)),
-    // The beavers of the other families as drawn now.
-    neighbours: () => neighboursAt(world.neighbours, world.clock, withPonds(terrain, world.ponds)),
+    // The beavers of the other families as drawn now, without the baby kit a guest plays.
+    neighbours: () => neighboursAt(world.neighbours, world.clock, withPonds(terrain, world.ponds), new Set(room ? room.played() : lastSnap?.played)),
     // The ambient animals around the beaver now.
     animals: () => animalField.near(withPonds(terrain, world.ponds), world.beaver.x, world.beaver.z, world.clock, capFor(fps)),
     // The predators in their meeting with the beaver, and when it was hurt.

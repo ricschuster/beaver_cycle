@@ -1,7 +1,7 @@
 // The host's side of a shared valley, without the socket (ADR 0014, #678): who is in, what each guest wants, and the state to send.
 // The plugin or a test feeds it messages and gives it a way to send text; it never touches the network itself.
 import type { Intent } from '../sim/buttons';
-import { guestStage, newGuest, outside, reborn, stepGuest, type Guest } from '../sim/guests';
+import { guestStage, housed, newGuest, roomOf, outside, reborn, stepGuest, type Guest } from '../sim/guests';
 import type { Dam } from '../sim/dam';
 import type { Dropped } from '../sim/haul';
 import type { Picked } from '../sim/lily';
@@ -15,9 +15,10 @@ import { asked, askersOf, dropAsks, expire, noPairing, partnerOf, press, restore
 import { stageAt } from '../sim/life';
 import { atStore, storeCapacity, storeCondition, tapped } from '../sim/food';
 import { leaveHome, pairBirth, skipTo } from '../sim/state';
-import { INTERIOR_RADIUS, atNest, lodgeComplete, lodgeSolid } from '../sim/lodge';
+import { INTERIOR_RADIUS, atNest, lodgeComplete, lodgeSolid, type Lodge } from '../sim/lodge';
 import { DAY_SECONDS, isNight, nextSpringStart } from '../sim/clock';
 import { pairLodgeOf, type PairLodge } from '../sim/pairLodge';
+import type { Coat } from '../sim/family';
 import { answer, ask as askSay, drop as dropSays, expire as expireSays, noSays, type AnswerId, type QuestionId, type Says } from './says';
 import { accept, decline, drop as dropHide, frozen, hiddenFrom, invite, noteTo, step as stepHide, timeLeft, type Blocker, type HideGame, type Role, type Spot } from './hideGame';
 import { answer as answerSleep, ASK_TIME, isAsleep, leave as leaveSleep, lie, noSleep, tick as tickSleep, wake as wakeSleep, waitingFor, type Goal, type SleepCheck, type Step } from './sleepCheck';
@@ -27,6 +28,16 @@ import { intentOf, readToHost, viewOfGuest, type BeaverView, type Snapshot, type
 
 /** The most friends in one valley besides the host (note 42: up to four players at once). */
 export const MAX_GUESTS = 3;
+
+/** A starting family's lodge a guest may take as its home: where it is, whose it is, and the coats of Mama and Papa. */
+export interface HomeSite {
+  x: number;
+  z: number;
+  id?: string;
+  lodge?: Lodge;
+  parents?: [Coat, Coat];
+}
+
 /** Where a new guest stands, in metres from the host beaver, until the five lodges give each a home of its own. */
 const SPAWN_OFFSET = 4;
 /** A guest whose last message is older than this many seconds stops its beaver. */
@@ -234,7 +245,7 @@ export class Room {
   }
 
   /** A text message from a connection. `now` is real seconds, `host` is where the host beaver stands. */
-  receive(id: string, text: string, now: number, host: { x: number; z: number }, terrain: Terrain, homes: readonly { x: number; z: number; id?: string }[] = []): void {
+  receive(id: string, text: string, now: number, host: { x: number; z: number }, terrain: Terrain, homes: readonly HomeSite[] = [], hostBornAt: number | null = null): void {
     const m = readToHost(text);
     if (!m) return;
     if (m.t === 'ping') return this.reply(id, { t: 'pong', ts: m.ts });
@@ -250,7 +261,10 @@ export class Room {
       // A guest with a key of its own is the same player after a break (a pair and its lodge wait for it); else the connection is its id.
       const pid = m.key && ![...this.seats.values()].some((s) => s.guest.id === `g-${m.key}`) ? `g-${m.key}` : id;
       const at = home !== null ? { x: homes[home]!.x + HOME_OFFSET, z: homes[home]!.z } : { x: host.x + SPAWN_OFFSET * n, z: host.z + SPAWN_OFFSET };
-      this.seats.set(id, { guest: newGuest(pid, at, terrain, m.coat, m.look), intent: { move: { x: 0, z: 0 } }, heard: now, home, family: home !== null ? homes[home]!.id ?? null : null });
+      // In its family's lodge, on its nest and as old as the host (note 42); with no lodge left it stands by the host as a grown beaver.
+      const guest = newGuest(pid, at, terrain, m.coat, m.look);
+      const site = home !== null ? homes[home]! : null;
+      this.seats.set(id, { guest: site?.lodge ? housed(guest, site.lodge, hostBornAt, site.parents ?? null) : guest, intent: { move: { x: 0, z: 0 } }, heard: now, home, family: home !== null ? homes[home]!.id ?? null : null });
       return this.reply(id, { t: 'welcome', id: pid });
     }
     const seat = this.seats.get(id);
@@ -299,7 +313,7 @@ export class Room {
       const wish = seat.lie;
       if (!wish) continue;
       seat.lie = undefined;
-      const lodge = seat.guest.inside ? pairLodgeOf(world.pairLodges, seat.guest.id) : undefined;
+      const lodge = seat.guest.inside ? roomOf(seat.guest, world.pairLodges) : undefined;
       if (lodge && atNest(lodge, seat.guest.beaver.x, seat.guest.beaver.z) && (wish.g !== 'night' || isNight(world.clock))) this.lie(seat.guest.id, wish.g, wish.dream, now, wish.dream ? { theme: wish.theme ?? 'candy' } : undefined);
     }
     this.settle(tickSleep(this.sleep, this.players(), now));
@@ -499,7 +513,7 @@ export class Room {
     const terrain0 = withPonds(ground, world.ponds);
     for (const seat of this.seats.values()) {
       const g = seat.guest;
-      if (!g.inside || pairLodgeOf(world.pairLodges, g.id)) continue;
+      if (!g.inside || pairLodgeOf(world.pairLodges, g.id) || g.homeLodge) continue;
       const old = world.formerHomes.find((h) => Math.hypot(g.beaver.x - h.x, g.beaver.z - h.z) <= INTERIOR_RADIUS + 1);
       seat.guest = old ? outside(g, old, terrain0) : { ...g, inside: false };
     }

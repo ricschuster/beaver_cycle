@@ -63,6 +63,32 @@ describe('the room', () => {
     expect(near(room.guests().find((g) => g.id === 'd')!, homes[0]!)).toBe(true);
   });
 
+  it('puts a guest on its nest in its family lodge, as old as the host, and shows its tablet the room', () => {
+    const room = new Room(() => undefined);
+    const lodge = { x: 100, z: 0, base: 0, door: Math.PI / 2, wood: LODGE_WOOD };
+    const parents: [{ coat: number; shade: number }, { coat: number; shade: number }] = [{ coat: 1, shade: 0 }, { coat: 2, shade: 0 }];
+    const homes = [{ x: 100, z: 0, id: 'family:start:0', lodge, parents }];
+    const born = 5 * DAY_SECONDS;
+    room.open('a');
+    room.receive('a', hello, 0, host, ground, homes, born);
+    const g = room.guests()[0]!;
+    expect(g.inside).toBe(true);
+    expect(g.bornAt).toBe(born);
+    expect(Math.hypot(g.beaver.x - lodge.x, g.beaver.z - lodge.z)).toBeLessThan(5);
+    expect(guestStage(g, born + 2 * DAY_SECONDS)).toBe('baby');
+    const w = { ...world, clock: born + DAY_SECONDS };
+    const snap = room.snapshot(w);
+    const mine = snap.beavers.find((b) => b.id === 'a')!;
+    expect(mine.inside).toBe(true);
+    expect(mine.grown).toBe(false);
+    const seen = applySnapshot(createWorld(ground, 0, 0), snap, 'a');
+    expect(seen.inLodge).toBe(true);
+    expect(seen.lodge).toEqual(lodge);
+    // It stays in the room across a step.
+    room.step(w, 0.1, 1, ground, { nearest: () => null, trunksNear: () => [] });
+    expect(room.guests()[0]!.inside).toBe(true);
+  });
+
   it('ignores an intent before the hello, a second hello, and nonsense', () => {
     const sent: string[] = [];
     const room = new Room((_t, text) => sent.push(text));

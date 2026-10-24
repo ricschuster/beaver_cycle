@@ -12,7 +12,7 @@ import { LODGE_WOOD, findSite, atHole, atNest, checkSite, checkSpot, lodgeProgre
 import { DAYS_PER_YEAR, DAY_SECONDS, dateAt, daylight, withSeason, withTimeOfDay } from './sim/clock';
 import { canRest, canSleep, canSleepOut, newLife, chooseLook, sleepUntil, createWorld, setClock, setInLodge, setSpeedMultiplier, sleep, teleport, setStage, intoLodge, leaveHome, withPartners, type WorldState } from './sim/state';
 import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/life';
-import { formerParentsAt, parentsAt } from './sim/family';
+import { formerParentsAt, parentsAt, type Coat } from './sim/family';
 import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
 import { cleanAddress, guestKey, pendingJoin, setPendingJoin } from './net/pending';
@@ -452,7 +452,7 @@ async function start(): Promise<void> {
     const mine = new Room(hostSender());
     mine.restorePairs(world.pairLodges);
     hostLine = t('together.hostStarting');
-    startHosting(mine, { hostAt: () => world.beaver, terrain, homes: () => world.neighbours.filter((n) => n.id.startsWith('family:start:')).map((n) => ({ x: n.lodge.x, z: n.lodge.z, id: n.id })) }, (s) => menu.setStatus(s)).then(
+    startHosting(mine, { hostAt: () => world.beaver, terrain, homes: () => world.neighbours.filter((n) => n.id.startsWith('family:start:')).map((n) => ({ x: n.lodge.x, z: n.lodge.z, id: n.id, lodge: n.lodge, parents: [...n.parents] as [Coat, Coat] })), bornAt: () => world.bornAt }, (s) => menu.setStatus(s)).then(
       (a) => {
         room = mine;
         hostLine = t('together.hosting', { ip: `${a.ip}` });

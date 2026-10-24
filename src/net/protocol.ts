@@ -102,6 +102,8 @@ export interface BeaverView {
   /** The clock a kit of a pair lodge was born at, and the coats of its two parents (note 48); absent for a beaver that has always been grown. */
   bornAt?: number;
   parents?: [Coat, Coat];
+  /** The lodge of its starting family, the room it is in while `inside` and it has no pair lodge (note 42). */
+  home?: Lodge;
 }
 
 export type ToGuest = { t: 'welcome'; id: string } | { t: 'state'; snapshot: Snapshot } | { t: 'pong'; ts: number };
@@ -182,5 +184,5 @@ export function intentOf(m: Extract<ToHost, { t: 'intent' }>): Intent {
 /** A guest as the others see it. */
 export function viewOfGuest(g: Guest, clock = 0): BeaverView {
   const b = g.beaver;
-  return { id: g.id, coat: g.coat, look: g.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: g.pace, chopping: g.chop !== null, haul: g.haul?.kind ?? null, carry: g.carry, drag: g.drag, grown: guestStage(g, clock) === 'adult', ...(g.inside ? { inside: true } : {}), ...(g.bornAt !== null ? { bornAt: g.bornAt, ...(g.parents ? { parents: g.parents } : {}) } : {}) };
+  return { id: g.id, coat: g.coat, look: g.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: g.pace, chopping: g.chop !== null, haul: g.haul?.kind ?? null, carry: g.carry, drag: g.drag, grown: guestStage(g, clock) === 'adult', ...(g.inside ? { inside: true } : {}), ...(g.inside && g.homeLodge ? { home: g.homeLodge } : {}), ...(g.bornAt !== null ? { bornAt: g.bornAt, ...(g.parents ? { parents: g.parents } : {}) } : {}) };
 }

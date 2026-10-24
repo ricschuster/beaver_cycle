@@ -15,7 +15,7 @@ export function applySnapshot(world: WorldState, snap: Snapshot, me: string): Wo
   const next: WorldState = { ...world, clock: snap.clock, felled: snap.felled, logs: snap.logs, dams: snap.dams ?? world.dams, rocksTaken: snap.rocksTaken ?? world.rocksTaken, dropped: snap.dropped ?? world.dropped, picked: snap.picked ?? world.picked, stripped: snap.stripped ?? world.stripped, lodge: snap.lodge === undefined ? world.lodge : snap.lodge, pairLodges: snap.pairLodges ?? world.pairLodges };
   if (!mine) return next;
   // In the round room of its pair lodge the guest's tablet draws the room (#666), and a kit is small and in its own coat (note 48).
-  const home = mine.inside ? pairLodgeOf(snap.pairLodges ?? [], me) : null;
+  const home = mine.inside ? pairLodgeOf(snap.pairLodges ?? [], me) ?? mine.home ?? null : null;
   const room: Partial<WorldState> = { inLodge: !!home, ...(home ? { lodge: home } : {}), coat: mine.coat, ...(mine.bornAt !== undefined ? { bornAt: mine.bornAt } : {}), ...(mine.parents ? { parentCoats: mine.parents } : {}) };
   return { ...next, ...room, beaver: { ...world.beaver, x: mine.x, y: mine.y, z: mine.z, mode: mine.mode, heading: mine.heading }, haul: mine.haul ? { kind: mine.haul } : null, carry: mine.carry ?? null, drag: mine.drag ?? null };
 }

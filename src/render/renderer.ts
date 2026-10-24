@@ -35,6 +35,7 @@ import type { DamSite } from './damSites';
 import { createDamSiteView } from './damSites';
 import { createSpotRings, type SpotRings } from './spotRing';
 import { createWayPointer } from './wayPointer';
+import { createSpeechView, type Speech } from './speechBubble';
 import { keepCompileHook } from './grain';
 import type { DamSpot } from '../sim/damSpots';
 import { clearingsOf, createTerrainView, type Clearing, type TerrainView } from './terrainView';
@@ -72,6 +73,8 @@ export interface Renderer {
   setDamSpots(spots: readonly DamSpot[]): void;
   /** The sparkles toward a lone beaver at these points (none hides them), twinkling by `time` (seconds). */
   setWayDots(dots: readonly { x: number; y: number; z: number }[], time: number): void;
+  /** The pictures over the heads of friends who speak (Q116, #802); none hides them. */
+  setSpeech(speeches: readonly Speech[]): void;
   /** The element that takes drag and zoom input. */
   canvas: HTMLCanvasElement;
 }
@@ -229,6 +232,7 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
   const logView = createLogView(scene, shadows, prepare);
   const lodgeView = createLodgeView(scene, shadows, prepare);
   const wayPointer = createWayPointer(scene);
+  const speechView = createSpeechView(scene);
   const storeView = createStoreView(scene, shadows, prepare);
   const formerStoreViews: StoreView[] = [];
   const kept = keptStock();
@@ -366,6 +370,9 @@ export function createRenderer(parent: HTMLElement, source: TerrainSource | null
     },
     setWayDots(dots, time) {
       wayPointer.set(dots, time);
+    },
+    setSpeech(speeches) {
+      speechView.set(speeches);
     },
     addDamSites(sites) {
       damSiteGroup?.removeFromParent();

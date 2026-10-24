@@ -129,7 +129,7 @@ These are their own pieces of work, and each can be built and played alone befor
 
   Decided in session 191 (Q116, issue #802): the card also offers a few phrases drawn at random from a longer list, not all at
   once. Words are friendly only and change nothing in the game; what a Yes leads to is up to the players. A phrase plays a babble
-  and shows a picture over the speaker's head. A question gets more answers than Yes! and Not now. No typing.
+  and shows a picture over the speaker's head (`render/speechBubble.ts`; the babble is the talk babble of `audio/talkDream.ts`). The list: questions swim, work, play; phrases hello, look, follow, thisway, nicedam, hungry, whatday, branch (three drawn each time the card opens, `pickPhrases`); a question is answered Yes!, Good idea! or Not now, a phrase with Me too!, Thanks! or Wow! (`repliesFor`). Good idea! counts as a yes to Want to play?. No typing.
 
 ## What stays unchanged
 

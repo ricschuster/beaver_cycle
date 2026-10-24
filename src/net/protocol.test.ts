@@ -5,6 +5,8 @@ describe('messages from a guest', () => {
   it('read a question or an answer to a friend and nothing else', () => {
     expect(readToHost('{"t":"say","q":"swim"}')).toEqual({ t: 'say', q: 'swim' });
     expect(readToHost('{"t":"say","a":"later"}')).toEqual({ t: 'say', a: 'later' });
+    expect(readToHost('{"t":"say","q":"look"}')).toEqual({ t: 'say', q: 'look' });
+    expect(readToHost('{"t":"say","a":"thanks"}')).toEqual({ t: 'say', a: 'thanks' });
     expect(readToHost('{"t":"say","q":"<b>hi</b>"}')).toBeNull();
     expect(readToHost('{"t":"say"}')).toBeNull();
   });

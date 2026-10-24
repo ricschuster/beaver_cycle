@@ -64,6 +64,7 @@ import { COACH_KEY, createCoach, wantsCoach } from './ui/coach';
 import { askSlot, type SlotChoice } from './ui/slotCard';
 import { AUTOSAVE_EVERY, ago, clearSave, loadSave, parseSlot, readSlots, renameSave, wantsSave, writeSave, cleanName, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
+import { askedOf, GuestLying } from './net/sleepNews';
 import { createSleepAsk } from './ui/sleepAsk';
 import { createDreamScreen, type DreamLink } from './ui/dreamScreen';
 import { viewFrom, type DreamInput, type DreamTheme } from './sim/dream';
@@ -743,14 +744,14 @@ async function start(): Promise<void> {
       if (room) room.lie('host', goal, false, performance.now() / 1000);
       else if (link?.id) {
         link.send({ t: 'sleep', g: goal === 'season' ? 'season' : 'night' });
-        guestLying = { at: performance.now() / 1000, seen: false };
+        guestLying.lie(performance.now() / 1000);
       }
       return !!room || !!link?.id;
     },
     onGiveUp() {
       if (room) room.wake('host', performance.now() / 1000);
       else link?.send({ t: 'sleep', a: 'wake' });
-      guestLying = null;
+      guestLying.clear();
     },
     onDream: (theme) => (link ? guestDream(theme) : startDream(undefined, theme)),
   });
@@ -764,7 +765,7 @@ async function start(): Promise<void> {
     guestDreaming = { at: performance.now() / 1000 };
   };
   // A friend's bed waits for the host to settle it: set when the guest sent its wish, until the host lists it asleep and then does not.
-  let guestLying: { at: number; seen: boolean } | null = null;
+  const guestLying = new GuestLying();
   const sleepAsk = createSleepAsk(hud, {
     onAnswer(yes) {
       if (room) room.answerSkip('host', yes, performance.now() / 1000);
@@ -1262,15 +1263,11 @@ async function start(): Promise<void> {
       const snap = room ? room.snapshot(world, undefined, now / 1000) : lastSnap;
       const pairing = pairingOf(snap, me);
       // The question of a friend's bed (#661), and a guest's own bed waiting for the host to settle it.
-      const skip = snap?.skip;
-      const asked = skip && skip.goal !== 'dream' && skip.waiting.includes(me) ? { from: skip.from, goal: skip.goal } : null;
-      sleepAsk.set(asked ? { name: snap?.beavers.find((b) => b.id === asked.from)?.look.name || null, goal: asked.goal } : null);
-      if (link?.id && guestLying) {
-        if (snap?.asleep?.includes(me)) guestLying.seen = true;
-        else if (snap && (guestLying.seen || now / 1000 - guestLying.at > 5)) {
-          sleepPrompt.release(guestLying.seen);
-          guestLying = null;
-        }
+      const asked = askedOf(snap, me);
+      sleepAsk.set(asked);
+      if (link?.id) {
+        const settled = guestLying.settle(snap, me, now / 1000);
+        if (settled) sleepPrompt.release(settled.slept);
       }
       const nameOf = (id: string | null) => snap?.beavers.find((b) => b.id === id)?.look.name || t('together.friend');
       // A say or a reply heard for the first time plays a babble and shows a picture over the speaker's head for a few seconds (#802).

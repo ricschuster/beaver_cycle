@@ -64,11 +64,12 @@ import { COACH_KEY, createCoach, wantsCoach } from './ui/coach';
 import { askSlot, type SlotChoice } from './ui/slotCard';
 import { AUTOSAVE_EVERY, ago, clearSave, loadSave, parseSlot, readSlots, renameSave, wantsSave, writeSave, cleanName, type SaveStorage, type SavedCoach } from './persist/save';
 import { createSleepPrompt } from './ui/sleepPrompt';
+import { GuestDream } from './net/guestDream';
 import { askedOf, GuestLying } from './net/sleepNews';
 import { createSleepAsk } from './ui/sleepAsk';
 import { createDreamScreen, type DreamLink } from './ui/dreamScreen';
-import { viewFrom, type DreamInput, type DreamTheme } from './sim/dream';
-import { blendDream, dreamOf, mergeInput, type DreamWire } from './net/dreamWire';
+import { viewFrom, type DreamTheme } from './sim/dream';
+import { blendDream, dreamOf, type DreamWire } from './net/dreamWire';
 import { createTestMenu, type TestMenu } from './ui/testMenu';
 import { NO_TEST_MENU, gameQuery } from './devTools';
 import { STREAM_HEARD } from './audio/mix';
@@ -756,13 +757,11 @@ async function start(): Promise<void> {
     onDream: (theme) => (link ? guestDream(theme) : startDream(undefined, theme)),
   });
   // A guest's dream (#665): the host runs it; the guest asks with a message and opens its screen when the first frame comes back.
-  let guestDreaming: { at: number } | null = null;
-  let guestDreamSent: DreamInput | null = null;
-  let guestNoDream = 0;
+  const guestDreamer = new GuestDream();
   const guestDream = (theme: DreamTheme): void => {
     world = { ...world, dreamed: true };
     link?.send({ t: 'sleep', g: 'night', dream: true, theme });
-    guestDreaming = { at: performance.now() / 1000 };
+    guestDreamer.ask(performance.now() / 1000);
   };
   // A friend's bed waits for the host to settle it: set when the guest sent its wish, until the host lists it asleep and then does not.
   const guestLying = new GuestLying();
@@ -805,7 +804,7 @@ async function start(): Promise<void> {
   const guestDreamLink: DreamLink = {
     keeps: false,
     send: (input) => {
-      guestDreamSent = mergeInput(guestDreamSent, input);
+      guestDreamer.steer(input);
     },
     view() {
       const wire = lastSnap?.dream;
@@ -966,17 +965,13 @@ async function start(): Promise<void> {
         if (now - netSentAt > 1000 / SEND_HZ && link.id) {
           netSentAt = now;
           link.send({ t: 'intent', x: 0, z: 0, dive: false, gnaw: false });
-          if (guestDreamSent) link.send({ t: 'dream', input: guestDreamSent });
-          guestDreamSent = guestDreamSent && { ...guestDreamSent, hop: false, slap: false, play: false, pick: undefined };
+          const steer = guestDreamer.take();
+          if (steer) link.send({ t: 'dream', input: steer });
         }
         const snap = link.take();
         if (snap) lastSnap = snap;
         // The room ended the dream (the host left, or it let it go): wake too.
-        guestNoDream = lastSnap?.dream ? 0 : guestNoDream || now;
-        if (guestNoDream && now - guestNoDream > 2000) {
-          guestNoDream = 0;
-          dreamScreen.stop();
-        }
+        if (guestDreamer.ended(!!lastSnap?.dream, now)) dreamScreen.stop();
         if (!silent) sound.music('dream', fps, now / 1000);
         return;
       }
@@ -1075,14 +1070,11 @@ async function start(): Promise<void> {
             lastSnap = snap;
           }
           // The dream a guest asked for: open it with the first frame the host sends, or give up and wake when none comes.
-          if (guestDreaming && !dreamScreen.active()) {
+          if (!dreamScreen.active()) {
             const wire = lastSnap?.dream;
-            if (wire) {
-              guestDreaming = null;
-              guestDreamSent = null;
-              dreamScreen.start(wire.seed, [], wire.theme);
-            } else if (now / 1000 - guestDreaming.at > 5) {
-              guestDreaming = null;
+            const next = guestDreamer.waiting(!!wire, now / 1000);
+            if (next === 'open' && wire) dreamScreen.start(wire.seed, [], wire.theme);
+            else if (next === 'giveUp') {
               link.send({ t: 'sleep', a: 'wake' });
               sleepPrompt.wakeFromDream();
             }

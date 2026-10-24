@@ -956,6 +956,8 @@ async function start(): Promise<void> {
     // The look card stops the game, but a host with guests keeps its clock and room going, so the guests do not freeze behind it.
     // A guest's own look card does not stop its frame either: its beaver stands still behind the card, and the host's frames keep coming.
     if (lookOpen && !room && !link) return;
+    // A friend's "Come along?" card is not set while a dream runs (#794): it waits under the dream screen and the host sees it after waking,
+    // for what is left of ASK_TIME. If the 30 s are over, the room has already told the asker no. That is meant, so nothing is queued or kept.
     if (dreamScreen.active()) {
       dreamScreen.frame(dt, mergeActions(readKeyboard(), touch.read()));
       if (link) {

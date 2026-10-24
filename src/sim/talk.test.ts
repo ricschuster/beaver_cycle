@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS, dateAt, withSeason } from './clock';
-import { LODGE_WOOD, HOLE, type Lodge } from './lodge';
+import { LODGE_WOOD, type Lodge } from './lodge';
 import { LONG_AWAY, MAX_ASKS, TALK_RANGE, choicesFor, factsFor, greeting, homeJob, nearestSpeaker, noteTalk, pickLine, replyLine, roleOf, speakersOf, type Reply, type Speaker, type TalkFacts } from './talk';
 import { createWorld, newLife, setStage, type WorldState } from './state';
 import { emptyStock } from './food';

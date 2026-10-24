@@ -113,7 +113,7 @@ test.describe('mending', () => {
     await walkToStore(page);
     expect(await hudText(page)).toContain('store broken, needs 4 wood (a long log is 2), the lodge needs wood too');
     for (let trip = 0; trip < 6; trip++) {
-      let w = await world(page);
+      const w = await world(page);
       if (storeCondition(w.storeWear, w.clock) > 0.99) break;
       const id = await fellNearestTree(page);
       expect(id).not.toBeNull();

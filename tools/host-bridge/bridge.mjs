@@ -22,6 +22,8 @@ const toPage = (m) => {
 
 const guestServer = new WebSocketServer({ port: GUEST_PORT });
 guestServer.on('connection', (ws) => {
+  // With no host page there is nobody to answer, so the guest is told at once and tries again (its toast says the host is lost).
+  if (!page) return ws.close(1013, 'no host');
   const id = `g${nextId++}`;
   guests.set(id, ws);
   toPage({ t: 'open', id });
@@ -56,7 +58,10 @@ hostServer.on('connection', (ws) => {
     else for (const g of guests.values()) g.send(m.text);
   });
   ws.on('close', () => {
-    if (page === ws) page = null;
+    if (page === ws) {
+      page = null;
+      for (const g of guests.values()) g.close(1001, 'host left');
+    }
     console.log('host page left');
   });
   ws.on('error', () => {});

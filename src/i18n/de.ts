@@ -931,6 +931,7 @@ export const de: Partial<Table> = {
   'hud.gnawing': 'Nagen {percent}%',
   'toast.unreadable': 'Ein gespeichertes Spiel konnte nicht gelesen werden und wurde beiseitegelegt.',
   'toast.hostLost': 'Der Gastgeber ist weg. Ich versuche es noch einmal...',
+  'toast.hostQuiet': 'Der Gastgeber meldet sich nicht mehr. Ich warte...',
   'toast.partnerAsked': '{name} fragt: Paar? Drück Reden, dann Ja',
   'toast.partnerAsk': 'Du hast {name} gefragt, ob ihr ein Paar werdet',
   'toast.partnered': 'Du und {name} seid jetzt ein Paar',

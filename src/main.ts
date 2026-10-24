@@ -444,6 +444,11 @@ async function start(): Promise<void> {
   }
   // The shared valley (ADR 0014): a host holds a room of guests, a guest holds a link to its host.
   let room: Room | null = null;
+  // A jump of the clock by a test tool leaves every age as it is, the guests' too.
+  const moveClock = (to: number): void => {
+    room?.shiftAges(to - world.clock);
+    world = setClock(world, to);
+  };
   let hostLine = '';
   let hostToast: Toast | null = null;
   // Starts listening for guests; ?host=1 does it at once, the Host button of Settings later. Only the app can (a browser has no plugin).
@@ -599,7 +604,7 @@ async function start(): Promise<void> {
       world = { ...world, store: filledBut(world.store, storeCapacity(storeCondition(world.storeWear, world.clock)), 1) };
     },
     onTimeOfDay(t) {
-      world = setClock(world, withTimeOfDay(world.clock, t));
+      moveClock(withTimeOfDay(world.clock, t));
     },
     onNewLife() {
       world = startStage(newLife(world), 'baby');
@@ -610,7 +615,7 @@ async function start(): Promise<void> {
     onSeason(season) {
       // The first day with the season's own look: its first days blend from the season before (seasonLook.ts), so
       // the first day of winter would show only half its snow.
-      world = setClock(world, withSeason(world.clock, season, SEASON_FULL_DAY));
+      moveClock(withSeason(world.clock, season, SEASON_FULL_DAY));
     },
     flyMode: {
       current: free ? 'free' : fly ? 'map' : 'off',
@@ -942,7 +947,8 @@ async function start(): Promise<void> {
     last = now;
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
     // The look card stops the game, but a host with guests keeps its clock and room going, so the guests do not freeze behind it.
-    if (lookOpen && !room) return;
+    // A guest's own look card does not stop its frame either: its beaver stands still behind the card, and the host's frames keep coming.
+    if (lookOpen && !room && !link) return;
     if (dreamScreen.active()) {
       dreamScreen.frame(dt, mergeActions(readKeyboard(), touch.read()));
       if (link) {
@@ -1539,7 +1545,7 @@ async function start(): Promise<void> {
     // GPU object counts and the bytes of ground held, for the soak measurement (docs/design/38_memory.md).
     // Moves the clock on by this many game years (age stays as it is), for the memory soak: a kit's id carries the year.
     skipYears: (years: number) => {
-      world = setClock(world, world.clock + years * DAYS_PER_YEAR * DAY_SECONDS);
+      moveClock(world.clock + years * DAYS_PER_YEAR * DAY_SECONDS);
     },
     memory: () => ({ ...renderer.memory(), tileBytes: store?.bytesByLevel() ?? [] }),
     // Per part tile build times since the last call, for the tablet bench.

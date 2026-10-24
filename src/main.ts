@@ -21,10 +21,11 @@ import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type G
 import { applySnapshot, friendBeaver, friendNearby, friendTaker, hideOf, othersOf, pairingOf, partnerCandidate, saysOf } from './net/view';
 import type { Role } from './net/hideGame';
 import { friendChoices } from './net/friendCard';
-import { ANSWERS, SAY_TIME, agrees, isQuestion, isSay, pickPhrases, pictureOf, repliesFor, type AnswerId, type ReplyId } from './net/says';
+import { ANSWERS, SAY_TIME, agrees, isQuestion, isSay, pickPhrases, repliesFor, type AnswerId, type ReplyId } from './net/says';
 import type { Speech } from './render/speechBubble';
 import { BUBBLE_LIFE } from './render/speechBubble';
 import { noPartnerSeen, partnerNews, seenNow } from './net/partnerNews';
+import { SpeechHeard } from './net/speechHeard';
 import { SEND_HZ, viewOfGuest, type GuestTake } from './net/protocol';
 import { growNeighbours, neighboursAt, startFamilies } from './sim/neighbours';
 import { nameOf, pondName } from './sim/names';
@@ -481,9 +482,7 @@ async function start(): Promise<void> {
   // The last question put to this player and the last answer to its own that were shown, by the host's counter (#667).
   let sayShown = 0;
   // Friends who speak (#802): the says already heard, and the bubbles over heads now, with the real second each began.
-  const spoken = new Set<number>();
-  let spokenInit = false;
-  const bubbles = new Map<string, { picture: Speech['picture']; at: number }>();
+  const heardSays = new SpeechHeard(BUBBLE_LIFE);
   let speeches: Speech[] = [];
   let answerShown = 0;
   // The game of hide and seek this tablet has shown: its key, the phase, and how many hiders were found (#664).
@@ -1276,26 +1275,10 @@ async function start(): Promise<void> {
       const nameOf = (id: string | null) => snap?.beavers.find((b) => b.id === id)?.look.name || t('together.friend');
       // A say or a reply heard for the first time plays a babble and shows a picture over the speaker's head for a few seconds (#802).
       const real = now / 1000;
-      for (const k of snap?.says ?? []) {
-        const heard: [string, number, Speech['picture'], string][] = [[k.from, k.n * 2, pictureOf(k.q), t(`friend.q.${k.q}`)]];
-        if (k.a !== undefined) heard.push([k.to, k.n * 2 + 1, pictureOf(k.a), t(`friend.a.${k.a}`)]);
-        for (const [who, key, picture, text] of heard) {
-          if (spoken.has(key)) continue;
-          spoken.add(key);
-          if (!spokenInit) continue;
-          bubbles.set(who, { picture, at: real });
-          if (!silent) sound.cue([babbleCue('partner', who, text)], real);
-        }
+      for (const h of heardSays.hear(snap ? snap.says ?? [] : undefined, real)) {
+        if (!silent) sound.cue([babbleCue('partner', h.who, t(h.kind === 'q' ? `friend.q.${h.id}` as const : `friend.a.${h.id}` as const))], real);
       }
-      if (snap) spokenInit = true;
-      if (spoken.size > 400) for (const key of [...spoken].slice(0, 200)) spoken.delete(key);
-      speeches = [];
-      for (const [who, b] of bubbles) {
-        const age = real - b.at;
-        const at = who === me ? { x: world.beaver.x, y: world.beaver.y, z: world.beaver.z, inside: world.inLodge } : snap?.beavers.find((v) => v.id === who);
-        if (age >= BUBBLE_LIFE || !at) bubbles.delete(who);
-        else if (!at.inside) speeches.push({ x: at.x, y: at.y, z: at.z, picture: b.picture, age });
-      }
+      speeches = heardSays.visible(real, (who) => (who === me ? { x: world.beaver.x, y: world.beaver.y, z: world.beaver.z, inside: world.inLodge } : snap?.beavers.find((v) => v.id === who)));
       const born = room ? world.bornAt : snap?.beavers.find((v) => v.id === me)?.bornAt ?? null;
       const news = partnerNews(pairing, partnerSeen, born);
       if (news) {

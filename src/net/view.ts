@@ -22,12 +22,13 @@ export function applySnapshot(world: WorldState, snap: Snapshot, me: string): Wo
 
 /** A beaver of a friend as the renderer draws a beaver of another family. */
 export function friendBeaver(v: BeaverView): NeighbourBeaver {
+  const stage = v.stage ?? (v.grown === false ? 'baby' : 'adult');
   return {
     id: `friend:${v.id}`,
     name: v.look.name,
     family: `friend:${v.id}`,
     role: 'papa',
-    stage: v.grown === false ? 'baby' : 'adult',
+    stage,
     coat: v.coat,
     x: v.x,
     y: v.y,
@@ -38,7 +39,7 @@ export function friendBeaver(v: BeaverView): NeighbourBeaver {
     errand: 'rest',
     carry: v.carry ?? (v.haul === 'mud' ? 'mud' : null),
     mode: v.mode === 'walk' ? 'walk' : 'swim',
-    scale: STAGE_RULES[v.grown === false ? 'baby' : 'adult'].scale,
+    scale: STAGE_RULES[stage].scale,
     ...(v.inside ? { inside: true } : {}),
     look: { hat: v.look.hat, scarf: v.look.scarf, tail: v.look.tail },
   };

@@ -905,6 +905,7 @@ async function start(): Promise<void> {
     const fam = world.neighbours.find((f) => f.id === family);
     return fam ? pondName(fam.lodge, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver) : null;
   };
+  let ownHome: { x: number; z: number } | null = null; // the family lodge a guest was housed in, whose family needs no greeting
   const greeted = new Set<string>(); // families that have greeted the beaver this visit (#342)
   const gave = new Set<string>(); // families given a gift this visit, and startled by a slap, for what they say of the player
   const slapped = new Set<string>();
@@ -1338,12 +1339,18 @@ async function start(): Promise<void> {
     }
     const visit = { gifts: gave, slaps: slapped, greeted };
     const hello = greetedBy(familyBeavers, world);
+    const mineView = link?.id ? lastSnap?.beavers.find((b) => b.id === link.id) : undefined;
+    if (mineView?.inside && mineView.home) ownHome = { x: mineView.home.x, z: mineView.home.z };
     if (hello && !greeted.has(hello)) {
       const fam = world.neighbours.find((f) => f.id === hello);
-      const pond = fam ? pondName(fam.lodge, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver) : 'pond';
-      // The deeds are read before the family counts as greeted, so a first meeting is a first meeting.
-      toast.show(greetingFor(deedsFor(world, hello, visit), familyBeavers.filter((n) => n.family === hello), pond, dateAt(world.clock).day));
-      greeted.add(hello);
+      // A guest's own family is no new family to meet, so it gets no hint to put a branch down.
+      if (fam && ownHome && fam.lodge.x === ownHome.x && fam.lodge.z === ownHome.z) greeted.add(hello);
+      else {
+        const pond = fam ? pondName(fam.lodge, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver) : 'pond';
+        // The deeds are read before the family counts as greeted, so a first meeting is a first meeting.
+        toast.show(greetingFor(deedsFor(world, hello, visit), familyBeavers.filter((n) => n.family === hello), pond, dateAt(world.clock).day));
+        greeted.add(hello);
+      }
     }
     if (slappedNow) world = startle(world, around);
     // Talking: a press of Do when it reads Talk starts a talk with the nearest beaver in reach (#344, buttons.ts says when).

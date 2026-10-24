@@ -3,7 +3,6 @@
 // changes the waking game's state. Pure, no DOM, no three.js. The ground and the props are laid out in dreamLand.ts.
 import { t } from '../i18n';
 import {
-  BED_RADIUS,
   HILL_WIDTH,
   PROP_RADIUS,
   clamp,

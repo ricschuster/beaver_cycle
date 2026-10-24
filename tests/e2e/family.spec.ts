@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, } from '@playwright/test';
 import { doorPoint } from '../../src/sim/lodge';
-import { hasTiles, leaveLodgeByHole, menuClick, parentsNow, shot, startGame, tap, walkToPoint, world } from './helpers';
+import { hasTiles, leaveLodgeByHole, parentsNow, shot, startGame, tap, walkToPoint, world } from './helpers';
 // The family and the life stages in the real game (docs/design/22_life_stages.md and 23_leaving_and_next_baby.md):
 // Mama and Papa, what a baby and a teenager may do, leaving home, and a second life. Needs the valley tiles.
 

@@ -67,8 +67,13 @@ export interface GuestLink {
   take(): Snapshot | null;
   send(m: ToHost): void;
   status(): 'connecting' | 'open' | 'closed' | 'failed';
+  /** Seconds since the host last sent anything on a good link, 0 when there is none. A host that is gone without closing the socket shows here. */
+  quietFor(): number;
   close(): void;
 }
+
+/** Seconds without a word from the host after which a guest tells the player (the host sends several times a second). */
+export const HOST_QUIET_S = 5;
 
 /** How long a guest waits before it tries the host again after the link closed (a sleep, a Wi-Fi gap). */
 export const RECONNECT_MS = 2000;
@@ -80,6 +85,7 @@ export function joinHost(ip: string, hello: ToHost): GuestLink {
   let ws: WebSocket | null = null;
   let everOpen = false;
   let leaving = false;
+  let heardAt = Date.now();
   let timer: ReturnType<typeof setTimeout> | null = null;
   const connect = () => {
     timer = null;
@@ -94,6 +100,7 @@ export function joinHost(ip: string, hello: ToHost): GuestLink {
     w.onopen = () => {
       everOpen = true;
       state = 'open';
+      heardAt = Date.now();
       w.send(JSON.stringify(hello));
     };
     w.onerror = () => {
@@ -112,6 +119,7 @@ export function joinHost(ip: string, hello: ToHost): GuestLink {
       timer = setTimeout(connect, RECONNECT_MS);
     };
     w.onmessage = (ev) => {
+      heardAt = Date.now();
       const m = readToGuest(String(ev.data));
       if (m?.t === 'welcome') id = m.id;
       else if (m?.t === 'state') latest = m.snapshot;
@@ -131,6 +139,7 @@ export function joinHost(ip: string, hello: ToHost): GuestLink {
       if (ws && ws.readyState === 1) ws.send(JSON.stringify(m));
     },
     status: () => state,
+    quietFor: () => (state === 'open' && id ? (Date.now() - heardAt) / 1000 : 0),
     close() {
       leaving = true;
       if (timer) clearTimeout(timer);

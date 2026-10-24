@@ -53,7 +53,7 @@ interface Seat {
   guest: Guest;
   intent: Intent;
   heard: number;
-  /** The index in `homes` of the free lodge this guest took, or null when it stands by the host. */
+  /** The index in `homes` of the lodge this guest took (shared when none was free), or null when the world has no start lodge. */
   home: number | null;
   /** The family of that lodge, whose baby this guest plays. */
   family: string | null;
@@ -279,15 +279,17 @@ export class Room {
       if (this.seats.has(id) || !this.strangers.has(id)) return;
       if (this.seats.size >= MAX_GUESTS) return;
       this.strangers.delete(id);
-      // The first free lodge of the five is the guest's home (note 42); with none left it stands by the host.
-      const taken = new Set([...this.seats.values()].map((s) => s.home));
-      const idx = homes.findIndex((_, i) => !taken.has(i));
-      const home = idx >= 0 ? idx : null;
+      // The first free lodge of the five is the guest's home (note 42).
+      const used = [...this.seats.values()].map((s) => s.home);
+      const free = homes.findIndex((_, i) => !used.includes(i));
+      // With every lodge taken a guest is let into the one with the fewest guests (#789), so each has a home; with no lodge at all it stands by the host.
+      const sharing = homes.map((_, i) => used.filter((u) => u === i).length);
+      const home = homes.length === 0 ? null : free >= 0 ? free : sharing.indexOf(Math.min(...sharing));
       const n = this.seats.size + 1;
       // A guest with a key of its own is the same player after a break (a pair and its lodge wait for it); else the connection is its id.
       const pid = m.key && ![...this.seats.values()].some((s) => s.guest.id === `g-${m.key}`) ? `g-${m.key}` : id;
       const at = home !== null ? { x: homes[home]!.x + HOME_OFFSET, z: homes[home]!.z } : { x: host.x + SPAWN_OFFSET * n, z: host.z + SPAWN_OFFSET };
-      // In its family's lodge, on its nest and as old as the host (note 42); with no lodge left it stands by the host as a grown beaver.
+      // In its family's lodge, on its nest and as old as the host (note 42); with no start lodge at all it stands by the host as a grown beaver.
       const guest = newGuest(pid, at, terrain, m.coat, m.look);
       const site = home !== null ? homes[home]! : null;
       this.seats.set(id, { guest: site?.lodge ? housed(guest, site.lodge, hostBornAt, site.parents ?? null) : guest, intent: { move: { x: 0, z: 0 } }, heard: now, home, family: home !== null ? homes[home]!.id ?? null : null });
@@ -545,9 +547,20 @@ export class Room {
       seat.guest = old ? outside(g, old, terrain0) : { ...g, inside: false };
     }
     // A guest grown up leaves its family's lodge: it is put out at the entrance and no longer lives there (as a kit leaves its pair lodge).
+    const grew: Lodge[] = [];
     for (const seat of this.seats.values()) {
       const g = seat.guest;
-      if (g.homeLodge && guestStage(g, world.clock) === 'adult') seat.guest = { ...(g.inside ? outside(g, g.homeLodge, terrain0) : g), homeLodge: null };
+      if (g.homeLodge && guestStage(g, world.clock) === 'adult') {
+        grew.push(g.homeLodge);
+        seat.guest = { ...(g.inside ? outside(g, g.homeLodge, terrain0) : g), homeLodge: null };
+      }
+    }
+    // The family of a lodge no guest lives in any more is left behind as a former home, as when the host grows up (#789).
+    for (const l of grew) {
+      const family = world.neighbours.find((n) => n.lodge.x === l.x && n.lodge.z === l.z);
+      const lived = [...this.seats.values()].some((s) => s.guest.homeLodge && s.guest.homeLodge.x === l.x && s.guest.homeLodge.z === l.z);
+      if (!family || lived || !lodgeComplete(family.lodge) || world.formerHomes.some((h) => h.x === l.x && h.z === l.z)) continue;
+      world = { ...world, neighbours: world.neighbours.filter((n) => n !== family), formerHomes: [...world.formerHomes, { ...family.lodge, wear: undefined, parents: family.parents }] };
     }
     const ended = world.pairLodges.filter((l) => (l.kitsAt === undefined ? !together(l) : grownUp(l)));
     if (ended.length === 0) return world;

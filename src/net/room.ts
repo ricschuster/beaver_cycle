@@ -19,7 +19,7 @@ import { INTERIOR_RADIUS, atNest, lodgeComplete, lodgeSolid, type Lodge } from '
 import { DAY_SECONDS, isNight, nextSpringStart } from '../sim/clock';
 import { pairLodgeOf, type PairLodge } from '../sim/pairLodge';
 import type { Coat } from '../sim/family';
-import { answer, ask as askSay, drop as dropSays, expire as expireSays, noSays, type AnswerId, type QuestionId, type Says } from './says';
+import { answer, ask as askSay, drop as dropSays, expire as expireSays, noSays, type AnswerId, type ReplyId, type SayId, type Says } from './says';
 import { accept, decline, drop as dropHide, frozen, hiddenFrom, invite, noteTo, step as stepHide, timeLeft, type Blocker, type HideGame, type Role, type Spot } from './hideGame';
 import { answer as answerSleep, ASK_TIME, isAsleep, leave as leaveSleep, lie, noSleep, tick as tickSleep, wake as wakeSleep, waitingFor, type Goal, type SleepCheck, type Step } from './sleepCheck';
 import { mergeInput, wireOf } from './dreamWire';
@@ -58,7 +58,7 @@ interface Seat {
   /** The family of that lodge, whose baby this guest plays. */
   family: string | null;
   /** A question this guest wants to put to the friend close by, until the next step finds who that is (#667). */
-  say?: QuestionId;
+  say?: SayId;
   /** A wish to lie down that the next step checks against where this guest stands (#661). */
   lie?: { g: Goal; dream: boolean; theme?: DreamTheme };
 }
@@ -518,12 +518,12 @@ export class Room {
   }
 
   /** `from` puts a question to `to`. */
-  say(from: string, to: string, q: QuestionId, now: number): void {
+  say(from: string, to: string, q: SayId, now: number): void {
     this.says = askSay(this.says, from, to, q, now);
   }
 
   /** `to` answers the latest question put to it. */
-  answer(to: string, a: AnswerId, now: number): void {
+  answer(to: string, a: ReplyId, now: number): void {
     this.says = answer(this.says, to, a, now);
   }
 

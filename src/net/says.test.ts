@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ANSWER_TIME, SAY_TIME, answer, ask, drop, expire, isAnswer, isQuestion, noSays } from './says';
+import { ANSWER_TIME, PHRASES, PHRASES_SHOWN, PICTURES, QUESTIONS, REPLIES, SAY_TIME, agrees, answer, ask, drop, expire, isAnswer, isQuestion, isReply, isSay, noSays, pickPhrases, pictureOf, repliesFor } from './says';
 
 describe('talk between players', () => {
   it('a question is put, and the friend answers the latest one', () => {
@@ -41,5 +41,48 @@ describe('talk between players', () => {
     expect(isQuestion('hack')).toBe(false);
     expect(isAnswer('later')).toBe(true);
     expect(isAnswer(3)).toBe(false);
+  });
+});
+
+describe('friendly phrases (#802)', () => {
+  it('draws a few different phrases, and a different few when the draw differs', () => {
+    let i = 0;
+    const walk = () => [0, 0.5, 0.99][i++ % 3]!;
+    const some = pickPhrases(walk);
+    expect(some).toHaveLength(PHRASES_SHOWN);
+    expect(new Set(some).size).toBe(PHRASES_SHOWN);
+    expect(pickPhrases(() => 0)).toEqual(PHRASES.slice(0, PHRASES_SHOWN));
+    expect(pickPhrases(() => 0.999)).not.toEqual(pickPhrases(() => 0));
+  });
+
+  it('never offers more phrases than there are', () => {
+    expect(pickPhrases(Math.random, 100)).toHaveLength(PHRASES.length);
+    expect(new Set(pickPhrases(Math.random, 100)).size).toBe(PHRASES.length);
+  });
+
+  it('knows a phrase from a question, and a reply from a yes or no', () => {
+    expect(isSay('look')).toBe(true);
+    expect(isSay('swim')).toBe(true);
+    expect(isQuestion('look')).toBe(false);
+    expect(isSay('<b>')).toBe(false);
+    expect(isReply('thanks')).toBe(true);
+    expect(isReply('swim')).toBe(false);
+    expect(isAnswer('thanks')).toBe(false);
+  });
+
+  it('answers a question yes or not now, and a phrase with a friendly word', () => {
+    expect(repliesFor('swim')).toEqual(['yes', 'good', 'later']);
+    expect(repliesFor('look')).toEqual(['metoo', 'thanks', 'wow']);
+    expect(agrees('yes') && agrees('good')).toBe(true);
+    expect(agrees('later') || agrees('wow') || agrees(undefined)).toBe(false);
+  });
+
+  it('carries a phrase and its reply like a question', () => {
+    const s = answer(ask(noSays(), 'host', 'g1', 'nicedam', 0), 'g1', 'thanks', 2);
+    expect(s.list).toEqual([{ n: 1, from: 'host', to: 'g1', q: 'nicedam', at: 0, a: 'thanks', answeredAt: 2 }]);
+  });
+
+  it('has a picture for every say and reply', () => {
+    for (const id of [...QUESTIONS, ...PHRASES, ...REPLIES]) expect(PICTURES).toContain(pictureOf(id));
   });
 });

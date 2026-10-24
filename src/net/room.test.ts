@@ -571,6 +571,15 @@ describe('the room', () => {
       expect(saysOf(room.snapshot(world), 'host').asked).toEqual([]);
     });
 
+    it('a guest says a phrase to the host, who replies with a friendly word', () => {
+      const room = near();
+      room.receive('g1', JSON.stringify({ t: 'say', q: 'nicedam' }), 1, host, ground);
+      room.step(world, 0.05, 1, ground, oneTree);
+      expect(saysOf(room.snapshot(world), 'host').asked.map((k) => [k.from, k.q])).toEqual([['g1', 'nicedam']]);
+      room.answer('host', 'thanks', 2);
+      expect(saysOf(room.snapshot(world), 'g1').answers.map((k) => [k.q, k.a])).toEqual([['nicedam', 'thanks']]);
+    });
+
     it('the host puts a question to a guest, who answers through the socket', () => {
       const room = near();
       const to = room.friendNear('host', host, host);

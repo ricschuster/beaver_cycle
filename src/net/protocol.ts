@@ -15,7 +15,7 @@ import type { HideGame, Role } from './hideGame';
 import type { Goal } from './sleepCheck';
 import type { DreamWire } from './dreamWire';
 import type { DreamInput, DreamTheme } from '../sim/dream';
-import { isAnswer, isQuestion, type AnswerId, type QuestionId, type Say } from './says';
+import { isAnswer, isReply, isSay, type AnswerId, type ReplyId, type SayId, type Say } from './says';
 
 /** The presses of Do and Take a guest's beaver can do so far: gnaw, build or mend a dam, hand food to a friend, strip a branch off a log, ask a friend to be partners or say yes; let go, put down, take a log, a pad, a rock, mud, or a piece put down. */
 export type GuestDo = 'gnaw' | 'build' | 'mend' | 'give' | 'strip' | 'partner' | 'eat' | 'store';
@@ -28,7 +28,7 @@ export const PORT = 8765;
 /** The host sends state this many times a second, and a guest sends its intent as often. */
 export const SEND_HZ = 20;
 
-export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'look'; coat: Coat; look: Look } | { t: 'sleep'; g: Goal; dream?: boolean; theme?: DreamTheme } | { t: 'sleep'; a: 'yes' | 'no' | 'wake' } | { t: 'dream'; input: DreamInput } | { t: 'say'; q?: QuestionId; a?: AnswerId } | { t: 'hide'; r?: Role; a?: AnswerId; to?: string } | { t: 'ping'; ts: number };
+export type ToHost = { t: 'hello'; coat: Coat; look: Look; key?: string } | { t: 'intent'; x: number; z: number; dive: boolean; diveTap?: boolean; gnaw: boolean; do?: GuestDo; take?: GuestTake } | { t: 'look'; coat: Coat; look: Look } | { t: 'sleep'; g: Goal; dream?: boolean; theme?: DreamTheme } | { t: 'sleep'; a: 'yes' | 'no' | 'wake' } | { t: 'dream'; input: DreamInput } | { t: 'say'; q?: SayId; a?: ReplyId } | { t: 'hide'; r?: Role; a?: AnswerId; to?: string } | { t: 'ping'; ts: number };
 
 /** What every guest needs of the world to draw it: the clock, the trees down, the logs, and every beaver but its own host-side state. */
 export interface Snapshot {
@@ -156,7 +156,7 @@ export function readToHost(text: string): ToHost | null {
     }
     return { t: 'dream', input: { move: { x, z }, hop: i.hop === true, slap: i.slap === true, play: i.play === true, ...(i.pick === 'hide' || i.pick === 'seek' ? { pick: i.pick } : {}) } };
   }
-  if (m.t === 'say') return isQuestion(m.q) ? { t: 'say', q: m.q } : isAnswer(m.a) ? { t: 'say', a: m.a } : null;
+  if (m.t === 'say') return isSay(m.q) ? { t: 'say', q: m.q } : isReply(m.a) ? { t: 'say', a: m.a } : null;
   if (m.t === 'hide') {
     const to = typeof m.to === 'string' && m.to.length <= 40 ? m.to : undefined;
     if (m.r === 'hide' || m.r === 'seek') return { t: 'hide', r: m.r, ...(to ? { to } : {}) };

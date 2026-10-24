@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FAMILY_KEEP_AWAY, FAMILY_START_TRUST, GIFT_REACH, GIVE_REACH, KIT_CLOSE, familyMood, familyTrust, giftFamilies, giveFamily, greetedBy,takerNear, reactFamilies, startleFamilies } from './familyMoods';
+import { FAMILY_KEEP_AWAY, FAMILY_START_TRUST, GIFT_REACH, GIVE_REACH, KIT_CLOSE, familyMood, familyTrust, giftFamilies, giveFamily, greetedBy, homeLearned, isOwnFamily, takerNear, reactFamilies, startleFamilies } from './familyMoods';
 import { FEED_TRUST, SLAP_TRUST } from './moods';
 import type { NeighbourBeaver } from './neighbours';
 import { createWorld, type WorldState } from './state';
@@ -101,5 +101,37 @@ describe('handing food over', () => {
     expect(takerNear([{ ...beaver('f', 'mama', 1, 0), carry: 'mud' }], holding.beaver)).toBeNull();
     expect(giveFamily(holding, [beaver('f', 'mama', GIVE_REACH + 1, 0)])).toBeNull();
     expect(giveFamily(world(), [beaver('f', 'mama', 1, 0)])).toBeNull();
+  });
+});
+
+describe('a guest at home (#784)', () => {
+  const lodge = { x: 40, z: -12 };
+  it('learns its home only while it is inside, and keeps it after coming out', () => {
+    expect(homeLearned(null, { inside: true, home: lodge })).toEqual(lodge);
+    expect(homeLearned(lodge, { inside: false })).toEqual(lodge);
+    expect(homeLearned(lodge, undefined)).toEqual(lodge);
+  });
+
+  it('knows nothing of a home when it never went inside', () => {
+    expect(homeLearned(null, { inside: false, home: lodge })).toBeNull();
+    expect(homeLearned(null, { inside: true })).toBeNull();
+    expect(homeLearned(null, undefined)).toBeNull();
+  });
+
+  it('does not alias the view, and a new lodge replaces the old one', () => {
+    const learned = homeLearned(null, { inside: true, home: lodge })!;
+    expect(learned).not.toBe(lodge);
+    expect(homeLearned(learned, { inside: true, home: { x: 5, z: 6 } })).toEqual({ x: 5, z: 6 });
+  });
+
+  it('takes the family at that lodge as its own, and no other', () => {
+    expect(isOwnFamily({ lodge: { x: 40, z: -12 } }, lodge)).toBe(true);
+    expect(isOwnFamily({ lodge: { x: 40, z: -11 } }, lodge)).toBe(false);
+    expect(isOwnFamily({ lodge: { x: 41, z: -12 } }, lodge)).toBe(false);
+  });
+
+  it('takes every family as new when no home is known, or the family is gone', () => {
+    expect(isOwnFamily({ lodge }, null)).toBe(false);
+    expect(isOwnFamily(undefined, lodge)).toBe(false);
   });
 });

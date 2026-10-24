@@ -33,7 +33,7 @@ import { BYE_SECONDS, TALK_END, LINE_SECONDS, choicesFor, factsFor, greeting, ne
 import { REPLY_LABEL } from './sim/talkLines';
 import { createTalkBubble } from './ui/talkBubble';
 import { createHideCount, hideLine } from './ui/hideCount';
-import { giftFamilies, giveFamily, greetedBy, takerNear, familyMood, familyTrust, reactFamilies, spreadWord, startleFamilies } from './sim/familyMoods';
+import { giftFamilies, giveFamily, greetedBy, homeLearned, isOwnFamily, takerNear, familyMood, familyTrust, reactFamilies, spreadWord, startleFamilies, type HomeSpot } from './sim/familyMoods';
 import { FEED_TRUST, banishFox, atStore, boltingDeer, feedAnimals, foxesAtStore, react, startle } from './sim/moods';
 import { lead, leaderAnimal } from './sim/guides';
 import { pondGuests, trackPonds } from './sim/pondGuests';
@@ -905,7 +905,7 @@ async function start(): Promise<void> {
     const fam = world.neighbours.find((f) => f.id === family);
     return fam ? pondName(fam.lodge, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver) : null;
   };
-  let ownHome: { x: number; z: number } | null = null; // the family lodge a guest was housed in, whose family needs no greeting
+  let ownHome: HomeSpot | null = null; // the family lodge a guest was housed in, whose family needs no greeting
   const greeted = new Set<string>(); // families that have greeted the beaver this visit (#342)
   const gave = new Set<string>(); // families given a gift this visit, and startled by a slap, for what they say of the player
   const slapped = new Set<string>();
@@ -1340,11 +1340,11 @@ async function start(): Promise<void> {
     const visit = { gifts: gave, slaps: slapped, greeted };
     const hello = greetedBy(familyBeavers, world);
     const mineView = link?.id ? lastSnap?.beavers.find((b) => b.id === link.id) : undefined;
-    if (mineView?.inside && mineView.home) ownHome = { x: mineView.home.x, z: mineView.home.z };
+    ownHome = homeLearned(ownHome, mineView);
     if (hello && !greeted.has(hello)) {
       const fam = world.neighbours.find((f) => f.id === hello);
       // A guest's own family is no new family to meet, so it gets no hint to put a branch down.
-      if (fam && ownHome && fam.lodge.x === ownHome.x && fam.lodge.z === ownHome.z) greeted.add(hello);
+      if (isOwnFamily(fam, ownHome)) greeted.add(hello);
       else {
         const pond = fam ? pondName(fam.lodge, world.formerHomes.at(-1) ?? world.lodge ?? world.beaver) : 'pond';
         // The deeds are read before the family counts as greeted, so a first meeting is a first meeting.

@@ -28,3 +28,20 @@ and the meaning is kept. The handout stays the source. The questions come from t
 - Q84: "the player picks the length" is read as a setting (for example short, medium, long) rather than a number to type. Check.
 - Q86: read as giving out the five vegetables and six names in order, going round again from the start, until the garden is full.
   Check that this is what was meant.
+
+## Audit of the open points (session 191, #790)
+
+The handoffs from sessions 157 to 162 listed Q77, Q78, Q80 to Q89 and Q116 as "answers still wanted". Every one of Q77 to Q89
+has an answer in the table above and a build behind it, so the list was out of date. What is really still open:
+
+| Q | State | Still to ask or check |
+| --- | --- | --- |
+| 77 | Answered and built (mending, #646). | Nothing. |
+| 78 | Built, half the units since #706, the level kept. | Whether half feels right, and whether a mended dam should keep its size. Tune on a tablet. |
+| 79 | Built (#707). The door is reachable at any pond level, pinned by a test in `lodge.test.ts`. | Nothing. The "not while building the lodge" part needs no rule, as the beaver is outside while it builds. |
+| 80 to 83, 85, 87, 88, 89 | Answered and built (#648 to #652, #708). | Tuning only (#762). |
+| 84 | Built with a fixed rush (`STATUE_RUSH_TIME`, 20 s). | The answer says the player picks how long the boost lasts. Ask: is a fixed rush enough, or should there be a short, medium and long choice? |
+| 86 | Built as read: five vegetables and six names in order, the garden full at six. | Confirm that this is what was meant, or add names. |
+| 116 | Built as three questions and Bye with Yes! and Not now (`src/net/says.ts`, note 42). | The answer was "not sure". Ask what friends most want to say, and whether a babble sound or a heart should go with it. |
+
+Q80 to Q89 and Q116 can stop appearing in the handoffs. Q78, Q84, Q86 and Q116 go into the next question handout.

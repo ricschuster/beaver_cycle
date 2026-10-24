@@ -4,6 +4,7 @@
 import type { Dam } from '../sim/dam';
 import type { Coat } from '../sim/family';
 import { guestStage, type Guest } from '../sim/guests';
+import type { Stage } from '../sim/life';
 import type { Food } from '../sim/food';
 import type { Dropped } from '../sim/haul';
 import type { Log } from '../sim/logs';
@@ -97,6 +98,8 @@ export interface BeaverView {
   carry?: Food | null;
   /** False for a host beaver that is not yet an adult, and so cannot be a partner (absent means grown). */
   grown?: boolean;
+  /** The life stage, so another tablet draws a teenager at a teenager's size (absent from an older host: baby when not grown, else adult). */
+  stage?: Stage;
   /** True while the beaver is in the round room of its pair lodge, so only a tablet in that room draws it (#666). */
   inside?: boolean;
   /** The clock a kit of a pair lodge was born at, and the coats of its two parents (note 48); absent for a beaver that has always been grown. */
@@ -184,5 +187,5 @@ export function intentOf(m: Extract<ToHost, { t: 'intent' }>): Intent {
 /** A guest as the others see it. */
 export function viewOfGuest(g: Guest, clock = 0): BeaverView {
   const b = g.beaver;
-  return { id: g.id, coat: g.coat, look: g.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: g.pace, chopping: g.chop !== null, haul: g.haul?.kind ?? null, carry: g.carry, drag: g.drag, grown: guestStage(g, clock) === 'adult', ...(g.inside ? { inside: true } : {}), ...(g.inside && g.homeLodge ? { home: g.homeLodge } : {}), ...(g.bornAt !== null ? { bornAt: g.bornAt, ...(g.parents ? { parents: g.parents } : {}) } : {}) };
+  return { id: g.id, coat: g.coat, look: g.look, x: b.x, y: b.y, z: b.z, mode: b.mode, heading: b.heading, pace: g.pace, chopping: g.chop !== null, haul: g.haul?.kind ?? null, carry: g.carry, drag: g.drag, grown: guestStage(g, clock) === 'adult', stage: guestStage(g, clock), ...(g.inside ? { inside: true } : {}), ...(g.inside && g.homeLodge ? { home: g.homeLodge } : {}), ...(g.bornAt !== null ? { bornAt: g.bornAt, ...(g.parents ? { parents: g.parents } : {}) } : {}) };
 }

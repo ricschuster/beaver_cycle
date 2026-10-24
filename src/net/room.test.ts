@@ -89,6 +89,26 @@ describe('the room', () => {
     expect(room.guests()[0]!.inside).toBe(true);
   });
 
+  it('lets a guest swim back into its family lodge, though the family lodge is solid round it for the host', () => {
+    const room = new Room(() => undefined);
+    const lodge = { x: 100, z: 0, base: 0, door: Math.PI / 2, wood: LODGE_WOOD };
+    const homes = [{ x: 100, z: 0, id: 'family:start:0', lodge, parents: [{ coat: 1, shade: 0 }, { coat: 2, shade: 0 }] as [{ coat: number; shade: number }, { coat: number; shade: number }] }];
+    room.open('a');
+    room.receive('a', hello, 0, host, ground, homes, 5 * DAY_SECONDS);
+    const g = room.guests()[0]!;
+    const d = doorPoint(lodge, DOOR_DISTANCE + 1.6);
+    g.inside = false;
+    g.beaver.x = d.x;
+    g.beaver.z = d.z;
+    g.beaver.mode = 'dive';
+    const w = { ...world, clock: 5 * DAY_SECONDS, neighbours: [{ id: 'family:start:0', lodge, parents: homes[0]!.parents, seed: 1 }] };
+    for (let i = 0; i < 40; i++) {
+      room.receive('a', intent({ x: -1, z: 0, dive: true }), i, host, ground);
+      room.step(w, 0.05, i, ground, oneTree);
+    }
+    expect(room.guests()[0]!.inside).toBe(true);
+  });
+
   it('ignores an intent before the hello, a second hello, and nonsense', () => {
     const sent: string[] = [];
     const room = new Room((_t, text) => sent.push(text));

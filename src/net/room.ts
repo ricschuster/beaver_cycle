@@ -61,6 +61,13 @@ interface Seat {
 
 const STILL: DreamInput = { move: { x: 0, z: 0 }, hop: false, slap: false, play: false };
 
+type Solid = { x: number; z: number; radius: number };
+
+/** The solids with a guest's own family lodge solid only as far as its dome, so the guest reaches the door and goes back in (as for a pair lodge). */
+function withDome(solids: readonly Solid[], home: Lodge | null): readonly Solid[] {
+  return home ? solids.map((k) => (k.x === home.x && k.z === home.z ? lodgeSolid(home) : k)) : solids;
+}
+
 /** What a sleeper is told once its sleep is settled: the clock moved, or its skip was refused and it wakes. */
 export type SleepNews = 'go' | 'stop';
 
@@ -369,7 +376,7 @@ export class Room {
         const to = this.partnerNear(seat.guest.id, seat.guest.beaver, world.beaver, hostAdult, seat.guest.inside, hostInside, world.clock);
         if (to) this.ask(seat.guest.id, to, now);
       }
-      const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock, dams, spots: world.spots, rocksTaken, dropped, ground, picked, stripped, pairLodges, ponds: world.ponds, partner: partnerOf(this.pairing, seat.guest.id) }, terrain, trees, solids);
+      const r = stepGuest(seat.guest, intent, dt, { felled, logs, clock: world.clock, dams, spots: world.spots, rocksTaken, dropped, ground, picked, stripped, pairLodges, ponds: world.ponds, partner: partnerOf(this.pairing, seat.guest.id) }, terrain, trees, withDome(solids, seat.guest.homeLodge));
       seat.guest = r.guest;
       // A press arrives once: the next step must not repeat it.
       seat.intent = { ...seat.intent, do: seat.intent.do === 'gnaw' ? 'gnaw' : null, take: null, diveTap: false };

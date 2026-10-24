@@ -76,6 +76,17 @@ function familiesNear(beavers: readonly NeighbourBeaver[], at: { x: number; z: n
 /** The nearest family within greeting range of the beaver, or null. */
 export const greetedBy = (beavers: readonly NeighbourBeaver[], world: Pick<WorldState, 'beaver'>): string | null => familiesNear(beavers, world.beaver, GREET_RANGE)[0] ?? null;
 
+/** A lodge spot, as a guest's snapshot view names the family lodge it is housed in. */
+export type HomeSpot = { x: number; z: number };
+
+/** The family lodge a guest was housed in: learned while its view says it is inside, kept after it comes out. */
+export const homeLearned = (known: HomeSpot | null, view: { inside?: boolean; home?: HomeSpot } | undefined): HomeSpot | null =>
+  view?.inside && view.home ? { x: view.home.x, z: view.home.z } : known;
+
+/** True when a neighbour family lives in the lodge the guest was housed in, so it is the guest's own family and needs no greeting. */
+export const isOwnFamily = (family: { lodge: HomeSpot } | undefined, home: HomeSpot | null): boolean =>
+  !!family && !!home && family.lodge.x === home.x && family.lodge.z === home.z;
+
 /**
  * Food the beaver put down (a branch or a lily pad lying on the ground) within `GIFT_REACH` of a family's beaver is taken by that
  * family, which trusts the beaver more. Returns the world, the ids of the families that took a gift, and each gift with its kind.

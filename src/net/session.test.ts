@@ -40,6 +40,19 @@ describe('joinHost', () => {
 
   const hello = { t: 'hello', coat: 0, look: 0 } as never;
 
+  it('counts the seconds the host has been quiet on a good link', () => {
+    const link = joinHost('10.0.0.2', hello);
+    expect(link.quietFor()).toBe(0);
+    sock(0).open();
+    sock(0).onmessage!({ data: JSON.stringify({ t: 'welcome', id: 'g1' }) });
+    vi.advanceTimersByTime(6000);
+    expect(link.quietFor()).toBe(6);
+    sock(0).onmessage!({ data: JSON.stringify({ t: 'welcome', id: 'g1' }) });
+    expect(link.quietFor()).toBe(0);
+    sock(0).close();
+    expect(link.quietFor()).toBe(0);
+  });
+
   it('reconnects with the same hello after a good link closed', () => {
     const link = joinHost('10.0.0.2', hello);
     sock(0).open();

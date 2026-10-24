@@ -93,6 +93,7 @@ Everyday (gate means CI blocks a merge on it):
 - `npm run dev`, then open `/tools/music-preview/` - the generative music alone (Valley, Dream, Off), with its own volume sliders and the ambient layers to judge the loudness against (query `?mood=dream` starts on the first touch)
 - `npm run dev`, then open `/tools/dream-preview/` - the candy land dream scene alone (query `?seed=N&t=2&tag=1&giggle=1`); in the
   game `?dream=1&seed=N` opens a dream at once, and the test menu has Dream now
+- `npm run host-bridge`, then `npm run dev` and open `/?hostbridge=1` - the laptop hosts for tablets on the WLAN (`tools/host-bridge/README.md`, ADR 0014; dev tools only)
 - `python3 prototypes/camera-demo/export_scene.py` - cut the camera demo scene
 - `python3 scripts/build_question_docx.py QUESTIONS.md OUT.docx TEMPLATE.docx` -
   build a printable handout

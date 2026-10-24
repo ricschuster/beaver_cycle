@@ -3,6 +3,7 @@
 import { PORT, readToGuest, type Snapshot, type ToHost } from './protocol';
 import type { HomeSite, Room } from './room';
 import type { Terrain } from '../sim/terrain';
+import { browserHostPlugin } from './browserHost';
 
 interface HostPlugin {
   start(o: { port: number }): Promise<{ ip: string; port: number }>;
@@ -11,8 +12,11 @@ interface HostPlugin {
   addListener(name: 'open' | 'close' | 'message' | 'error', fn: (e: { id?: string; text?: string; error?: string }) => void): Promise<unknown>;
 }
 
-/** The HostServer plugin, when this is the app that has it; a browser cannot host. */
+let bridgePlugin: HostPlugin | null = null;
+
+/** The HostServer plugin, when this is the app that has it; a browser cannot host, except a dev build with ?hostbridge=1 (tools/host-bridge). */
 export function hostPlugin(): HostPlugin | null {
+  if (__DEV_TOOLS__ && new URLSearchParams(location.search).has('hostbridge')) return (bridgePlugin ??= browserHostPlugin());
   return (window as unknown as { Capacitor?: { Plugins?: { HostServer?: HostPlugin } } }).Capacitor?.Plugins?.HostServer ?? null;
 }
 

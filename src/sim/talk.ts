@@ -4,12 +4,12 @@
 // The words come from the language tables (`talkLines.ts`). No DOM.
 import { t } from '../i18n';
 import { dateAt, isNight, DAY_SECONDS, DAYS_PER_SEASON, type Season } from './clock';
-import { atStore, stockMeals, stockTotal, storeCapacity, storeCondition } from './food';
+import { stockMeals, stockTotal, storeCapacity, storeCondition } from './food';
 import { FAMILY_START_TRUST, familyMood, familyTrust } from './familyMoods';
 import type { Mood } from './moods';
-import { damNeedsRepair, spotAt } from './dam';
+import { damNeedsRepair, } from './dam';
 import { stageAt, type Stage } from './life';
-import { atHole, lodgeComplete, lodgeCondition } from './lodge';
+import { lodgeComplete, lodgeCondition } from './lodge';
 import { LOW_STORE_MEALS } from './news';
 import { follower, mateOf } from './partners';
 import type { WorldState } from './state';

@@ -3,7 +3,7 @@
 // colours of the rainbow. The parts of each model that move together are merged into one mesh, so a beaver costs seven
 // draw calls instead of about thirty.
 import * as THREE from 'three';
-import { DAM_LOGS, LEAP_TIME, LODGE_LOGS, MALLOW_COLOURS, type DreamBeaver, type DreamBuild, type Mallow, type VegKind } from '../sim/dream';
+import { DAM_LOGS, LEAP_TIME, LODGE_LOGS, MALLOW_COLOURS, type DreamBeaver, type DreamBuild, type VegKind } from '../sim/dream';
 import { NOSE, TAIL, TEETH, createBeaverModel, ellipsoid, type BeaverModel } from './beaverModel';
 
 /** Seconds a marshmallow beaver squashes and stretches after a hop. */

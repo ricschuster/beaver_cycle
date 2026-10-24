@@ -462,6 +462,7 @@ async function start(): Promise<void> {
     if (room || netJoin) return;
     const mine = new Room(hostSender());
     mine.restorePairs(world.pairLodges);
+    mine.restoreMemory(world.guestMemory ?? []);
     hostLine = t('together.hostStarting');
     startHosting(mine, { hostAt: () => world.beaver, terrain, homes: () => world.neighbours.filter((n) => n.id.startsWith('family:start:')).map((n) => ({ x: n.lodge.x, z: n.lodge.z, id: n.id, lodge: n.lodge, parents: [...n.parents] as [Coat, Coat] })), bornAt: () => world.bornAt }, (s) => menu.setStatus(s)).then(
       (a) => {

@@ -10,6 +10,7 @@ import { DEFAULT_LOOK, cleanLook, type Look } from './look';
 import { bornAtFor, growUpDawn, stageAt, type Stage } from './life';
 import { emptyStock, type Food, type Stock } from './food';
 import type { PairLodge } from './pairLodge';
+import type { SavedGuest } from './guests';
 import type { DreamBuild } from './dream';
 import { DOOR_DISTANCE, NEST, atNest, doorPoint, lodgeComplete, type Lodge } from './lodge';
 import type { AchievementId } from './achievements';
@@ -171,6 +172,8 @@ export interface WorldState {
   /** The lodges that pairs of players build together (#666), shared by the host's world, and the id of the host's partner this frame ('host' has no partner when null). Set by the room, not saved. */
   pairLodges: PairLodge[];
   pairWith: string | null;
+  /** The guests this host remembers by their keys, so a guest that joins again is the same beaver (note 52). Kept by the room, saved with the world. */
+  guestMemory: SavedGuest[];
 }
 
 // Speeds from docs/design/09_game_length_and_speed.md. Walk and swim were set by the author on desktop (2x the first values), still to tune on a tablet.
@@ -225,7 +228,7 @@ export function settle(
 
 export function createWorld(terrain: Terrain, x = 0, z = 0): WorldState {
   const { y, mode } = settle(terrain, x, z, { mode: 'walk', y: 0 });
-  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, look: DEFAULT_LOOK, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, padAt: null, branchAt: null, rescued: [], guides: [], escort: null, leader: null, ledAt: {}, met: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, slaps: 0, meals: 0, branchesStripped: 0, longDives: 0, visited: [], winterStocked: false, fedKinds: [], guestKinds: [], homesIn: [], dreamed: false, dreamKept: [], winterClean: false, longWinter: false, scents: [], welcomed: [], speedMultiplier: 1, pairLodges: [], pairWith: null };
+  return { time: 0, clock: START_CLOCK, bornAt: bornAtFor(START_CLOCK, 'adult'), coat: { coat: coatOf(START_CLOCK), shade: 0 }, look: DEFAULT_LOOK, parentCoats: [...FIRST_PARENTS], generation: 0, inLodge: false, beaver: { x, y, z, mode, heading: 0, breath: 1 }, lastSlap: null, lodge: null, formerHomes: [], neighbours: [], predators: [], hurtAt: null, padAt: null, branchAt: null, rescued: [], guides: [], escort: null, leader: null, ledAt: {}, met: {}, trust: {}, pondSince: {}, partners: [], logs: [], drag: null, felled: [], chop: null, carry: null, haul: null, rocksTaken: [], dropped: [], spots: [], dams: [], ponds: [], pondCrests: {}, store: emptyStock(), stashOpen: false, stripped: {}, picked: {}, eaten: 0, achievements: [], journey: { start: START_CLOCK, felled: 0, inherited: [] }, padsPicked: 0, mended: 0, hauled: 0, slaps: 0, meals: 0, branchesStripped: 0, longDives: 0, visited: [], winterStocked: false, fedKinds: [], guestKinds: [], homesIn: [], dreamed: false, dreamKept: [], winterClean: false, longWinter: false, scents: [], welcomed: [], speedMultiplier: 1, pairLodges: [], pairWith: null, guestMemory: [] };
 }
 
 export function setSpeedMultiplier(world: WorldState, speedMultiplier: number): WorldState {

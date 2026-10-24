@@ -1,7 +1,7 @@
 // The host's side of a shared valley, without the socket (ADR 0014, #678): who is in, what each guest wants, and the state to send.
 // The plugin or a test feeds it messages and gives it a way to send text; it never touches the network itself.
 import type { Intent } from '../sim/buttons';
-import { guestStage, housed, newGuest, roomOf, outside, reborn, stepGuest, type Guest } from '../sim/guests';
+import { guestStage, housed, memoryOf, newGuest, placedAt, recalled, remembered, roomOf, outside, reborn, stepGuest, type Guest, type SavedGuest } from '../sim/guests';
 import type { Dam } from '../sim/dam';
 import type { Dropped } from '../sim/haul';
 import type { Picked } from '../sim/lily';
@@ -100,6 +100,14 @@ export class Room {
   private dreamNews = new Map<string, DreamEvent[]>();
   /** What each sleeper is told, until it takes it (`sleepNews`). */
   private news = new Map<string, SleepNews>();
+  /** The guests with a key of their own, as the host remembers them (note 52), by id; and the last place each stood outside. */
+  private memory: SavedGuest[] = [];
+  private outAt = new Map<string, { x: number; z: number }>();
+  private memoryJson = '[]';
+  private memoryAt = -Infinity;
+  private memoryDirty = false;
+  /** The world clock at the last step, to age a returning guest and to stamp a record. */
+  private clock: number | null = null;
   constructor(private readonly send: (to: string, text: string) => void) {}
 
   /** A connection opened at real second `now`: it waits for its hello, but not forever and not in any number. */
@@ -122,6 +130,8 @@ export class Room {
     const seat = this.seats.get(id);
     this.seats.delete(id);
     if (seat) {
+      // The last record stays (written about once a second while the guest was here); the next step hands it to the world.
+      this.memoryDirty = true;
       this.settle(leaveSleep(this.sleep, seat.guest.id, this.players(), 0));
       this.pairing = dropAsks(this.pairing, seat.guest.id);
       this.says = dropSays(this.says, seat.guest.id);
@@ -256,6 +266,22 @@ export class Room {
     this.pairing = restore(lodges);
   }
 
+  /** A host that starts again takes back the guests it remembers (note 52). */
+  restoreMemory(list: readonly SavedGuest[]): void {
+    this.memory = [...list];
+    this.memoryJson = JSON.stringify(this.memory);
+  }
+
+  /** The record of a seat now, kept for when the same key joins again. Only a guest with a key of its own has an id that starts with `g-`. */
+  private note(seat: Seat, world: Pick<WorldState, 'pairLodges'>): void {
+    const g = seat.guest;
+    if (!g.id.startsWith('g-') || this.clock === null) return;
+    const inPair = pairLodgeOf(world.pairLodges, g.id) !== null;
+    if (!g.inside) this.outAt.set(g.id, { x: g.beaver.x, z: g.beaver.z });
+    const out = this.outAt.get(g.id) ?? { x: g.beaver.x, z: g.beaver.z };
+    this.memory = remembered(this.memory, memoryOf(g, seat.family, g.inside && g.homeLodge !== null && !inPair, out, this.clock));
+  }
+
   /** The clock jumped by `delta` seconds (a test tool): the guests who were born as kits keep their age, as the host's beaver does (`setClock`). */
   shiftAges(delta: number): void {
     for (const seat of this.seats.values()) if (seat.guest.bornAt !== null) seat.guest = { ...seat.guest, bornAt: seat.guest.bornAt + delta };
@@ -279,20 +305,29 @@ export class Room {
       if (this.seats.has(id) || !this.strangers.has(id)) return;
       if (this.seats.size >= MAX_GUESTS) return;
       this.strangers.delete(id);
-      // The first free lodge of the five is the guest's home (note 42).
+      // A guest with a key of its own is the same player after a break (a pair and its lodge wait for it); else the connection is its id.
+      const pid = m.key && ![...this.seats.values()].some((s) => s.guest.id === `g-${m.key}`) ? `g-${m.key}` : id;
+      // The host remembers a guest by its key (note 52): the same beaver comes back, as old as the clock made it, at home or where it stood.
+      const rec = this.clock === null ? undefined : this.memory.find((r) => r.id === pid);
+      const back = rec && rec.bornAt !== null && stageAt(this.clock!, rec.bornAt) !== 'adult' ? rec : null;
+      // The first free lodge of the five is the guest's home (note 42); a young guest that comes back goes to the lodge of its own family while it stands.
       const used = [...this.seats.values()].map((s) => s.home);
       const free = homes.findIndex((_, i) => !used.includes(i));
       // With every lodge taken a guest is let into the one with the fewest guests (#789), so each has a home; with no lodge at all it stands by the host.
       const sharing = homes.map((_, i) => used.filter((u) => u === i).length);
-      const home = homes.length === 0 ? null : free >= 0 ? free : sharing.indexOf(Math.min(...sharing));
+      const own = back?.family ? homes.findIndex((h) => h.id === back.family && h.lodge) : -1;
+      const grownBack = rec !== undefined && back === null;
+      const home = grownBack ? null : homes.length === 0 ? null : own >= 0 ? own : free >= 0 ? free : sharing.indexOf(Math.min(...sharing));
       const n = this.seats.size + 1;
-      // A guest with a key of its own is the same player after a break (a pair and its lodge wait for it); else the connection is its id.
-      const pid = m.key && ![...this.seats.values()].some((s) => s.guest.id === `g-${m.key}`) ? `g-${m.key}` : id;
-      const at = home !== null ? { x: homes[home]!.x + HOME_OFFSET, z: homes[home]!.z } : { x: host.x + SPAWN_OFFSET * n, z: host.z + SPAWN_OFFSET };
+      const at = grownBack ? { x: rec.x, z: rec.z } : home !== null ? { x: homes[home]!.x + HOME_OFFSET, z: homes[home]!.z } : { x: host.x + SPAWN_OFFSET * n, z: host.z + SPAWN_OFFSET };
       // In its family's lodge, on its nest and as old as the host (note 42); with no start lodge at all it stands by the host as a grown beaver.
-      const guest = newGuest(pid, at, terrain, m.coat, m.look);
+      let guest = newGuest(pid, at, terrain, m.coat, m.look);
       const site = home !== null ? homes[home]! : null;
-      this.seats.set(id, { guest: site?.lodge ? housed(guest, site.lodge, hostBornAt, site.parents ?? null) : guest, intent: { move: { x: 0, z: 0 } }, heard: now, home, family: home !== null ? homes[home]!.id ?? null : null });
+      if (site?.lodge) guest = housed(guest, site.lodge, back?.bornAt ?? hostBornAt, site.parents ?? back?.parents ?? null);
+      if (rec) guest = recalled(guest, rec);
+      // Back from outside: where it last stood, not on its nest. A grown beaver that came back is simply there.
+      if (rec && !(back?.inside && site?.lodge)) guest = placedAt(guest, { x: rec.x, z: rec.z }, terrain);
+      this.seats.set(id, { guest, intent: { move: { x: 0, z: 0 } }, heard: now, home, family: home !== null ? homes[home]!.id ?? null : null });
       return this.reply(id, { t: 'welcome', id: pid });
     }
     const seat = this.seats.get(id);
@@ -325,6 +360,26 @@ export class Room {
 
   /** Every guest advanced by `dt`. Returns the world with what they changed: trees felled, the logs, the dams they built, the rocks taken. */
   step(world: WorldState, dt: number, now: number, ground: Terrain, trees: TreeSource): WorldState {
+    this.clock = world.clock;
+    return this.withMemory(this.stepGuests(world, dt, now, ground, trees), now);
+  }
+
+  /** About once a second, and at once after a guest left, the records of the guests here are brought up to date and handed to the world to be saved (note 52). */
+  private withMemory(world: WorldState, now: number): WorldState {
+    if (now - this.memoryAt >= 1 || this.memoryDirty) {
+      this.memoryAt = now;
+      this.memoryDirty = false;
+      for (const seat of this.seats.values()) this.note(seat, world);
+      const json = JSON.stringify(this.memory);
+      if (json !== this.memoryJson) {
+        this.memoryJson = json;
+        return { ...world, guestMemory: [...this.memory] };
+      }
+    }
+    return world;
+  }
+
+  private stepGuests(world: WorldState, dt: number, now: number, ground: Terrain, trees: TreeSource): WorldState {
     let { felled, logs, dams, rocksTaken, dropped, picked, stripped }: { felled: readonly string[]; logs: readonly Log[]; dams: readonly Dam[]; rocksTaken: readonly string[]; dropped: readonly Dropped[]; picked: Picked; stripped: Readonly<Record<string, number>> } = world;
     this.forget(now);
     const terrain = withPonds(ground, world.ponds);

@@ -44,4 +44,4 @@ has an answer in the table above and a build behind it, so the list was out of d
 | 86 | Built as read: five vegetables and six names in order, the garden full at six. | Settled: the author said it is good (session 191). |
 | 116 | Built as three questions and Bye with Yes! and Not now (`src/net/says.ts`, note 42). | The answer was "not sure". Ask what friends most want to say, and whether a babble sound or a heart should go with it. |
 
-Q80 to Q89 can stop appearing in the handoffs. Only Q116 is left, to talk through with the author.
+Q80 to Q89 can stop appearing in the handoffs. Q116 was talked through with the author and is decided in [46_round7_answers.md](46_round7_answers.md).

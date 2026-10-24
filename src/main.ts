@@ -15,7 +15,7 @@ import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/lif
 import { formerParentsAt, parentsAt, type Coat } from './sim/family';
 import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
-import { guestKey, pendingJoin, setPendingJoin } from './net/pending';
+import { guestKey, pendingJoin, saveGuestLook, savedGuestLook, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
 import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
 import { applySnapshot, friendBeaver, friendNearby, friendTaker, hideOf, othersOf, pairingOf, partnerCandidate, saysOf } from './net/view';
@@ -343,8 +343,9 @@ async function start(): Promise<void> {
   // The Join button of Settings keeps the address for the next run (src/net/pending.ts); ?join=IP does the same in a dev build.
   const pending = pendingJoin(sessionStorageOrNull());
   const netJoin = (__DEV_TOOLS__ ? query.get('join') : null) ?? pending?.address ?? null;
-  // The guest dresses as it did in its own game: the Join button kept the coat and the look.
-  if (netJoin && pending?.me) world = chooseLook(world, pending.me.coat, pending.me.look);
+  // The guest dresses as it did in its own game (the Join button kept the coat and the look), or else as it last joined.
+  const guestMe = netJoin ? pending?.me ?? savedGuestLook(storage) : null;
+  if (guestMe) world = chooseLook(world, guestMe.coat, guestMe.look);
   const startAs = netJoin ? 'adult' : STAGES.includes(stageParam as Stage) ? (stageParam as Stage) : navigator.webdriver ? 'adult' : 'baby';
   if (startAs !== 'adult') world = startStage(world, startAs);
   // The saved game (docs/design/26_saving.md): eight slots. With a saved game the player picks a slot on the start screen; ?slot=N
@@ -430,10 +431,11 @@ async function start(): Promise<void> {
     if (!lookPicked) await chooseNewLook();
     // The beaver's name names the game too, unless the player named the game already.
     if (!slotName) slotName = cleanName(world.look.name);
-  } else if (netJoin && !pending?.me && asksLook) {
+  } else if (netJoin && !guestMe && asksLook) {
     // A guest who joined from the start screen has no beaver of its own yet.
     await chooseNewLook();
   }
+  if (netJoin) saveGuestLook(storage, world.coat, world.look);
   const savedCoach = (): SavedCoach => ({ on: coachOn, stage: coachStage, state: coach?.state() ?? null });
   let savedAt = performance.now();
   const saveNow = (): void => {

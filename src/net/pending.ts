@@ -62,3 +62,23 @@ export function guestKey(storage: Pick<Storage, 'getItem' | 'setItem'> | null, r
     return undefined;
   }
 }
+
+const GUEST_LOOK = 'beaver-cycle.guest-look';
+
+/** The beaver this tablet last joined as, kept in the browser's storage, so a guest who joins again is not asked to dress it again. */
+export function savedGuestLook(storage: Pick<Storage, 'getItem'> | null): { coat: Coat; look: Look } | null {
+  try {
+    const o = JSON.parse(storage?.getItem(GUEST_LOOK) ?? 'null') as { coat?: unknown; look?: unknown } | null;
+    return o?.coat && o.look ? { coat: coatOf(o.coat), look: cleanLook(o.look as Partial<Look>) } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveGuestLook(storage: Pick<Storage, 'setItem'> | null, coat: Coat, look: Look): void {
+  try {
+    storage?.setItem(GUEST_LOOK, JSON.stringify({ coat, look }));
+  } catch {
+    // Not kept: the guest picks again next time.
+  }
+}

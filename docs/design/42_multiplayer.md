@@ -127,6 +127,10 @@ These are their own pieces of work, and each can be built and played alone befor
   `Snapshot.says`. The questions only ask, they change nothing in the game yet; a Yes to "play" is where hide and seek (#664)
   would start. The first set of questions is a guess, to tune with the author. Talking to families stays as in 27.
 
+  Decided in session 191 (Q116, issue #802): the card also offers a few phrases drawn at random from a longer list, not all at
+  once. Words are friendly only and change nothing in the game; what a Yes leads to is up to the players. A phrase plays a babble
+  and shows a picture over the speaker's head. A question gets more answers than Yes! and Not now. No typing.
+
 ## What stays unchanged
 
 The rules of the waking game stay the same for each beaver: chopping, building, food, wear, and life stages. Only what is shared

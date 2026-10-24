@@ -19,3 +19,15 @@ and the meaning is kept. The handout stays the source. The design is in [42_mult
 | 115 | Trading food | Put it on the ground, which is easiest. Gifts are good too, only working when the other beaver has nothing in its mouth. |
 | 116 | Talking | Not sure. Maybe the same kind of dialog as with other beavers. A player who is asked a question needs to be able to answer. |
 | 117 | More ideas | None yet. |
+
+## Talking, decided in session 191 (Q116)
+
+The author answered Q116 in a talk after the round:
+
+- A few random phrases join the fixed questions. They do not all show at once: the card offers a handful drawn from a longer list.
+- The words are only friendly words. Any action that follows depends on the player, so a Yes changes nothing in the game by itself.
+- A phrase shows as a babble sound and a picture over the head of the beaver that says it.
+- More answers than Yes! and Not now.
+- No typing.
+
+The build is in issue #802 and the Talk part of [42_multiplayer.md](42_multiplayer.md).

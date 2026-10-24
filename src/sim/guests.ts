@@ -43,7 +43,7 @@ export interface Guest {
   parents: [Coat, Coat] | null;
   /** The clock the guest was born at, once it is a kit of a pair lodge (note 48); null for a guest that has always been grown. */
   bornAt: number | null;
-  /** The lodge of the starting family the guest lives in, once it has taken one (note 42); null when it stands by the host. */
+  /** The lodge of the starting family the guest lives in, once it has taken one (note 42); null when it stands by the host or has grown up. */
   homeLodge: Lodge | null;
 }
 

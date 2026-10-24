@@ -42,7 +42,7 @@ describe('the room', () => {
     expect(Math.hypot(room.guests()[0]!.beaver.x, room.guests()[0]!.beaver.z)).toBeGreaterThan(1);
   });
 
-  it('gives each guest a free lodge of its own, then the host\'s side', () => {
+  it('gives each guest a free lodge of its own, then a shared one (#789)', () => {
     const room = new Room(() => undefined);
     const homes = [{ x: 100, z: 0, id: 'family:start:0' }, { x: 0, z: 100, id: 'family:start:1' }];
     for (const id of ['a', 'b', 'c']) {
@@ -53,14 +53,24 @@ describe('the room', () => {
     const [a, b, c] = room.guests();
     expect(near(a!, homes[0]!)).toBe(true);
     expect(near(b!, homes[1]!)).toBe(true);
-    expect(near(c!, host)).toBe(true);
-    expect(room.played()).toEqual(['family:start:0', 'family:start:1']);
+    expect(near(c!, homes[0]!)).toBe(true);
+    expect(room.played()).toEqual(['family:start:0', 'family:start:1', 'family:start:0']);
     expect(room.snapshot(world).played).toEqual(room.played());
     room.leave('a');
-    expect(room.played()).toEqual(['family:start:1']);
+    expect(room.played()).toEqual(['family:start:1', 'family:start:0']);
     room.open('d');
     room.receive('d', hello, 0, host, ground, homes);
     expect(near(room.guests().find((g) => g.id === 'd')!, homes[0]!)).toBe(true);
+  });
+
+  it('puts a guest by the host when the world has no start lodge at all', () => {
+    const room = new Room(() => undefined);
+    room.open('a');
+    room.receive('a', hello, 0, host, ground, []);
+    const g = room.guests()[0]!;
+    expect(Math.hypot(g.beaver.x - host.x, g.beaver.z - host.z)).toBeLessThan(20);
+    expect(g.homeLodge).toBeNull();
+    expect(room.played()).toEqual([]);
   });
 
   it('puts a guest on its nest in its family lodge, as old as the host, and shows its tablet the room', () => {
@@ -126,6 +136,28 @@ describe('the room', () => {
     expect(g.inside).toBe(false);
     expect(g.homeLodge).toBeNull();
     expect(Math.hypot(g.beaver.x - lodge.x, g.beaver.z - lodge.z)).toBeGreaterThan(SOLID_RADIUS);
+  });
+
+  it('leaves the family lodge as a former home when its last guest grows up (#789)', () => {
+    const room = new Room(() => undefined);
+    const lodge = { x: 100, z: 0, base: 0, door: Math.PI / 2, wood: LODGE_WOOD };
+    const parents: [{ coat: number; shade: number }, { coat: number; shade: number }] = [{ coat: 1, shade: 0 }, { coat: 2, shade: 0 }];
+    const homes = [{ x: 100, z: 0, id: 'family:start:0', lodge, parents }];
+    const born = 5 * DAY_SECONDS;
+    for (const id of ['a', 'b']) {
+      room.open(id);
+      room.receive(id, hello, 0, host, ground, homes, id === 'a' ? born : born + 600 * DAY_SECONDS);
+    }
+    const tree = { nearest: () => null, trunksNear: () => [] };
+    const w = { ...world, neighbours: [{ id: 'family:start:0', lodge, parents, seed: 1 }] };
+    const first = room.step({ ...w, clock: born + 400 * DAY_SECONDS }, 0.1, 1, ground, tree);
+    expect(first.formerHomes).toHaveLength(0);
+    expect(first.neighbours).toHaveLength(1);
+    const later = room.step({ ...w, clock: born + 800 * DAY_SECONDS }, 0.1, 2, ground, tree);
+    expect(later.formerHomes).toEqual([{ ...lodge, wear: undefined, parents }]);
+    expect(later.neighbours).toHaveLength(0);
+    const again = room.step(later, 0.1, 3, ground, tree);
+    expect(again.formerHomes).toHaveLength(1);
   });
 
   it('ignores an intent before the hello, a second hello, and nonsense', () => {

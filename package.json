@@ -11,6 +11,7 @@
     "check:release": "node scripts/check-release.mjs",
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit",
+    "lint": "biome lint",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:release": "npm run build && playwright test -c playwright.release.config.ts",
@@ -20,6 +21,7 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.2",
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.4",
     "@types/three": "^0.186.0",

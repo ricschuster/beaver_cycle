@@ -5,7 +5,7 @@ import type { Terrain } from './terrain';
 import { atStore, branchFactor, padFactor, storeCapacity, storeCondition, strippable, tapped, trimmed } from './food';
 import { pickedPad, reachablePad } from './lily';
 import { DOOR_DISTANCE, ENTER_DISTANCE, LODGE_WOOD, addWood, logWood, atDoor, atHole, clampInterior, doorPoint, holeSolid, lodgeComplete, lodgeCondition, followPond, lodgeSolid, nearLodge, towardDoor, type Lodge } from './lodge';
-import { damAt, placed, spotAt } from './dam';
+import { placed, spotAt } from './dam';
 import { pairLodgeOf, placeLog, type PairLodge } from './pairLodge';
 import { refineNear, withNewSpots } from './newSpots';
 import { pondsAt, withPonds } from './pond';

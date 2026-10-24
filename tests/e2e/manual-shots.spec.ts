@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test } from '@playwright/test';
-import { dragLog, fellNearestTree, goToNearestSpot, hasTiles, startGame, tap, walkToPoint, world } from './helpers';
+import { dragLog, fellNearestTree, goToNearestSpot, hasTiles, startGame, walkToPoint, world } from './helpers';
 // Takes the pictures for the manual (public/manual/*.jpg) from the real valley, in a tablet sized window. It does nothing
 // unless MANUAL_SHOTS names a folder, so CI and the other playtests skip it. Run it again when the look of the game changes:
 //   MANUAL_SHOTS=public/manual npx playwright test tests/e2e/manual-shots.spec.ts

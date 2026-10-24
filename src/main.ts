@@ -15,7 +15,7 @@ import { STAGES, STAGE_RULES, isCalledBack, lifeAt, type Stage } from './sim/lif
 import { formerParentsAt, parentsAt, type Coat } from './sim/family';
 import { homeDam } from './sim/routines';
 import { AnimalField, capFor, type Animal } from './sim/animals';
-import { cleanAddress, guestKey, pendingJoin, setPendingJoin } from './net/pending';
+import { guestKey, pendingJoin, setPendingJoin } from './net/pending';
 import { Room } from './net/room';
 import { canPlayTogether, hostPlugin, hostSender, joinHost, startHosting, type GuestLink } from './net/session';
 import { applySnapshot, friendBeaver, friendNearby, friendTaker, hideOf, othersOf, pairingOf, partnerCandidate, saysOf } from './net/view';

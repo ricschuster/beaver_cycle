@@ -56,6 +56,7 @@ Everyday (gate means CI blocks a merge on it):
 - `npm ci` - install the game dependencies
 - `npm run dev` - Vite dev server, also on the WLAN for a tablet
 - `npm run typecheck` - TypeScript check (gate)
+- `npm run lint` - Biome lint of `src/`, `tests/`, `tools/` and `scripts/` (gate; `biome.json`, no formatter; the stylistic rules the code does not follow, such as `!` and assignments in expressions, are off; typescript-eslint does not support TypeScript 7 yet)
 - `npm test` - Vitest unit tests (gate)
 - `npm run build` - type check and release build into `dist/` (gate), without the test menu, the dev URL parameters and `window.__game` ([ADR 0013](docs/decisions/0013-dev-tools-compile-time-flag.md)); `npm run check:release` fails if `dist/` still holds them (gate); `npm run build:devtools` keeps them (the Pages site)
 - `npm run test:release` - builds the release build and runs a short browser test on it with `vite preview` (`tests/release/`, gate in the `build` CI job, 25 s): no test menu, no `window.__game`, dev URL parameters ignored, Settings choices kept

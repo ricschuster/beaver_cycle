@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LOOK } from '../sim/look';
-import { cleanAddress, guestKey, pendingJoin, setPendingJoin } from './pending';
+import { cleanAddress, guestKey, pendingJoin, saveGuestLook, savedGuestLook, setPendingJoin } from './pending';
 
 const store = () => {
   const data = new Map<string, string>();
@@ -55,5 +55,22 @@ describe('the guest key', () => {
 
   it('is none without storage', () => {
     expect(guestKey(null)).toBeUndefined();
+  });
+});
+
+describe('the guest look kept between joins', () => {
+  it('gives back the coat and look it was given', () => {
+    const s = store();
+    expect(savedGuestLook(s)).toBeNull();
+    saveGuestLook(s, { coat: 2, shade: 1 } as never, { hat: 1, scarf: 2, tail: 0, name: 'Pip' });
+    const back = savedGuestLook(s);
+    expect(back?.look).toEqual({ hat: 1, scarf: 2, tail: 0, name: 'Pip' });
+    expect(back?.coat).toEqual({ coat: 2, shade: 1 });
+  });
+
+  it('is none for junk or blocked storage', () => {
+    expect(savedGuestLook({ getItem: () => 'not json' })).toBeNull();
+    expect(savedGuestLook(null)).toBeNull();
+    expect(() => saveGuestLook({ setItem: () => { throw new Error('blocked'); } }, { coat: 0, shade: 0 } as never, { hat: 0, scarf: 0, tail: 0, name: '' })).not.toThrow();
   });
 });
